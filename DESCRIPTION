@@ -1,0 +1,46 @@
+Package: dataganger
+Title: Synthetic Data Doubles for Safer Prototyping
+Version: 0.0.0.9000
+Authors@R: person("Lennon", "Li",
+                  email = "yeli@biostats.ai",
+                  role = c("aut", "cre"))
+Description: Creates synthetic data doubles from real datasets for prototyping,
+    teaching, Shiny development, and AI-assisted programming. Provides data
+    profiling, role detection, configurable synthesis, utility comparison, and
+    disclosure-risk warnings. Synthetic outputs are intended to reduce direct
+    disclosure risk, not to guarantee privacy.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 4.1.0)
+Imports:
+    cli,
+    dplyr,
+    haven,
+    jsonlite,
+    purrr,
+    readr,
+    readxl,
+    rlang,
+    stats,
+    tibble,
+    tidyr,
+    utils,
+    vctrs,
+    withr,
+    zip
+Suggests:
+    DT,
+    ggplot2,
+    knitr,
+    rmarkdown,
+    shiny,
+    spelling,
+    synthpop,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/lennon-li/dataganger
+BugReports: https://github.com/lennon-li/dataganger/issues
+Config/roxygen2/version: 8.0.0
