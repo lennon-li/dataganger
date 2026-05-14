@@ -77,7 +77,7 @@ compare_dataset <- function(orig, syn) {
     synthetic          = c(nrow(syn),  ncol(syn),  NA_integer_,
                            NA_real_, NA_real_, miss_syn),
     value              = c(NA_real_, NA_real_, NA_real_,
-                           sum(type_match) / length(type_match) * 100,
+                            if (length(type_match) == 0) NA_real_ else sum(type_match) / length(type_match) * 100,
                            NA_real_, NA_real_)
   )
 }

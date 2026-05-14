@@ -43,7 +43,8 @@ privacy_check <- function(original, synthetic = NULL, roles = NULL,
     flags <- privacy_check_post(original, synthetic, roles, spec)
   }
 
-  flags$stage <- stage
+  attr(flags, "stage")   <- stage
+  attr(flags, "n_flags") <- nrow(flags)
   class(flags) <- c("dataganger_privacy_check", class(flags))
 
   flags
@@ -160,8 +161,8 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
     match_cols <- setdiff(common_cols, id_cols)
 
     if (length(match_cols) > 0) {
-      orig_key <- apply(original[, match_cols, drop = FALSE], 1, paste, collapse = "\r")
-      syn_key  <- apply(synthetic[, match_cols, drop = FALSE], 1, paste, collapse = "\r")
+      orig_key <- apply(original[, match_cols, drop = FALSE], 1, paste, collapse = "\x01\x02\x03")
+      syn_key  <- apply(synthetic[, match_cols, drop = FALSE], 1, paste, collapse = "\x01\x02\x03")
       n_exact <- sum(syn_key %in% orig_key, na.rm = TRUE)
       if (n_exact > 0) {
         flags[[length(flags) + 1]] <- make_flag("(dataset)",
@@ -251,7 +252,7 @@ make_flag <- function(variable, flag, severity, recommendation) {
 
 #' @export
 print.dataganger_privacy_check <- function(x, ...) {
-  cli::cli_h1("DataGangeR Privacy Check ({x$stage[1]} stage)")
+  cli::cli_h1("DataGangeR Privacy Check ({attr(x, \"stage\")} stage)")
 
   if (nrow(x) == 0) {
     cli::cli_alert_success("No flags raised.")

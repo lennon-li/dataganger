@@ -256,7 +256,7 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
 
 apply_privacy_hardening <- function(spec, privacy, roles) {
   if (is.null(privacy)) return(spec)
-  if (is.null(privacy$stage) || privacy$stage != "pre") return(spec)
+  if (is.null(attr(privacy, "stage")) || attr(privacy, "stage") != "pre") return(spec)
 
   flags <- if (inherits(privacy, "dataganger_privacy_check")) {
     privacy
