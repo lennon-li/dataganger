@@ -32,12 +32,30 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
   cols <- vector("list", ncol(data))
   names(cols) <- names(data)
 
+  # --- remove_ids guard (C11 privacy hardening) ---
+  if (isTRUE(spec$remove_ids) && !is.null(role_lookup)) {
+    id_cols <- names(role_lookup)[role_lookup == "ID candidate"]
+    if (length(id_cols) > 0) {
+      cli::cli_inform(c(
+        "i" = "{.arg remove_ids} is TRUE: masking {length(id_cols)} ID column{?s}",
+        " " = "{.val {id_cols}}"
+      ))
+    }
+  }
+
   for (i in seq_len(ncol(data))) {
     col_name <- names(data)[i]
     x <- data[[i]]
 
     # Determine role for this column
     role <- role_lookup[[col_name]] %||% "unknown"
+
+    # remove_ids: mask ID columns with NA
+    if (isTRUE(spec$remove_ids) && !is.null(role_lookup) &&
+        role == "ID candidate") {
+      cols[[i]] <- rep(NA_character_, n)
+      next
+    }
 
     # Free text handling
     if (role == "free text" || (!is.null(spec$free_text_strategy) &&
@@ -133,5 +151,6 @@ synth_posixct <- function(x, n, coarsen_dates = TRUE, missing_strategy = "approx
 }
 
 coarsen_posixct_to_day <- function(ts) {
-  as.POSIXct(format(ts, "%Y-%m-%d"))
+  tz <- attr(ts, "tzone") %||% ""
+  as.POSIXct(format(ts, "%Y-%m-%d", tz = tz), tz = tz)
 }

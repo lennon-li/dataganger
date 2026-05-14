@@ -13,7 +13,11 @@ synthesize_schema <- function(data, spec, roles = NULL) {
   nms <- names(data)
   types <- lapply(data, function(col) {
     if (haven::is.labelled(col)) {
-      rep(haven::labelled(), 0)
+      haven::labelled(
+        double(0),
+        labels = attr(col, "labels", exact = TRUE),
+        label  = attr(col, "label",  exact = TRUE)
+      )
     } else if (inherits(col, "Date")) {
       as.Date(character(0))
     } else if (inherits(col, "POSIXct")) {

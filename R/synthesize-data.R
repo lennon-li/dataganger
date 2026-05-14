@@ -65,9 +65,6 @@ synthesize_data <- function(data, spec, roles = NULL,
       }
     )
 
-    # [2.13] Apply name_strategy
-    syn <- apply_name_strategy(syn, spec, data)
-
     syn
   }
 
@@ -85,6 +82,9 @@ synthesize_data <- function(data, spec, roles = NULL,
   attr(syn, "seed_used")     <- seed_used
   attr(syn, "generated_at")  <- Sys.time()
   class(syn) <- c("dataganger_synthetic", class(syn))
+
+  # [2.13] Apply name_strategy (after spec attr is set so name_map survives)
+  syn <- apply_name_strategy(syn, spec, data)
 
   syn
 }
@@ -109,9 +109,12 @@ apply_name_strategy <- function(syn, spec, original) {
   }
 
   if (strategy == "dictionary_only") {
-    # Store original name mapping in attribute, rename to generic
+    # Store original name mapping inside the spec attribute so it survives
+    # dplyr operations that silently drop bare tibble attributes.
     name_map <- stats::setNames(names(syn), generic_names)
-    attr(syn, "name_map") <- name_map
+    spec_attr <- attr(syn, "spec")
+    spec_attr$name_map <- name_map
+    attr(syn, "spec") <- spec_attr
     names(syn) <- generic_names
     return(syn)
   }

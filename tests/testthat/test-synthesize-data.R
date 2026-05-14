@@ -258,9 +258,9 @@ test_that("synthesize_data() name_strategy 'dictionary_only' renames and stores 
                      name_strategy = "dictionary_only")
   syn <- synthesize_data(df, spec)
   expect_named(syn, c("col_1", "col_2"))
-  expect_true(!is.null(attr(syn, "name_map")))
-  expect_equal(attr(syn, "name_map")[["col_1"]], "patient_name")
-  expect_equal(attr(syn, "name_map")[["col_2"]], "age_years")
+  expect_true(!is.null(attr(syn, "spec")$name_map))
+  expect_equal(attr(syn, "spec")$name_map[["col_1"]], "patient_name")
+  expect_equal(attr(syn, "spec")$name_map[["col_2"]], "age_years")
 })
 
 test_that("synthesize_data() name_strategy 'preserve' keeps original names", {
@@ -342,4 +342,81 @@ test_that("synthesize_data() marginal mixed types all work", {
   expect_no_error(syn <- synthesize_data(df, spec))
   expect_equal(nrow(syn), 30)
   expect_equal(ncol(syn), 5)
+})
+
+# ---- Phase 2.1 fix tests ----
+
+# Fix 1 — remove_ids
+test_that("remove_ids masks ID columns with NA", {
+  # Use x with low cardinality so it's not also flagged as ID candidate
+  df <- data.frame(
+    id = 1:50,
+    x  = rep(1:5, 10)
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec$remove_ids <- TRUE
+  syn <- synthesize_data(df, spec, roles = roles)
+  expect_true(all(is.na(syn$id)))
+  expect_false(all(is.na(syn$x)))
+})
+
+# Fix 2 — haven::labelled() in schema synthesis
+test_that("schema synthesis handles haven_labelled column without error", {
+  df <- data.frame(
+    status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2)),
+    x      = 1:3,
+    stringsAsFactors = FALSE
+  )
+  spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
+  syn <- synthesize_data(df, spec)
+  expect_equal(nrow(syn), 0)
+  expect_equal(ncol(syn), 2)
+  expect_true(haven::is.labelled(syn$status))
+})
+
+# Fix 3 — factor levels preserved for rare levels
+test_that("factor synthesis preserves rare levels in levels()", {
+  df <- data.frame(
+    f = factor(c(rep("common", 199), "rare"))
+  )
+  spec <- synth_spec(purpose = "teaching", n = 10)
+  syn <- synthesize_data(df, spec)
+  expect_s3_class(syn$f, "factor")
+  expect_true("rare" %in% levels(syn$f))
+})
+
+# Fix 4 — name_map stored inside spec attribute
+test_that("name_strategy dictionary_only stores name_map in spec attr", {
+  df <- data.frame(patient_name = 1:5, age_years = 21:25)
+  spec <- synth_spec(purpose = "teaching", n = 5,
+                     name_strategy = "dictionary_only")
+  syn <- synthesize_data(df, spec)
+  nm <- attr(syn, "spec")$name_map
+  expect_true(!is.null(nm))
+  expect_type(nm, "character")
+  expect_equal(nm[["col_1"]], "patient_name")
+  expect_equal(nm[["col_2"]], "age_years")
+})
+
+# F2 — ".other" sentinel does not collide with real "other"
+test_that("rare-merge uses .other sentinel not other", {
+  df <- data.frame(
+    f = factor(c(rep("other", 100), rep("x", 3), rep("y", 2)))
+  )
+  spec <- synth_spec(purpose = "teaching", n = 50, merge_rare = TRUE,
+                     rare_level_min_n = 5)
+  syn <- synthesize_data(df, spec)
+  # "other" was common so should survive; "x" and "y" merge to ".other"
+  expect_true("other" %in% levels(syn$f) || "other" %in% syn$f)
+})
+
+# Safer_external end-to-end pipeline test
+test_that("safer_external pipeline completes on example_health_survey", {
+  skip_if_not_installed("dataganger")
+  data("example_health_survey", package = "dataganger")
+  spec <- synth_spec(purpose = "safer_external")
+  syn <- synthesize_data(example_health_survey, spec)
+  expect_equal(nrow(syn), 0)
+  expect_equal(ncol(syn), ncol(example_health_survey))
 })

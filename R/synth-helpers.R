@@ -74,13 +74,13 @@ synth_categorical <- function(x, n, rare_level_min_n = 5,
       merged <- tbl_nms[!rare_mask]
       # Replace rare in observed data
       rare_vals <- tbl_nms[rare_mask]
-      x_obs[x_obs %in% rare_vals] <- "other"
+      x_obs[x_obs %in% rare_vals] <- ".other"
       # Recompute table
       tbl <- table(x_obs)
       tbl_nms <- names(tbl)
       tbl_counts <- as.integer(tbl)
-      # Track whether "other" exists in levels
-      levs <- c(levs[!levs %in% rare_vals], "other")
+      # Track whether ".other" exists in levels
+      levs <- c(levs[!levs %in% rare_vals], ".other")
     }
   }
 
@@ -90,12 +90,12 @@ synth_categorical <- function(x, n, rare_level_min_n = 5,
 
   # Convert back to factor if input was factor
   if (is.factor(x)) {
-    if ("other" %in% synth && !"other" %in% levels(x)) {
-      all_levs <- c(levels(x), "other")
+    if (".other" %in% synth && !".other" %in% levels(x)) {
+      all_levs <- c(levels(x), ".other")
     } else {
       all_levs <- levels(x)
     }
-    synth <- factor(synth, levels = intersect(all_levs, unique(synth)))
+    synth <- factor(synth, levels = all_levs)
   }
 
   # Apply missingness
@@ -190,7 +190,7 @@ synth_character <- function(x, n, rare_level_min_n = 5,
     rare_mask <- tbl_counts < rare_level_min_n
     if (any(rare_mask)) {
       rare_vals <- tbl_nms[rare_mask]
-      x_obs[x_obs %in% rare_vals] <- "other"
+      x_obs[x_obs %in% rare_vals] <- ".other"
       tbl <- table(x_obs)
       tbl_nms <- names(tbl)
       tbl_counts <- as.integer(tbl)
