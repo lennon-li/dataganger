@@ -2,13 +2,13 @@
 
 # ---- Schema synthesis ----
 
-test_that("synthesize_data() schema level returns 0-row tibble", {
+test_that("synthesize_data() schema level returns typed placeholder rows", {
   df <- data.frame(x = 1:5, y = letters[1:5])
   spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
   expect_s3_class(syn, "dataganger_synthetic")
   expect_s3_class(syn, "tbl_df")
-  expect_equal(nrow(syn), 0)
+  expect_equal(nrow(syn), nrow(df))
   expect_equal(ncol(syn), 2)
   expect_named(syn, c("x", "y"))
 })
@@ -32,14 +32,14 @@ test_that("synthesize_data() schema preserves types", {
 })
 
 test_that("synthesize_data() schema with haven_labelled", {
-  df <- data.frame(
-    status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2)),
-    stringsAsFactors = FALSE
+  df <- tibble::tibble(
+    status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2))
   )
-  spec <- synth_spec(purpose = "safer_external")
+  spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
-  expect_equal(nrow(syn), 0)
+  expect_equal(nrow(syn), nrow(df))
   expect_equal(ncol(syn), 1)
+  expect_type(syn$status, "character")
 })
 
 # ---- Marginal synthesis ----
@@ -89,17 +89,17 @@ test_that("synthesize_data() marginal logical column", {
 })
 
 test_that("synthesize_data() marginal haven_labelled column", {
-  df <- data.frame(
+  df <- tibble::tibble(
     status = haven::labelled(
       c(1, 2, 1, 2, 1),
       labels = c(Active = 1, Inactive = 2),
       label = "Status"
-    ),
-    stringsAsFactors = FALSE
+    )
   )
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "teaching", n = 20, merge_rare = FALSE)
   syn <- synthesize_data(df, spec)
-  expect_true(haven::is.labelled(syn$status))
+  expect_type(syn$status, "character")
+  expect_true(all(stats::na.omit(syn$status) %in% c("Active", "Inactive")))
 })
 
 test_that("synthesize_data() marginal POSIXct column", {
@@ -190,16 +190,16 @@ test_that("synthesize_data() all-NA character column", {
 })
 
 test_that("synthesize_data() all-NA haven_labelled column", {
-  df <- data.frame(
+  df <- tibble::tibble(
     x = haven::labelled(
       rep(NA_real_, 5),
       labels = c(A = 1, B = 2)
-    ),
-    stringsAsFactors = FALSE
+    )
   )
   spec <- synth_spec(purpose = "teaching", n = 5)
   syn <- synthesize_data(df, spec)
   expect_true(all(is.na(syn$x)))
+  expect_type(syn$x, "character")
 })
 
 test_that("synthesize_data() 1-level factor does not error", {
@@ -217,12 +217,11 @@ test_that("synthesize_data() 0-row input schema works", {
   expect_equal(ncol(syn), 2)
 })
 
-test_that("synthesize_data() 0-row input marginal works", {
-  df <- data.frame(x = numeric(0), y = character(0))
-  spec <- synth_spec(purpose = "teaching", n = 0)
-  syn <- synthesize_data(df, spec)
-  expect_equal(nrow(syn), 0)
-  expect_equal(ncol(syn), 2)
+test_that("synth_spec() rejects n = 0 for public API", {
+  expect_error(
+    synth_spec(purpose = "teaching", n = 0),
+    "must be > 0"
+  )
 })
 
 test_that("synthesize_data() 1-row input does not error", {
@@ -250,6 +249,8 @@ test_that("synthesize_data() name_strategy 'generic' renames columns", {
   spec <- synth_spec(purpose = "teaching", n = 5, name_strategy = "generic")
   syn <- synthesize_data(df, spec)
   expect_named(syn, c("col_1", "col_2"))
+  expect_equal(attr(syn, "spec")$name_map[["patient_name"]], "col_1")
+  expect_equal(attr(syn, "spec")$name_map[["age_years"]], "col_2")
 })
 
 test_that("synthesize_data() name_strategy 'dictionary_only' renames and stores map", {
@@ -259,8 +260,8 @@ test_that("synthesize_data() name_strategy 'dictionary_only' renames and stores 
   syn <- synthesize_data(df, spec)
   expect_named(syn, c("col_1", "col_2"))
   expect_true(!is.null(attr(syn, "spec")$name_map))
-  expect_equal(attr(syn, "spec")$name_map[["col_1"]], "patient_name")
-  expect_equal(attr(syn, "spec")$name_map[["col_2"]], "age_years")
+  expect_equal(attr(syn, "spec")$name_map[["patient_name"]], "col_1")
+  expect_equal(attr(syn, "spec")$name_map[["age_years"]], "col_2")
 })
 
 test_that("synthesize_data() name_strategy 'preserve' keeps original names", {
@@ -363,16 +364,15 @@ test_that("remove_ids masks ID columns with NA", {
 
 # Fix 2 — haven::labelled() in schema synthesis
 test_that("schema synthesis handles haven_labelled column without error", {
-  df <- data.frame(
+  df <- tibble::tibble(
     status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2)),
-    x      = 1:3,
-    stringsAsFactors = FALSE
+    x      = 1:3
   )
   spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
-  expect_equal(nrow(syn), 0)
+  expect_equal(nrow(syn), nrow(df))
   expect_equal(ncol(syn), 2)
-  expect_true(haven::is.labelled(syn$status))
+  expect_type(syn$status, "character")
 })
 
 # Fix 3 — factor levels preserved for rare levels
@@ -395,8 +395,8 @@ test_that("name_strategy dictionary_only stores name_map in spec attr", {
   nm <- attr(syn, "spec")$name_map
   expect_true(!is.null(nm))
   expect_type(nm, "character")
-  expect_equal(nm[["col_1"]], "patient_name")
-  expect_equal(nm[["col_2"]], "age_years")
+  expect_equal(nm[["patient_name"]], "col_1")
+  expect_equal(nm[["age_years"]], "col_2")
 })
 
 # F2 — ".other" sentinel does not collide with real "other"
@@ -417,6 +417,6 @@ test_that("safer_external pipeline completes on example_health_survey", {
   data("example_health_survey", package = "dataganger")
   spec <- synth_spec(purpose = "safer_external")
   syn <- synthesize_data(example_health_survey, spec)
-  expect_equal(nrow(syn), 0)
+  expect_equal(nrow(syn), nrow(example_health_survey))
   expect_equal(ncol(syn), ncol(example_health_survey))
 })

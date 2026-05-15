@@ -85,49 +85,70 @@ detect_single_role <- function(x, name, n_rows) {
 
   # --- Threshold tests in order ---
 
-  # Test 1: high cardinality → ID candidate
-  if (n_distinct / n_rows >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
-    return(make_role_row(name, r_class, "ID candidate", "n_distinct/nrow >= 0.95", TRUE))
-  }
-
-  # Test 2: name matches ID patterns
-  id_pattern <- "(?i)(^id$|_id$|^subject|^patient|^record|^case_no)"
-  if (grepl(id_pattern, name, perl = TRUE)) {
-    return(make_role_row(name, r_class, "ID candidate", paste0("name matches ID pattern: ", id_pattern), TRUE))
-  }
-
-  # Test 3: Date or POSIXct
-  if (r_class %in% c("Date", "POSIXct")) {
-    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", TRUE))
-  }
-
-  # Test 4: haven_labelled
+  # Test 1: haven_labelled
   if (r_class == "haven_labelled") {
     return(make_role_row(name, r_class, "label_check", "class is haven_labelled", FALSE))
   }
 
-  # Test 5: low cardinality → categorical candidate
-  if (n_distinct / n_rows < 0.05 || n_distinct <= 20) {
-    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", FALSE))
+  # Test 2: Date or POSIXct
+  if (r_class %in% c("Date", "POSIXct")) {
+    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", TRUE))
   }
 
-  # Test 6: free text
-  if (!haven::is.labelled(x) && !all(is.na(x))) {
-    char_x <- as.character(x)
-    mean_nchar <- mean(nchar(char_x[!is.na(char_x)]))
-    if (mean_nchar > 50 && n_distinct > n_rows * 0.5) {
-      return(make_role_row(name, r_class, "free text", "mean_nchar > 50 and high cardinality", TRUE))
-    }
+  # Test 3: free text
+  if (is_free_text_candidate(x)) {
+    return(make_role_row(
+      name,
+      r_class,
+      "free text",
+      "median string length > 20 or median word count >= 5",
+      TRUE
+    ))
   }
 
-  # Test 7: geography column name pattern
+  # Test 4: geography column name pattern
   geo_pattern <- "(?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)"
   if (grepl(geo_pattern, name, perl = TRUE)) {
     return(make_role_row(name, r_class, "geography", paste0("name matches geography pattern: ", geo_pattern), TRUE))
   }
 
+  # Test 5: name matches ID patterns
+  id_pattern <- "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
+  if (grepl(id_pattern, name, perl = TRUE)) {
+    return(make_role_row(name, r_class, "ID candidate", paste0("name matches ID pattern: ", id_pattern), TRUE))
+  }
+
+  # Test 6: high cardinality → ID candidate
+  distinct_ratio <- if (n_rows > 0) n_distinct / n_rows else 0
+  if (distinct_ratio >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
+    return(make_role_row(name, r_class, "ID candidate", "n_distinct/nrow >= 0.95", TRUE))
+  }
+
+  # Test 7: low cardinality → categorical candidate
+  if (distinct_ratio < 0.05 || n_distinct <= 20) {
+    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", FALSE))
+  }
+
   # Default
   make_role_row(name, r_class, "unknown", "no rule matched", FALSE)
+}
+
+is_free_text_candidate <- function(x) {
+  if (!is.character(x) || all(is.na(x))) {
+    return(FALSE)
+  }
+
+  x_obs <- trimws(x[!is.na(x)])
+  x_obs <- x_obs[nzchar(x_obs)]
+  if (length(x_obs) == 0) {
+    return(FALSE)
+  }
+
+  median_nchar <- stats::median(nchar(x_obs), na.rm = TRUE)
+  word_counts <- vapply(strsplit(x_obs, "\\s+"), length, integer(1))
+  median_word_count <- stats::median(word_counts, na.rm = TRUE)
+
+  isTRUE(median_nchar > 20 || median_word_count >= 5)
 }
 
 make_role_row <- function(name, r_class, role, reason, sensitive) {

@@ -6,6 +6,8 @@ test_that("synth_spec() returns dataganger_spec for each valid purpose", {
   for (p in purposes) {
     s <- if (p == "internal_hifi") {
       synth_spec(purpose = p, acknowledge_risk = TRUE)
+    } else if (p == "model_prototype") {
+      suppressWarnings(synth_spec(purpose = p))
     } else {
       synth_spec(purpose = p)
     }
@@ -25,6 +27,7 @@ test_that("synth_spec() maps presets correctly", {
   expect_equal(s$level, "schema")
   expect_equal(s$name_strategy, "generic")
   expect_equal(s$geography_strategy, "aggregate")
+  expect_equal(s$rare_level_min_n, 10)
 
   s <- synth_spec(purpose = "internal_hifi", acknowledge_risk = TRUE)
   expect_equal(s$engine_required, "hifi")
@@ -55,14 +58,18 @@ test_that("synth_spec() accepts acknowledge_risk = TRUE for internal_hifi", {
 test_that("synth_spec() warns on model_prototype", {
   expect_warning(
     synth_spec(purpose = "model_prototype"),
-    "marginal synthesis only"
+    "does not intentionally preserve correlations between variables"
   )
 })
 
-test_that("synth_spec() rejects negative n", {
+test_that("synth_spec() rejects non-positive n", {
   expect_error(
     synth_spec(purpose = "teaching", n = -5),
-    "must be non-negative"
+    "must be > 0"
+  )
+  expect_error(
+    synth_spec(purpose = "teaching", n = 0),
+    "must be > 0"
   )
 })
 
@@ -132,7 +139,14 @@ test_that("synth_spec() records purpose", {
 test_that("synth_spec() accepts all 6 purposes without extra args", {
   for (p in c("ai_programming", "shiny_prototype", "teaching",
               "model_prototype", "safer_external")) {
-    expect_no_error(synth_spec(purpose = p))
+    if (p == "model_prototype") {
+      expect_warning(
+        synth_spec(purpose = p),
+        "does not intentionally preserve correlations between variables"
+      )
+    } else {
+      expect_no_error(synth_spec(purpose = p))
+    }
   }
   expect_no_error(synth_spec(purpose = "internal_hifi", acknowledge_risk = TRUE))
 })

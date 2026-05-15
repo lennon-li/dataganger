@@ -39,6 +39,7 @@ privacy_check <- function(original, synthetic = NULL, roles = NULL,
 
   if (stage == "pre") {
     flags <- privacy_check_pre(original, roles)
+    attr(flags, "exact_row_matches") <- 0L
   } else {
     flags <- privacy_check_post(original, synthetic, roles, spec)
   }
@@ -130,6 +131,7 @@ privacy_check_pre <- function(original, roles) {
 
 privacy_check_post <- function(original, synthetic, roles, spec) {
   flags <- list()
+  exact_row_matches <- 0L
 
   role_map <- NULL
   if (!is.null(roles) && "variable" %in% names(roles) &&
@@ -152,24 +154,12 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
 
   # 2. Exact-row match check (C8: nrow >= 20 only)
   if (nrow(original) >= 20) {
-    common_cols <- intersect(names(original), names(synthetic))
-    # Exclude ID-candidate columns from row-match comparison
-    id_cols <- character(0)
-    if (!is.null(role_map)) {
-      id_cols <- names(role_map)[role_map == "ID candidate"]
-    }
-    match_cols <- setdiff(common_cols, id_cols)
-
-    if (length(match_cols) > 0) {
-      orig_key <- apply(original[, match_cols, drop = FALSE], 1, paste, collapse = "\x01\x02\x03")
-      syn_key  <- apply(synthetic[, match_cols, drop = FALSE], 1, paste, collapse = "\x01\x02\x03")
-      n_exact <- sum(syn_key %in% orig_key, na.rm = TRUE)
-      if (n_exact > 0) {
-        flags[[length(flags) + 1]] <- make_flag("(dataset)",
-          sprintf("%d exact-row match(es) between synthetic and original", n_exact),
+    exact_row_matches <- exact_row_match_count(original, synthetic, role_map)
+    if (exact_row_matches > 0) {
+      flags[[length(flags) + 1]] <- make_flag("(dataset)",
+          sprintf("%d exact-row match(es) between synthetic and original", exact_row_matches),
           "HIGH",
           "Exact-row matches increase disclosure risk; consider re-synthesizing with different seed or settings")
-      }
     }
   }
 
@@ -222,15 +212,19 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
   }
 
   if (length(flags) == 0) {
-    return(tibble::tibble(
+    out <- tibble::tibble(
       variable       = character(0),
       flag           = character(0),
       severity       = character(0),
       recommendation = character(0)
-    ))
+    )
+    attr(out, "exact_row_matches") <- exact_row_matches
+    return(out)
   }
 
-  dplyr::bind_rows(flags)
+  out <- dplyr::bind_rows(flags)
+  attr(out, "exact_row_matches") <- exact_row_matches
+  out
 }
 
 # ===========================================================================
@@ -244,6 +238,27 @@ make_flag <- function(variable, flag, severity, recommendation) {
     severity       = severity,
     recommendation = recommendation
   )
+}
+
+exact_row_match_count <- function(original, synthetic, role_map = NULL) {
+  if (nrow(original) < 20 || nrow(synthetic) == 0) {
+    return(0L)
+  }
+
+  common_cols <- intersect(names(original), names(synthetic))
+  id_cols <- character(0)
+  if (!is.null(role_map)) {
+    id_cols <- names(role_map)[role_map == "ID candidate"]
+  }
+  match_cols <- setdiff(common_cols, id_cols)
+
+  if (length(match_cols) == 0) {
+    return(0L)
+  }
+
+  orig_key <- row_key(original[, match_cols, drop = FALSE])
+  syn_key <- row_key(synthetic[, match_cols, drop = FALSE])
+  as.integer(sum(syn_key %in% orig_key, na.rm = TRUE))
 }
 
 # ===========================================================================

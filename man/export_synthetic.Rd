@@ -13,6 +13,9 @@ export_synthetic(
   format = c("zip", "dir"),
   sanitize_for_spreadsheets = TRUE,
   purpose = NULL,
+  include_original_names = NULL,
+  fail_on_exact_match = FALSE,
+  include_report = TRUE,
   overwrite = FALSE
 )
 }
@@ -40,6 +43,20 @@ whitespace are prefixed with a single quote before CSV export.}
 
 \item{purpose}{Optional purpose label for README text. Defaults to the
 purpose recorded in \code{attr(synthetic, "spec")} when available.}
+
+\item{include_original_names}{Logical or \code{NULL}. Controls whether
+\code{data_dictionary.csv} includes original variable names. When \code{NULL}, this
+defaults to \code{TRUE} for \code{purpose = "ai_programming"} and \code{FALSE} for
+\code{purpose = "safer_external"} or \code{name_strategy = "dictionary_only"}.}
+
+\item{fail_on_exact_match}{Logical. When \code{TRUE}, abort export if exact-row
+matches are detected for \code{nrow(original) >= 20}. When \code{FALSE} (the
+default), exact-row matches are recorded in the privacy report and
+manifest, and a warning is emitted instead.}
+
+\item{include_report}{Logical. When \code{TRUE} (the default), write
+\code{comparison_report.html}. If \code{rmarkdown}/\code{knitr} are unavailable, the
+report is skipped with a message instead of an error.}
 
 \item{overwrite}{Logical. When \code{FALSE} (the default), existing output paths
 are refused.}

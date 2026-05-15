@@ -53,25 +53,19 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
     # remove_ids: mask ID columns with NA
     if (isTRUE(spec$remove_ids) && !is.null(role_lookup) &&
         role == "ID candidate") {
-      cols[[i]] <- rep(NA_character_, n)
+      cols[[i]] <- typed_missing_vector(x, n)
       next
     }
 
     # Free text handling
-    if (role == "free text" || (!is.null(spec$free_text_strategy) &&
-        role != "label_check" && role != "date" && role != "ID candidate")) {
-      if (is.character(x) && !all(is.na(x))) {
-        char_lens <- nchar(as.character(x[!is.na(x)]))
-        if (length(char_lens) > 0 && mean(char_lens) > 50) {
-          cols[[i]] <- synth_free_text(x, n, strategy = free_text_s)
-          next
-        }
-      }
+    if (role == "free text" || is_free_text_candidate(x)) {
+      cols[[i]] <- synth_free_text(x, n, strategy = free_text_s)
+      next
     }
 
     # Dispatch by type
     if (all(is.na(x))) {
-      cols[[i]] <- rep(NA, n)
+      cols[[i]] <- typed_missing_vector(x, n)
       next
     }
 
@@ -153,4 +147,26 @@ synth_posixct <- function(x, n, coarsen_dates = TRUE, missing_strategy = "approx
 coarsen_posixct_to_day <- function(ts) {
   tz <- attr(ts, "tzone") %||% ""
   as.POSIXct(format(ts, "%Y-%m-%d", tz = tz), tz = tz)
+}
+
+typed_missing_vector <- function(x, n) {
+  if (haven::is.labelled(x)) {
+    return(rep(NA_character_, n))
+  }
+  if (inherits(x, "Date")) {
+    return(rep(as.Date(NA), n))
+  }
+  if (inherits(x, "POSIXct")) {
+    return(rep(as.POSIXct(NA, tz = attr(x, "tzone") %||% "UTC"), n))
+  }
+  if (is.factor(x)) {
+    return(factor(rep(NA_character_, n), levels = levels(x)))
+  }
+  if (is.numeric(x)) {
+    return(rep(NA_real_, n))
+  }
+  if (is.logical(x)) {
+    return(rep(NA, n))
+  }
+  rep(NA_character_, n)
 }

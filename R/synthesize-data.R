@@ -102,20 +102,15 @@ apply_name_strategy <- function(syn, spec, original) {
 
   n_cols <- ncol(syn)
   generic_names <- paste0("col_", seq_len(n_cols))
+  name_map <- stats::setNames(generic_names, names(original))
 
-  if (strategy == "generic") {
-    names(syn) <- generic_names
-    return(syn)
-  }
-
-  if (strategy == "dictionary_only") {
-    # Store original name mapping inside the spec attribute so it survives
-    # dplyr operations that silently drop bare tibble attributes.
-    name_map <- stats::setNames(names(syn), generic_names)
+  if (strategy %in% c("generic", "dictionary_only")) {
+    # Store the original -> synthetic mapping inside the spec attribute so it
+    # survives tibble operations that silently drop bare attributes.
     spec_attr <- attr(syn, "spec")
     spec_attr$name_map <- name_map
     attr(syn, "spec") <- spec_attr
-    names(syn) <- generic_names
+    names(syn) <- unname(name_map)
     return(syn)
   }
 
