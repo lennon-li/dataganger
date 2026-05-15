@@ -1,0 +1,147 @@
+test_that("export_synthetic() requires explicit path", {
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 1)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  expect_error(
+    export_synthetic(syn),
+    "path"
+  )
+})
+
+test_that("export_synthetic() writes the full bundle file set", {
+  tmp <- withr::local_tempdir()
+  data("example_health_survey", package = "dataganger")
+
+  roles <- detect_roles(example_health_survey)
+  spec <- synth_spec(purpose = "ai_programming", seed = 1, n = 40)
+  syn <- synthesize_data(example_health_survey, spec, roles = roles)
+  cmp <- compare_synthetic(example_health_survey, syn, roles = roles)
+  prv <- privacy_check(example_health_survey, syn, roles = roles, stage = "post", spec = spec)
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  export_synthetic(
+    syn,
+    original = example_health_survey,
+    comparison = cmp,
+    privacy = prv,
+    path = out_dir,
+    format = "dir"
+  )
+
+  expect_setequal(
+    list.files(out_dir),
+    c(
+      "synthetic_data.csv",
+      "data_dictionary.csv",
+      "comparison_report.html",
+      "privacy_report.txt",
+      "load_data.R",
+      "ai-readme.md",
+      "README.md",
+      "manifest.json"
+    )
+  )
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  expect_equal(manifest$seed, 1)
+  expect_true(nzchar(manifest$spec_hash))
+  expect_setequal(
+    names(manifest$file_sha256),
+    c(
+      "synthetic_data.csv",
+      "data_dictionary.csv",
+      "comparison_report.html",
+      "privacy_report.txt",
+      "load_data.R",
+      "ai-readme.md",
+      "README.md"
+    )
+  )
+})
+
+test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {
+  tmp <- withr::local_tempdir()
+
+  syn <- tibble::tibble(
+    text = c("=sum(A1:A2)", "  +oops", "-bad", "@cmd", "safe"),
+    grp = factor(c("a", "b", "c", "d", "e"))
+  )
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 2)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  export_synthetic(syn, path = out_dir, format = "dir")
+
+  exported <- readr::read_csv(file.path(out_dir, "synthetic_data.csv"), show_col_types = FALSE)
+  expect_equal(
+    exported$text,
+    c("'=sum(A1:A2)", "'  +oops", "'-bad", "'@cmd", "safe")
+  )
+})
+
+test_that("export_synthetic() blocks exact-row matches when nrow(original) >= 20", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = sprintf("id-%02d", 1:20),
+    grp = rep(letters[1:4], each = 5)
+  )
+  syn <- original
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 3)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  expect_error(
+    export_synthetic(syn, original = original, path = file.path(tmp, "bad-dir"), format = "dir"),
+    "exact-row"
+  )
+})
+
+test_that("export_synthetic() refuses to overwrite existing output without flag", {
+  tmp <- withr::local_tempdir()
+
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 4)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  dir.create(out_dir)
+
+  expect_error(
+    export_synthetic(syn, path = out_dir, format = "dir"),
+    "already exists"
+  )
+})
+
+test_that("export_synthetic() writes zip output", {
+  tmp <- withr::local_tempdir()
+  data("example_health_survey", package = "dataganger")
+
+  roles <- detect_roles(example_health_survey)
+  spec <- synth_spec(purpose = "ai_programming", seed = 5, n = 30)
+  syn <- synthesize_data(example_health_survey, spec, roles = roles)
+
+  zip_path <- file.path(tmp, "bundle.zip")
+  export_synthetic(
+    syn,
+    original = example_health_survey,
+    path = zip_path,
+    format = "zip"
+  )
+
+  expect_true(file.exists(zip_path))
+  zip_listing <- utils::unzip(zip_path, list = TRUE)
+  expect_setequal(
+    zip_listing$Name,
+    c(
+      "synthetic_data.csv",
+      "data_dictionary.csv",
+      "comparison_report.html",
+      "privacy_report.txt",
+      "load_data.R",
+      "ai-readme.md",
+      "README.md",
+      "manifest.json"
+    )
+  )
+})

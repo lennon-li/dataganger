@@ -1,0 +1,84 @@
+---
+title: "DataGangeR Comparison Report"
+output: html_document
+params:
+  comparison: !r NULL
+  privacy: !r NULL
+  synthetic_summary: !r NULL
+  purpose: !r NULL
+  generated_at: !r NULL
+---
+
+```{r setup, include=FALSE}
+comparison <- params$comparison
+privacy <- params$privacy
+summary_info <- params$synthetic_summary
+```
+
+# Bundle Summary
+
+- Purpose: `r params$purpose`
+- Generated at: `r params$generated_at`
+- Synthetic rows: `r summary_info$n_rows`
+- Synthetic columns: `r summary_info$n_cols`
+
+## Synthetic Column Classes
+
+```{r synthetic-classes, echo=FALSE}
+class_tbl <- data.frame(
+  variable = names(summary_info$classes),
+  class = unname(summary_info$classes),
+  stringsAsFactors = FALSE
+)
+knitr::kable(class_tbl)
+```
+
+## Dataset Metrics
+
+```{r dataset-metrics, echo=FALSE}
+if (is.null(comparison)) {
+  cat("No comparison object was supplied.\n")
+} else {
+  knitr::kable(comparison$dataset)
+}
+```
+
+## Numeric Comparison
+
+```{r numeric-metrics, echo=FALSE}
+if (is.null(comparison) || nrow(comparison$numeric) == 0) {
+  cat("No numeric comparison rows available.\n")
+} else {
+  knitr::kable(comparison$numeric)
+}
+```
+
+## Categorical Comparison
+
+```{r categorical-metrics, echo=FALSE}
+if (is.null(comparison) || nrow(comparison$categorical) == 0) {
+  cat("No categorical comparison rows available.\n")
+} else {
+  knitr::kable(comparison$categorical)
+}
+```
+
+## Relationship Comparison
+
+```{r relationship-metrics, echo=FALSE}
+if (is.null(comparison) || nrow(comparison$relationship) == 0) {
+  cat("No relationship comparison rows available.\n")
+} else {
+  knitr::kable(comparison$relationship)
+}
+```
+
+## Privacy Flags
+
+```{r privacy-flags, echo=FALSE}
+if (is.null(privacy) || nrow(privacy) == 0) {
+  cat("No privacy flags were supplied for this bundle.\n")
+} else {
+  knitr::kable(privacy)
+}
+```
