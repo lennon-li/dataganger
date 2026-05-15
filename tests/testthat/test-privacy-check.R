@@ -102,6 +102,7 @@ test_that("privacy_check() post exact-row match check", {
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   expect_s3_class(pc, "dataganger_privacy_check")
+  expect_true(attr(pc, "exact_row_matches") >= 0)
 })
 
 test_that("privacy_check() post skips row-match when nrow < 20", {
@@ -110,6 +111,7 @@ test_that("privacy_check() post skips row-match when nrow < 20", {
   syn <- synthesize_data(df, spec)
   pc <- privacy_check(df, syn, stage = "post")
   expect_false(any(grepl("exact-row", pc$flag)))
+  expect_equal(attr(pc, "exact_row_matches"), 0)
 })
 
 test_that("privacy_check() post flags rare-category survival", {

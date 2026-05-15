@@ -8,10 +8,10 @@ test_that("detect_roles() returns correct S3 class and columns", {
 
 test_that("detect_roles() detects ID candidate from high cardinality", {
   set.seed(123)
-  df <- data.frame(id = 1:50)
+  df <- data.frame(token = sprintf("tok-%03d", 1:50))
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[r$variable == "id"], "ID candidate")
-  expect_match(r$reason[r$variable == "id"], "n_distinct/nrow")
+  expect_equal(r$recommended_role[r$variable == "token"], "ID candidate")
+  expect_match(r$reason[r$variable == "token"], "n_distinct/nrow")
 })
 
 test_that("detect_roles() does NOT flag high-cardinality as ID when nrow < 20", {
@@ -94,6 +94,18 @@ test_that("detect_roles() detects free text", {
   expect_equal(r$recommended_role[1], "free text")
 })
 
+test_that("detect_roles() classifies long narrative text as free text before ID", {
+  df <- data.frame(
+    note_id = sprintf(
+      "patient follow up note describing symptoms, medications, and context %03d",
+      1:30
+    ),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "free text")
+})
+
 test_that("detect_roles() detects geography from column name", {
   # Use data with moderate cardinality to avoid earlier thresholds
   # 50 rows, 30 distinct values → 30/50=0.6, >=0.05, not ID (<0.95),
@@ -107,6 +119,15 @@ test_that("detect_roles() detects geography from column name", {
     r <- detect_roles(df)
     expect_equal(r$recommended_role[1], "geography", info = nm)
   }
+})
+
+test_that("detect_roles() classifies low-cardinality region as geography before categorical", {
+  df <- data.frame(
+    region = rep(c("north", "south", "east", "west", "central"), each = 6),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "geography")
 })
 
 test_that("detect_roles() returns unknown for columns with no match", {

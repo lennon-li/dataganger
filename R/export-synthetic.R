@@ -20,6 +20,17 @@
 #'   whitespace are prefixed with a single quote before CSV export.
 #' @param purpose Optional purpose label for README text. Defaults to the
 #'   purpose recorded in `attr(synthetic, "spec")` when available.
+#' @param include_original_names Logical or `NULL`. Controls whether
+#'   `data_dictionary.csv` includes original variable names. When `NULL`, this
+#'   defaults to `TRUE` for `purpose = "ai_programming"` and `FALSE` for
+#'   `purpose = "safer_external"` or `name_strategy = "dictionary_only"`.
+#' @param fail_on_exact_match Logical. When `TRUE`, abort export if exact-row
+#'   matches are detected for `nrow(original) >= 20`. When `FALSE` (the
+#'   default), exact-row matches are recorded in the privacy report and
+#'   manifest, and a warning is emitted instead.
+#' @param include_report Logical. When `TRUE` (the default), write
+#'   `comparison_report.html`. If `rmarkdown`/`knitr` are unavailable, the
+#'   report is skipped with a message instead of an error.
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
 #'
@@ -41,6 +52,9 @@ export_synthetic <- function(synthetic,
                              format = c("zip", "dir"),
                              sanitize_for_spreadsheets = TRUE,
                              purpose = NULL,
+                             include_original_names = NULL,
+                             fail_on_exact_match = FALSE,
+                             include_report = TRUE,
                              overwrite = FALSE) {
   format <- match.arg(format)
 
@@ -64,8 +78,26 @@ export_synthetic <- function(synthetic,
     cli::cli_abort("{.arg overwrite} must be TRUE or FALSE")
   }
 
+  if (!is.null(include_original_names) &&
+      (!is.logical(include_original_names) || length(include_original_names) != 1)) {
+    cli::cli_abort("{.arg include_original_names} must be TRUE, FALSE, or NULL")
+  }
+
+  if (!is.logical(fail_on_exact_match) || length(fail_on_exact_match) != 1) {
+    cli::cli_abort("{.arg fail_on_exact_match} must be TRUE or FALSE")
+  }
+
+  if (!is.logical(include_report) || length(include_report) != 1) {
+    cli::cli_abort("{.arg include_report} must be TRUE or FALSE")
+  }
+
   spec <- attr(synthetic, "spec", exact = TRUE)
   purpose <- purpose %||% spec$purpose %||% "unspecified"
+  include_original_names <- resolve_include_original_names(
+    include_original_names = include_original_names,
+    purpose = purpose,
+    spec = spec
+  )
 
   if (is.null(comparison) && !is.null(original)) {
     comparison <- compare_synthetic(original, synthetic)
@@ -73,10 +105,6 @@ export_synthetic <- function(synthetic,
 
   if (is.null(privacy) && !is.null(original)) {
     privacy <- privacy_check(original, synthetic, stage = "post", spec = spec)
-  }
-
-  if (!is.null(original)) {
-    validate_no_exact_row_matches(original, synthetic)
   }
 
   export_target <- prepare_export_target(path, format, overwrite)
@@ -87,7 +115,13 @@ export_synthetic <- function(synthetic,
     on.exit(unlink(bundle_dir, recursive = TRUE, force = TRUE), add = TRUE)
   }
 
-  dictionary <- build_data_dictionary(original, synthetic, spec)
+  exact_row_matches <- attr(privacy, "exact_row_matches", exact = TRUE) %||% 0L
+  if (!is.null(original)) {
+    exact_row_matches <- exact_row_match_count(original, synthetic)
+    handle_exact_row_matches(exact_row_matches, fail_on_exact_match)
+  }
+
+  dictionary <- build_data_dictionary(original, synthetic, spec, include_original_names)
 
   csv_data <- synthetic
   if (isTRUE(sanitize_for_spreadsheets)) {
@@ -113,30 +147,38 @@ export_synthetic <- function(synthetic,
   )
 
   writeLines(
-    render_bundle_readme(synthetic, dictionary, purpose),
+    render_bundle_readme(synthetic, dictionary, purpose, include_report),
     con = file.path(bundle_dir, "README.md"),
     useBytes = TRUE
   )
 
   writeLines(
-    render_privacy_report(privacy),
+    render_privacy_report(privacy, exact_row_matches),
     con = file.path(bundle_dir, "privacy_report.txt"),
     useBytes = TRUE
   )
 
-  render_comparison_report(
-    comparison = comparison,
-    privacy = privacy,
-    synthetic = synthetic,
-    purpose = purpose,
-    output_file = file.path(bundle_dir, "comparison_report.html")
-  )
+  if (isTRUE(include_report)) {
+    if (can_render_comparison_report()) {
+      render_comparison_report(
+        comparison = comparison,
+        privacy = privacy,
+        synthetic = synthetic,
+        purpose = purpose,
+        output_file = file.path(bundle_dir, "comparison_report.html")
+      )
+    } else {
+      message("rmarkdown/knitr not available - skipping comparison report. Install with install.packages(c('rmarkdown', 'knitr')).")
+    }
+  }
 
   write_manifest(
     bundle_dir = bundle_dir,
     synthetic = synthetic,
     spec = spec,
-    purpose = purpose
+    purpose = purpose,
+    exact_row_matches = exact_row_matches,
+    include_original_names = include_original_names
   )
 
   if (identical(format, "zip")) {
@@ -187,25 +229,16 @@ prepare_export_target <- function(path, format, overwrite) {
   list(bundle_dir = bundle_dir, output_path = path)
 }
 
-validate_no_exact_row_matches <- function(original, synthetic) {
-  if (nrow(original) < 20 || nrow(synthetic) == 0) {
-    return(invisible(NULL))
-  }
-
-  common_cols <- intersect(names(original), names(synthetic))
-  if (length(common_cols) == 0) {
-    return(invisible(NULL))
-  }
-
-  orig_key <- row_key(original[, common_cols, drop = FALSE])
-  syn_key <- row_key(synthetic[, common_cols, drop = FALSE])
-  n_exact <- sum(syn_key %in% orig_key, na.rm = TRUE)
-
+handle_exact_row_matches <- function(n_exact, fail_on_exact_match) {
   if (n_exact > 0) {
-    cli::cli_abort(c(
+    msg <- c(
       "{n_exact} exact-row match{?es} detected between {.arg synthetic} and {.arg original}",
-      "i" = "Export is blocked when {.code nrow(original) >= 20} and any synthetic row exactly matches the original."
-    ))
+      "i" = "The exact-row match count is recorded in {.file privacy_report.txt} and {.file manifest.json}."
+    )
+    if (isTRUE(fail_on_exact_match)) {
+      cli::cli_abort(msg)
+    }
+    cli::cli_warn(msg)
   }
 
   invisible(NULL)
@@ -243,14 +276,15 @@ sanitize_text_values <- function(x) {
   x
 }
 
-build_data_dictionary <- function(original, synthetic, spec) {
+build_data_dictionary <- function(original, synthetic, spec, include_original_names = TRUE) {
   spec <- spec %||% list()
   name_map <- spec$name_map %||% stats::setNames(names(synthetic), names(synthetic))
-  synthetic_names <- names(name_map)
+  original_names <- names(name_map)
+  synthetic_names <- unname(name_map)
 
-  rows <- lapply(seq_along(synthetic_names), function(i) {
+  rows <- lapply(seq_along(original_names), function(i) {
     syn_name <- synthetic_names[[i]]
-    orig_name <- unname(name_map[[i]])
+    orig_name <- original_names[[i]]
 
     syn_col <- synthetic[[syn_name]]
     orig_col <- if (!is.null(original) && orig_name %in% names(original)) original[[orig_name]] else NULL
@@ -268,7 +302,11 @@ build_data_dictionary <- function(original, synthetic, spec) {
     )
   })
 
-  dplyr::bind_rows(rows)
+  out <- dplyr::bind_rows(rows)
+  if (!isTRUE(include_original_names)) {
+    out$original_variable <- NULL
+  }
+  out
 }
 
 extract_label_metadata <- function(x) {
@@ -370,7 +408,8 @@ build_labelled_restore_block <- function(synthetic, dictionary) {
     row <- labelled_rows[i, ]
     syn_col <- synthetic[[row$synthetic_variable]]
     labels <- parse_label_values(row$label_names, row$label_values)
-    variable_label <- attr(syn_col, "label", exact = TRUE) %||% row$original_variable
+    original_var <- if ("original_variable" %in% names(row)) row$original_variable else row$synthetic_variable
+    variable_label <- attr(syn_col, "label", exact = TRUE) %||% original_var
     label_expr <- if (length(labels) == 0) {
       "NULL"
     } else {
@@ -475,7 +514,17 @@ build_regeneration_command <- function(purpose, spec) {
   )
 }
 
-render_bundle_readme <- function(synthetic, dictionary, purpose) {
+render_bundle_readme <- function(synthetic, dictionary, purpose, include_report = TRUE) {
+  file_lines <- c(
+    "- `synthetic_data.csv`",
+    "- `data_dictionary.csv`",
+    if (isTRUE(include_report)) "- `comparison_report.html`",
+    "- `privacy_report.txt`",
+    "- `load_data.R`",
+    "- `ai-readme.md`",
+    "- `manifest.json`"
+  )
+
   paste(
     "# DataGangeR Export Bundle",
     "",
@@ -484,13 +533,7 @@ render_bundle_readme <- function(synthetic, dictionary, purpose) {
     sprintf("Columns: %s", ncol(synthetic)),
     "",
     "Files in this bundle:",
-    "- `synthetic_data.csv`",
-    "- `data_dictionary.csv`",
-    "- `comparison_report.html`",
-    "- `privacy_report.txt`",
-    "- `load_data.R`",
-    "- `ai-readme.md`",
-    "- `manifest.json`",
+    paste(file_lines, collapse = "\n"),
     "",
     "Column treatments:",
     paste(sprintf("- `%s`: %s", dictionary$synthetic_variable, dictionary$treatment), collapse = "\n"),
@@ -498,10 +541,12 @@ render_bundle_readme <- function(synthetic, dictionary, purpose) {
   )
 }
 
-render_privacy_report <- function(privacy) {
+render_privacy_report <- function(privacy, exact_row_matches = 0L) {
   if (is.null(privacy) || nrow(privacy) == 0) {
     return(c(
       "DataGangeR privacy report",
+      "",
+      sprintf("Exact row matches: %s", exact_row_matches),
       "",
       "No privacy flags were supplied for this bundle."
     ))
@@ -511,6 +556,7 @@ render_privacy_report <- function(privacy) {
     "DataGangeR privacy report",
     "",
     sprintf("Stage: %s", attr(privacy, "stage") %||% "unknown"),
+    sprintf("Exact row matches: %s", exact_row_matches),
     sprintf("Flags: %s", nrow(privacy)),
     "",
     apply(privacy, 1, function(row) {
@@ -559,6 +605,10 @@ render_comparison_report <- function(comparison, privacy, synthetic, purpose, ou
   )
 
   invisible(output_file)
+}
+
+can_render_comparison_report <- function() {
+  rlang::is_installed("rmarkdown") && rlang::is_installed("knitr")
 }
 
 render_comparison_html_fallback <- function(comparison, privacy, synthetic, purpose) {
@@ -614,10 +664,14 @@ html_escape <- function(x) {
   gsub(">", "&gt;", x, fixed = TRUE)
 }
 
-write_manifest <- function(bundle_dir, synthetic, spec, purpose) {
+write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
+                           include_original_names = TRUE) {
   files <- list.files(bundle_dir, full.names = TRUE, all.files = FALSE, no.. = TRUE)
   files <- files[basename(files) != "manifest.json"]
   spec_for_manifest <- unclass(spec %||% list())
+  if (!isTRUE(include_original_names)) {
+    spec_for_manifest$name_map <- NULL
+  }
 
   spec_json <- jsonlite::toJSON(spec_for_manifest, auto_unbox = TRUE, null = "null", pretty = TRUE)
   spec_hash <- hash_text(spec_json)
@@ -631,6 +685,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose) {
     seed = spec$seed %||% NULL,
     spec = spec_for_manifest,
     spec_hash = spec_hash,
+    exact_row_matches = exact_row_matches,
     synthetic_dims = list(nrow = nrow(synthetic), ncol = ncol(synthetic)),
     file_sha256 = file_hashes
   )
@@ -642,6 +697,26 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose) {
     pretty = TRUE,
     null = "null"
   )
+}
+
+resolve_include_original_names <- function(include_original_names, purpose, spec) {
+  if (!is.null(include_original_names)) {
+    return(include_original_names)
+  }
+
+  if (identical(spec$name_strategy, "dictionary_only")) {
+    return(FALSE)
+  }
+
+  if (identical(purpose, "safer_external")) {
+    return(FALSE)
+  }
+
+  if (identical(purpose, "ai_programming")) {
+    return(TRUE)
+  }
+
+  TRUE
 }
 
 hash_text <- function(text) {

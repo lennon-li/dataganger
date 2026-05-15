@@ -165,7 +165,7 @@ preset_table <- function(purpose) {
       free_text_strategy  = "drop",
       geography_strategy  = "aggregate",
       name_strategy       = "generic",
-      rare_level_min_n    = 5,
+      rare_level_min_n    = 10,
       preserve_missingness = "approx",
       seed                = NULL
     ),
@@ -178,9 +178,9 @@ preset_table <- function(purpose) {
 # ===========================================================================
 
 validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
-  # n must be non-negative if set
-  if (!is.null(spec$n) && spec$n < 0) {
-    cli::cli_abort("{.arg n} must be non-negative, got {spec$n}")
+  # n must be positive if set
+  if (!is.null(spec$n) && spec$n <= 0) {
+    cli::cli_abort("{.arg n} must be > 0; use {.code level = \"schema\"} for type-only output")
   }
 
   # rare_level_min_n must be > 1
@@ -199,12 +199,9 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
 
   # model_prototype soft warning (C1)
   if (purpose == "model_prototype") {
-    cli::cli_warn(c(
-      "The {.val model_prototype} preset uses marginal synthesis only.",
-      "i" = "Relationship-aware synthesis is planned for a future release.",
-      "i" = "The {.arg preserve_correlations} parameter attempts moderate",
-      "i" = "independence via sequential sampling where feasible."
-    ))
+    cli::cli_warn(
+      "Relationship-aware synthesis is planned for a future release. In v0.1, model_prototype uses marginal synthesis and does not intentionally preserve correlations between variables."
+    )
   }
 
   # Validate roles if supplied

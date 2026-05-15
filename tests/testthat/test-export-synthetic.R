@@ -80,7 +80,28 @@ test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {
   )
 })
 
-test_that("export_synthetic() blocks exact-row matches when nrow(original) >= 20", {
+test_that("export_synthetic() warns but succeeds on exact-row matches by default", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = sprintf("id-%02d", 1:20),
+    grp = rep(letters[1:4], each = 5)
+  )
+  syn <- original
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 3)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "warn-dir")
+  expect_warning(
+    export_synthetic(syn, original = original, path = out_dir, format = "dir"),
+    "exact-row"
+  )
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  expect_true(manifest$exact_row_matches > 0)
+})
+
+test_that("export_synthetic() errors on exact-row matches when fail_on_exact_match = TRUE", {
   tmp <- withr::local_tempdir()
 
   original <- tibble::tibble(
@@ -92,7 +113,13 @@ test_that("export_synthetic() blocks exact-row matches when nrow(original) >= 20
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   expect_error(
-    export_synthetic(syn, original = original, path = file.path(tmp, "bad-dir"), format = "dir"),
+    export_synthetic(
+      syn,
+      original = original,
+      path = file.path(tmp, "bad-dir"),
+      format = "dir",
+      fail_on_exact_match = TRUE
+    ),
     "exact-row"
   )
 })
@@ -144,4 +171,48 @@ test_that("export_synthetic() writes zip output", {
       "manifest.json"
     )
   )
+})
+
+test_that("export_synthetic() omits original_variable for safer_external exports", {
+  tmp <- withr::local_tempdir()
+  data("example_health_survey", package = "dataganger")
+
+  roles <- detect_roles(example_health_survey)
+  spec <- synth_spec(purpose = "safer_external")
+  syn <- synthesize_data(example_health_survey, spec, roles = roles)
+
+  out_dir <- file.path(tmp, "safer-external-bundle")
+  export_synthetic(
+    syn,
+    original = example_health_survey,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  dictionary <- readr::read_csv(file.path(out_dir, "data_dictionary.csv"), show_col_types = FALSE)
+  expect_false("original_variable" %in% names(dictionary))
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  expect_null(manifest$spec$name_map)
+})
+
+test_that("export_synthetic() skips report gracefully when report deps are unavailable", {
+  tmp <- withr::local_tempdir()
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 9)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  testthat::local_mocked_bindings(
+    can_render_comparison_report = function() FALSE
+  )
+
+  out_dir <- file.path(tmp, "no-report-bundle")
+  expect_message(
+    export_synthetic(syn, path = out_dir, format = "dir"),
+    "skipping comparison report"
+  )
+
+  expect_false(file.exists(file.path(out_dir, "comparison_report.html")))
+  expect_true(file.exists(file.path(out_dir, "manifest.json")))
 })

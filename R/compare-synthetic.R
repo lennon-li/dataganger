@@ -87,8 +87,11 @@ compare_dataset <- function(orig, syn) {
 # ===========================================================================
 
 compare_numeric <- function(orig, syn) {
-  num_cols <- names(orig)[vapply(orig, is.numeric, logical(1))]
+  num_cols <- names(orig)[vapply(orig, function(x) {
+    is.numeric(x) && !haven::is.labelled(x)
+  }, logical(1))]
   num_cols <- intersect(num_cols, names(syn))
+  num_cols <- num_cols[vapply(num_cols, function(nm) is.numeric(syn[[nm]]), logical(1))]
 
   if (length(num_cols) == 0) {
     return(tibble::tibble(
@@ -156,7 +159,7 @@ compare_numeric <- function(orig, syn) {
 compare_categorical <- function(orig, syn) {
   cat_types <- c("character", "factor", "logical")
   cat_cols <- names(orig)[vapply(orig, function(x) {
-    any(cat_types %in% class(x)) || is.character(x) || is.factor(x) || is.logical(x)
+    any(cat_types %in% class(x)) || is.character(x) || is.factor(x) || is.logical(x) || haven::is.labelled(x)
   }, logical(1))]
   cat_cols <- intersect(cat_cols, names(syn))
 
@@ -210,9 +213,14 @@ compare_categorical <- function(orig, syn) {
 # ===========================================================================
 
 compare_relationship <- function(orig, syn) {
-  num_cols <- names(orig)[vapply(orig, is.numeric, logical(1))]
+  num_cols <- names(orig)[vapply(orig, function(x) {
+    is.numeric(x) && !haven::is.labelled(x)
+  }, logical(1))]
   num_cols <- intersect(num_cols, names(syn))
   num_cols <- num_cols[vapply(num_cols, function(nm) {
+    if (!is.numeric(syn[[nm]])) {
+      return(FALSE)
+    }
     vo <- stats::var(orig[[nm]], na.rm = TRUE)
     vs <- stats::var(syn[[nm]], na.rm = TRUE)
     isTRUE(vo > 0) && isTRUE(vs > 0)

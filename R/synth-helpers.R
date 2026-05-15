@@ -211,12 +211,7 @@ synth_character <- function(x, n, rare_level_min_n = 5,
 synth_labelled <- function(x, n, rare_level_min_n = 5,
                            merge_rare = TRUE, missing_strategy = "approx") {
   if (all(is.na(x))) {
-    lbl <- attr(x, "labels", exact = TRUE)
-    out <- rep(NA_real_, n)
-    if (!is.null(lbl)) {
-      attributes(out) <- attributes(x)
-    }
-    return(out)
+    return(rep(NA_character_, n))
   }
 
   # Convert to factor for synthesis
@@ -228,27 +223,7 @@ synth_labelled <- function(x, n, rare_level_min_n = 5,
     missing_strategy = missing_strategy
   )
 
-  # Re-attach labelled metadata by mapping factor levels back to numeric codes
-  lbl <- attr(x, "labels", exact = TRUE)
-  label_name <- attr(x, "label", exact = TRUE)
-
-  if (!is.null(lbl)) {
-    # Build reverse mapping from label text to code
-    lbl_names <- names(lbl)
-    lbl_codes <- unname(lbl)
-
-    synth_codes <- rep(NA_real_, n)
-    for (i in seq_along(lbl_names)) {
-      synth_codes[synth_factor == lbl_names[i] & !is.na(synth_factor)] <- lbl_codes[i]
-    }
-
-    synth_codes <- haven::labelled(synth_codes, labels = lbl, label = label_name)
-  } else {
-    # No labels to re-attach; return as factor
-    synth_codes <- synth_factor
-  }
-
-  synth_codes
+  as.character(synth_factor)
 }
 
 # ===========================================================================
