@@ -1,0 +1,113 @@
+upload_fixture_path <- function(data, filename) {
+  path <- tempfile(pattern = tools::file_path_sans_ext(filename))
+  path <- paste0(path, ".", tools::file_ext(filename))
+  readr::write_csv(data, path)
+  path
+}
+
+load_example_data <- function(name) {
+  data_env <- new.env(parent = emptyenv())
+  utils::data(list = name, package = "dataganger", envir = data_env)
+  data_env[[name]]
+}
+
+upload_input_value <- function(path, type = "text/csv") {
+  data.frame(
+    name = basename(path),
+    size = file.info(path)$size,
+    type = type,
+    datapath = path,
+    stringsAsFactors = FALSE
+  )
+}
+
+upload_host_server <- function(id) {
+  shiny::moduleServer(id, function(input, output, session) {
+    state <- mod_state_server("state")
+    mod_upload_server("upload", state)
+    list(state = state)
+  })
+}
+
+test_that("5-row CSV upload populates raw_data and profile", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  example_health_survey <- load_example_data("example_health_survey")
+  csv_path <- upload_fixture_path(example_health_survey[1:5, ], "health-five.csv")
+
+  shiny::testServer(upload_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-file` = upload_input_value(csv_path))
+    session$flushReact()
+
+    expect_s3_class(state$raw_data, "data.frame")
+    expect_equal(nrow(state$raw_data), 5)
+    expect_false(is.null(state$profile))
+    expect_equal(state$profile$n_rows, 5)
+  })
+})
+
+test_that("second upload replaces raw_data and clears downstream state", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  example_health_survey <- load_example_data("example_health_survey")
+  example_admin_claims <- load_example_data("example_admin_claims")
+  first_path <- upload_fixture_path(example_health_survey[1:5, ], "first-five.csv")
+  second_path <- upload_fixture_path(example_admin_claims[1:5, ], "second-five.csv")
+
+  shiny::testServer(upload_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-file` = upload_input_value(first_path))
+    session$flushReact()
+
+    state$roles <- tibble::tibble(variable = "x", user_role = "measure")
+    state$spec <- list(purpose = "ai_programming")
+    state$synthetic <- tibble::tibble(x = 1)
+    state$comparison <- list(ok = TRUE)
+    state$privacy <- tibble::tibble(flag = "none")
+    state$stale <- list(synthesis = TRUE, comparison = TRUE, export = TRUE)
+    session$flushReact()
+
+    session$setInputs(`upload-file` = upload_input_value(second_path))
+    session$flushReact()
+
+    expect_identical(names(state$raw_data), names(example_admin_claims))
+    expect_equal(nrow(state$raw_data), 5)
+    expect_false(is.null(state$profile))
+    expect_null(state$roles)
+    expect_null(state$spec)
+    expect_null(state$synthetic)
+    expect_null(state$comparison)
+    expect_null(state$privacy)
+    expect_identical(
+      state$stale,
+      list(synthesis = FALSE, comparison = FALSE, export = FALSE)
+    )
+  })
+})
+
+test_that("bad extension throws a validate error", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  json_path <- tempfile(pattern = "bad", fileext = ".json")
+  writeLines("{}", json_path)
+
+  shiny::testServer(upload_host_server, {
+    session$setInputs(
+      `upload-file` = upload_input_value(
+        json_path,
+        type = "application/json"
+      )
+    )
+
+    expect_error(
+      output$`upload-preview`,
+      "Unsupported file type: \\.json"
+    )
+  })
+})
