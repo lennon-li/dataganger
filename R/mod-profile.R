@@ -64,7 +64,6 @@ mod_profile_server <- function(id, state) {
 
     profile_text <- shiny::reactive({
       shiny::req(state$profile, cancelOutput = TRUE)
-      print(state$profile)
       build_profile_text(state$profile)
     })
 

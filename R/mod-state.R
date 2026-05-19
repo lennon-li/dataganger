@@ -24,8 +24,11 @@ mod_state_server <- function(id) {
       if (is.null(x)) {
         return(NULL)
       }
-
-      serialize(x, connection = NULL, version = 2)
+      if (is.data.frame(x) && nrow(x) > 500L) {
+        list(nrow(x), ncol(x), names(x))
+      } else {
+        paste(deparse(x, control = NULL), collapse = "")
+      }
     }
 
     state <- shiny::reactiveValues(
@@ -132,13 +135,13 @@ mod_state_server <- function(id) {
 
 #' @keywords internal
 #' @noRd
-stale_banner_ui <- function(flag_name) {
+stale_banner_ui <- function(flag_name, ns = shiny::NS(NULL)) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
-  output_id <- paste0("stale__", flag_name)
+  output_id <- ns(paste0("stale__", flag_name))
 
   shiny::conditionalPanel(
-    condition = sprintf("output.%s === 'true'", output_id),
+    condition = sprintf("output['%s'] === 'true'", output_id),
     shiny::div(
       class = "alert alert-warning",
       "Results are stale. Re-generate before trusting downstream outputs."

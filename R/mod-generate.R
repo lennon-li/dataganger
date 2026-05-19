@@ -19,7 +19,7 @@ mod_generate_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    stale_banner_ui("synthesis"),
+    stale_banner_ui("synthesis", ns = ns),
     shiny::actionButton(ns("generate"), "Generate Synthetic Data"),
     shiny::verbatimTextOutput(ns("result_summary"))
   )

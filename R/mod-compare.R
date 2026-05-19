@@ -8,7 +8,7 @@ mod_compare_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    stale_banner_ui("comparison"),
+    stale_banner_ui("comparison", ns = ns),
     shiny::tabsetPanel(
       id = ns("compare_tabs"),
       shiny::tabPanel("Dataset", shiny::uiOutput(ns("dataset_tab"))),
@@ -54,7 +54,7 @@ mod_compare_server <- function(id, state) {
       shiny::req(state$comparison)
       cmp <- state$comparison
 
-      shiny::req(cmp$numeric)
+      shiny::req(!is.null(cmp$numeric))
 
       if (nrow(cmp$numeric) == 0) {
         return(shiny::tags$p("No numeric comparison available."))
@@ -67,7 +67,7 @@ mod_compare_server <- function(id, state) {
       shiny::req(state$comparison)
       cmp <- state$comparison
 
-      shiny::req(cmp$categorical)
+      shiny::req(!is.null(cmp$categorical))
 
       if (nrow(cmp$categorical) == 0) {
         return(shiny::tags$p("No categorical comparison available."))

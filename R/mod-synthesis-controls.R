@@ -300,7 +300,9 @@ mod_synthesis_controls_server <- function(id, state) {
           geography_strategy = current_geo_strategy
         ),
         error = function(e) {
-          shiny::showNotification(conditionMessage(e), type = "error")
+          if (!(identical(purpose, "internal_hifi") && !isTRUE(input$acknowledge_risk))) {
+            shiny::showNotification(conditionMessage(e), type = "error")
+          }
           NULL
         }
       )

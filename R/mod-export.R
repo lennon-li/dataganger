@@ -8,7 +8,7 @@ mod_export_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    stale_banner_ui("export"),
+    stale_banner_ui("export", ns = ns),
     shiny::radioButtons(
       ns("format"),
       label = "Download format",
@@ -82,7 +82,13 @@ mod_export_server <- function(id, state) {
           isTRUE(input$include_original_names)
         }
 
+        if (identical(input_format, "rds")) {
+          saveRDS(state$synthetic, file)
+          return(invisible(NULL))
+        }
+
         bundle_dir <- tempfile("mod-export-bundle-")
+        on.exit(unlink(bundle_dir, recursive = TRUE))
         export_synthetic(
           synthetic = state$synthetic,
           original = state$raw_data,
@@ -94,11 +100,6 @@ mod_export_server <- function(id, state) {
           fail_on_exact_match = isTRUE(input$fail_on_exact),
           include_original_names = use_original_names
         )
-
-        if (identical(input_format, "rds")) {
-          saveRDS(state$synthetic, file)
-          return(invisible(NULL))
-        }
 
         file.copy(
           from = file.path(bundle_dir, "synthetic_data.csv"),
