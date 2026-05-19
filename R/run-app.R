@@ -19,5 +19,8 @@ run_app <- function(max_upload_mb = 50, ...) {
     reason = "to run the DataGangeR Shiny app"
   )
   options(shiny.maxRequestSize = max_upload_mb * 1024^2)
-  invisible(NULL)
+  shiny::runApp(
+    appDir = system.file("app", package = "dataganger"),
+    display.mode = "normal"
+  )
 }

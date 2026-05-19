@@ -25,7 +25,7 @@ mod_upload_ui <- function(id) {
     ),
     shiny::p(
       class = "text-muted",
-      "Accepted: CSV, TSV, RDS, RDA, SPSS (.sav), Stata (.dta), Excel (.xlsx)"
+      "Accepted: CSV, Excel (.xlsx), SAS (.sas7bdat, .xpt)"
     ),
     DT::DTOutput(ns("preview")),
     shiny::tags$details(
@@ -52,7 +52,7 @@ mod_upload_server <- function(id, state) {
   shiny::moduleServer(id, function(input, output, session) {
     accepted_ext <- c("csv", "xlsx", "sas7bdat", "xpt")
     accepted_message <- paste(
-      "Accepted: CSV, TSV, RDS, RDA, SPSS (.sav), Stata (.dta), Excel (.xlsx)"
+      "Accepted: CSV, Excel (.xlsx), SAS (.sas7bdat, .xpt)"
     )
 
     profile_server("profile", state)
