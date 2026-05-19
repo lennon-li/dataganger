@@ -50,7 +50,6 @@ test_that("mod_compare_ui exposes all four tabs and stale banner", {
 
 test_that("dataset and privacy tabs render expected summaries", {
   testthat::skip_if_not_installed("shiny")
-  testthat::skip_if_not_installed("ggplot2")
 
   fixture <- comparison_fixture(seed = 7)
   state <- compare_test_state(
@@ -77,7 +76,6 @@ test_that("dataset and privacy tabs render expected summaries", {
 
 test_that("numeric and categorical tabs fall back cleanly when comparisons are empty", {
   testthat::skip_if_not_installed("shiny")
-  testthat::skip_if_not_installed("ggplot2")
 
   comparison <- structure(
     list(

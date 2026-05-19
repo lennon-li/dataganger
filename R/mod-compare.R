@@ -21,9 +21,18 @@ mod_compare_ui <- function(id) {
 
 mod_compare_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
-  rlang::check_installed("ggplot2", reason = "to render comparison plots")
 
   shiny::moduleServer(id, function(input, output, session) {
+    output$stale__comparison <- shiny::renderText({
+      if (isTRUE(state$stale$comparison)) {
+        "true"
+      } else {
+        "false"
+      }
+    })
+
+    shiny::outputOptions(output, "stale__comparison", suspendWhenHidden = FALSE)
+
     output$dataset_tab <- shiny::renderUI({
       shiny::req(state$synthetic, state$raw_data)
 
@@ -80,10 +89,3 @@ mod_compare_server <- function(id, state) {
     })
   })
 }
-
-# NOTE FOR CALLER (app.R or main server):
-# After calling mod_compare_server("compare", state), the calling server must
-# register the stale banner output:
-#   output$stale__comparison <- shiny::renderUI({ ... })
-#   shiny::outputOptions(output, "stale__comparison", suspendWhenHidden = FALSE)
-# See mod-state.R for stale_banner_ui() details.
