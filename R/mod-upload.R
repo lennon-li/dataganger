@@ -21,7 +21,7 @@ mod_upload_ui <- function(id) {
     shiny::fileInput(
       inputId = ns("file"),
       label = "Upload data",
-      accept = c(".csv", ".tsv", ".rds", ".rda", ".sav", ".dta", ".xlsx")
+      accept = c(".csv", ".xlsx", ".sas7bdat", ".xpt")
     ),
     shiny::p(
       class = "text-muted",
@@ -50,7 +50,7 @@ mod_upload_server <- function(id, state) {
   }
 
   shiny::moduleServer(id, function(input, output, session) {
-    accepted_ext <- c("csv", "tsv", "rds", "rda", "sav", "dta", "xlsx")
+    accepted_ext <- c("csv", "xlsx", "sas7bdat", "xpt")
     accepted_message <- paste(
       "Accepted: CSV, TSV, RDS, RDA, SPSS (.sav), Stata (.dta), Excel (.xlsx)"
     )
