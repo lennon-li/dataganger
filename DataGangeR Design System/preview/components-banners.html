@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<title>Components — Privacy banner</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); display: flex; flex-direction: column; gap: 14px; font-family: var(--font-sans); }
+  .banner { display: flex; gap: 12px; padding: 12px 14px; border-radius: var(--radius-4); align-items: flex-start; font-size: 13px; line-height: 1.5; border: 1px solid; }
+  .banner .icon { width: 22px; height: 22px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-style: italic; font-weight: 600; flex-shrink: 0; }
+  .banner.risk { background: var(--risk-50); border-color: #F2B36A; color: var(--risk-700); }
+  .banner.risk .icon { background: var(--risk-500); color: white; }
+  .banner.info { background: var(--paper-100); border-color: var(--paper-300); color: var(--ink-700); }
+  .banner.info .icon { background: var(--info-500); color: white; }
+  .banner.success { background: var(--real-50); border-color: var(--real-100); color: var(--real-700); }
+  .banner.success .icon { background: var(--real-500); color: white; }
+  .banner b { color: inherit; font-weight: 600; display: block; margin-bottom: 2px; }
+</style>
+</head><body>
+  <div class="banner risk"><span class="icon">!</span><div><b>2 direct identifiers detected.</b>record_id and patient_id will be dropped from the synthetic output. Set <code style="font-family: var(--font-mono);">remove_ids = FALSE</code> to override.</div></div>
+  <div class="banner info"><span class="icon">i</span><div><b>Marginal synthesis selected.</b>Inter-variable correlations are not preserved in v0.1. Relationship-aware synthesis is planned for a future release.</div></div>
+  <div class="banner success"><span class="icon">✓</span><div><b>Synthesis complete.</b>200 rows written. Comparison report ready.</div></div>
+</body></html>

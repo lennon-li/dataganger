@@ -1,0 +1,185 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8"/>
+<title>DataGangeR — CLI receipts</title>
+<link rel="stylesheet" href="../../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 32px 40px 80px; background: var(--paper-50); font-family: var(--font-sans); color: var(--ink-900); }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .hed { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 16px; border-bottom: 1px solid var(--paper-300); margin-bottom: 28px; }
+  .hed h1 { font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: 44px; margin: 0; letter-spacing: -0.02em; color: var(--ink-900); }
+  .hed .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: 8px; display: block; }
+  .hed .meta { font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted); text-align: right; }
+
+  .receipt { background: var(--ink-900); border-radius: 8px; padding: 24px 28px; box-shadow: var(--shadow-2); font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--paper-100); margin-bottom: 24px; overflow-x: auto; position: relative; }
+  .receipt::before { content: ''; position: absolute; left: 14px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--synth-500); box-shadow: 16px 0 0 var(--paper-400), 32px 0 0 var(--paper-400); }
+  .receipt .label { position: absolute; right: 18px; top: 14px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--paper-400); }
+  .receipt pre { margin: 28px 0 0; white-space: pre-wrap; word-break: break-word; }
+
+  .receipt .h     { color: white; font-weight: 600; }
+  .receipt .h1c   { color: var(--synth-300); }
+  .receipt .h2c   { color: var(--real-300); }
+  .receipt .h3c   { color: var(--paper-100); }
+  .receipt .k     { color: var(--synth-300); }
+  .receipt .v     { color: var(--real-300); }
+  .receipt .c     { color: var(--paper-400); }
+  .receipt .warn  { color: var(--risk-300); }
+  .receipt .ok    { color: var(--real-300); }
+  .receipt .dim   { color: var(--paper-400); }
+  .receipt .rule  { color: var(--paper-400); }
+
+  .row-of-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .caption { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); margin: 8px 0 6px; }
+
+  .double-rule { height: 2px; background: linear-gradient(to right, var(--real-300) 0%, var(--real-300) 50%, var(--synth-300) 50%, var(--synth-300) 100%); margin: 32px 0; }
+
+  .note { font-family: var(--font-sans); font-size: 13px; color: var(--fg-muted); line-height: 1.55; max-width: 720px; margin-bottom: 24px; }
+</style>
+</head><body>
+  <div class="wrap">
+
+    <header class="hed">
+      <div>
+        <span class="eyebrow">UI kit · cli receipts</span>
+        <h1>What DataGangeR prints.</h1>
+      </div>
+      <div class="meta">
+        <div>R console</div>
+        <div style="color: var(--ink-900); margin-top: 4px;">cli + custom print methods</div>
+      </div>
+    </header>
+
+    <p class="note">
+      Before the Shiny app, DataGangeR is a package. Every artefact it produces — a profile, a spec, a privacy check, a comparison — has a console <em>receipt</em>: a structured printout that's the package's primary UI. These are the canonical examples; match the typography, colour cues, and section structure when extending.
+    </p>
+
+    <p class="caption">profile_data() — receipt</p>
+    <div class="receipt"><span class="label">dataganger_profile</span><pre>
+<span class="h">── DataGangeR Profile ───────────────────────────────────</span>
+
+200 rows × 10 columns
+
+<span class="h2c">── Column types</span>
+• numeric:         <span class="v">4</span>
+• factor:          <span class="v">2</span>
+• character:       <span class="v">2</span>
+• haven_labelled:  <span class="v">1</span>
+• Date:            <span class="v">1</span>
+
+<span class="h2c">── Missingness summary</span>
+Total missing: 154 / 2000 (<span class="warn">7.7%</span>)
+
+<span class="h2c">── Per-column details</span>
+
+<span class="h3c">record_id</span> <span class="dim">(character)</span>
+• Missing: 0 (0.0%)
+• Distinct values: 200
+• Mean char length: 8.0
+<span class="warn">! Free-text-like cardinality. Pre-flagged as ID.</span>
+
+<span class="h3c">age</span> <span class="dim">(numeric)</span>
+• Missing: 0 (0.0%)
+• Distinct values: 41
+• Range: [18, 92]
+• Mean (SD): 54.2 (16.8)
+• Median (IQR): 54 (40 -- 68)
+
+<span class="h3c">bmi</span> <span class="dim">(numeric)</span>
+• Missing: 14 (<span class="warn">7.0%</span>)
+• Distinct values: 178
+• Range: [17.4, 41.8]
+• Mean (SD): 26.3 (4.1)
+
+<span class="c">i Generated at 2026-05-15 14:22:08</span>
+</pre></div>
+
+    <p class="caption">synth_spec() — receipt</p>
+    <div class="receipt"><span class="label">dataganger_spec</span><pre>
+<span class="h">── DataGangeR Synthesis Spec ────────────────────────────</span>
+
+<span class="h2c">── Purpose</span>
+<span class="v">"ai_programming"</span>
+
+<span class="h2c">── Level</span>
+<span class="v">"marginal"</span>
+
+<span class="h2c">── Target rows</span>
+200
+
+<span class="h2c">── Key settings</span>
+• Name strategy:        <span class="v">"preserve"</span>
+• Coarsen dates:        <span class="v">TRUE</span>
+• Merge rare levels:    <span class="v">TRUE</span>  <span class="c">(min_n = 5)</span>
+• Free text strategy:   <span class="v">"drop"</span>
+• Geography strategy:   <span class="v">"coarsen"</span>
+• Preserve correlations: <span class="v">"low"</span>
+• Preserve missingness:  <span class="v">"approx"</span>
+• Engine required:       <span class="v">"internal"</span>
+
+<span class="h2c">── Seed</span>
+42
+
+<span class="c">i Marginal synthesis only — relationship-aware synthesis is post-MVP.</span>
+</pre></div>
+
+    <div class="row-of-two">
+      <div>
+        <p class="caption">privacy_check() — receipt</p>
+        <div class="receipt"><span class="label">privacy_check</span><pre>
+<span class="h">── Privacy Pre-Check ─────────────────</span>
+
+<span class="warn">! 2 flag(s) found.</span>
+
+  variable      flag           severity
+  ───────────────────────────────────────
+  record_id     identifier     <span class="warn">high</span>
+  comments      free_text      <span class="warn">medium</span>
+
+<span class="h2c">── Hardening applied to spec</span>
+• remove_ids = <span class="v">TRUE</span>
+• free_text_strategy = <span class="v">"drop"</span>
+
+<span class="c">i Re-run after synthesis with stage = "post".</span>
+</pre></div>
+      </div>
+      <div>
+        <p class="caption">compare_synthetic() — receipt</p>
+        <div class="receipt"><span class="label">comparison</span><pre>
+<span class="h">── Comparison ────────────────────────</span>
+
+<span class="ok">✓ Synthesis ran successfully.</span>
+
+  variable           std_diff   tvd
+  ───────────────────────────────────
+  age                <span class="ok">+0.012</span>     —
+  bmi                <span class="ok">-0.018</span>     —
+  systolic_bp        <span class="ok">+0.064</span>     —
+  smoking_status     —          <span class="warn">0.043</span>
+  province           —          <span class="ok">0.018</span>
+
+<span class="c">i 1 marginal beyond ±0.025 SD / 0.04 TVD.</span>
+</pre></div>
+      </div>
+    </div>
+
+    <div class="double-rule"></div>
+
+    <p class="caption">export_synthetic() — terminal stream</p>
+    <div class="receipt"><span class="label">export_synthetic</span><pre>
+<span class="ok">→</span> Writing synthetic data...           <span class="ok">done</span>  <span class="c">(0.4s)</span>
+<span class="ok">→</span> Writing comparison report...        <span class="ok">done</span>  <span class="c">(0.1s)</span>
+<span class="ok">→</span> Writing spec.json...                <span class="ok">done</span>  <span class="c">(&lt;0.1s)</span>
+<span class="ok">→</span> Writing ai-readme.md...             <span class="ok">done</span>  <span class="c">(&lt;0.1s)</span>
+<span class="ok">→</span> Bundling to zip...                  <span class="ok">done</span>  <span class="c">(0.1s)</span>
+
+<span class="h">── Bundle written ───────────────────────────────────</span>
+  path:  ./out/health_survey_q4_synth.zip
+  size:  9.2 KB
+  files: 4
+
+<span class="c">i Synthetic data reduces direct disclosure risk. It is not</span>
+<span class="c">  a substitute for a formal privacy assessment.</span>
+</pre></div>
+
+  </div>
+</body></html>

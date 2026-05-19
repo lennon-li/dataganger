@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<title>Colors — Real & Synth pair</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); font-family: var(--font-sans); }
+  .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .label .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .group { display: flex; gap: 4px; margin-bottom: 16px; }
+  .group:last-child { margin-bottom: 0; }
+  .swatch { flex: 1; aspect-ratio: 1.6; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px 12px; border-radius: var(--radius-4); border: 1px solid rgba(17,20,15,0.06); }
+  .swatch .name { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em; color: var(--ink-900); }
+  .swatch .hex { font-family: var(--font-mono); font-size: 10px; color: var(--ink-900); opacity: 0.7; }
+  .swatch.dark .name, .swatch.dark .hex { color: var(--paper-50); }
+</style>
+</head><body>
+  <div class="label"><span class="dot" style="background:#4F7D32"></span>real / source — the original dataset</div>
+  <div class="group">
+    <div class="swatch" style="background:#ECF3E7"><div class="name">real-50</div><div class="hex">#ECF3E7</div></div>
+    <div class="swatch" style="background:#D2E2C4"><div class="name">real-100</div><div class="hex">#D2E2C4</div></div>
+    <div class="swatch" style="background:#94B97A"><div class="name">real-300</div><div class="hex">#94B97A</div></div>
+    <div class="swatch dark" style="background:#4F7D32"><div class="name">real-500</div><div class="hex">#4F7D32</div></div>
+    <div class="swatch dark" style="background:#2E5118"><div class="name">real-700</div><div class="hex">#2E5118</div></div>
+    <div class="swatch dark" style="background:#16280C"><div class="name">real-900</div><div class="hex">#16280C</div></div>
+  </div>
+  <div class="label"><span class="dot" style="background:#D43A8A"></span>synth / double — the doppelgänger</div>
+  <div class="group">
+    <div class="swatch" style="background:#FCE9F3"><div class="name">synth-50</div><div class="hex">#FCE9F3</div></div>
+    <div class="swatch" style="background:#F7C7E1"><div class="name">synth-100</div><div class="hex">#F7C7E1</div></div>
+    <div class="swatch" style="background:#E97FB8"><div class="name">synth-300</div><div class="hex">#E97FB8</div></div>
+    <div class="swatch dark" style="background:#D43A8A"><div class="name">synth-500</div><div class="hex">#D43A8A</div></div>
+    <div class="swatch dark" style="background:#91205C"><div class="name">synth-700</div><div class="hex">#91205C</div></div>
+    <div class="swatch dark" style="background:#4B0F30"><div class="name">synth-900</div><div class="hex">#4B0F30</div></div>
+  </div>
+</body></html>
