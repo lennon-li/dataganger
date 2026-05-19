@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<title>Components — Card anatomy</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-family: var(--font-sans); }
+  .card { background: var(--paper-100); border: 1px solid var(--border); border-radius: var(--radius-8); padding: 16px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; gap: 6px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); }
+  .title { font-family: var(--font-sans); font-size: 16px; font-weight: 600; color: var(--ink-900); }
+  .body { font-family: var(--font-sans); font-size: 13px; color: var(--fg-muted); line-height: 1.5; }
+  .meta { display: flex; gap: 12px; margin-top: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-900); }
+  .meta .v { color: var(--synth-700); }
+  .double-rule { height: 2px; background: linear-gradient(to right, var(--real-300) 0%, var(--real-300) 50%, var(--synth-300) 50%, var(--synth-300) 100%); margin: 4px 0; }
+</style>
+</head><body>
+  <div class="card">
+    <span class="eyebrow">Profile · column 04 of 10</span>
+    <div class="title">bmi</div>
+    <div class="body">Numeric. 17.4 → 41.8, mean 26.3 (SD 4.1). 7.0% missing.</div>
+    <div class="meta"><span>n =<span class="v"> 200</span></span><span>distinct =<span class="v"> 178</span></span></div>
+  </div>
+  <div class="card">
+    <span class="eyebrow">Export bundle</span>
+    <div class="title">health_survey_q4.zip</div>
+    <div class="double-rule"></div>
+    <div class="body">Two-tone rule above is the signature divider — original on the left, synth on the right. Used on bundles, the compare report, and section breaks.</div>
+  </div>
+</body></html>

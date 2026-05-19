@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<title>Components — Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg); display: flex; flex-direction: column; gap: 16px; font-family: var(--font-sans); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); width: 80px; flex-shrink: 0; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 4px; font-family: var(--font-sans); font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 160ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .btn-primary { background: var(--synth-500); color: white; box-shadow: var(--shine); }
+  .btn-primary:hover { background: var(--synth-700); }
+  .btn-real { background: var(--real-500); color: white; }
+  .btn-real:hover { background: var(--real-700); }
+  .btn-secondary { background: transparent; color: var(--ink-900); border-color: var(--paper-300); }
+  .btn-secondary:hover { border-color: var(--paper-400); background: var(--paper-100); }
+  .btn-tertiary { background: transparent; color: var(--synth-700); padding: 8px 8px; }
+  .btn-tertiary:hover { text-decoration: underline; }
+  .btn-danger { background: transparent; color: var(--danger-500); border-color: var(--danger-500); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+</style>
+</head><body>
+  <div class="row"><span class="label">primary</span>
+    <button class="btn btn-primary">Synthesise</button>
+    <button class="btn btn-primary">Export bundle</button>
+    <button class="btn btn-primary btn-sm">Next →</button>
+  </div>
+  <div class="row"><span class="label">"real"</span>
+    <button class="btn btn-real">Compare with original</button>
+    <button class="btn btn-real btn-sm">Load source</button>
+  </div>
+  <div class="row"><span class="label">secondary</span>
+    <button class="btn btn-secondary">Cancel</button>
+    <button class="btn btn-secondary">Edit spec</button>
+    <button class="btn btn-secondary btn-sm">↺ reset</button>
+  </div>
+  <div class="row"><span class="label">tertiary</span>
+    <button class="btn btn-tertiary">Show advanced settings</button>
+    <button class="btn btn-danger btn-sm">Drop variable</button>
+  </div>
+</body></html>

@@ -4,10 +4,15 @@
 \alias{run_app}
 \title{Launch the DataGangeR Shiny Application}
 \usage{
-run_app(...)
+run_app(max_upload_mb = 50, launch = interactive(), ...)
 }
 \arguments{
-\item{...}{Reserved for future arguments (e.g. \code{max_upload_mb}).}
+\item{max_upload_mb}{Maximum file upload size in megabytes. Default 50.}
+
+\item{launch}{Whether to launch the app. Default \code{interactive()}. Set to
+\code{FALSE} to configure options without blocking (useful for testing).}
+
+\item{...}{Reserved for future arguments.}
 }
 \value{
 Invisibly \code{NULL}.
