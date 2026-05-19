@@ -3,7 +3,8 @@
 #' Opens the DataGangeR interactive workflow in a local Shiny app. Requires
 #' the `shiny` and `DT` packages (listed in `Suggests`).
 #'
-#' @param ... Reserved for future arguments (e.g. `max_upload_mb`).
+#' @param max_upload_mb Maximum file upload size in megabytes. Default 50.
+#' @param ... Reserved for future arguments.
 #'
 #' @return Invisibly `NULL`.
 #' @export
@@ -12,10 +13,11 @@
 #' if (interactive()) {
 #'   run_app()
 #' }
-run_app <- function(...) {
+run_app <- function(max_upload_mb = 50, ...) {
   rlang::check_installed(
     c("shiny", "DT"),
     reason = "to run the DataGangeR Shiny app"
   )
+  options(shiny.maxRequestSize = max_upload_mb * 1024^2)
   invisible(NULL)
 }
