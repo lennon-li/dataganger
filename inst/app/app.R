@@ -10,24 +10,20 @@ if (pkgload_available && pkgload::is_dev_package("dataganger")) {
 library(shiny)
 library(bslib)
 
-dg_fun <- function(name) {
-  getFromNamespace(name, "dataganger")
-}
-
-detect_roles <- dg_fun("detect_roles")
-mod_compare_server <- dg_fun("mod_compare_server")
-mod_compare_ui <- dg_fun("mod_compare_ui")
-mod_export_server <- dg_fun("mod_export_server")
-mod_export_ui <- dg_fun("mod_export_ui")
-mod_generate_server <- dg_fun("mod_generate_server")
-mod_generate_ui <- dg_fun("mod_generate_ui")
-mod_roles_server <- dg_fun("mod_roles_server")
-mod_roles_ui <- dg_fun("mod_roles_ui")
-mod_state_server <- dg_fun("mod_state_server")
-mod_synthesis_controls_server <- dg_fun("mod_synthesis_controls_server")
-mod_synthesis_controls_ui <- dg_fun("mod_synthesis_controls_ui")
-mod_upload_server <- dg_fun("mod_upload_server")
-mod_upload_ui <- dg_fun("mod_upload_ui")
+detect_roles                  <- dataganger::detect_roles
+mod_compare_server            <- dataganger:::mod_compare_server
+mod_compare_ui                <- dataganger:::mod_compare_ui
+mod_export_server             <- dataganger:::mod_export_server
+mod_export_ui                 <- dataganger:::mod_export_ui
+mod_generate_server           <- dataganger:::mod_generate_server
+mod_generate_ui               <- dataganger:::mod_generate_ui
+mod_roles_server              <- dataganger:::mod_roles_server
+mod_roles_ui                  <- dataganger:::mod_roles_ui
+mod_state_server              <- dataganger:::mod_state_server
+mod_synthesis_controls_server <- dataganger:::mod_synthesis_controls_server
+mod_synthesis_controls_ui     <- dataganger:::mod_synthesis_controls_ui
+mod_upload_server             <- dataganger:::mod_upload_server
+mod_upload_ui                 <- dataganger:::mod_upload_ui
 
 dg_theme <- bslib::bs_theme(
   version = 5,
@@ -43,6 +39,7 @@ dg_theme <- bslib::bs_theme(
 )
 
 ui <- bslib::page_navbar(
+  id = "app_tabs",
   title = "DataGangeR",
   theme = dg_theme,
   header = tags$head(
@@ -102,23 +99,23 @@ server <- function(input, output, session) {
   })
 
   session$onFlushed(function() {
-    bslib::nav_hide(session, "roles")
-    bslib::nav_hide(session, "purpose")
+    bslib::nav_hide("app_tabs", "roles")
+    bslib::nav_hide("app_tabs", "purpose")
   }, once = TRUE)
 
   observe({
     if (is.null(state$raw_data)) {
-      bslib::nav_hide(session, "roles")
+      bslib::nav_hide("app_tabs", "roles")
     } else {
-      bslib::nav_show(session, "roles")
+      bslib::nav_show("app_tabs", "roles")
     }
   })
 
   observe({
     if (is.null(state$roles)) {
-      bslib::nav_hide(session, "purpose")
+      bslib::nav_hide("app_tabs", "purpose")
     } else {
-      bslib::nav_show(session, "purpose")
+      bslib::nav_show("app_tabs", "purpose")
     }
   })
 }

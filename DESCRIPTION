@@ -31,6 +31,7 @@ Imports:
     withr,
     zip
 Suggests:
+    bslib,
     DT,
     ggplot2,
     knitr,
