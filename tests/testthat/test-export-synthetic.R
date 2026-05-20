@@ -46,6 +46,10 @@ test_that("export_synthetic() writes the full bundle file set", {
   manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
   expect_equal(manifest$seed, 1)
   expect_true(nzchar(manifest$spec_hash))
+
+  dictionary <- readr::read_csv(file.path(out_dir, "data_dictionary.csv"), show_col_types = FALSE)
+  expect_true("original_variable" %in% names(dictionary))
+
   expect_setequal(
     names(manifest$file_sha256),
     c(
@@ -99,6 +103,9 @@ test_that("export_synthetic() warns but succeeds on exact-row matches by default
 
   manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
   expect_true(manifest$exact_row_matches > 0)
+
+  privacy_report <- readLines(file.path(out_dir, "privacy_report.txt"), warn = FALSE)
+  expect_true(any(privacy_report == sprintf("Exact row matches: %s", manifest$exact_row_matches)))
 })
 
 test_that("export_synthetic() errors on exact-row matches when fail_on_exact_match = TRUE", {

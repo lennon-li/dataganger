@@ -45,7 +45,7 @@ ui <- bslib::page_navbar(
   header = tags$head(
     tags$link(
       rel = "stylesheet",
-      href = "https://unpkg.com/lucide-static@latest/font/lucide.min.css"
+      href = "https://unpkg.com/lucide-static@1.14.0/font/lucide.min.css"
     )
   ),
   bslib::nav_panel(
