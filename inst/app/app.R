@@ -38,7 +38,12 @@ dg_theme <- bslib::bs_theme(
   font_scale = 1
 )
 
-shiny::addResourcePath("www", system.file("app/www", package = "dataganger"))
+www_path <- if (pkgload_available && pkgload::is_dev_package("dataganger")) {
+  system.file("app/www", package = "dataganger", lib.loc = pkgload::dev_packages_path())
+} else {
+  system.file("app/www", package = "dataganger")
+}
+shiny::addResourcePath("www", www_path)
 
 ui <- bslib::page_navbar(
   id = "app_tabs",
