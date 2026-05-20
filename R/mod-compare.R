@@ -36,17 +36,24 @@ mod_compare_server <- function(id, state) {
     output$dataset_tab <- shiny::renderUI({
       shiny::req(state$synthetic, state$raw_data)
 
-      shiny::tagList(
-        shiny::tags$h4("Original"),
-        shiny::tags$pre(paste(
-          "Rows:", nrow(state$raw_data),
-          "\nCols:", ncol(state$raw_data)
-        )),
-        shiny::tags$h4("Synthetic"),
-        shiny::tags$pre(paste(
-          "Rows:", nrow(state$synthetic),
-          "\nCols:", ncol(state$synthetic)
-        ))
+      shiny::div(
+        class = "compare-grid",
+        shiny::div(
+          class = "compare-pane real",
+          shiny::div(class = "header", shiny::tags$span(class = "dot"), "Original"),
+          shiny::tags$pre(paste(
+            "Rows:", nrow(state$raw_data),
+            "\nCols:", ncol(state$raw_data)
+          ))
+        ),
+        shiny::div(
+          class = "compare-pane synth",
+          shiny::div(class = "header", shiny::tags$span(class = "dot"), "Synthetic"),
+          shiny::tags$pre(paste(
+            "Rows:", nrow(state$synthetic),
+            "\nCols:", ncol(state$synthetic)
+          ))
+        )
       )
     })
 

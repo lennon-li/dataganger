@@ -12,7 +12,7 @@ mod_roles_ui <- function(id) {
 
   shiny::tagList(
     DT::DTOutput(ns("roles_table")),
-    shiny::actionButton(ns("confirm"), "Confirm roles")
+    shiny::actionButton(ns("confirm"), "Confirm roles", class = "btn-primary")
   )
 }
 

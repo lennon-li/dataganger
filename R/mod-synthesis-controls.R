@@ -57,7 +57,7 @@ mod_synthesis_controls_ui <- function(id) {
       ns = ns,
       shiny::tags$button(
         type = "button",
-        class = "btn btn-default action-button",
+        class = "btn btn-secondary action-button",
         disabled = "disabled",
         "Confirm and Continue \u2192"
       )
@@ -65,7 +65,7 @@ mod_synthesis_controls_ui <- function(id) {
     shiny::conditionalPanel(
       condition = "input.purpose_group !== 'internal_hifi' || input.acknowledge_risk",
       ns = ns,
-      shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192")
+      shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192", class = "btn-primary")
     )
   )
 }

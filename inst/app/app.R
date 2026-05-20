@@ -40,9 +40,11 @@ dg_theme <- bslib::bs_theme(
 
 ui <- bslib::page_navbar(
   id = "app_tabs",
-  title = "DataGangeR",
+  title = tags$span(class = "brand-wordmark", "DataGangeR"),
   theme = dg_theme,
   header = tags$head(
+    tags$link(rel = "stylesheet", href = "colors_and_type.css"),
+    tags$link(rel = "stylesheet", href = "shiny-app.css"),
     tags$link(
       rel = "stylesheet",
       href = "https://unpkg.com/lucide-static@1.14.0/font/lucide.min.css"

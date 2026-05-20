@@ -20,8 +20,11 @@ mod_generate_ui <- function(id) {
 
   shiny::tagList(
     stale_banner_ui("synthesis", ns = ns),
-    shiny::actionButton(ns("generate"), "Generate Synthetic Data"),
-    shiny::verbatimTextOutput(ns("result_summary"))
+    shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
+    shiny::div(
+      class = "card",
+      shiny::verbatimTextOutput(ns("result_summary"))
+    )
   )
 }
 

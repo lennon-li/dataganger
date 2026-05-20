@@ -27,7 +27,7 @@ mod_export_ui <- function(id) {
       value = FALSE
     ),
     shiny::uiOutput(ns("names_ui")),
-    shiny::downloadButton(ns("download"), label = "Download synthetic data")
+    shiny::downloadButton(ns("download"), label = "Download synthetic data", class = "btn-primary")
   )
 }
 
@@ -52,10 +52,8 @@ mod_export_server <- function(id, state) {
 
       if (!is.null(purpose) && identical(purpose, "safer_external")) {
         shiny::tags$p(
-          shiny::tags$em(
-            "Column names will be anonymized to protect variable identity."
-          ),
-          style = "color: #888; font-size: 0.9em;"
+          class = "t-body-sm",
+          "Column names will be anonymized to protect variable identity."
         )
       } else {
         shiny::checkboxInput(
