@@ -143,8 +143,12 @@ stale_banner_ui <- function(flag_name, ns = shiny::NS(NULL)) {
   shiny::conditionalPanel(
     condition = sprintf("output['%s'] === 'true'", output_id),
     shiny::div(
-      class = "alert alert-warning",
-      "Results are stale. Re-generate before trusting downstream outputs."
+      class = "banner info",
+      shiny::tags$span(class = "icon", "i"),
+      shiny::div(
+        shiny::tags$b("Results stale"),
+        " Re-generate before trusting downstream outputs."
+      )
     )
   )
 }

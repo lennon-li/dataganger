@@ -38,45 +38,79 @@ dg_theme <- bslib::bs_theme(
   font_scale = 1
 )
 
-ui <- bslib::page_navbar(
-  id = "app_tabs",
-  title = "DataGangeR",
-  theme = dg_theme,
-  header = tags$head(
+# Sidebar nav step helper
+step_item <- function(num, label, input_id) {
+  tags$li(
+    class = "step",
+    id = paste0("step-", input_id),
+    onclick = sprintf(
+      "Shiny.setInputValue('nav_go', '%s', {priority: 'event'})",
+      input_id
+    ),
+    tags$span(class = "num", sprintf("%02d", num)),
+    tags$span(class = "label", label)
+  )
+}
+
+sidebar_content <- tags$div(
+  tags$head(
+    tags$link(rel = "stylesheet", href = "colors_and_type.css"),
+    tags$link(rel = "stylesheet", href = "shiny-app.css"),
     tags$link(
       rel = "stylesheet",
       href = "https://unpkg.com/lucide-static@1.14.0/font/lucide.min.css"
+    ),
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
+        document.querySelectorAll('.step').forEach(function(el) {
+          el.classList.remove('active');
+        });
+        var active = document.getElementById('step-' + tab);
+        if (active) active.classList.add('active');
+      });
+    "))
+  ),
+  # Brand
+  tags$div(
+    class = "brand",
+    tags$img(src = "logomark.svg", alt = ""),
+    tags$div(
+      tags$span(
+        class = "name",
+        "DataGange", tags$span(class = "r", "R")
+      ),
+      tags$span(class = "tag", "v0.1 · beta")
     )
   ),
-  bslib::nav_panel(
-    "Upload",
-    value = "upload",
-    mod_upload_ui("upload")
+  tags$div(class = "section-label", "Workflow"),
+  tags$ul(
+    class = "steps",
+    step_item(1, "Upload data",     "upload"),
+    step_item(2, "Column roles",    "roles"),
+    step_item(3, "Synthesis spec",  "purpose"),
+    step_item(4, "Synthesise",      "generate"),
+    step_item(5, "Compare",         "compare"),
+    step_item(6, "Export",          "export")
+  )
+)
+
+ui <- bslib::page_sidebar(
+  title = NULL,
+  theme = dg_theme,
+  sidebar = bslib::sidebar(
+    width = 296,
+    class = "sidebar",
+    open = TRUE,
+    sidebar_content
   ),
-  bslib::nav_panel(
-    "Roles",
-    value = "roles",
-    mod_roles_ui("roles")
-  ),
-  bslib::nav_panel(
-    "Purpose",
-    value = "purpose",
-    mod_synthesis_controls_ui("synthesis_controls")
-  ),
-  bslib::nav_panel(
-    "Synthesise",
-    value = "generate",
-    mod_generate_ui("generate")
-  ),
-  bslib::nav_panel(
-    "Compare",
-    value = "compare",
-    mod_compare_ui("compare")
-  ),
-  bslib::nav_panel(
-    "Export",
-    value = "export",
-    mod_export_ui("export")
+  bslib::navset_hidden(
+    id = "app_tabs",
+    bslib::nav_panel_hidden("upload",   mod_upload_ui("upload")),
+    bslib::nav_panel_hidden("roles",    mod_roles_ui("roles")),
+    bslib::nav_panel_hidden("purpose",  mod_synthesis_controls_ui("synthesis_controls")),
+    bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
+    bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
+    bslib::nav_panel_hidden("export",   mod_export_ui("export"))
   )
 )
 
@@ -90,33 +124,44 @@ server <- function(input, output, session) {
   mod_compare_server("compare", state)
   mod_export_server("export", state)
 
+  # Set initial active step highlight
+  session$onFlushed(function() {
+    session$sendCustomMessage("setActiveStep", "upload")
+  }, once = TRUE)
+
+  # Sidebar navigation
+  shiny::observeEvent(input$nav_go, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    target <- input$nav_go
+    # Only navigate to unlocked steps
+    allowed <- "upload"
+    if (!is.null(state$raw_data)) allowed <- c(allowed, "roles")
+    if (!is.null(state$roles))    allowed <- c(allowed, "purpose")
+    if (!is.null(state$spec))     allowed <- c(allowed, "generate", "compare", "export")
+    if (target %in% allowed) {
+      bslib::nav_select("app_tabs", target)
+      # Update active step class via JS
+      session$sendCustomMessage("setActiveStep", target)
+    }
+  })
+
+  # Auto-detect roles after upload
   observe({
     req(state$raw_data, state$profile)
-
     if (is.null(state$roles)) {
       state$roles <- detect_roles(state$raw_data, profile = state$profile)
     }
   })
 
-  session$onFlushed(function() {
-    bslib::nav_hide("app_tabs", "roles")
-    bslib::nav_hide("app_tabs", "purpose")
-  }, once = TRUE)
-
-  observe({
-    if (is.null(state$raw_data)) {
-      bslib::nav_hide("app_tabs", "roles")
-    } else {
-      bslib::nav_show("app_tabs", "roles")
-    }
+  # Auto-advance to roles once data is uploaded
+  observeEvent(state$roles, ignoreNULL = TRUE, once = TRUE, {
+    bslib::nav_select("app_tabs", "roles")
+    session$sendCustomMessage("setActiveStep", "roles")
   })
 
-  observe({
-    if (is.null(state$roles)) {
-      bslib::nav_hide("app_tabs", "purpose")
-    } else {
-      bslib::nav_show("app_tabs", "purpose")
-    }
+  # Advance to purpose after roles confirmed
+  observeEvent(state$spec, ignoreNULL = TRUE, {
+    bslib::nav_select("app_tabs", "purpose")
+    session$sendCustomMessage("setActiveStep", "purpose")
   })
 }
 
