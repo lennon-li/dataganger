@@ -20,7 +20,7 @@ mod_upload_ui <- function(id) {
   shiny::tagList(
     shiny::div(
       class = "upload",
-      shiny::tags$span(class = "icon", "↑"),
+      shiny::tags$span(class = "icon", "\u2191"),
       shiny::tags$span(class = "primary", "Drop file here or click to browse"),
       shiny::fileInput(
         inputId = ns("file"),
@@ -28,7 +28,7 @@ mod_upload_ui <- function(id) {
         accept = c(".csv", ".xlsx", ".sas7bdat", ".xpt"),
         width = "100%"
       ),
-      shiny::tags$span(class = "secondary", "CSV · Excel (.xlsx) · SAS (.sas7bdat, .xpt)")
+      shiny::tags$span(class = "secondary", "CSV \u00b7 Excel (.xlsx) \u00b7 SAS (.sas7bdat, .xpt)")
     ),
     DT::DTOutput(ns("preview")),
     shiny::tags$details(
