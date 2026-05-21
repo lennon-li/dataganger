@@ -272,3 +272,20 @@ pre, .shiny-text-output {
   color: var(--fg-muted);
   font-weight: 500;
 }
+
+/* ============ bslib page_sidebar overrides ============ */
+
+/* bslib sidebar panel: suppress default padding/bg so our .sidebar class owns it */
+.bslib-sidebar-layout > .sidebar-content {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+/* Main content area padding */
+.bslib-sidebar-layout > .main {
+  padding: 32px 48px 120px !important;
+}
+
+/* Tab panels: disable bslib fill expansion */
+.tab-content.html-fill-item { height: auto !important; }
+.tab-pane.html-fill-item { height: auto !important; }
