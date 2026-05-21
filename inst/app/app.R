@@ -59,7 +59,16 @@ sidebar_content <- tags$div(
     tags$link(
       rel = "stylesheet",
       href = "https://unpkg.com/lucide-static@1.14.0/font/lucide.min.css"
-    )
+    ),
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
+        document.querySelectorAll('.step').forEach(function(el) {
+          el.classList.remove('active');
+        });
+        var active = document.getElementById('step-' + tab);
+        if (active) active.classList.add('active');
+      });
+    "))
   ),
   # Brand
   tags$div(
@@ -115,6 +124,11 @@ server <- function(input, output, session) {
   mod_compare_server("compare", state)
   mod_export_server("export", state)
 
+  # Set initial active step highlight
+  session$onFlushed(function() {
+    session$sendCustomMessage("setActiveStep", "upload")
+  }, once = TRUE)
+
   # Sidebar navigation
   shiny::observeEvent(input$nav_go, ignoreNULL = TRUE, ignoreInit = TRUE, {
     target <- input$nav_go
@@ -150,16 +164,5 @@ server <- function(input, output, session) {
     session$sendCustomMessage("setActiveStep", "purpose")
   })
 }
-
-# JS to update active step highlight
-tags$head(tags$script(HTML("
-  Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
-    document.querySelectorAll('.step').forEach(function(el) {
-      el.classList.remove('active');
-    });
-    var active = document.getElementById('step-' + tab);
-    if (active) active.classList.add('active');
-  });
-")))
 
 shinyApp(ui, server)
