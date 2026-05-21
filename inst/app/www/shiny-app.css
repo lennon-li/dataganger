@@ -219,6 +219,14 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 .upload .secondary { font-family: var(--font-sans); font-size: 13px; color: var(--fg-muted); }
 .upload .formats { font-family: var(--font-mono); font-size: 11px; color: var(--fg-subtle); }
 
+/* Shiny fileInput inside upload zone */
+.upload .shiny-input-container { margin: 0; width: 100% !important; max-width: 420px; }
+.upload .input-group { flex-wrap: nowrap; }
+.upload .btn-file { background: var(--synth-500) !important; color: white !important; border-color: var(--synth-500) !important; font-family: var(--font-sans); font-weight: 600; font-size: 14px; border-radius: 4px 0 0 4px !important; }
+.upload .btn-file:hover { background: var(--synth-700) !important; border-color: var(--synth-700) !important; }
+.upload .form-control[readonly] { background: var(--paper-100) !important; border-color: var(--paper-300) !important; color: var(--fg-muted); font-family: var(--font-mono); font-size: 12px; border-radius: 0 4px 4px 0 !important; }
+.upload .input-group-btn, .upload .input-group-prepend { border-radius: 4px 0 0 4px; }
+
 /* Stat blocks */
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
 .stat { background: var(--paper-50); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
