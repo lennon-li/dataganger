@@ -18,7 +18,7 @@ mod_compare_ui <- function(id) {
     stale_banner_ui("comparison", ns = ns),
     shiny::div(
       class = "btn-row",
-      shiny::actionLink(ns("adjust_settings"), "← Adjust settings")
+      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
     ),
     shiny::tabsetPanel(
       id = ns("compare_tabs"),
