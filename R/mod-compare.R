@@ -20,6 +20,7 @@ mod_compare_ui <- function(id) {
       class = "btn-row",
       shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
     ),
+    shiny::tags$div(class = "double-rule"),
     shiny::tabsetPanel(
       id = ns("compare_tabs"),
       shiny::tabPanel("Dataset", shiny::uiOutput(ns("dataset_tab"))),
@@ -52,18 +53,26 @@ mod_compare_server <- function(id, state) {
         shiny::div(
           class = "compare-pane real",
           shiny::div(class = "header", shiny::tags$span(class = "dot"), "Original"),
-          shiny::tags$pre(paste(
-            "Rows:", nrow(state$raw_data),
-            "\nCols:", ncol(state$raw_data)
-          ))
+          shiny::tags$div(
+            style = "font-family:var(--font-mono);font-weight:500;font-size:28px;color:var(--ink-900);line-height:1;letter-spacing:-0.02em;margin-bottom:4px;",
+            nrow(state$raw_data)
+          ),
+          shiny::tags$div(
+            style = "font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);",
+            paste0("rows \u00b7 ", ncol(state$raw_data), " cols")
+          )
         ),
         shiny::div(
           class = "compare-pane synth",
           shiny::div(class = "header", shiny::tags$span(class = "dot"), "Synthetic"),
-          shiny::tags$pre(paste(
-            "Rows:", nrow(state$synthetic),
-            "\nCols:", ncol(state$synthetic)
-          ))
+          shiny::tags$div(
+            style = "font-family:var(--font-mono);font-weight:500;font-size:28px;color:var(--ink-900);line-height:1;letter-spacing:-0.02em;margin-bottom:4px;",
+            nrow(state$synthetic)
+          ),
+          shiny::tags$div(
+            style = "font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);",
+            paste0("rows \u00b7 ", ncol(state$synthetic), " cols")
+          )
         )
       )
     })
@@ -75,10 +84,18 @@ mod_compare_server <- function(id, state) {
       shiny::req(!is.null(cmp$numeric))
 
       if (nrow(cmp$numeric) == 0) {
-        return(shiny::tags$p("No numeric comparison available."))
+        return(shiny::tags$div(class = "card",
+          shiny::tags$p("No numeric comparison available.")))
       }
 
-      shiny::tags$pre(utils::capture.output(print(cmp$numeric)))
+      shiny::tags$div(
+        class = "card",
+        shiny::tags$div(class = "card-header",
+          shiny::tags$span(class = "title", "Numeric comparison"),
+          shiny::tags$span(class = "sub", "means and distributions")
+        ),
+        shiny::tags$pre(utils::capture.output(print(cmp$numeric)))
+      )
     })
 
     output$categorical_tab <- shiny::renderUI({
@@ -88,10 +105,18 @@ mod_compare_server <- function(id, state) {
       shiny::req(!is.null(cmp$categorical))
 
       if (nrow(cmp$categorical) == 0) {
-        return(shiny::tags$p("No categorical comparison available."))
+        return(shiny::tags$div(class = "card",
+          shiny::tags$p("No categorical comparison available.")))
       }
 
-      shiny::tags$pre(utils::capture.output(print(cmp$categorical)))
+      shiny::tags$div(
+        class = "card",
+        shiny::tags$div(class = "card-header",
+          shiny::tags$span(class = "title", "Categorical comparison"),
+          shiny::tags$span(class = "sub", "frequency distributions")
+        ),
+        shiny::tags$pre(utils::capture.output(print(cmp$categorical)))
+      )
     })
 
     output$privacy_tab <- shiny::renderUI({
@@ -99,9 +124,23 @@ mod_compare_server <- function(id, state) {
       prv <- state$privacy
       exact_matches <- attr(prv, "exact_row_matches", exact = TRUE)
 
-      shiny::tagList(
-        shiny::tags$h4("Privacy Check"),
-        shiny::tags$p(paste("Exact row matches:", exact_matches)),
+      exact_style <- if (is.numeric(exact_matches) && exact_matches > 0) {
+        "color:var(--risk-500)"
+      } else {
+        NULL
+      }
+
+      shiny::tags$div(
+        class = "card",
+        shiny::tags$div(class = "card-header",
+          shiny::tags$span(class = "title", "Privacy check"),
+          shiny::tags$span(
+            class = "sub",
+            style = exact_style,
+            paste0("Exact row matches: ",
+              if (is.null(exact_matches)) "unavailable" else exact_matches)
+          )
+        ),
         shiny::tags$pre(utils::capture.output(print(prv)))
       )
     })

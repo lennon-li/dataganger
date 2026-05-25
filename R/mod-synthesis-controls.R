@@ -15,49 +15,84 @@ mod_synthesis_controls_ui <- function(id) {
         shiny::tags$h1("Configure synthesis")
       )
     ),
-    shiny::h3("What are you creating synthetic data for?"),
-    shiny::radioButtons(
-      inputId = ns("purpose_group"),
-      label = NULL,
-      choiceNames = list(
-        "Code / App Prototype",
-        "Teaching / Demo Data",
-        "Safer External Sharing",
-        shiny::HTML("Advanced / Internal &#9662;")
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Purpose"),
+        shiny::tags$span(class = "sub", "presets the synthesis defaults")
       ),
-      choiceValues = c("prototype", "teaching", "safer_external", "internal_hifi")
-    ),
-    shiny::conditionalPanel(
-      condition = "input.purpose_group === 'prototype'",
-      ns = ns,
       shiny::radioButtons(
-        inputId = ns("prototype_choice"),
+        inputId = ns("purpose_group"),
         label = NULL,
-        choices = c(
-          "AI-assisted programming" = "ai_programming",
-          "Shiny / app prototype" = "shiny_prototype",
-          "Model pipeline prototype" = "model_prototype"
+        choiceNames = list(
+          shiny::tagList(
+            shiny::tags$span(style = "display:block;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink-900);", "prototype"),
+            shiny::tags$span(style = "display:block;font-family:var(--font-sans);font-size:12px;color:var(--fg-muted);margin-top:2px;line-height:1.4;", "AI programming, Shiny app, or model pipeline.")
+          ),
+          shiny::tagList(
+            shiny::tags$span(style = "display:block;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink-900);", "teaching"),
+            shiny::tags$span(style = "display:block;font-family:var(--font-sans);font-size:12px;color:var(--fg-muted);margin-top:2px;line-height:1.4;", "Classroom safe. Stripped of inter-variable relationships.")
+          ),
+          shiny::tagList(
+            shiny::tags$span(style = "display:block;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink-900);", "safer_external"),
+            shiny::tags$span(style = "display:block;font-family:var(--font-sans);font-size:12px;color:var(--fg-muted);margin-top:2px;line-height:1.4;", "Schema only. Generic names, aggregated geography.")
+          ),
+          shiny::tagList(
+            shiny::tags$span(style = "display:block;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink-900);", shiny::HTML("internal_hifi &#9662;")),
+            shiny::tags$span(style = "display:block;font-family:var(--font-sans);font-size:12px;color:var(--fg-muted);margin-top:2px;line-height:1.4;", "High fidelity. Requires acknowledge_risk = TRUE.")
+          )
+        ),
+        choiceValues = c("prototype", "teaching", "safer_external", "internal_hifi")
+      ),
+      shiny::conditionalPanel(
+        condition = "input.purpose_group === 'prototype'",
+        ns = ns,
+        shiny::radioButtons(
+          inputId = ns("prototype_choice"),
+          label = NULL,
+          choices = c(
+            "AI-assisted programming" = "ai_programming",
+            "Shiny / app prototype" = "shiny_prototype",
+            "Model pipeline prototype" = "model_prototype"
+          )
         )
-      )
-    ),
-    shiny::conditionalPanel(
-      condition = "input.purpose_group === 'internal_hifi'",
-      ns = ns,
-      shiny::tags$details(
-        open = NA,
-        shiny::tags$summary(shiny::HTML("Advanced / Internal &#9662;")),
-        shiny::checkboxInput(
-          inputId = ns("acknowledge_risk"),
-          label = "I understand this mode may preserve sensitive patterns and is for internal use only.",
-          value = FALSE
+      ),
+      shiny::conditionalPanel(
+        condition = "input.purpose_group === 'internal_hifi'",
+        ns = ns,
+        shiny::tags$details(
+          open = NA,
+          shiny::tags$summary(shiny::HTML("Advanced / Internal &#9662;")),
+          shiny::checkboxInput(
+            inputId = ns("acknowledge_risk"),
+            label = "I understand this mode may preserve sensitive patterns and is for internal use only.",
+            value = FALSE
+          )
         )
-      )
+      ),
+      shiny::uiOutput(ns("purpose_detail"))
     ),
-    shiny::uiOutput(ns("purpose_detail")),
-    shiny::uiOutput(ns("advanced_settings")),
-    shiny::tags$details(
-      shiny::tags$summary("Spec preview"),
-      shiny::verbatimTextOutput(ns("spec_preview"))
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Settings"),
+        shiny::tags$span(class = "sub", "advanced overrides")
+      ),
+      shiny::uiOutput(ns("advanced_settings"))
+    ),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Spec preview"),
+        shiny::tags$span(class = "sub", "current configuration")
+      ),
+      shiny::tags$div(
+        class = "console",
+        shiny::verbatimTextOutput(ns("spec_preview"))
+      )
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'internal_hifi' && !input.acknowledge_risk",
@@ -177,7 +212,14 @@ mod_synthesis_controls_server <- function(id, state) {
           }
         ), paste(copy$does_not_preserve)),
         shiny::p(shiny::tags$strong("Recommended use:"), paste(copy$recommended_use)),
-        shiny::p(shiny::tags$strong("Privacy caution:"), paste(copy$privacy_caution))
+        shiny::tags$div(
+          class = "banner risk",
+          shiny::tags$span(class = "icon", "!"),
+          shiny::tags$div(
+            shiny::tags$b("Privacy caution"),
+            paste0(" ", copy$privacy_caution)
+          )
+        )
       )
     })
 

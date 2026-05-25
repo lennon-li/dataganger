@@ -33,9 +33,14 @@ mod_generate_ui <- function(id) {
       shiny::actionButton(ns("try_new_seed"), "Try new seed", class = "btn-secondary"),
       shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
     ),
-    shiny::div(
+    shiny::tags$div(
       class = "card",
-      shiny::verbatimTextOutput(ns("result_summary"))
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Synthesis result"),
+        shiny::tags$span(class = "sub", "post-generation summary")
+      ),
+      shiny::uiOutput(ns("result_stats"))
     )
   )
 }
@@ -60,10 +65,7 @@ mod_generate_server <- function(id, state) {
       shiny::req(state$synthetic)
 
       exact_row_matches <- attr(state$privacy, "exact_row_matches", exact = TRUE)
-
-      if (is.null(exact_row_matches)) {
-        exact_row_matches <- "unavailable"
-      }
+      if (is.null(exact_row_matches)) exact_row_matches <- "unavailable"
 
       paste0(
         "Synthetic data generated.\n",
@@ -71,6 +73,40 @@ mod_generate_server <- function(id, state) {
         "Columns: ", ncol(state$synthetic), "\n",
         "Exact row matches: ", exact_row_matches, "\n",
         "Seed: ", state$seed_used
+      )
+    })
+
+    output$result_stats <- shiny::renderUI({
+      shiny::req(state$synthetic)
+
+      exact_row_matches <- attr(state$privacy, "exact_row_matches", exact = TRUE)
+      if (is.null(exact_row_matches)) exact_row_matches <- "unavailable"
+
+      seed_lbl <- if (!is.null(state$seed_used)) as.character(state$seed_used) else "\u2014"
+      exact_style <- if (is.numeric(exact_row_matches) && exact_row_matches > 0) {
+        "color:var(--risk-500)"
+      } else {
+        NULL
+      }
+
+      shiny::tags$div(
+        class = "stats",
+        shiny::tags$div(class = "stat",
+          shiny::tags$div(class = "label", "ROWS"),
+          shiny::tags$div(class = "v", nrow(state$synthetic))
+        ),
+        shiny::tags$div(class = "stat",
+          shiny::tags$div(class = "label", "COLUMNS"),
+          shiny::tags$div(class = "v", ncol(state$synthetic))
+        ),
+        shiny::tags$div(class = "stat",
+          shiny::tags$div(class = "label", "SEED"),
+          shiny::tags$div(class = "v", seed_lbl)
+        ),
+        shiny::tags$div(class = "stat",
+          shiny::tags$div(class = "label", "EXACT MATCHES"),
+          shiny::tags$div(class = "v", style = exact_style, as.character(exact_row_matches))
+        )
       )
     })
 

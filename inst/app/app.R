@@ -116,7 +116,8 @@ ui <- bslib::page_sidebar(
     bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
     bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
     bslib::nav_panel_hidden("export",   mod_export_ui("export"))
-  )
+  ),
+  shiny::uiOutput("action_bar")
 )
 
 server <- function(input, output, session) {
@@ -211,6 +212,38 @@ server <- function(input, output, session) {
       bslib::nav_select("app_tabs", target)
       session$sendCustomMessage("setActiveStep", target)
     }
+  })
+
+  # Floating action bar \u2014 shows file dimensions, current step, and purpose
+  output$action_bar <- renderUI({
+    step_map <- list(
+      upload   = list(n = "01", label = "Upload"),
+      roles    = list(n = "02", label = "Column Roles"),
+      purpose  = list(n = "03", label = "Synthesis Spec"),
+      generate = list(n = "04", label = "Generation"),
+      compare  = list(n = "05", label = "Compare"),
+      export   = list(n = "06", label = "Export")
+    )
+    current    <- if (!is.null(input$app_tabs)) input$app_tabs else "upload"
+    step_info  <- step_map[[current]]
+    if (is.null(step_info)) step_info <- list(n = "01", label = "Upload")
+    step_lbl   <- paste0(step_info$n, "/06 \u2014 ", step_info$label)
+    file_lbl   <- if (!is.null(state$raw_data)) {
+      paste0(nrow(state$raw_data), " \u00d7 ", ncol(state$raw_data))
+    } else {
+      "\u2014"
+    }
+    purpose_lbl <- if (!is.null(state$spec)) state$spec$purpose else "\u2014"
+
+    tags$div(
+      class = "action-bar",
+      tags$div(
+        class = "summary",
+        tags$span(tags$span(class = "k", "file"), " ", file_lbl),
+        tags$span(tags$span(class = "k", "step"), " ", step_lbl),
+        tags$span(tags$span(class = "k", "purpose"), " ", purpose_lbl)
+      )
+    )
   })
 }
 

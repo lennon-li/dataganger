@@ -18,7 +18,23 @@ mod_roles_ui <- function(id) {
         shiny::tags$h1("Review column roles")
       )
     ),
-    DT::DTOutput(ns("roles_table")),
+    shiny::tags$div(
+      class = "banner info",
+      shiny::tags$span(class = "icon", "i"),
+      shiny::tags$div(
+        shiny::tags$b("Auto-detected."),
+        " Edit anything that\u2019s wrong. Role assignments influence how columns are coarsened, redacted, or dropped."
+      )
+    ),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Column roles"),
+        shiny::tags$span(class = "sub", "click a cell in the role column to edit")
+      ),
+      DT::DTOutput(ns("roles_table"))
+    ),
     shiny::actionButton(ns("confirm"), "Confirm roles", class = "btn-primary")
   )
 }

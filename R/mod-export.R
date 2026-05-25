@@ -16,25 +16,33 @@ mod_export_ui <- function(id) {
       )
     ),
     stale_banner_ui("export", ns = ns),
-    shiny::radioButtons(
-      ns("format"),
-      label = "Download format",
-      choices = c("CSV" = "csv", "RDS" = "rds"),
-      selected = "csv",
-      inline = TRUE
-    ),
-    shiny::checkboxInput(
-      ns("include_report"),
-      label = "Include HTML report",
-      value = FALSE
-    ),
-    shiny::checkboxInput(
-      ns("fail_on_exact"),
-      label = "Fail if exact row matches found",
-      value = FALSE
-    ),
-    shiny::uiOutput(ns("names_ui")),
-    shiny::downloadButton(ns("download"), label = "Download synthetic data", class = "btn-primary")
+    shiny::tags$div(class = "double-rule"),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Export options")
+      ),
+      shiny::radioButtons(
+        ns("format"),
+        label = "Download format",
+        choices = c("CSV" = "csv", "RDS" = "rds"),
+        selected = "csv",
+        inline = TRUE
+      ),
+      shiny::checkboxInput(
+        ns("include_report"),
+        label = "Include HTML report",
+        value = FALSE
+      ),
+      shiny::checkboxInput(
+        ns("fail_on_exact"),
+        label = "Fail if exact row matches found",
+        value = FALSE
+      ),
+      shiny::uiOutput(ns("names_ui")),
+      shiny::downloadButton(ns("download"), label = "Download synthetic data", class = "btn-primary")
+    )
   )
 }
 
