@@ -89,7 +89,7 @@ test_that("run_app() sets shiny.maxRequestSize from max_upload_mb", {
       requireNamespace("DT", quietly = TRUE),
     "shiny, bslib, or DT not installed"
   )
-  testthat::local_options(shiny.maxRequestSize = NULL)
+  withr::local_options(shiny.maxRequestSize = NULL)
 
   run_app(max_upload_mb = 50, launch = FALSE)
   expect_identical(getOption("shiny.maxRequestSize"), 50 * 1024^2)
