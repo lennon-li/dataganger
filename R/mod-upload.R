@@ -21,7 +21,7 @@ mod_upload_ui <- function(id) {
     shiny::tags$div(
       class = "main-header",
       shiny::tags$div(
-        shiny::tags$span(class = "eyebrow", "Step 01 · Upload Data"),
+        shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Upload Data"),
         shiny::tags$h1("Upload your data")
       )
     ),
