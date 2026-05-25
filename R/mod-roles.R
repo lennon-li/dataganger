@@ -11,6 +11,13 @@ mod_roles_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    shiny::tags$div(
+      class = "main-header",
+      shiny::tags$div(
+        shiny::tags$span(class = "eyebrow", "Step 02 \u00b7 Column Roles"),
+        shiny::tags$h1("Review column roles")
+      )
+    ),
     DT::DTOutput(ns("roles_table")),
     shiny::actionButton(ns("confirm"), "Confirm roles", class = "btn-primary")
   )
@@ -104,6 +111,7 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
       state$roles <- roles
+      state$roles_confirmed <- TRUE
       invisible(NULL)
     })
 

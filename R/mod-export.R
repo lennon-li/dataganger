@@ -8,6 +8,13 @@ mod_export_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    shiny::tags$div(
+      class = "main-header",
+      shiny::tags$div(
+        shiny::tags$span(class = "eyebrow", "Step 06 \u00b7 Export"),
+        shiny::tags$h1("Export your data")
+      )
+    ),
     stale_banner_ui("export", ns = ns),
     shiny::radioButtons(
       ns("format"),
