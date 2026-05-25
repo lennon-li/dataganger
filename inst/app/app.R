@@ -177,8 +177,10 @@ server <- function(input, output, session) {
     session$sendCustomMessage("setDoneStep", "upload")
   })
 
-  observeEvent(state$roles, ignoreNULL = TRUE, {
-    session$sendCustomMessage("setDoneStep", "roles")
+  observeEvent(state$roles_confirmed, {
+    if (isTRUE(state$roles_confirmed)) {
+      session$sendCustomMessage("setDoneStep", "roles")
+    }
   })
 
   observeEvent(state$spec, ignoreNULL = TRUE, {
