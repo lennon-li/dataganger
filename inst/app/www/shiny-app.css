@@ -72,7 +72,8 @@
 .step.active .num { background: var(--ink-900); color: white; }
 .step .label { font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--ink-900); }
 .step.done .label { color: var(--fg-muted); }
-.step .check { margin-left: auto; color: var(--real-500); font-size: 14px; }
+.step .check { display: none; margin-left: auto; color: var(--real-500); font-size: 14px; }
+.step.done .check { display: inline-flex; }
 
 .sidebar .section-label {
   font-family: var(--font-mono);

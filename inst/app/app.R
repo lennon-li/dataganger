@@ -58,10 +58,6 @@ sidebar_content <- tags$div(
   tags$head(
     tags$link(rel = "stylesheet", href = "colors_and_type.css"),
     tags$link(rel = "stylesheet", href = "shiny-app.css"),
-    tags$link(
-      rel = "stylesheet",
-      href = "https://unpkg.com/lucide-static@1.14.0/font/lucide.min.css"
-    ),
     tags$script(HTML("
       Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
         document.querySelectorAll('.step').forEach(function(el) {
@@ -171,6 +167,14 @@ server <- function(input, output, session) {
   observeEvent(state$spec, ignoreNULL = TRUE, {
     bslib::nav_select("app_tabs", "generate")
     session$sendCustomMessage("setActiveStep", "generate")
+  })
+
+  # Auto-advance to purpose once roles are confirmed
+  observeEvent(state$roles_confirmed, {
+    if (isTRUE(state$roles_confirmed)) {
+      bslib::nav_select("app_tabs", "purpose")
+      session$sendCustomMessage("setActiveStep", "purpose")
+    }
   })
 
   observeEvent(state$raw_data, ignoreNULL = TRUE, {
