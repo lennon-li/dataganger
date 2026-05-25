@@ -22,7 +22,7 @@ mod_generate_ui <- function(id) {
     shiny::tags$div(
       class = "main-header",
       shiny::tags$div(
-        shiny::tags$span(class = "eyebrow", "Step 04 · Synthesise"),
+        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Synthesise"),
         shiny::tags$h1("Generate synthetic data")
       )
     ),
