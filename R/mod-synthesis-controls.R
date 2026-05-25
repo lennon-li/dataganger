@@ -8,6 +8,13 @@ mod_synthesis_controls_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    shiny::tags$div(
+      class = "main-header",
+      shiny::tags$div(
+        shiny::tags$span(class = "eyebrow", "Step 03 · Synthesis Spec"),
+        shiny::tags$h1("Configure synthesis")
+      )
+    ),
     shiny::h3("What are you creating synthetic data for?"),
     shiny::radioButtons(
       inputId = ns("purpose_group"),

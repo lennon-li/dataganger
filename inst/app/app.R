@@ -43,12 +43,14 @@ step_item <- function(num, label, input_id) {
   tags$li(
     class = "step",
     id = paste0("step-", input_id),
+    `data-step` = input_id,
     onclick = sprintf(
       "Shiny.setInputValue('nav_go', '%s', {priority: 'event'})",
       input_id
     ),
     tags$span(class = "num", sprintf("%02d", num)),
-    tags$span(class = "label", label)
+    tags$span(class = "label", label),
+    tags$span(class = "check", icon("check"))
   )
 }
 
@@ -67,6 +69,13 @@ sidebar_content <- tags$div(
         });
         var active = document.getElementById('step-' + tab);
         if (active) active.classList.add('active');
+      });
+      Shiny.addCustomMessageHandler('setDoneStep', function(stepId) {
+        document.querySelectorAll('.step').forEach(function(el) {
+          if (el.dataset.step === stepId || el.id === 'step-' + stepId) {
+            el.classList.add('done');
+          }
+        });
       });
     "))
   ),
@@ -162,6 +171,26 @@ server <- function(input, output, session) {
   observeEvent(state$spec, ignoreNULL = TRUE, {
     bslib::nav_select("app_tabs", "generate")
     session$sendCustomMessage("setActiveStep", "generate")
+  })
+
+  observeEvent(state$raw_data, ignoreNULL = TRUE, {
+    session$sendCustomMessage("setDoneStep", "upload")
+  })
+
+  observeEvent(state$roles, ignoreNULL = TRUE, {
+    session$sendCustomMessage("setDoneStep", "roles")
+  })
+
+  observeEvent(state$spec, ignoreNULL = TRUE, {
+    session$sendCustomMessage("setDoneStep", "purpose")
+  })
+
+  observeEvent(state$synthetic, ignoreNULL = TRUE, {
+    session$sendCustomMessage("setDoneStep", "generate")
+  })
+
+  observeEvent(state$comparison, ignoreNULL = TRUE, {
+    session$sendCustomMessage("setDoneStep", "compare")
   })
 }
 

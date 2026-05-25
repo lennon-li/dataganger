@@ -19,6 +19,13 @@ mod_generate_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    shiny::tags$div(
+      class = "main-header",
+      shiny::tags$div(
+        shiny::tags$span(class = "eyebrow", "Step 04 · Synthesise"),
+        shiny::tags$h1("Generate synthetic data")
+      )
+    ),
     stale_banner_ui("synthesis", ns = ns),
     shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
     shiny::div(

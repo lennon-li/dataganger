@@ -8,6 +8,13 @@ mod_compare_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    shiny::tags$div(
+      class = "main-header",
+      shiny::tags$div(
+        shiny::tags$span(class = "eyebrow", "Step 05 · Compare"),
+        shiny::tags$h1("Compare datasets")
+      )
+    ),
     stale_banner_ui("comparison", ns = ns),
     shiny::tabsetPanel(
       id = ns("compare_tabs"),
