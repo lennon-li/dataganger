@@ -158,10 +158,10 @@ server <- function(input, output, session) {
     session$sendCustomMessage("setActiveStep", "roles")
   })
 
-  # Advance to purpose after roles confirmed
+  # Auto-advance to generate once spec is confirmed
   observeEvent(state$spec, ignoreNULL = TRUE, {
-    bslib::nav_select("app_tabs", "purpose")
-    session$sendCustomMessage("setActiveStep", "purpose")
+    bslib::nav_select("app_tabs", "generate")
+    session$sendCustomMessage("setActiveStep", "generate")
   })
 }
 
