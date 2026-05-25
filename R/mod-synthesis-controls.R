@@ -11,7 +11,7 @@ mod_synthesis_controls_ui <- function(id) {
     shiny::tags$div(
       class = "main-header",
       shiny::tags$div(
-        shiny::tags$span(class = "eyebrow", "Step 03 · Synthesis Spec"),
+        shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Synthesis Spec"),
         shiny::tags$h1("Configure synthesis")
       )
     ),
