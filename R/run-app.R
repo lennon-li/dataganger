@@ -23,7 +23,7 @@ run_app <- function(max_upload_mb = 50, launch = interactive(), port = NULL, ...
   )
   options(shiny.maxRequestSize = max_upload_mb * 1024^2)
   if (launch) {
-    shiny::runApp(
+    .run_shiny_app(
       appDir = system.file("app", package = "dataganger"),
       port = port,
       display.mode = "normal",
@@ -32,3 +32,6 @@ run_app <- function(max_upload_mb = 50, launch = interactive(), port = NULL, ...
   }
   invisible(NULL)
 }
+
+# Internal wrapper so tests can mock without touching shiny's namespace.
+.run_shiny_app <- function(...) shiny::runApp(...)
