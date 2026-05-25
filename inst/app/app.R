@@ -56,8 +56,8 @@ step_item <- function(num, label, input_id) {
 
 sidebar_content <- tags$div(
   tags$head(
-    tags$link(rel = "stylesheet", href = "colors_and_type.css"),
-    tags$link(rel = "stylesheet", href = "shiny-app.css"),
+    tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
+    tags$link(rel = "stylesheet", href = "www/shiny-app.css"),
     tags$script(HTML("
       Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
         document.querySelectorAll('.step').forEach(function(el) {
@@ -98,6 +98,8 @@ sidebar_content <- tags$div(
     step_item(6, "Export",          "export")
   )
 )
+
+shiny::addResourcePath("www", system.file("app/www", package = "dataganger"))
 
 ui <- bslib::page_sidebar(
   title = NULL,
