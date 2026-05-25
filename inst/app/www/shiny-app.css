@@ -168,6 +168,9 @@
 .btn-row a { font-family: var(--font-sans); font-size: 13px; color: var(--fg-muted); text-decoration: none; }
 .btn-row a:hover { color: var(--synth-700); text-decoration: underline; }
 
+/* Synthesis spec question heading — body font, not heading font */
+.spec-question { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+
 /* Form */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .field label { font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--ink-700); }

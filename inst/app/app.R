@@ -93,7 +93,7 @@ sidebar_content <- tags$div(
     step_item(1, "Upload data",     "upload"),
     step_item(2, "Column roles",    "roles"),
     step_item(3, "Synthesis spec",  "purpose"),
-    step_item(4, "Synthesise",      "generate"),
+    step_item(4, "Generation",      "generate"),
     step_item(5, "Compare",         "compare"),
     step_item(6, "Export",          "export")
   )
@@ -164,9 +164,11 @@ server <- function(input, output, session) {
   })
 
   # Auto-advance to generate once spec is confirmed
-  observeEvent(state$spec, ignoreNULL = TRUE, {
-    bslib::nav_select("app_tabs", "generate")
-    session$sendCustomMessage("setActiveStep", "generate")
+  observeEvent(state$spec_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$spec_confirmed > 0L)) {
+      bslib::nav_select("app_tabs", "generate")
+      session$sendCustomMessage("setActiveStep", "generate")
+    }
   })
 
   # Auto-advance to purpose once roles are confirmed

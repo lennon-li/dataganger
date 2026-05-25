@@ -22,7 +22,7 @@ mod_generate_ui <- function(id) {
     shiny::tags$div(
       class = "main-header",
       shiny::tags$div(
-        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Synthesise"),
+        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Generation"),
         shiny::tags$h1("Generate synthetic data")
       )
     ),
@@ -36,6 +36,14 @@ mod_generate_ui <- function(id) {
     shiny::div(
       class = "card",
       shiny::verbatimTextOutput(ns("result_summary"))
+    ),
+    shiny::tags$div(
+      class = "btn-row",
+      shiny::actionButton(
+        ns("go_compare"),
+        "Compare \u2192",
+        class = "btn-primary"
+      )
     )
   )
 }
@@ -152,6 +160,10 @@ mod_generate_server <- function(id, state) {
 
     shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
       state$nav_request <- "purpose"
+    })
+
+    shiny::observeEvent(input$go_compare, ignoreNULL = TRUE, ignoreInit = TRUE, {
+      state$nav_request <- "compare"
     })
   })
 }

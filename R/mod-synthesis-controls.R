@@ -15,7 +15,10 @@ mod_synthesis_controls_ui <- function(id) {
         shiny::tags$h1("Configure synthesis")
       )
     ),
-    shiny::h3("What are you creating synthetic data for?"),
+    shiny::tags$p(
+      class = "spec-question",
+      "What are you creating synthetic data for?"
+    ),
     shiny::radioButtons(
       inputId = ns("purpose_group"),
       label = NULL,
@@ -334,6 +337,7 @@ mod_synthesis_controls_server <- function(id, state) {
       }
 
       state$spec <- spec
+      state$spec_confirmed <- (state$spec_confirmed %||% 0L) + 1L
       invisible(NULL)
     })
 
