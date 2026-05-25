@@ -28,11 +28,11 @@ test_that("run_app(launch = FALSE) does not call shiny::runApp()", {
 
   called <- FALSE
   testthat::local_mocked_bindings(
-    runApp = function(...) {
+    .run_shiny_app = function(...) {
       called <<- TRUE
       stop("runApp should not be called", call. = FALSE)
     },
-    .env = asNamespace("shiny")
+    .env = asNamespace("dataganger")
   )
 
   run_app(launch = FALSE)
@@ -49,11 +49,11 @@ test_that("run_app() forwards NULL port to shiny::runApp()", {
 
   call_args <- NULL
   testthat::local_mocked_bindings(
-    runApp = function(...) {
+    .run_shiny_app = function(...) {
       call_args <<- list(...)
       invisible(NULL)
     },
-    .env = asNamespace("shiny")
+    .env = asNamespace("dataganger")
   )
 
   run_app(launch = TRUE)
@@ -71,11 +71,11 @@ test_that("run_app() forwards explicit port to shiny::runApp()", {
 
   call_args <- NULL
   testthat::local_mocked_bindings(
-    runApp = function(...) {
+    .run_shiny_app = function(...) {
       call_args <<- list(...)
       invisible(NULL)
     },
-    .env = asNamespace("shiny")
+    .env = asNamespace("dataganger")
   )
 
   run_app(port = 7654, launch = TRUE)
@@ -105,11 +105,11 @@ test_that("run_app() forwards additional arguments to shiny::runApp()", {
 
   call_args <- NULL
   testthat::local_mocked_bindings(
-    runApp = function(...) {
+    .run_shiny_app = function(...) {
       call_args <<- list(...)
       invisible(NULL)
     },
-    .env = asNamespace("shiny")
+    .env = asNamespace("dataganger")
   )
 
   run_app(launch = TRUE, quiet = TRUE)
