@@ -4,6 +4,8 @@ Version: 0.0.0.9000
 Authors@R: person("Lennon", "Li",
                   email = "yeli@biostats.ai",
                   role = c("aut", "cre"))
+Author: Lennon Li [aut, cre]
+Maintainer: Lennon Li <yeli@biostats.ai>
 Description: Creates synthetic data doubles from real datasets for prototyping,
     teaching, Shiny development, and AI-assisted programming. Provides data
     profiling, role detection, configurable synthesis, utility comparison, and
