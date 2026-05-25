@@ -5,6 +5,8 @@ generate_test_state <- function(data = NULL, spec = NULL) {
     synthetic = NULL,
     comparison = NULL,
     privacy = NULL,
+    seed_used = NULL,
+    nav_request = NULL,
     stale = list(
       synthesis = TRUE,
       comparison = TRUE,
@@ -131,4 +133,135 @@ test_that("synthesis errors notify and leave state untouched", {
   expect_true(isTRUE(stale$synthesis))
   expect_true(isTRUE(stale$comparison))
   expect_true(isTRUE(stale$export))
+})
+
+# ---- seed / try-new-seed / adjust-settings tests ----------------------------
+
+make_stub_bindings <- function() {
+  toy_synthetic <- structure(
+    data.frame(x = 1:3),
+    class = c("dataganger_synthetic", "data.frame")
+  )
+  toy_comparison <- structure(
+    list(numeric = tibble::tibble(), categorical = tibble::tibble()),
+    class = "dataganger_comparison"
+  )
+  toy_privacy <- local({
+    p <- tibble::tibble()
+    class(p) <- c("dataganger_privacy_check", class(p))
+    attr(p, "exact_row_matches") <- 0L
+    p
+  })
+
+  list(
+    synthesize_data  = function(...) toy_synthetic,
+    compare_synthetic = function(...) toy_comparison,
+    privacy_check    = function(...) toy_privacy
+  )
+}
+
+test_that("generate stores seed_used when spec seed is NULL", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "ai_programming")
+  )
+  stubs <- make_stub_bindings()
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+  })
+
+  seed <- shiny::isolate(state$seed_used)
+  expect_false(is.null(seed))
+  expect_true(is.integer(seed) || (is.numeric(seed) && seed == round(seed)))
+})
+
+test_that("generate uses spec seed when not NULL", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "ai_programming", seed = 42L)
+  )
+  stubs <- make_stub_bindings()
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+  })
+
+  expect_identical(shiny::isolate(state$seed_used), 42L)
+})
+
+test_that("result_summary includes Seed line after generation", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "ai_programming", seed = 99L)
+  )
+  stubs <- make_stub_bindings()
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    expect_match(output$result_summary, "Seed: 99")
+  })
+})
+
+test_that("try_new_seed runs synthesis and stores a new seed_used", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "ai_programming")
+  )
+  stubs <- make_stub_bindings()
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(try_new_seed = 1L)
+    session$flushReact()
+  })
+
+  expect_false(is.null(shiny::isolate(state$synthetic)))
+  expect_false(is.null(shiny::isolate(state$seed_used)))
+})
+
+test_that("adjust_settings sets nav_request to purpose", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "ai_programming")
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(adjust_settings = 1L)
+    session$flushReact()
+  })
+
+  expect_identical(shiny::isolate(state$nav_request), "purpose")
 })

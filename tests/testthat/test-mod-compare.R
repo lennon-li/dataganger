@@ -117,3 +117,22 @@ test_that("numeric and categorical tabs fall back cleanly when comparisons are e
     )
   })
 })
+
+test_that("adjust_settings sets nav_request to purpose", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- shiny::reactiveValues(
+    raw_data = NULL,
+    synthetic = NULL,
+    comparison = NULL,
+    privacy = NULL,
+    nav_request = NULL
+  )
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$setInputs(adjust_settings = 1L)
+    session$flushReact()
+  })
+
+  expect_identical(shiny::isolate(state$nav_request), "purpose")
+})

@@ -16,6 +16,10 @@ mod_compare_ui <- function(id) {
       )
     ),
     stale_banner_ui("comparison", ns = ns),
+    shiny::div(
+      class = "btn-row",
+      shiny::actionLink(ns("adjust_settings"), "← Adjust settings")
+    ),
     shiny::tabsetPanel(
       id = ns("compare_tabs"),
       shiny::tabPanel("Dataset", shiny::uiOutput(ns("dataset_tab"))),
@@ -100,6 +104,10 @@ mod_compare_server <- function(id, state) {
         shiny::tags$p(paste("Exact row matches:", exact_matches)),
         shiny::tags$pre(utils::capture.output(print(prv)))
       )
+    })
+
+    shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
+      state$nav_request <- "purpose"
     })
   })
 }

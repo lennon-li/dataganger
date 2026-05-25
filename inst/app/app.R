@@ -198,6 +198,20 @@ server <- function(input, output, session) {
   observeEvent(state$comparison, ignoreNULL = TRUE, {
     session$sendCustomMessage("setDoneStep", "compare")
   })
+
+  # Module navigation requests (e.g. "← Adjust settings" links)
+  observeEvent(state$nav_request, ignoreNULL = TRUE, {
+    target <- state$nav_request
+    state$nav_request <- NULL
+    allowed <- "upload"
+    if (!is.null(state$raw_data)) allowed <- c(allowed, "roles")
+    if (!is.null(state$roles))    allowed <- c(allowed, "purpose")
+    if (!is.null(state$spec))     allowed <- c(allowed, "generate", "compare", "export")
+    if (target %in% allowed) {
+      bslib::nav_select("app_tabs", target)
+      session$sendCustomMessage("setActiveStep", target)
+    }
+  })
 }
 
 shinyApp(ui, server)

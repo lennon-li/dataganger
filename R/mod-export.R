@@ -74,7 +74,12 @@ mod_export_server <- function(id, state) {
     output$download <- shiny::downloadHandler(
       filename = function() {
         fmt <- if (is.null(input$format)) "csv" else input$format
-        paste0("synthetic_data.", fmt)
+        seed <- shiny::isolate(state$seed_used)
+        if (!is.null(seed)) {
+          paste0("synthetic_data_seed", seed, ".", fmt)
+        } else {
+          paste0("synthetic_data.", fmt)
+        }
       },
       content = function(file) {
         shiny::req(state$synthetic)

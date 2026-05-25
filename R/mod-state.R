@@ -40,6 +40,8 @@ mod_state_server <- function(id) {
       synthetic = NULL,
       comparison = NULL,
       privacy = NULL,
+      seed_used = NULL,
+      nav_request = NULL,
       stale = make_stale_flags(FALSE)
     )
 
@@ -71,6 +73,7 @@ mod_state_server <- function(id) {
       state$synthetic <- NULL
       state$comparison <- NULL
       state$privacy <- NULL
+      state$seed_used <- NULL
       set_stale_flags(FALSE)
     })
 
@@ -111,6 +114,7 @@ mod_state_server <- function(id) {
       state$synthetic <- NULL
       state$comparison <- NULL
       state$privacy <- NULL
+      state$seed_used <- NULL
       set_stale_flags(TRUE)
     })
 

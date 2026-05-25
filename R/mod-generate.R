@@ -27,7 +27,12 @@ mod_generate_ui <- function(id) {
       )
     ),
     stale_banner_ui("synthesis", ns = ns),
-    shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
+    shiny::div(
+      class = "btn-row",
+      shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
+      shiny::actionButton(ns("try_new_seed"), "Try new seed", class = "btn-secondary"),
+      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
+    ),
     shiny::div(
       class = "card",
       shiny::verbatimTextOutput(ns("result_summary"))
@@ -64,19 +69,18 @@ mod_generate_server <- function(id, state) {
         "Synthetic data generated.\n",
         "Rows: ", nrow(state$synthetic), "\n",
         "Columns: ", ncol(state$synthetic), "\n",
-        "Exact row matches: ", exact_row_matches
+        "Exact row matches: ", exact_row_matches, "\n",
+        "Seed: ", state$seed_used
       )
     })
 
-    shiny::observeEvent(input$generate, ignoreNULL = TRUE, {
-      if (is.null(state$raw_data) || is.null(state$spec)) {
-        generate_notification("No data or spec available.", type = "warning")
-        return(invisible(NULL))
-      }
+    run_synthesis <- function(seed) {
+      spec_with_seed <- state$spec
+      spec_with_seed$seed <- seed
 
       result <- tryCatch(
         shiny::withProgress(message = "Synthesizing...", value = 0, {
-          synthetic <- synthesize_data(state$raw_data, state$spec)
+          synthetic <- synthesize_data(state$raw_data, spec_with_seed)
           shiny::setProgress(value = 0.3)
 
           comparison <- compare_synthetic(
@@ -91,7 +95,7 @@ mod_generate_server <- function(id, state) {
             synthetic,
             roles = state$roles,
             stage = "post",
-            spec = state$spec
+            spec = spec_with_seed
           )
           shiny::setProgress(value = 1.0)
 
@@ -115,6 +119,7 @@ mod_generate_server <- function(id, state) {
         return(invisible(NULL))
       }
 
+      state$seed_used <- seed
       state$synthetic <- result$synthetic
       state$comparison <- result$comparison
       state$privacy <- result$privacy
@@ -123,6 +128,30 @@ mod_generate_server <- function(id, state) {
       state$stale$export <- FALSE
 
       invisible(NULL)
+    }
+
+    shiny::observeEvent(input$generate, ignoreNULL = TRUE, {
+      if (is.null(state$raw_data) || is.null(state$spec)) {
+        generate_notification("No data or spec available.", type = "warning")
+        return(invisible(NULL))
+      }
+
+      seed <- if (!is.null(state$spec$seed)) state$spec$seed else sample.int(.Machine$integer.max, 1L)
+      run_synthesis(seed)
+    })
+
+    shiny::observeEvent(input$try_new_seed, ignoreNULL = TRUE, {
+      if (is.null(state$raw_data) || is.null(state$spec)) {
+        generate_notification("No data or spec available.", type = "warning")
+        return(invisible(NULL))
+      }
+
+      seed <- sample.int(.Machine$integer.max, 1L)
+      run_synthesis(seed)
+    })
+
+    shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
+      state$nav_request <- "purpose"
     })
   })
 }
