@@ -11,7 +11,7 @@ mod_compare_ui <- function(id) {
     shiny::tags$div(
       class = "main-header",
       shiny::tags$div(
-        shiny::tags$span(class = "eyebrow", "Step 05 · Compare"),
+        shiny::tags$span(class = "eyebrow", "Step 05 \u00b7 Compare"),
         shiny::tags$h1("Compare datasets")
       )
     ),
