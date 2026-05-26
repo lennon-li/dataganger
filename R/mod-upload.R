@@ -25,6 +25,14 @@ mod_upload_ui <- function(id) {
         shiny::tags$h1("Upload your data")
       )
     ),
+    shiny::tags$div(
+      class = "banner info",
+      shiny::tags$span(class = "icon", "i"),
+      shiny::tags$div(
+        shiny::tags$b("Sharing original data?"),
+        "Synthetic data reduces direct disclosure risk. It is not a substitute for a formal privacy assessment. Review the comparison and privacy warnings before sharing externally."
+      )
+    ),
     shiny::div(
       class = "upload",
       shiny::tags$span(class = "icon", "\u2191"),
@@ -37,7 +45,15 @@ mod_upload_ui <- function(id) {
       ),
       shiny::tags$span(class = "secondary", "CSV \u00b7 Excel (.xlsx) \u00b7 SAS (.sas7bdat, .xpt)")
     ),
-    DT::DTOutput(ns("preview")),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Preview"),
+        shiny::tags$span(class = "sub", "first 100 rows")
+      ),
+      DT::DTOutput(ns("preview"))
+    ),
     shiny::tags$details(
       shiny::tags$summary("Profile summary"),
       profile_ui(ns("profile"))

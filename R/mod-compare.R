@@ -20,12 +20,25 @@ mod_compare_ui <- function(id) {
       class = "btn-row",
       shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
     ),
+    shiny::tags$div(class = "double-rule"),
     shiny::tabsetPanel(
       id = ns("compare_tabs"),
-      shiny::tabPanel("Dataset", shiny::uiOutput(ns("dataset_tab"))),
-      shiny::tabPanel("Numeric", shiny::uiOutput(ns("numeric_tab"))),
-      shiny::tabPanel("Categorical", shiny::uiOutput(ns("categorical_tab"))),
-      shiny::tabPanel("Privacy", shiny::uiOutput(ns("privacy_tab")))
+      shiny::tabPanel(
+        "Dataset",
+        shiny::tags$div(class = "card", shiny::uiOutput(ns("dataset_tab")))
+      ),
+      shiny::tabPanel(
+        "Numeric",
+        shiny::tags$div(class = "card", shiny::uiOutput(ns("numeric_tab")))
+      ),
+      shiny::tabPanel(
+        "Categorical",
+        shiny::tags$div(class = "card", shiny::uiOutput(ns("categorical_tab")))
+      ),
+      shiny::tabPanel(
+        "Privacy",
+        shiny::tags$div(class = "card", shiny::uiOutput(ns("privacy_tab")))
+      )
     )
   )
 }

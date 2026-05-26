@@ -22,7 +22,7 @@ mod_generate_ui <- function(id) {
     shiny::tags$div(
       class = "main-header",
       shiny::tags$div(
-        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Synthesise"),
+        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Generation"),
         shiny::tags$h1("Generate synthetic data")
       )
     ),
@@ -31,10 +31,17 @@ mod_generate_ui <- function(id) {
       class = "btn-row",
       shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
       shiny::actionButton(ns("try_new_seed"), "Try new seed", class = "btn-secondary"),
-      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
+      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings"),
+      shiny::actionButton(ns("go_compare"), "Compare \u2192", class = "btn-primary")
     ),
+    shiny::uiOutput(ns("result_stats")),
     shiny::div(
       class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Result"),
+        shiny::tags$span(class = "sub", "synthesize_data()")
+      ),
       shiny::verbatimTextOutput(ns("result_summary"))
     )
   )
@@ -46,6 +53,8 @@ mod_generate_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   shiny::moduleServer(id, function(input, output, session) {
+    last_duration <- shiny::reactiveVal(NULL)
+
     output$stale__synthesis <- shiny::renderText({
       if (isTRUE(state$stale$synthesis)) {
         "true"
@@ -78,6 +87,7 @@ mod_generate_server <- function(id, state) {
       spec_with_seed <- state$spec
       spec_with_seed$seed <- seed
 
+      started_at <- Sys.time()
       result <- tryCatch(
         shiny::withProgress(message = "Synthesizing...", value = 0, {
           synthetic <- synthesize_data(state$raw_data, spec_with_seed)
@@ -119,6 +129,7 @@ mod_generate_server <- function(id, state) {
         return(invisible(NULL))
       }
 
+      last_duration(as.numeric(difftime(Sys.time(), started_at, units = "secs")))
       state$seed_used <- seed
       state$synthetic <- result$synthetic
       state$comparison <- result$comparison
@@ -129,6 +140,29 @@ mod_generate_server <- function(id, state) {
 
       invisible(NULL)
     }
+
+    output$result_stats <- shiny::renderUI({
+      shiny::req(state$synthetic)
+      dur <- last_duration()
+      dur_label <- if (is.null(dur)) "n/a" else sprintf("%.2fs", dur)
+      seed_label <- if (is.null(state$seed_used)) "n/a" else as.character(state$seed_used)
+
+      stat_cell <- function(label, value) {
+        shiny::tags$div(
+          class = "stat",
+          shiny::tags$div(class = "label", label),
+          shiny::tags$div(class = "v", value)
+        )
+      }
+
+      shiny::tags$div(
+        class = "stats",
+        stat_cell("ROWS", as.character(nrow(state$synthetic))),
+        stat_cell("COLS", as.character(ncol(state$synthetic))),
+        stat_cell("SEED", seed_label),
+        stat_cell("DURATION", dur_label)
+      )
+    })
 
     shiny::observeEvent(input$generate, ignoreNULL = TRUE, {
       if (is.null(state$raw_data) || is.null(state$spec)) {
@@ -152,6 +186,10 @@ mod_generate_server <- function(id, state) {
 
     shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
       state$nav_request <- "purpose"
+    })
+
+    shiny::observeEvent(input$go_compare, ignoreNULL = TRUE, ignoreInit = TRUE, {
+      state$nav_request <- "compare"
     })
   })
 }
