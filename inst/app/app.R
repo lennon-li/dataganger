@@ -10,6 +10,10 @@ if (pkgload_available && pkgload::is_dev_package("dataganger")) {
 library(shiny)
 library(bslib)
 
+# Serve www/ assets explicitly so the stylesheets resolve regardless of how
+# the app dir is mounted. Must run before any UI is defined.
+shiny::addResourcePath("www", system.file("app/www", package = "dataganger"))
+
 detect_roles                  <- dataganger::detect_roles
 mod_compare_server            <- dataganger:::mod_compare_server
 mod_compare_ui                <- dataganger:::mod_compare_ui
@@ -56,8 +60,6 @@ step_item <- function(num, label, input_id) {
 
 sidebar_content <- tags$div(
   tags$head(
-    tags$link(rel = "stylesheet", href = "colors_and_type.css"),
-    tags$link(rel = "stylesheet", href = "shiny-app.css"),
     tags$script(HTML("
       Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
         document.querySelectorAll('.step').forEach(function(el) {
@@ -78,7 +80,7 @@ sidebar_content <- tags$div(
   # Brand
   tags$div(
     class = "brand",
-    tags$img(src = "logomark.svg", alt = ""),
+    tags$img(src = "www/logomark.svg", alt = ""),
     tags$div(
       tags$span(
         class = "name",
@@ -93,7 +95,7 @@ sidebar_content <- tags$div(
     step_item(1, "Upload data",     "upload"),
     step_item(2, "Column roles",    "roles"),
     step_item(3, "Synthesis spec",  "purpose"),
-    step_item(4, "Synthesise",      "generate"),
+    step_item(4, "Generation",      "generate"),
     step_item(5, "Compare",         "compare"),
     step_item(6, "Export",          "export")
   )
@@ -102,6 +104,11 @@ sidebar_content <- tags$div(
 ui <- bslib::page_sidebar(
   title = NULL,
   theme = dg_theme,
+  # Top-level head so htmltools reliably hoists the stylesheets into <head>.
+  tags$head(
+    tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
+    tags$link(rel = "stylesheet", href = "www/shiny-app.css")
+  ),
   sidebar = bslib::sidebar(
     width = 296,
     class = "sidebar",
@@ -116,11 +123,28 @@ ui <- bslib::page_sidebar(
     bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
     bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
     bslib::nav_panel_hidden("export",   mod_export_ui("export"))
-  )
+  ),
+  uiOutput("action_bar")
 )
 
 server <- function(input, output, session) {
   state <- mod_state_server("state")
+
+  # Floating summary bar, pinned to the bottom of the main area on every screen.
+  output$action_bar <- renderUI({
+    fname <- if (!is.null(state$raw_data)) "file loaded" else "no file"
+    tags$div(
+      class = "action-bar",
+      tags$div(
+        class = "summary",
+        tags$span(tags$span(class = "k", "file "), fname),
+        tags$span(
+          tags$span(class = "k", "purpose "),
+          if (!is.null(state$spec)) state$spec$purpose else "—"
+        )
+      )
+    )
+  })
 
   mod_upload_server("upload", state)
   mod_roles_server("roles", state)
@@ -163,10 +187,13 @@ server <- function(input, output, session) {
     session$sendCustomMessage("setActiveStep", "roles")
   })
 
-  # Auto-advance to generate once spec is confirmed
-  observeEvent(state$spec, ignoreNULL = TRUE, {
-    bslib::nav_select("app_tabs", "generate")
-    session$sendCustomMessage("setActiveStep", "generate")
+  # Auto-advance to generate once spec is confirmed. Watches a counter, not
+  # state$spec, so re-confirming an unchanged spec after going back still fires.
+  observeEvent(state$spec_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$spec_confirmed > 0L)) {
+      bslib::nav_select("app_tabs", "generate")
+      session$sendCustomMessage("setActiveStep", "generate")
+    }
   })
 
   # Auto-advance to purpose once roles are confirmed

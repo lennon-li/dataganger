@@ -37,6 +37,7 @@ mod_state_server <- function(id) {
       roles = NULL,
       roles_confirmed = FALSE,
       spec = NULL,
+      spec_confirmed = 0L,
       synthetic = NULL,
       comparison = NULL,
       privacy = NULL,

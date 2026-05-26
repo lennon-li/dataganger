@@ -15,8 +15,18 @@ mod_synthesis_controls_ui <- function(id) {
         shiny::tags$h1("Configure synthesis")
       )
     ),
-    shiny::h3("What are you creating synthetic data for?"),
-    shiny::radioButtons(
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Purpose"),
+        shiny::tags$span(class = "sub", "presets the synthesis defaults")
+      ),
+      shiny::tags$p(
+        class = "spec-question",
+        "What are you creating synthetic data for?"
+      ),
+      shiny::radioButtons(
       inputId = ns("purpose_group"),
       label = NULL,
       choiceNames = list(
@@ -53,11 +63,28 @@ mod_synthesis_controls_ui <- function(id) {
         )
       )
     ),
-    shiny::uiOutput(ns("purpose_detail")),
-    shiny::uiOutput(ns("advanced_settings")),
-    shiny::tags$details(
-      shiny::tags$summary("Spec preview"),
-      shiny::verbatimTextOutput(ns("spec_preview"))
+      shiny::uiOutput(ns("purpose_detail"))
+    ),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Settings"),
+        shiny::tags$span(class = "sub", "advanced")
+      ),
+      shiny::uiOutput(ns("advanced_settings"))
+    ),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Spec preview"),
+        shiny::tags$span(class = "sub", "will write to disk on synthesise")
+      ),
+      shiny::tags$div(
+        class = "console",
+        shiny::verbatimTextOutput(ns("spec_preview"))
+      )
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'internal_hifi' && !input.acknowledge_risk",
@@ -177,7 +204,14 @@ mod_synthesis_controls_server <- function(id, state) {
           }
         ), paste(copy$does_not_preserve)),
         shiny::p(shiny::tags$strong("Recommended use:"), paste(copy$recommended_use)),
-        shiny::p(shiny::tags$strong("Privacy caution:"), paste(copy$privacy_caution))
+        shiny::tags$div(
+          class = "banner risk",
+          shiny::tags$span(class = "icon", "!"),
+          shiny::tags$div(
+            shiny::tags$b("Privacy caution"),
+            paste(copy$privacy_caution)
+          )
+        )
       )
     })
 
@@ -334,6 +368,7 @@ mod_synthesis_controls_server <- function(id, state) {
       }
 
       state$spec <- spec
+      state$spec_confirmed <- (state$spec_confirmed %||% 0L) + 1L
       invisible(NULL)
     })
 
