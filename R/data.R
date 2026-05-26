@@ -59,3 +59,58 @@
 #'   \item{notes}{Character. Clinical notes, some missing.}
 #' }
 "example_registry"
+
+utils::globalVariables(c("individual_sample", "temporal_sample", "geographic_sample"))
+
+#' Individual-level synthetic sample data
+#'
+#' A synthetically generated dataset of 200 individual records for use as
+#' sample input in the DataGangeR Shiny app. Contains demographic and health
+#' variables with realistic distributions. Generated with \code{set.seed(42)}.
+#'
+#' @format A data frame with 200 rows and 7 columns:
+#' \describe{
+#'   \item{id}{Integer record identifier}
+#'   \item{age}{Age in years (18--85)}
+#'   \item{sex}{Sex (Male / Female / Other)}
+#'   \item{income}{Annual income in dollars (log-normal, some NAs)}
+#'   \item{education}{Highest education level}
+#'   \item{smoker}{Logical smoking status}
+#'   \item{bmi}{Body mass index}
+#' }
+#' @source Synthetically generated via \code{data-raw/individual_sample.R}
+"individual_sample"
+
+#' Temporal synthetic sample data
+#'
+#' A synthetically generated dataset of 365 daily records for use as sample
+#' input in the DataGangeR Shiny app. Simulates environmental monitoring
+#' data across multiple sites. Generated with \code{set.seed(42)}.
+#'
+#' @format A data frame with 365 rows and 5 columns:
+#' \describe{
+#'   \item{date}{Measurement date (daily from 2023-01-01)}
+#'   \item{site_id}{Site identifier (SITE_A through SITE_E)}
+#'   \item{measurement}{Numeric measurement value (some NAs)}
+#'   \item{temperature}{Ambient temperature in degrees Celsius}
+#'   \item{flagged}{Logical quality-control flag}
+#' }
+#' @source Synthetically generated via \code{data-raw/temporal_sample.R}
+"temporal_sample"
+
+#' Geographic synthetic sample data
+#'
+#' A synthetically generated dataset of 50 regional summary records for use
+#' as sample input in the DataGangeR Shiny app. Simulates public-health
+#' surveillance data aggregated by region. Generated with \code{set.seed(42)}.
+#'
+#' @format A data frame with 50 rows and 5 columns:
+#' \describe{
+#'   \item{region}{Region identifier (Region_01 through Region_50)}
+#'   \item{population}{Regional population count}
+#'   \item{rate_per_100k}{Event rate per 100,000 population}
+#'   \item{category}{Area classification (Urban / Suburban / Rural)}
+#'   \item{risk_level}{Assigned risk level (Low / Medium / High)}
+#' }
+#' @source Synthetically generated via \code{data-raw/geographic_sample.R}
+"geographic_sample"

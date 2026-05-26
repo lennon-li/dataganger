@@ -46,6 +46,36 @@ mod_upload_ui <- function(id) {
       shiny::tags$span(class = "secondary", "CSV \u00b7 Excel (.xlsx) \u00b7 SAS (.sas7bdat, .xpt)")
     ),
     shiny::tags$div(
+      style = "text-align:center; margin:20px 0 4px;",
+      shiny::tags$span(class = "t-eyebrow", "or")
+    ),
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Sample datasets"),
+        shiny::tags$span(class = "sub", "built-in \u00b7 no upload needed")
+      ),
+      shiny::selectInput(
+        inputId = ns("sample_dataset"),
+        label = NULL,
+        choices = c(
+          "Individual records (200\u00d77)"      = "individual",
+          "Temporal / time series (365\u00d75)"  = "temporal",
+          "Geographic / regional (50\u00d75)"    = "geographic"
+        ),
+        width = "100%"
+      ),
+      shiny::tags$div(
+        class = "btn-row",
+        shiny::actionButton(
+          inputId = ns("load_sample"),
+          label   = "Load sample",
+          class   = "btn btn-secondary"
+        )
+      )
+    ),
+    shiny::tags$div(
       class = "card",
       shiny::tags$div(
         class = "card-header",
@@ -128,6 +158,20 @@ mod_upload_server <- function(id, state) {
 
       session$onFlushed(function() {
         state$profile <- profile_data(raw_data)
+      }, once = TRUE)
+    })
+
+    shiny::observeEvent(input$load_sample, ignoreNULL = TRUE, {
+      data <- switch(input$sample_dataset,
+        "individual" = individual_sample,
+        "temporal"   = temporal_sample,
+        "geographic" = geographic_sample
+      )
+      state$raw_data <- tibble::as_tibble(data)
+      state$filename <- paste0(input$sample_dataset, "_sample (built-in)")
+
+      session$onFlushed(function() {
+        state$profile <- profile_data(state$raw_data)
       }, once = TRUE)
     })
 

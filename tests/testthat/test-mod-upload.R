@@ -90,6 +90,60 @@ test_that("second upload replaces raw_data and clears downstream state", {
   })
 })
 
+test_that("individual sample loads 200x7 tibble with non-empty filename", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  shiny::testServer(upload_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-sample_dataset` = "individual")
+    session$setInputs(`upload-load_sample` = 1)
+    session$flushReact()
+
+    expect_s3_class(state$raw_data, "tbl_df")
+    expect_equal(nrow(state$raw_data), 200)
+    expect_equal(ncol(state$raw_data), 7)
+    expect_true(nchar(state$filename) > 0)
+  })
+})
+
+test_that("temporal sample loads 365x5 tibble with non-empty filename", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  shiny::testServer(upload_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-sample_dataset` = "temporal")
+    session$setInputs(`upload-load_sample` = 1)
+    session$flushReact()
+
+    expect_s3_class(state$raw_data, "tbl_df")
+    expect_equal(nrow(state$raw_data), 365)
+    expect_equal(ncol(state$raw_data), 5)
+    expect_true(nchar(state$filename) > 0)
+  })
+})
+
+test_that("geographic sample loads 50x5 tibble with non-empty filename", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  shiny::testServer(upload_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-sample_dataset` = "geographic")
+    session$setInputs(`upload-load_sample` = 1)
+    session$flushReact()
+
+    expect_s3_class(state$raw_data, "tbl_df")
+    expect_equal(nrow(state$raw_data), 50)
+    expect_equal(ncol(state$raw_data), 5)
+    expect_true(nchar(state$filename) > 0)
+  })
+})
+
 test_that("bad extension throws a validate error", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")
