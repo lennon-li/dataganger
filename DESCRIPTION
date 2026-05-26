@@ -13,6 +13,7 @@ Description: Creates synthetic data doubles from real datasets for prototyping,
     disclosure risk, not to guarantee privacy.
 License: MIT + file LICENSE
 Encoding: UTF-8
+Language: en-US
 Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 4.1.0)
