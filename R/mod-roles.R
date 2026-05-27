@@ -127,7 +127,7 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
       state$roles <- roles
-      state$roles_confirmed <- TRUE
+      state$roles_confirmed <- (state$roles_confirmed %||% 0L) + 1L
       invisible(NULL)
     })
 

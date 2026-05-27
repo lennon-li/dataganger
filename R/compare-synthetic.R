@@ -365,12 +365,12 @@ print.dataganger_comparison <- function(x, ...) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' dat <- data.frame(x = 1:10, y = letters[1:10])
 #' spec <- synth_spec(purpose = "teaching")
 #' syn <- synthesize_data(dat, spec)
 #' cmp <- compare_synthetic(dat, syn)
-#' plot_comparison(cmp)
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   plot_comparison(cmp)
 #' }
 plot_comparison <- function(comparison) {
   rlang::check_installed("ggplot2", reason = "to use `plot_comparison()`")

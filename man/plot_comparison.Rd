@@ -20,11 +20,11 @@ standardized differences for numeric columns and total variation
 distance for categorical columns. Requires \code{ggplot2} (Suggests).
 }
 \examples{
-\dontrun{
 dat <- data.frame(x = 1:10, y = letters[1:10])
 spec <- synth_spec(purpose = "teaching")
 syn <- synthesize_data(dat, spec)
 cmp <- compare_synthetic(dat, syn)
-plot_comparison(cmp)
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  plot_comparison(cmp)
 }
 }

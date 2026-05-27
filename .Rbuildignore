@@ -8,3 +8,5 @@
 ^data-raw$
 ^LICENSE\.md$
 ^DataGangeR Design System$
+
+^browser_harness\.R$

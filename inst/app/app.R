@@ -197,8 +197,8 @@ server <- function(input, output, session) {
   })
 
   # Auto-advance to purpose once roles are confirmed
-  observeEvent(state$roles_confirmed, {
-    if (isTRUE(state$roles_confirmed)) {
+  observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$roles_confirmed > 0L)) {
       bslib::nav_select("app_tabs", "purpose")
       session$sendCustomMessage("setActiveStep", "purpose")
     }
@@ -208,8 +208,8 @@ server <- function(input, output, session) {
     session$sendCustomMessage("setDoneStep", "upload")
   })
 
-  observeEvent(state$roles_confirmed, {
-    if (isTRUE(state$roles_confirmed)) {
+  observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$roles_confirmed > 0L)) {
       session$sendCustomMessage("setDoneStep", "roles")
     }
   })
