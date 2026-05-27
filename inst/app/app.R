@@ -107,7 +107,8 @@ ui <- bslib::page_sidebar(
   # Top-level head so htmltools reliably hoists the stylesheets into <head>.
   tags$head(
     tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
-    tags$link(rel = "stylesheet", href = "www/shiny-app.css")
+    tags$link(rel = "stylesheet", href = "www/shiny-app.css"),
+    tags$link(rel = "stylesheet", href = "www/_alignment.css")
   ),
   sidebar = bslib::sidebar(
     width = 296,

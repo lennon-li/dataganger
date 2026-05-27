@@ -187,18 +187,18 @@ body {
   font-weight: 400;
 }
 .t-h1 {
-  font-family: var(--font-serif);
-  font-size: var(--fs-48);
-  line-height: var(--lh-tight);
-  letter-spacing: var(--tracking-tight);
-  font-weight: 400;
-}
-.t-h2 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--fs-36);
   line-height: var(--lh-snug);
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+.t-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-28);
+  line-height: var(--lh-snug);
   letter-spacing: var(--tracking-snug);
-  font-weight: 400;
+  font-weight: 600;
 }
 .t-h3 {
   font-family: var(--font-sans);
