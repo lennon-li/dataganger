@@ -20,7 +20,7 @@ A tibble with 150 rows and 10 columns:
 }
 }
 \usage{
-data(example_registry)
+example_registry
 }
 \description{
 A realistic-but-fictional disease registry dataset with 150 synthetic

@@ -20,7 +20,7 @@ A tibble with 200 rows and 10 columns:
 }
 }
 \usage{
-data(example_health_survey)
+example_health_survey
 }
 \description{
 A realistic-but-fictional health survey dataset with 200 synthetic

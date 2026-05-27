@@ -19,7 +19,7 @@ A tibble with 300 rows and 9 columns:
 }
 }
 \usage{
-data(example_admin_claims)
+example_admin_claims
 }
 \description{
 A realistic-but-fictional administrative claims dataset with 300 synthetic

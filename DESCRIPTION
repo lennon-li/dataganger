@@ -1,6 +1,6 @@
 Package: dataganger
 Title: Synthetic Data Doubles for Safer Prototyping
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Lennon", "Li",
                   email = "yeli@biostats.ai",
                   role = c("aut", "cre"))
