@@ -162,16 +162,15 @@ mod_upload_server <- function(id, state) {
     })
 
     shiny::observeEvent(input$load_sample, ignoreNULL = TRUE, {
-      data <- switch(input$sample_dataset,
-        "individual" = individual_sample,
-        "temporal"   = temporal_sample,
-        "geographic" = geographic_sample
-      )
-      state$raw_data <- tibble::as_tibble(data)
+      nm <- paste0(input$sample_dataset, "_sample")
+      e <- new.env(parent = emptyenv())
+      utils::data(list = nm, package = "dataganger", envir = e)
+      loaded <- tibble::as_tibble(e[[nm]])
+      state$raw_data <- loaded
       state$filename <- paste0(input$sample_dataset, "_sample (built-in)")
 
       session$onFlushed(function() {
-        state$profile <- profile_data(state$raw_data)
+        state$profile <- profile_data(loaded)
       }, once = TRUE)
     })
 

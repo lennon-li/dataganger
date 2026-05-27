@@ -60,8 +60,6 @@
 #' }
 "example_registry"
 
-utils::globalVariables(c("individual_sample", "temporal_sample", "geographic_sample"))
-
 #' Individual-level synthetic sample data
 #'
 #' A synthetically generated dataset of 200 individual records for use as
