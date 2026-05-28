@@ -177,8 +177,8 @@ mod_upload_server <- function(id, state) {
     output$header_cta <- shiny::renderUI({
       shiny::req(state$raw_data)
       shiny::actionButton(
-        inputId = ns("go_roles"),
-        label   = "Continue to Roles →",
+        inputId = session$ns("go_roles"),
+        label   = "Continue to Roles \u2192",
         class   = "btn btn-primary"
       )
     })

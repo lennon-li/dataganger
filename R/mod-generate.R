@@ -63,13 +63,13 @@ mod_generate_server <- function(id, state) {
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Synthetic data ready."),
-          " The right panel now shows the doppelgänger. Try a new seed to see how output varies, or continue to Compare to inspect distribution drift."
+          " The right panel now shows the doppelg\u00e4nger. Try a new seed to see how output varies, or continue to Compare to inspect distribution drift."
         )
       } else {
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Click Generate"),
-          " to create your synthetic dataset using the spec from Step 03. Generation is fast — the synthetic preview will appear in the right panel as soon as it's done."
+          " to create your synthetic dataset using the spec from Step 03. Generation is fast \u2014 the synthetic preview will appear in the right panel as soon as it's done."
         )
       }
     })
@@ -78,13 +78,13 @@ mod_generate_server <- function(id, state) {
       if (!is.null(state$synthetic)) {
         shiny::actionButton(
           session$ns("go_compare"),
-          "Continue to Compare →",
+          "Continue to Compare \u2192",
           class = "btn btn-primary"
         )
       } else {
         shiny::actionButton(
           session$ns("generate"),
-          "▶ Generate Synthetic Data",
+          "\u25b6 Generate Synthetic Data",
           class = "btn btn-primary"
         )
       }

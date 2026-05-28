@@ -12,19 +12,19 @@ mod_compare_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 05 · Compare"),
+        shiny::tags$span(class = "eyebrow", "Step 05 \u00b7 Compare"),
         shiny::tags$h1("Compare datasets"),
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Click any variable on the left"),
-          " to compare its distribution. Green = original, magenta = synthetic. Larger Δ or TVD values mean greater drift — investigate before sharing."
+          " to compare its distribution. Green = original, magenta = synthetic. Larger \u0394 or TVD values mean greater drift \u2014 investigate before sharing."
         )
       ),
       shiny::tags$div(
         class = "main-header-action",
         shiny::actionButton(
           ns("go_export"),
-          "Continue to Export →",
+          "Continue to Export \u2192",
           class = "btn btn-primary"
         )
       )
@@ -140,7 +140,7 @@ mod_compare_server <- function(id, state) {
         class = "compare-layout",
         shiny::tags$aside(
           class = "var-rail",
-          shiny::tags$div(class = "var-rail-eyebrow", paste0("Variables · ", length(vars))),
+          shiny::tags$div(class = "var-rail-eyebrow", paste0("Variables \u00b7 ", length(vars))),
           rail_btns
         ),
         var_detail
@@ -246,7 +246,7 @@ mod_compare_server <- function(id, state) {
                             if (tvd_ok) "var(--real-700)" else "var(--risk-700)"),
             sprintf("TVD = %.3f", tvd)
           ),
-          if (tvd_ok) " · within tolerance (< 0.05)" else " · beyond tolerance — review"
+          if (tvd_ok) " \u00b7 within tolerance (< 0.05)" else " \u00b7 beyond tolerance \u2014 review"
         )
 
       } else if (kind == "date") {
@@ -287,7 +287,7 @@ mod_compare_server <- function(id, state) {
         orig_vec  <- as.numeric(orig[[var]])
         synth_vec <- as.numeric(synth[[var]])
         fmt_val <- function(x) {
-          if (is.na(x)) return("—")
+          if (is.na(x)) return("\u2014")
           if (abs(x) >= 1000) formatC(x, format = "f", digits = 0, big.mark = ",")
           else sprintf("%.2f", x)
         }
@@ -324,7 +324,7 @@ mod_compare_server <- function(id, state) {
             shiny::tags$th("statistic"),
             shiny::tags$th(class = "real",  style = "text-align:right;", "original"),
             shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
-            shiny::tags$th(style = "text-align:right;", "Δ")
+            shiny::tags$th(style = "text-align:right;", "\u0394")
           )),
           shiny::tags$tbody(rows_html)
         )

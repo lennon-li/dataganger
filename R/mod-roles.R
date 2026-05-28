@@ -15,20 +15,20 @@ mod_roles_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 02 · Column Roles"),
+        shiny::tags$span(class = "eyebrow", "Step 02 \u00b7 Column Roles"),
         shiny::tags$h1("Review column roles"),
         shiny::tags$p(
           class = "subtitle",
           "DataGangeR auto-detected each column's role. ",
           shiny::tags$strong("Adjust any that look wrong"),
-          " before generating — roles control whether columns are coarsened, redacted, regenerated, or dropped. Identifiers and free text are always handled with extra care."
+          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Identifiers and free text are always handled with extra care."
         )
       ),
       shiny::tags$div(
         class = "main-header-action",
         shiny::actionButton(
           ns("confirm"),
-          "Confirm and Continue →",
+          "Confirm and Continue \u2192",
           class = "btn btn-primary"
         )
       )
@@ -51,7 +51,7 @@ mod_roles_ui <- function(id) {
           type        = "text",
           class       = "input",
           id          = ns("col_search"),
-          placeholder = "filter columns…",
+          placeholder = "filter columns\u2026",
           oninput     = sprintf(
             "Shiny.setInputValue('%s', this.value, {priority:'event'})",
             ns("col_search_val")
@@ -123,7 +123,7 @@ mod_roles_server <- function(id, state) {
         shiny::tags$b("Auto-detected. Edit anything that's wrong."),
         if (changed > 0L) {
           shiny::tagList(
-            " · ",
+            " \u00b7 ",
             shiny::tags$b(as.character(changed)),
             " changed from auto-detection."
           )
@@ -138,7 +138,7 @@ mod_roles_server <- function(id, state) {
       visible <- if (!is.null(vr)) nrow(vr$data) else 0L
       sub_lbl <- if (visible < total) paste0(visible, " shown") else "all shown"
       shiny::tagList(
-        shiny::tags$span(class = "title", paste0("Column roles · ", total)),
+        shiny::tags$span(class = "title", paste0("Column roles \u00b7 ", total)),
         shiny::tags$span(class = "sub",   sub_lbl)
       )
     })

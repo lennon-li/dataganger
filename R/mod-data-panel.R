@@ -66,11 +66,11 @@ mod_data_panel_server <- function(id, state) {
         return(shiny::tags$span(
           class = "dp-name",
           style = "color:var(--fg-subtle)",
-          "—"
+          "\u2014"
         ))
       }
       nm <- if (!is.null(state$filename)) state$filename else "dataset"
-      if (active_tab() == "synth") nm <- paste0(nm, " · synthetic")
+      if (active_tab() == "synth") nm <- paste0(nm, " \u00b7 synthetic")
       shiny::tags$span(class = "dp-name", nm)
     })
 
@@ -82,7 +82,7 @@ mod_data_panel_server <- function(id, state) {
         if (tab == "synth") " active" else "",
         if (!has_synth) " disabled" else ""
       )
-      lbl <- if (!has_synth) "Synthetic — pending" else "Synthetic"
+      lbl <- if (!has_synth) "Synthetic \u2014 pending" else "Synthetic"
       onclick_val <- if (has_synth) {
         sprintf(
           "Shiny.setInputValue('%s', 'synth', {priority:'event'})",
@@ -104,7 +104,7 @@ mod_data_panel_server <- function(id, state) {
       if (is.null(state$raw_data)) {
         return(shiny::tags$div(
           class = "dp-empty",
-          shiny::tags$span(class = "glyph", "↑"),
+          shiny::tags$span(class = "glyph", "\u2191"),
           shiny::tags$p(
             class = "msg",
             "Upload a file or load a sample dataset to preview your data here."
@@ -154,7 +154,7 @@ mod_data_panel_server <- function(id, state) {
         shiny::tags$div(
           class = "dp-footer",
           shiny::tags$span(
-            sprintf("showing 1–%d of %d", show_n, n_rows)
+            sprintf("showing 1\u2013%d of %d", show_n, n_rows)
           ),
           shiny::tags$span(src_lbl)
         )
