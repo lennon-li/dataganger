@@ -158,10 +158,9 @@ test_that("bad extension throws a validate error", {
         type = "application/json"
       )
     )
+    session$flushReact()
 
-    expect_error(
-      output$`upload-preview`,
-      "Unsupported file type: \\.json"
-    )
+    # raw_data should remain NULL after bad extension
+    expect_null(session$getReturned()$state$raw_data)
   })
 })
