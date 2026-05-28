@@ -28,6 +28,8 @@ mod_synthesis_controls_server <- dataganger:::mod_synthesis_controls_server
 mod_synthesis_controls_ui     <- dataganger:::mod_synthesis_controls_ui
 mod_upload_server             <- dataganger:::mod_upload_server
 mod_upload_ui                 <- dataganger:::mod_upload_ui
+mod_data_panel_server         <- dataganger:::mod_data_panel_server
+mod_data_panel_ui             <- dataganger:::mod_data_panel_ui
 
 dg_theme <- bslib::bs_theme(
   version = 5,
@@ -45,20 +47,22 @@ dg_theme <- bslib::bs_theme(
 # Sidebar nav step helper
 step_item <- function(num, label, input_id) {
   tags$li(
-    class = "step",
+    class = "step locked",
     id = paste0("step-", input_id),
     `data-step` = input_id,
     onclick = sprintf(
-      "Shiny.setInputValue('nav_go', '%s', {priority: 'event'})",
+      "if (!this.classList.contains('locked')) { Shiny.setInputValue('nav_go', '%s', {priority: 'event'}); }",
       input_id
     ),
     tags$span(class = "num", sprintf("%02d", num)),
     tags$span(class = "label", label),
-    tags$span(class = "check", icon("check"))
+    tags$span(class = "check", "✓"),
+    tags$span(class = "lock-icon", "\U0001F512")
   )
 }
 
-sidebar_content <- tags$div(
+sidebar_content <- tags$nav(
+  class = "sidebar",
   tags$head(
     tags$script(HTML("
       Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
@@ -69,15 +73,21 @@ sidebar_content <- tags$div(
         if (active) active.classList.add('active');
       });
       Shiny.addCustomMessageHandler('setDoneStep', function(stepId) {
-        document.querySelectorAll('.step').forEach(function(el) {
-          if (el.dataset.step === stepId || el.id === 'step-' + stepId) {
-            el.classList.add('done');
-          }
-        });
+        var el = document.getElementById('step-' + stepId);
+        if (el) el.classList.add('done');
+      });
+      Shiny.addCustomMessageHandler('unlockStep', function(stepId) {
+        var el = document.getElementById('step-' + stepId);
+        if (el) el.classList.remove('locked');
+      });
+      Shiny.addCustomMessageHandler('setFullMain', function(on) {
+        var shell = document.getElementById('app-shell');
+        if (!shell) return;
+        if (on) { shell.classList.add('full-main'); }
+        else { shell.classList.remove('full-main'); }
       });
     "))
   ),
-  # Brand
   tags$div(
     class = "brand",
     tags$img(src = "www/logomark.svg", alt = ""),
@@ -86,7 +96,7 @@ sidebar_content <- tags$div(
         class = "name",
         "DataGange", tags$span(class = "r", "R")
       ),
-      tags$span(class = "tag", "v0.1 · beta")
+      tags$span(class = "tag", "v0.2 · beta")
     )
   ),
   tags$div(class = "section-label", "Workflow"),
@@ -101,51 +111,35 @@ sidebar_content <- tags$div(
   )
 )
 
-ui <- bslib::page_sidebar(
-  title = NULL,
+ui <- bslib::page(
   theme = dg_theme,
-  # Top-level head so htmltools reliably hoists the stylesheets into <head>.
   tags$head(
     tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
     tags$link(rel = "stylesheet", href = "www/shiny-app.css"),
     tags$link(rel = "stylesheet", href = "www/_alignment.css")
   ),
-  sidebar = bslib::sidebar(
-    width = 296,
-    class = "sidebar",
-    open = TRUE,
-    sidebar_content
-  ),
-  bslib::navset_hidden(
-    id = "app_tabs",
-    bslib::nav_panel_hidden("upload",   mod_upload_ui("upload")),
-    bslib::nav_panel_hidden("roles",    mod_roles_ui("roles")),
-    bslib::nav_panel_hidden("purpose",  mod_synthesis_controls_ui("synthesis_controls")),
-    bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
-    bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
-    bslib::nav_panel_hidden("export",   mod_export_ui("export"))
-  ),
-  uiOutput("action_bar")
+  tags$div(
+    class = "app",
+    id    = "app-shell",
+    sidebar_content,
+    tags$main(
+      class = "main",
+      bslib::navset_hidden(
+        id = "app_tabs",
+        bslib::nav_panel_hidden("upload",   mod_upload_ui("upload")),
+        bslib::nav_panel_hidden("roles",    mod_roles_ui("roles")),
+        bslib::nav_panel_hidden("purpose",  mod_synthesis_controls_ui("synthesis_controls")),
+        bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
+        bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
+        bslib::nav_panel_hidden("export",   mod_export_ui("export"))
+      )
+    ),
+    mod_data_panel_ui("data_panel")
+  )
 )
 
 server <- function(input, output, session) {
   state <- mod_state_server("state")
-
-  # Floating summary bar, pinned to the bottom of the main area on every screen.
-  output$action_bar <- renderUI({
-    fname <- if (!is.null(state$raw_data)) "file loaded" else "no file"
-    tags$div(
-      class = "action-bar",
-      tags$div(
-        class = "summary",
-        tags$span(tags$span(class = "k", "file "), fname),
-        tags$span(
-          tags$span(class = "k", "purpose "),
-          if (!is.null(state$spec)) state$spec$purpose else "—"
-        )
-      )
-    )
-  })
 
   mod_upload_server("upload", state)
   mod_roles_server("roles", state)
@@ -153,6 +147,7 @@ server <- function(input, output, session) {
   mod_generate_server("generate", state)
   mod_compare_server("compare", state)
   mod_export_server("export", state)
+  mod_data_panel_server("data_panel", state)
 
   # Set initial active step highlight
   session$onFlushed(function() {
@@ -225,6 +220,41 @@ server <- function(input, output, session) {
 
   observeEvent(state$comparison, ignoreNULL = TRUE, {
     session$sendCustomMessage("setDoneStep", "compare")
+  })
+
+  # Unlock sidebar steps progressively
+  session$onFlushed(function() {
+    session$sendCustomMessage("unlockStep", "upload")
+  }, once = TRUE)
+
+  observeEvent(state$raw_data, ignoreNULL = TRUE, {
+    session$sendCustomMessage("unlockStep", "roles")
+  })
+
+  observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$roles_confirmed > 0L)) {
+      session$sendCustomMessage("unlockStep", "purpose")
+    }
+  })
+
+  observeEvent(state$spec_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$spec_confirmed > 0L)) {
+      session$sendCustomMessage("unlockStep", "generate")
+    }
+  })
+
+  observeEvent(state$synthetic, ignoreNULL = TRUE, {
+    session$sendCustomMessage("unlockStep", "compare")
+    session$sendCustomMessage("unlockStep", "export")
+  })
+
+  # full-main class toggle: on when Compare step is active
+  observeEvent(input$nav_go, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    session$sendCustomMessage("setFullMain", isTRUE(input$nav_go == "compare"))
+  })
+
+  observeEvent(state$nav_request, ignoreNULL = TRUE, {
+    session$sendCustomMessage("setFullMain", isTRUE(state$nav_request == "compare"))
   })
 
   # Module navigation requests (e.g. "← Adjust settings" links)
