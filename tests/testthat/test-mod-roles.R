@@ -58,19 +58,14 @@ test_that("editing user_role and confirming writes back to state", {
 
     expect_s3_class(state$roles, "dataganger_roles")
 
-    user_role_col <- match("user_role", names(state$roles)) - 1L
     session$setInputs(
-      `roles-roles_table_cell_edit` = data.frame(
-        row = 1L,
-        col = user_role_col,
-        value = "measure_override"
-      )
+      `roles-role_change` = list(row = 1L, value = "numeric")
     )
     session$flushReact()
     session$setInputs(`roles-confirm` = 1L)
     session$flushReact()
 
-    expect_equal(state$roles$user_role[[1]], "measure_override")
+    expect_equal(state$roles$user_role[[1]], "numeric")
   })
 })
 
@@ -98,13 +93,8 @@ test_that("confirming role edits invalidates downstream state", {
     state$stale <- list(synthesis = FALSE, comparison = FALSE, export = FALSE)
     session$flushReact()
 
-    user_role_col <- match("user_role", names(state$roles)) - 1L
     session$setInputs(
-      `roles-roles_table_cell_edit` = data.frame(
-        row = 1L,
-        col = user_role_col,
-        value = "identifier_override"
-      )
+      `roles-role_change` = list(row = 1L, value = "identifier")
     )
     session$flushReact()
     session$setInputs(`roles-confirm` = 1L)
@@ -135,20 +125,16 @@ test_that("editing a non-user_role column is ignored silently", {
     session$flushReact()
     session$flushReact()
 
-    original_recommended <- state$roles$recommended_role
-    recommended_col <- match("recommended_role", names(state$roles)) - 1L
+    original_user_roles <- state$roles$user_role
 
+    # Invalid role value is silently rejected
     session$setInputs(
-      `roles-roles_table_cell_edit` = data.frame(
-        row = 1L,
-        col = recommended_col,
-        value = "hacked_role"
-      )
+      `roles-role_change` = list(row = 1L, value = "hacked_role")
     )
     session$flushReact()
     session$setInputs(`roles-confirm` = 1L)
     session$flushReact()
 
-    expect_identical(state$roles$recommended_role, original_recommended)
+    expect_identical(state$roles$user_role, original_user_roles)
   })
 })
