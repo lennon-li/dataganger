@@ -106,7 +106,7 @@ sidebar_content <- tags$nav(
     step_item(2, "Column roles",    "roles"),
     step_item(3, "Synthesis spec",  "purpose"),
     step_item(4, "Generation",      "generate"),
-    step_item(5, "Compare",         "compare"),
+    step_item(5, "Comparison",      "compare"),
     step_item(6, "Export",          "export")
   )
 )

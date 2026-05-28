@@ -85,7 +85,7 @@ mod_compare_server <- function(id, state) {
         for (i in seq_len(nrow(roles))) {
           vn <- roles$variable[[i]]
           ur <- roles$user_role[[i]]
-          if (vn %in% vars) kind_map[[vn]] <- ur
+          if (vn %in% vars && !is.na(ur) && nchar(ur) > 0L) kind_map[[vn]] <- ur
         }
       }
 
@@ -118,7 +118,7 @@ mod_compare_server <- function(id, state) {
           shiny::tags$h3(class = "var-title", current %||% ""),
           shiny::tags$span(
             style = "font-family:var(--font-mono); font-size:11px; padding:2px 8px; background:var(--paper-200); border-radius:2px; color:var(--fg-muted);",
-            kind_map[[current %||% ""]] %||% ""
+            if (!is.null(current) && current %in% names(kind_map)) kind_map[[current]] else "numeric"
           ),
           shiny::tags$div(
             class = "var-legend",
@@ -158,7 +158,10 @@ mod_compare_server <- function(id, state) {
       kind <- "numeric"
       if (!is.null(roles)) {
         idx <- match(var, roles$variable)
-        if (!is.na(idx)) kind <- roles$user_role[[idx]]
+        if (!is.na(idx)) {
+          ur <- roles$user_role[[idx]]
+          if (!is.na(ur) && nchar(ur) > 0L) kind <- ur
+        }
       }
 
       if (kind %in% c("categorical", "logical")) {
@@ -224,7 +227,10 @@ mod_compare_server <- function(id, state) {
       kind <- "numeric"
       if (!is.null(roles)) {
         idx <- match(var, roles$variable)
-        if (!is.na(idx)) kind <- roles$user_role[[idx]]
+        if (!is.na(idx)) {
+          ur <- roles$user_role[[idx]]
+          if (!is.na(ur) && nchar(ur) > 0L) kind <- ur
+        }
       }
 
       if (kind %in% c("categorical", "logical")) {
