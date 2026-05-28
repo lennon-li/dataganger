@@ -88,7 +88,7 @@ mod_data_panel_server <- function(id, state) {
       border_b   <- if (is_active) "2px solid var(--synth-500)" else "2px solid transparent"
       cursor_val <- if (has_synth) "pointer" else "not-allowed"
 
-      lbl <- if (!has_synth) "Synthetic — pending" else "Synthetic"
+      lbl <- if (!has_synth) "Synthetic \u2014 pending" else "Synthetic"
 
       onclick_val <- if (has_synth) {
         sprintf(
