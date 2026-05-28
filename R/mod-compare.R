@@ -35,7 +35,10 @@ mod_compare_ui <- function(id) {
 }
 
 mod_compare_server <- function(id, state) {
-  rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
+  rlang::check_installed(
+    c("shiny", "ggplot2"),
+    reason = "to use the DataGangeR Shiny modules"
+  )
 
   shiny::moduleServer(id, function(input, output, session) {
     selected_var <- shiny::reactiveVal(NULL)
@@ -99,12 +102,16 @@ mod_compare_server <- function(id, state) {
           kind
         )
         is_active <- identical(v, current)
+        # JS-escape the variable name so column names with quotes/backslashes
+        # don't break the inline onclick handler
+        v_js <- gsub("\\\\", "\\\\\\\\", v)
+        v_js <- gsub("'",    "\\\\'",    v_js, fixed = TRUE)
         shiny::tags$button(
           class   = paste0("var-tab", if (is_active) " active" else ""),
           onclick = sprintf(
             "Shiny.setInputValue('%s', '%s', {priority:'event'})",
             session$ns("var_select"),
-            v
+            v_js
           ),
           shiny::tags$span(class = "var-name", v),
           shiny::tags$span(class = paste0("var-kind k-", kind), kind_lbl)
