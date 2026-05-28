@@ -8,11 +8,37 @@ mod_synthesis_controls_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::tags$div(
+    shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
+        class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Synthesis Spec"),
-        shiny::tags$h1("Configure synthesis")
+        shiny::tags$h1("Configure synthesis"),
+        shiny::tags$p(
+          class = "subtitle",
+          shiny::tags$strong("Tell us what you'll use the synthetic data for"),
+          " \u2014 that one choice sets sensible defaults for privacy hardening, coarsening, and fidelity. Open ",
+          shiny::tags$strong("Advanced Settings"),
+          " only if you need to override individual knobs."
+        )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::conditionalPanel(
+          condition = "input.purpose_group === 'internal_hifi' && !input.acknowledge_risk",
+          ns = ns,
+          shiny::tags$button(
+            type = "button",
+            class = "btn btn-secondary action-button",
+            disabled = "disabled",
+            "Confirm and Continue \u2192"
+          )
+        ),
+        shiny::conditionalPanel(
+          condition = "input.purpose_group !== 'internal_hifi' || input.acknowledge_risk",
+          ns = ns,
+          shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192", class = "btn-primary")
+        )
       )
     ),
     shiny::tags$div(
@@ -85,21 +111,6 @@ mod_synthesis_controls_ui <- function(id) {
         class = "console",
         shiny::verbatimTextOutput(ns("spec_preview"))
       )
-    ),
-    shiny::conditionalPanel(
-      condition = "input.purpose_group === 'internal_hifi' && !input.acknowledge_risk",
-      ns = ns,
-      shiny::tags$button(
-        type = "button",
-        class = "btn btn-secondary action-button",
-        disabled = "disabled",
-        "Confirm and Continue \u2192"
-      )
-    ),
-    shiny::conditionalPanel(
-      condition = "input.purpose_group !== 'internal_hifi' || input.acknowledge_risk",
-      ns = ns,
-      shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192", class = "btn-primary")
     )
   )
 }
