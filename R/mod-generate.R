@@ -19,20 +19,20 @@ mod_generate_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::tags$div(
+    shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
+        class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Generation"),
-        shiny::tags$h1("Generate synthetic data")
+        shiny::tags$h1("Generate synthetic data"),
+        shiny::uiOutput(ns("header_subtitle"))
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::uiOutput(ns("header_cta"))
       )
     ),
     stale_banner_ui("synthesis", ns = ns),
-    shiny::div(
-      class = "btn-row",
-      shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
-      shiny::actionButton(ns("try_new_seed"), "Try new seed", class = "btn-secondary"),
-      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
-    ),
     shiny::uiOutput(ns("result_stats")),
     shiny::div(
       class = "card",
@@ -43,7 +43,12 @@ mod_generate_ui <- function(id) {
       ),
       shiny::verbatimTextOutput(ns("result_summary"))
     ),
-    shiny::actionButton(ns("go_compare"), "Compare \u2192", class = "btn-primary")
+    shiny::div(
+      class = "btn-row",
+      style = "margin-top:16px;",
+      shiny::actionButton(ns("try_new_seed"), "\u21ba Try new seed", class = "btn btn-secondary"),
+      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
+    )
   )
 }
 
@@ -53,6 +58,38 @@ mod_generate_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   shiny::moduleServer(id, function(input, output, session) {
+    output$header_subtitle <- shiny::renderUI({
+      if (!is.null(state$synthetic)) {
+        shiny::tags$p(
+          class = "subtitle",
+          shiny::tags$strong("Synthetic data ready."),
+          " The right panel now shows the doppelgänger. Try a new seed to see how output varies, or continue to Compare to inspect distribution drift."
+        )
+      } else {
+        shiny::tags$p(
+          class = "subtitle",
+          shiny::tags$strong("Click Generate"),
+          " to create your synthetic dataset using the spec from Step 03. Generation is fast — the synthetic preview will appear in the right panel as soon as it's done."
+        )
+      }
+    })
+
+    output$header_cta <- shiny::renderUI({
+      if (!is.null(state$synthetic)) {
+        shiny::actionButton(
+          session$ns("go_compare"),
+          "Continue to Compare →",
+          class = "btn btn-primary"
+        )
+      } else {
+        shiny::actionButton(
+          session$ns("generate"),
+          "▶ Generate Synthetic Data",
+          class = "btn btn-primary"
+        )
+      }
+    })
+
     last_duration <- shiny::reactiveVal(NULL)
 
     output$stale__synthesis <- shiny::renderText({
