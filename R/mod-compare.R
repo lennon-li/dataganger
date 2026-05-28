@@ -43,6 +43,35 @@ mod_compare_server <- function(id, state) {
   shiny::moduleServer(id, function(input, output, session) {
     selected_var <- shiny::reactiveVal(NULL)
 
+    # Derive the kind used for plot/stats: user_role > recommended_role > column class
+    eff_kind <- function(var, roles, col_data) {
+      if (!is.null(roles)) {
+        idx <- match(var, roles$variable)
+        if (!is.na(idx)) {
+          ur  <- roles$user_role[[idx]]
+          rec <- if ("recommended_role" %in% names(roles)) roles$recommended_role[[idx]] else NA_character_
+          if (!is.na(ur) && nzchar(ur)) return(ur)
+          # Map recommended_role text to a kind
+          if (!is.na(rec) && nzchar(rec)) {
+            lc <- tolower(rec)
+            if (grepl("id\\b|identifier", lc))    return("identifier")
+            if (grepl("categor",          lc))    return("categorical")
+            if (grepl("\\bdate\\b",       lc))    return("date")
+            if (grepl("logic|boolean",    lc))    return("logical")
+            if (grepl("free.text",        lc))    return("free_text")
+            if (grepl("geograph",         lc))    return("geography")
+            if (grepl("numeric",          lc))    return("numeric")
+          }
+        }
+      }
+      # Fall back to actual column class
+      if (is.null(col_data)) return("numeric")
+      if (is.logical(col_data))                            return("logical")
+      if (inherits(col_data, c("Date", "POSIXct", "POSIXt"))) return("date")
+      if (is.character(col_data) || is.factor(col_data))   return("categorical")
+      "numeric"
+    }
+
     output$stale__comparison <- shiny::renderText({
       if (isTRUE(state$stale$comparison)) "true" else "false"
     })
@@ -83,14 +112,10 @@ mod_compare_server <- function(id, state) {
       roles   <- state$roles
       current <- selected_var()
 
-      kind_map <- stats::setNames(rep("numeric", length(vars)), vars)
-      if (!is.null(roles)) {
-        for (i in seq_len(nrow(roles))) {
-          vn <- roles$variable[[i]]
-          ur <- roles$user_role[[i]]
-          if (vn %in% vars && !is.na(ur) && nchar(ur) > 0L) kind_map[[vn]] <- ur
-        }
-      }
+      kind_map <- stats::setNames(
+        vapply(vars, function(v) eff_kind(v, roles, state$raw_data[[v]]), character(1)),
+        vars
+      )
 
       rail_btns <- lapply(vars, function(v) {
         kind     <- kind_map[[v]]
@@ -162,13 +187,17 @@ mod_compare_server <- function(id, state) {
       synth <- state$synthetic
       shiny::req(var %in% names(orig), var %in% names(synth))
 
-      kind <- "numeric"
-      if (!is.null(roles)) {
-        idx <- match(var, roles$variable)
-        if (!is.na(idx)) {
-          ur <- roles$user_role[[idx]]
-          if (!is.na(ur) && nchar(ur) > 0L) kind <- ur
-        }
+      kind <- eff_kind(var, roles, orig[[var]])
+
+      # Non-distribution roles: show a simple annotation
+      if (kind %in% c("identifier", "free_text", "geography", "drop")) {
+        return(
+          ggplot2::ggplot() +
+            ggplot2::annotate("text", x = 0.5, y = 0.5,
+                              label = paste0(kind, " \u2014 no distribution plot"),
+                              color = "grey60", size = 4) +
+            ggplot2::theme_void()
+        )
       }
 
       if (kind %in% c("categorical", "logical")) {
@@ -231,13 +260,13 @@ mod_compare_server <- function(id, state) {
       synth <- state$synthetic
       shiny::req(var %in% names(orig), var %in% names(synth))
 
-      kind <- "numeric"
-      if (!is.null(roles)) {
-        idx <- match(var, roles$variable)
-        if (!is.na(idx)) {
-          ur <- roles$user_role[[idx]]
-          if (!is.na(ur) && nchar(ur) > 0L) kind <- ur
-        }
+      kind <- eff_kind(var, roles, orig[[var]])
+
+      if (kind %in% c("identifier", "free_text", "geography", "drop")) {
+        return(shiny::tags$p(
+          style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin-top:8px;",
+          paste0("Role is '", kind, "' \u2014 this column is excluded from distribution comparison.")
+        ))
       }
 
       if (kind %in% c("categorical", "logical")) {

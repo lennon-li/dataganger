@@ -18,7 +18,7 @@
 #' }
 run_app <- function(max_upload_mb = 50, launch = interactive(), port = NULL, ...) {
   rlang::check_installed(
-    c("shiny", "bslib", "DT"),
+    c("shiny", "bslib", "DT", "ggplot2"),
     reason = "to run the DataGangeR Shiny app"
   )
   options(shiny.maxRequestSize = max_upload_mb * 1024^2)

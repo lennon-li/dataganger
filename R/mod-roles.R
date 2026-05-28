@@ -105,7 +105,12 @@ mod_roles_server <- function(id, state) {
 
       idx <- seq_len(nrow(roles))
       if (!identical(rf, "all")) {
-        idx <- idx[roles$user_role[idx] == rf]
+        idx <- idx[vapply(idx, function(i) {
+          identical(
+            eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]]),
+            rf
+          )
+        }, logical(1))]
       }
       if (nchar(nf) > 0) {
         idx <- idx[grepl(nf, tolower(roles$variable[idx]), fixed = TRUE)]
@@ -118,7 +123,7 @@ mod_roles_server <- function(id, state) {
       if (is.null(roles)) {
         return(shiny::tags$div(shiny::tags$b("Auto-detected."), " Edit anything that's wrong."))
       }
-      changed <- sum(roles$user_role != roles$detected_role)
+      changed <- sum(!is.na(roles$user_role) & nzchar(roles$user_role))
       shiny::tags$div(
         shiny::tags$b("Auto-detected. Edit anything that's wrong."),
         if (changed > 0L) {
@@ -149,7 +154,10 @@ mod_roles_server <- function(id, state) {
 
       all_roles <- c("identifier", "numeric", "categorical", "logical",
                      "date", "free_text", "geography", "drop")
-      counts  <- table(roles$user_role)
+      eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
+        eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
+      }, character(1))
+      counts  <- table(eff_roles)
       present <- all_roles[all_roles %in% names(counts)]
       current <- role_filter()
 
@@ -184,6 +192,38 @@ mod_roles_server <- function(id, state) {
     ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
                       "date", "free_text", "geography", "drop")
 
+    # Map human-readable recommended_role text -> a ROLE_OPTIONS value
+    rec_to_role <- function(rec) {
+      if (is.na(rec) || !nzchar(rec)) return(NA_character_)
+      lc <- tolower(rec)
+      if (grepl("id\\b|identifier", lc))       return("identifier")
+      if (grepl("categor",          lc))       return("categorical")
+      if (grepl("free.text|free_text", lc))    return("free_text")
+      if (grepl("\\bdate\\b",       lc))       return("date")
+      if (grepl("logic|boolean",    lc))       return("logical")
+      if (grepl("geograph",         lc))       return("geography")
+      if (grepl("numeric",          lc))       return("numeric")
+      NA_character_
+    }
+
+    # Infer role from R class string when recommended_role gives no signal
+    class_to_role <- function(cls) {
+      if (is.na(cls) || !nzchar(cls)) return("numeric")
+      lc <- tolower(cls)
+      if (grepl("date|posix",    lc)) return("date")
+      if (grepl("logical",       lc)) return("logical")
+      if (grepl("char|factor",   lc)) return("categorical")
+      "numeric"
+    }
+
+    # Effective role: user_role > recommended_role > class-based inference
+    eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
+      if (!is.na(user_role) && nzchar(user_role)) return(user_role)
+      from_rec <- rec_to_role(recommended_role)
+      if (!is.na(from_rec)) return(from_rec)
+      class_to_role(class_col)
+    }
+
     output$roles_table <- shiny::renderUI({
       vr <- visible_roles()
       shiny::req(vr)
@@ -198,13 +238,13 @@ mod_roles_server <- function(id, state) {
         ))
       }
 
-      make_select <- function(orig_row, current_role, detected_role) {
-        overridden <- !is.na(detected_role) && !is.na(current_role) &&
-                      current_role != detected_role
+      make_select <- function(orig_row, user_role, recommended_role, class_col) {
+        effective  <- eff_role(user_role, recommended_role, class_col)
+        overridden <- !is.na(user_role) && nzchar(user_role)
         opts <- lapply(ROLE_OPTIONS, function(opt) {
           shiny::tags$option(
             value    = opt,
-            selected = if (identical(opt, current_role)) "selected" else NULL,
+            selected = if (identical(opt, effective)) "selected" else NULL,
             opt
           )
         })
@@ -226,6 +266,7 @@ mod_roles_server <- function(id, state) {
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
+        sens <- if (isTRUE(r$sensitive)) "\u26a0" else ""
         shiny::tags$tr(
           shiny::tags$td(
             style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
@@ -233,15 +274,19 @@ mod_roles_server <- function(id, state) {
           ),
           shiny::tags$td(
             style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
-            r$type
+            r$class
           ),
           shiny::tags$td(
             style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
-            r$detected_role
+            r$recommended_role
           ),
           shiny::tags$td(
             style = "min-width:140px; padding:4px 8px;",
-            make_select(orig_row, r$user_role, r$detected_role)
+            make_select(orig_row, r$user_role, r$recommended_role, r$class)
+          ),
+          shiny::tags$td(
+            style = "text-align:center; font-size:12px; padding:6px 8px; color:var(--risk-500);",
+            sens
           )
         )
       })
@@ -251,10 +296,11 @@ mod_roles_server <- function(id, state) {
         style = "width:100%; border-collapse:collapse;",
         shiny::tags$thead(
           shiny::tags$tr(
-            shiny::tags$th(style = "width:32%; padding:6px 8px;", "variable"),
-            shiny::tags$th(style = "width:15%; padding:6px 8px;", "type"),
-            shiny::tags$th(style = "width:23%; padding:6px 8px;", "detected_role"),
-            shiny::tags$th(style = "width:30%; padding:6px 8px;", "user_role")
+            shiny::tags$th(style = "width:28%; padding:6px 8px;", "variable"),
+            shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
+            shiny::tags$th(style = "width:22%; padding:6px 8px;", "recommended_role"),
+            shiny::tags$th(style = "width:30%; padding:6px 8px;", "user_role"),
+            shiny::tags$th(style = "width:8%;  padding:6px 8px;", "sensitive")
           )
         ),
         shiny::tags$tbody(rows)
