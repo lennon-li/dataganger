@@ -413,3 +413,30 @@ table.dataTable tbody tr:hover {
   font-weight: 600;
   color: var(--ink-900);
 }
+
+/* ── Primary button — beat Bootstrap specificity ─────────────────── */
+.btn.btn-primary,
+.action-button.btn-primary,
+.shiny-download-link.btn-primary,
+a.btn-primary {
+  background: var(--synth-500) !important;
+  color: #fff !important;
+  border-color: var(--synth-500) !important;
+  box-shadow: var(--shine) !important;
+  font-weight: 600 !important;
+}
+.btn.btn-primary:hover,
+.action-button.btn-primary:hover {
+  background: var(--synth-700) !important;
+  border-color: var(--synth-700) !important;
+}
+
+/* ── Resize handle between main and data panel ───────────────────── */
+#resize-handle {
+  grid-column: unset;
+  z-index: 10;
+  background: var(--border);
+  transition: background 120ms;
+  user-select: none;
+}
+#resize-handle:hover { background: var(--synth-300); }
