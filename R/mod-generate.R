@@ -31,8 +31,7 @@ mod_generate_ui <- function(id) {
       class = "btn-row",
       shiny::actionButton(ns("generate"), "Generate Synthetic Data", class = "btn-primary"),
       shiny::actionButton(ns("try_new_seed"), "Try new seed", class = "btn-secondary"),
-      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings"),
-      shiny::actionButton(ns("go_compare"), "Compare \u2192", class = "btn-primary")
+      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
     ),
     shiny::uiOutput(ns("result_stats")),
     shiny::div(
@@ -43,7 +42,8 @@ mod_generate_ui <- function(id) {
         shiny::tags$span(class = "sub", "synthesize_data()")
       ),
       shiny::verbatimTextOutput(ns("result_summary"))
-    )
+    ),
+    shiny::actionButton(ns("go_compare"), "Compare \u2192", class = "btn-primary")
   )
 }
 

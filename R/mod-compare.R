@@ -91,7 +91,7 @@ mod_compare_server <- function(id, state) {
         return(shiny::tags$p("No numeric comparison available."))
       }
 
-      shiny::tags$pre(utils::capture.output(print(cmp$numeric)))
+      shiny::tags$pre(paste(utils::capture.output(print(cmp$numeric)), collapse = "\n"))
     })
 
     output$categorical_tab <- shiny::renderUI({
@@ -104,7 +104,7 @@ mod_compare_server <- function(id, state) {
         return(shiny::tags$p("No categorical comparison available."))
       }
 
-      shiny::tags$pre(utils::capture.output(print(cmp$categorical)))
+      shiny::tags$pre(paste(utils::capture.output(print(cmp$categorical)), collapse = "\n"))
     })
 
     output$privacy_tab <- shiny::renderUI({

@@ -35,7 +35,7 @@ mod_state_server <- function(id) {
       raw_data = NULL,
       profile = NULL,
       roles = NULL,
-      roles_confirmed = FALSE,
+      roles_confirmed = 0L,
       spec = NULL,
       spec_confirmed = 0L,
       synthetic = NULL,
@@ -69,7 +69,7 @@ mod_state_server <- function(id) {
 
       state$profile <- NULL
       state$roles <- NULL
-      state$roles_confirmed <- FALSE
+      state$roles_confirmed <- 0L
       state$spec <- NULL
       state$synthetic <- NULL
       state$comparison <- NULL

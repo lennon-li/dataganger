@@ -41,7 +41,7 @@
 #' dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
 #' spec <- synth_spec(purpose = "teaching", seed = 1)
 #' syn <- synthesize_data(dat, spec)
-#' \dontrun{
+#' \donttest{
 #' export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))
 #' }
 export_synthetic <- function(synthetic,
