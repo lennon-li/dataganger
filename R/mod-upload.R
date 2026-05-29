@@ -12,17 +12,26 @@ mod_upload_ui <- function(id) {
   profile_ui <- get0("mod_profile_ui", mode = "function", inherits = TRUE)
 
   if (is.null(profile_ui)) {
-    profile_ui <- function(id) {
-      shiny::tagList()
-    }
+    profile_ui <- function(id) shiny::tagList()
   }
 
   shiny::tagList(
-    shiny::tags$div(
+    shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
+        class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Upload Data"),
-        shiny::tags$h1("Upload your data")
+        shiny::tags$h1("Upload your data"),
+        shiny::tags$p(
+          class = "subtitle",
+          "Drop a CSV, Excel, or SAS file into the area below \u2014 or load a built-in sample to explore the workflow. ",
+          shiny::tags$strong("The right panel previews your data live"),
+          " as you load it."
+        )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::uiOutput(ns("header_cta"))
       )
     ),
     shiny::tags$div(
@@ -30,7 +39,7 @@ mod_upload_ui <- function(id) {
       shiny::tags$span(class = "icon", "i"),
       shiny::tags$div(
         shiny::tags$b("Sharing original data?"),
-        "Synthetic data reduces direct disclosure risk. It is not a substitute for a formal privacy assessment. Review the comparison and privacy warnings before sharing externally."
+        " Synthetic data reduces direct disclosure risk. It is not a substitute for a formal privacy assessment. Review the comparison and privacy warnings before sharing externally."
       )
     ),
     shiny::div(
@@ -39,9 +48,9 @@ mod_upload_ui <- function(id) {
       shiny::tags$span(class = "primary", "Drop file here or click to browse"),
       shiny::fileInput(
         inputId = ns("file"),
-        label = NULL,
-        accept = c(".csv", ".xlsx", ".sas7bdat", ".xpt"),
-        width = "100%"
+        label   = NULL,
+        accept  = c(".csv", ".xlsx", ".sas7bdat", ".xpt"),
+        width   = "100%"
       ),
       shiny::tags$span(class = "secondary", "CSV \u00b7 Excel (.xlsx) \u00b7 SAS (.sas7bdat, .xpt)")
     ),
@@ -58,7 +67,7 @@ mod_upload_ui <- function(id) {
       ),
       shiny::selectInput(
         inputId = ns("sample_dataset"),
-        label = NULL,
+        label   = NULL,
         choices = c(
           "Individual records (200\u00d77)"      = "individual",
           "Temporal / time series (365\u00d75)"  = "temporal",
@@ -74,15 +83,6 @@ mod_upload_ui <- function(id) {
           class   = "btn btn-secondary"
         )
       )
-    ),
-    shiny::tags$div(
-      class = "card",
-      shiny::tags$div(
-        class = "card-header",
-        shiny::tags$span(class = "title", "Preview"),
-        shiny::tags$span(class = "sub", "first 100 rows")
-      ),
-      DT::DTOutput(ns("preview"))
     ),
     shiny::tags$details(
       shiny::tags$summary("Profile summary"),
@@ -174,28 +174,17 @@ mod_upload_server <- function(id, state) {
       }, once = TRUE)
     })
 
-    output$preview <- DT::renderDT({
-      if (!is.null(input$file)) {
-        ext <- tolower(tools::file_ext(input$file$name))
-
-        shiny::validate(
-          shiny::need(
-            ext %in% accepted_ext,
-            sprintf(
-              "Unsupported file type: .%s. %s",
-              ext,
-              accepted_message
-            )
-          )
-        )
-      }
-
+    output$header_cta <- shiny::renderUI({
       shiny::req(state$raw_data)
-      DT::datatable(
-        utils::head(state$raw_data, 100),
-        options = list(pageLength = 10),
-        rownames = FALSE
+      shiny::actionButton(
+        inputId = session$ns("go_roles"),
+        label   = "Continue to Roles \u2192",
+        class   = "btn btn-primary"
       )
+    })
+
+    shiny::observeEvent(input$go_roles, ignoreNULL = TRUE, {
+      state$nav_request <- "roles"
     })
 
     invisible(NULL)

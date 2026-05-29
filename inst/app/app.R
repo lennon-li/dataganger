@@ -28,6 +28,8 @@ mod_synthesis_controls_server <- dataganger:::mod_synthesis_controls_server
 mod_synthesis_controls_ui     <- dataganger:::mod_synthesis_controls_ui
 mod_upload_server             <- dataganger:::mod_upload_server
 mod_upload_ui                 <- dataganger:::mod_upload_ui
+mod_data_panel_server         <- dataganger:::mod_data_panel_server
+mod_data_panel_ui             <- dataganger:::mod_data_panel_ui
 
 dg_theme <- bslib::bs_theme(
   version = 5,
@@ -45,20 +47,22 @@ dg_theme <- bslib::bs_theme(
 # Sidebar nav step helper
 step_item <- function(num, label, input_id) {
   tags$li(
-    class = "step",
+    class = "step locked",
     id = paste0("step-", input_id),
     `data-step` = input_id,
     onclick = sprintf(
-      "Shiny.setInputValue('nav_go', '%s', {priority: 'event'})",
+      "if (!this.classList.contains('locked')) { Shiny.setInputValue('nav_go', '%s', {priority: 'event'}); }",
       input_id
     ),
     tags$span(class = "num", sprintf("%02d", num)),
     tags$span(class = "label", label),
-    tags$span(class = "check", icon("check"))
+    tags$span(class = "check", "✓"),
+    tags$span(class = "lock-icon", "\U0001F512")
   )
 }
 
-sidebar_content <- tags$div(
+sidebar_content <- tags$nav(
+  class = "sidebar",
   tags$head(
     tags$script(HTML("
       Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
@@ -69,15 +73,64 @@ sidebar_content <- tags$div(
         if (active) active.classList.add('active');
       });
       Shiny.addCustomMessageHandler('setDoneStep', function(stepId) {
-        document.querySelectorAll('.step').forEach(function(el) {
-          if (el.dataset.step === stepId || el.id === 'step-' + stepId) {
-            el.classList.add('done');
-          }
+        var el = document.getElementById('step-' + stepId);
+        if (el) el.classList.add('done');
+      });
+      Shiny.addCustomMessageHandler('unlockStep', function(stepId) {
+        var el = document.getElementById('step-' + stepId);
+        if (el) el.classList.remove('locked');
+      });
+      Shiny.addCustomMessageHandler('setFullMain', function(on) {
+        var shell = document.getElementById('app-shell');
+        if (!shell) return;
+        if (on) { shell.classList.add('full-main'); }
+        else { shell.classList.remove('full-main'); }
+      });
+
+      // k±1 navigation: only adjacent steps are clickable
+      var STEP_ORDER = ['upload','roles','purpose','generate','compare','export'];
+      Shiny.addCustomMessageHandler('setCurrentStep', function(data) {
+        var cur = data.current;   // 0-based index into STEP_ORDER
+        var max = data.max;       // 0-based furthest reached
+        STEP_ORDER.forEach(function(id, i) {
+          var el = document.getElementById('step-' + id);
+          if (!el) return;
+          var isActive     = i === cur;
+          var isAdjacent   = Math.abs(i - cur) === 1 && i <= max;
+          var isAccessible = isActive || isAdjacent;
+          el.classList.toggle('active', isActive);
+          el.classList.toggle('locked', !isAccessible);
         });
       });
+
+      // Drag-to-resize between main and data panel
+      function initResizeHandle() {
+        var handle = document.getElementById('resize-handle');
+        var shell  = document.getElementById('app-shell');
+        if (!handle || !shell) return;
+        var dragging = false, startX, startW;
+        handle.addEventListener('mousedown', function(e) {
+          var dp = shell.querySelector('.data-panel');
+          dragging = true;
+          startX   = e.clientX;
+          startW   = dp ? dp.offsetWidth : 400;
+          document.body.style.cursor = 'col-resize';
+          e.preventDefault();
+        });
+        document.addEventListener('mousemove', function(e) {
+          if (!dragging) return;
+          var newW = Math.max(240, Math.min(900, startW + (startX - e.clientX)));
+          shell.style.gridTemplateColumns = '260px 1fr ' + newW + 'px';
+        });
+        document.addEventListener('mouseup', function() {
+          if (dragging) { dragging = false; document.body.style.cursor = ''; }
+        });
+      }
+      document.addEventListener('DOMContentLoaded', initResizeHandle);
+      // Also init after Shiny connects (for deferred render)
+      $(document).on('shiny:connected', initResizeHandle);
     "))
   ),
-  # Brand
   tags$div(
     class = "brand",
     tags$img(src = "www/logomark.svg", alt = ""),
@@ -86,7 +139,7 @@ sidebar_content <- tags$div(
         class = "name",
         "DataGange", tags$span(class = "r", "R")
       ),
-      tags$span(class = "tag", "v0.1 · beta")
+      tags$span(class = "tag", "v0.2 · beta")
     )
   ),
   tags$div(class = "section-label", "Workflow"),
@@ -96,56 +149,46 @@ sidebar_content <- tags$div(
     step_item(2, "Column roles",    "roles"),
     step_item(3, "Synthesis spec",  "purpose"),
     step_item(4, "Generation",      "generate"),
-    step_item(5, "Compare",         "compare"),
+    step_item(5, "Comparison",      "compare"),
     step_item(6, "Export",          "export")
   )
 )
 
-ui <- bslib::page_sidebar(
-  title = NULL,
+ui <- bslib::page(
   theme = dg_theme,
-  # Top-level head so htmltools reliably hoists the stylesheets into <head>.
   tags$head(
     tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
     tags$link(rel = "stylesheet", href = "www/shiny-app.css"),
     tags$link(rel = "stylesheet", href = "www/_alignment.css")
   ),
-  sidebar = bslib::sidebar(
-    width = 296,
-    class = "sidebar",
-    open = TRUE,
-    sidebar_content
-  ),
-  bslib::navset_hidden(
-    id = "app_tabs",
-    bslib::nav_panel_hidden("upload",   mod_upload_ui("upload")),
-    bslib::nav_panel_hidden("roles",    mod_roles_ui("roles")),
-    bslib::nav_panel_hidden("purpose",  mod_synthesis_controls_ui("synthesis_controls")),
-    bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
-    bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
-    bslib::nav_panel_hidden("export",   mod_export_ui("export"))
-  ),
-  uiOutput("action_bar")
+  tags$div(
+    class = "app",
+    id    = "app-shell",
+    sidebar_content,
+    tags$main(
+      class = "main",
+      bslib::navset_hidden(
+        id = "app_tabs",
+        bslib::nav_panel_hidden("upload",   mod_upload_ui("upload")),
+        bslib::nav_panel_hidden("roles",    mod_roles_ui("roles")),
+        bslib::nav_panel_hidden("purpose",  mod_synthesis_controls_ui("synthesis_controls")),
+        bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
+        bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
+        bslib::nav_panel_hidden("export",   mod_export_ui("export"))
+      )
+    ),
+    tags$div(
+      id    = "resize-handle",
+      style = "width:5px; cursor:col-resize; background:var(--border); transition:background 120ms; flex-shrink:0;",
+      onmouseover = "this.style.background='var(--synth-300)'",
+      onmouseout  = "this.style.background='var(--border)'"
+    ),
+    mod_data_panel_ui("data_panel")
+  )
 )
 
 server <- function(input, output, session) {
   state <- mod_state_server("state")
-
-  # Floating summary bar, pinned to the bottom of the main area on every screen.
-  output$action_bar <- renderUI({
-    fname <- if (!is.null(state$raw_data)) "file loaded" else "no file"
-    tags$div(
-      class = "action-bar",
-      tags$div(
-        class = "summary",
-        tags$span(tags$span(class = "k", "file "), fname),
-        tags$span(
-          tags$span(class = "k", "purpose "),
-          if (!is.null(state$spec)) state$spec$purpose else "—"
-        )
-      )
-    )
-  })
 
   mod_upload_server("upload", state)
   mod_roles_server("roles", state)
@@ -153,24 +196,44 @@ server <- function(input, output, session) {
   mod_generate_server("generate", state)
   mod_compare_server("compare", state)
   mod_export_server("export", state)
+  mod_data_panel_server("data_panel", state)
 
-  # Set initial active step highlight
+  # Set initial step state
   session$onFlushed(function() {
-    session$sendCustomMessage("setActiveStep", "upload")
+    send_step_state(0L)
   }, once = TRUE)
+
+  STEP_IDS  <- c("upload", "roles", "purpose", "generate", "compare", "export")
+
+  # Compute the furthest step reached (0-based index into STEP_IDS)
+  max_step_reached <- shiny::reactive({
+    if (!is.null(state$synthetic))                      return(5L)
+    if (isTRUE(state$spec_confirmed > 0L))              return(3L)
+    if (isTRUE(state$roles_confirmed > 0L))             return(2L)
+    if (!is.null(state$raw_data))                       return(1L)
+    0L
+  })
+
+  current_step_num <- shiny::reactiveVal(0L)  # 0-based
+
+  send_step_state <- function(cur) {
+    current_step_num(cur)
+    session$sendCustomMessage("setCurrentStep", list(
+      current = cur,
+      max     = max_step_reached()
+    ))
+  }
 
   # Sidebar navigation
   shiny::observeEvent(input$nav_go, ignoreNULL = TRUE, ignoreInit = TRUE, {
-    target <- input$nav_go
-    # Only navigate to unlocked steps
-    allowed <- "upload"
-    if (!is.null(state$raw_data)) allowed <- c(allowed, "roles")
-    if (!is.null(state$roles))    allowed <- c(allowed, "purpose")
-    if (!is.null(state$spec))     allowed <- c(allowed, "generate", "compare", "export")
-    if (target %in% allowed) {
+    target  <- input$nav_go
+    tgt_idx <- match(target, STEP_IDS) - 1L
+    cur_idx <- current_step_num()
+    max_idx <- max_step_reached()
+    # Only allow adjacent steps
+    if (!is.na(tgt_idx) && abs(tgt_idx - cur_idx) <= 1L && tgt_idx <= max_idx) {
       bslib::nav_select("app_tabs", target)
-      # Update active step class via JS
-      session$sendCustomMessage("setActiveStep", target)
+      send_step_state(tgt_idx)
     }
   })
 
@@ -185,23 +248,22 @@ server <- function(input, output, session) {
   # Auto-advance to roles once data is uploaded
   observeEvent(state$roles, ignoreNULL = TRUE, once = TRUE, {
     bslib::nav_select("app_tabs", "roles")
-    session$sendCustomMessage("setActiveStep", "roles")
-  })
-
-  # Auto-advance to generate once spec is confirmed. Watches a counter, not
-  # state$spec, so re-confirming an unchanged spec after going back still fires.
-  observeEvent(state$spec_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
-    if (isTRUE(state$spec_confirmed > 0L)) {
-      bslib::nav_select("app_tabs", "generate")
-      session$sendCustomMessage("setActiveStep", "generate")
-    }
+    send_step_state(1L)
   })
 
   # Auto-advance to purpose once roles are confirmed
   observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
     if (isTRUE(state$roles_confirmed > 0L)) {
       bslib::nav_select("app_tabs", "purpose")
-      session$sendCustomMessage("setActiveStep", "purpose")
+      send_step_state(2L)
+    }
+  })
+
+  # Auto-advance to generate once spec is confirmed
+  observeEvent(state$spec_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$spec_confirmed > 0L)) {
+      bslib::nav_select("app_tabs", "generate")
+      send_step_state(3L)
     }
   })
 
@@ -227,17 +289,26 @@ server <- function(input, output, session) {
     session$sendCustomMessage("setDoneStep", "compare")
   })
 
-  # Module navigation requests (e.g. "← Adjust settings" links)
+  # Re-broadcast step state when max_step_reached changes (synthetic data arrives, etc.)
+  observe({
+    max_step_reached()
+    send_step_state(current_step_num())
+  })
+
+  # full-main class toggle: on when Compare step is active
+  observe({
+    cur <- current_step_num()
+    session$sendCustomMessage("setFullMain", cur == 4L)
+  })
+
+  # Module navigation requests (e.g. "← Adjust settings", "Continue to Export →")
   observeEvent(state$nav_request, ignoreNULL = TRUE, {
-    target <- state$nav_request
+    target  <- state$nav_request
     state$nav_request <- NULL
-    allowed <- "upload"
-    if (!is.null(state$raw_data)) allowed <- c(allowed, "roles")
-    if (!is.null(state$roles))    allowed <- c(allowed, "purpose")
-    if (!is.null(state$spec))     allowed <- c(allowed, "generate", "compare", "export")
-    if (target %in% allowed) {
+    tgt_idx <- match(target, STEP_IDS) - 1L
+    if (!is.na(tgt_idx) && tgt_idx <= max_step_reached()) {
       bslib::nav_select("app_tabs", target)
-      session$sendCustomMessage("setActiveStep", target)
+      send_step_state(tgt_idx)
     }
   })
 }

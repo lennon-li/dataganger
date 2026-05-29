@@ -8,11 +8,26 @@ mod_export_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::tags$div(
+    shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
+        class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 06 \u00b7 Export"),
-        shiny::tags$h1("Export your data")
+        shiny::tags$h1("Export your data"),
+        shiny::tags$p(
+          class = "subtitle",
+          "Pick a format and download your synthetic dataset. ",
+          shiny::tags$strong("Include the HTML report"),
+          " if you're handing this off to a teammate \u2014 it documents the spec, comparison, and privacy hardening."
+        )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::downloadButton(
+          ns("download"),
+          label = "Download \u2192",
+          class = "btn btn-primary"
+        )
       )
     ),
     stale_banner_ui("export", ns = ns),
@@ -42,8 +57,7 @@ mod_export_ui <- function(id) {
         value = FALSE
       ),
       shiny::uiOutput(ns("names_ui"))
-    ),
-    shiny::downloadButton(ns("download"), label = "Download synthetic data", class = "btn-primary")
+    )
   )
 }
 

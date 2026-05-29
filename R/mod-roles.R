@@ -11,31 +11,56 @@ mod_roles_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::tags$div(
+    shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
+        class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 02 \u00b7 Column Roles"),
-        shiny::tags$h1("Review column roles")
+        shiny::tags$h1("Review column roles"),
+        shiny::tags$p(
+          class = "subtitle",
+          "DataGangeR auto-detected each column's role. ",
+          shiny::tags$strong("Adjust any that look wrong"),
+          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Identifiers and free text are always handled with extra care."
+        )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::actionButton(
+          ns("confirm"),
+          "Confirm and Continue \u2192",
+          class = "btn btn-primary"
+        )
       )
     ),
     shiny::tags$div(
       class = "banner info",
       shiny::tags$span(class = "icon", "i"),
-      shiny::tags$div(
-        shiny::tags$b("Auto-detected. Edit anything that's wrong."),
-        "Role assignments influence how columns are coarsened, redacted, or dropped."
-      )
+      shiny::uiOutput(ns("roles_banner_text"))
     ),
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
         class = "card-header",
-        shiny::tags$span(class = "title", "Column roles"),
-        shiny::tags$span(class = "sub", "edit the role column")
+        shiny::uiOutput(ns("roles_card_header"))
       ),
-      DT::DTOutput(ns("roles_table"))
-    ),
-    shiny::actionButton(ns("confirm"), "Confirm roles", class = "btn-primary")
+      shiny::tags$div(
+        style = "display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;",
+        shiny::uiOutput(ns("filter_chips")),
+        shiny::tags$input(
+          type        = "text",
+          class       = "input",
+          id          = ns("col_search"),
+          placeholder = "filter columns\u2026",
+          oninput     = sprintf(
+            "Shiny.setInputValue('%s', this.value, {priority:'event'})",
+            ns("col_search_val")
+          ),
+          style = "margin-left:auto; width:200px; padding:4px 8px; font-size:12px;"
+        )
+      ),
+      shiny::uiOutput(ns("roles_table"))
+    )
   )
 }
 
@@ -49,19 +74,19 @@ mod_roles_server <- function(id, state) {
 
   shiny::moduleServer(id, function(input, output, session) {
     roles_local <- shiny::reactiveVal(NULL)
+    role_filter <- shiny::reactiveVal("all")
+    row_map     <- shiny::reactiveVal(integer(0))
 
     normalize_edit_info <- function(info) {
       if (is.null(info)) {
         return(NULL)
       }
-
       if (is.data.frame(info)) {
         info <- info[1, , drop = FALSE]
       }
-
       list(
-        row = as.integer(info$row[[1]]),
-        col = as.integer(info$col[[1]]),
+        row   = as.integer(info$row[[1]]),
+        col   = as.integer(info$col[[1]]),
         value = info$value[[1]]
       )
     }
@@ -71,55 +96,232 @@ mod_roles_server <- function(id, state) {
       roles_local(state$roles)
     })
 
-    output$roles_table <- DT::renderDT({
-      shiny::req(state$roles)
+    visible_roles <- shiny::reactive({
+      roles <- roles_local()
+      shiny::req(roles)
 
+      rf <- role_filter()
+      nf <- tolower(trimws(input$col_search_val %||% ""))
+
+      idx <- seq_len(nrow(roles))
+      if (!identical(rf, "all")) {
+        idx <- idx[vapply(idx, function(i) {
+          identical(
+            eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]]),
+            rf
+          )
+        }, logical(1))]
+      }
+      if (nchar(nf) > 0) {
+        idx <- idx[grepl(nf, tolower(roles$variable[idx]), fixed = TRUE)]
+      }
+      list(data = roles[idx, , drop = FALSE], map = idx)
+    })
+
+    output$roles_banner_text <- shiny::renderUI({
       roles <- roles_local()
       if (is.null(roles)) {
-        roles <- state$roles
+        return(shiny::tags$div(shiny::tags$b("Auto-detected."), " Edit anything that's wrong."))
       }
-
-      user_role_col <- match("user_role", names(roles)) - 1L
-      shiny::req(!is.na(user_role_col))
-
-      # DT 0.34.0 uses zero-based DataTables column indices here.
-      disable_cols <- setdiff(seq_along(roles) - 1L, user_role_col)
-
-      DT::datatable(
-        roles,
-        rownames = FALSE,
-        selection = "none",
-        editable = list(
-          target = "cell",
-          disable = list(columns = disable_cols)
-        )
+      changed <- sum(!is.na(roles$user_role) & nzchar(roles$user_role))
+      shiny::tags$div(
+        shiny::tags$b("Auto-detected. Edit anything that's wrong."),
+        if (changed > 0L) {
+          shiny::tagList(
+            " \u00b7 ",
+            shiny::tags$b(as.character(changed)),
+            " changed from auto-detection."
+          )
+        }
       )
     })
 
-    shiny::observeEvent(input$roles_table_cell_edit, ignoreNULL = TRUE, {
-      edit_info <- normalize_edit_info(input$roles_table_cell_edit)
+    output$roles_card_header <- shiny::renderUI({
+      roles   <- roles_local()
+      vr      <- visible_roles()
+      total   <- if (!is.null(roles)) nrow(roles) else 0L
+      visible <- if (!is.null(vr)) nrow(vr$data) else 0L
+      sub_lbl <- if (visible < total) paste0(visible, " shown") else "all shown"
+      shiny::tagList(
+        shiny::tags$span(class = "title", paste0("Column roles \u00b7 ", total)),
+        shiny::tags$span(class = "sub",   sub_lbl)
+      )
+    })
+
+    output$filter_chips <- shiny::renderUI({
       roles <- roles_local()
+      shiny::req(roles)
 
-      if (is.null(roles)) {
-        roles <- state$roles
+      all_roles <- c("identifier", "numeric", "categorical", "logical",
+                     "date", "free_text", "geography", "drop")
+      eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
+        eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
+      }, character(1))
+      counts  <- table(eff_roles)
+      present <- all_roles[all_roles %in% names(counts)]
+      current <- role_filter()
+
+      make_chip <- function(label, value, count) {
+        is_active <- identical(current, value)
+        shiny::tags$button(
+          class   = paste0("btn btn-sm", if (is_active) " btn-primary" else " btn-secondary"),
+          onclick = sprintf(
+            "Shiny.setInputValue('%s', '%s', {priority:'event'})",
+            session$ns("role_filter_val"),
+            value
+          ),
+          label,
+          shiny::tags$span(
+            style = "font-family:var(--font-mono); font-size:11px; opacity:0.7; margin-left:4px;",
+            as.character(count)
+          )
+        )
       }
 
-      if (is.null(edit_info) || is.null(roles)) {
+      chips <- list(make_chip("all", "all", nrow(roles)))
+      for (r in present) {
+        chips <- c(chips, list(make_chip(r, r, as.integer(counts[r]))))
+      }
+      shiny::tagList(chips)
+    })
+
+    shiny::observeEvent(input$role_filter_val, ignoreNULL = TRUE, {
+      role_filter(input$role_filter_val)
+    })
+
+    ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
+                      "date", "free_text", "geography", "drop")
+
+    # Map human-readable recommended_role text -> a ROLE_OPTIONS value
+    rec_to_role <- function(rec) {
+      if (is.na(rec) || !nzchar(rec)) return(NA_character_)
+      lc <- tolower(rec)
+      if (grepl("id\\b|identifier", lc))       return("identifier")
+      if (grepl("categor",          lc))       return("categorical")
+      if (grepl("free.text|free_text", lc))    return("free_text")
+      if (grepl("\\bdate\\b",       lc))       return("date")
+      if (grepl("logic|boolean",    lc))       return("logical")
+      if (grepl("geograph",         lc))       return("geography")
+      if (grepl("numeric",          lc))       return("numeric")
+      NA_character_
+    }
+
+    # Infer role from R class string when recommended_role gives no signal
+    class_to_role <- function(cls) {
+      if (is.na(cls) || !nzchar(cls)) return("numeric")
+      lc <- tolower(cls)
+      if (grepl("date|posix",    lc)) return("date")
+      if (grepl("logical",       lc)) return("logical")
+      if (grepl("char|factor",   lc)) return("categorical")
+      "numeric"
+    }
+
+    # Effective role: user_role > recommended_role > class-based inference
+    eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
+      if (!is.na(user_role) && nzchar(user_role)) return(user_role)
+      from_rec <- rec_to_role(recommended_role)
+      if (!is.na(from_rec)) return(from_rec)
+      class_to_role(class_col)
+    }
+
+    output$roles_table <- shiny::renderUI({
+      vr <- visible_roles()
+      shiny::req(vr)
+      roles <- vr$data
+      map   <- vr$map
+      row_map(map)
+
+      if (nrow(roles) == 0L) {
+        return(shiny::tags$p(
+          style = "text-align:center; color:var(--fg-subtle); padding:20px 0; font-family:var(--font-sans);",
+          "No matches."
+        ))
+      }
+
+      make_select <- function(orig_row, user_role, recommended_role, class_col) {
+        effective  <- eff_role(user_role, recommended_role, class_col)
+        overridden <- !is.na(user_role) && nzchar(user_role)
+        opts <- lapply(ROLE_OPTIONS, function(opt) {
+          shiny::tags$option(
+            value    = opt,
+            selected = if (identical(opt, effective)) "selected" else NULL,
+            opt
+          )
+        })
+        shiny::tags$select(
+          class    = "input",
+          style    = sprintf(
+            "width:100%%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px; %s",
+            if (overridden) "background:var(--synth-50); border-color:var(--synth-300);" else ""
+          ),
+          onchange = sprintf(
+            "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
+            session$ns("role_change"),
+            orig_row
+          ),
+          opts
+        )
+      }
+
+      rows <- lapply(seq_len(nrow(roles)), function(i) {
+        orig_row <- map[[i]]
+        r <- roles[i, , drop = FALSE]
+        sens <- if (isTRUE(r$sensitive)) "\u26a0" else ""
+        shiny::tags$tr(
+          shiny::tags$td(
+            style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
+            r$variable
+          ),
+          shiny::tags$td(
+            style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
+            r$class
+          ),
+          shiny::tags$td(
+            style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
+            r$recommended_role
+          ),
+          shiny::tags$td(
+            style = "min-width:140px; padding:4px 8px;",
+            make_select(orig_row, r$user_role, r$recommended_role, r$class)
+          ),
+          shiny::tags$td(
+            style = "text-align:center; font-size:12px; padding:6px 8px; color:var(--risk-500);",
+            sens
+          )
+        )
+      })
+
+      shiny::tags$table(
+        class = "data compact",
+        style = "width:100%; border-collapse:collapse;",
+        shiny::tags$thead(
+          shiny::tags$tr(
+            shiny::tags$th(style = "width:28%; padding:6px 8px;", "variable"),
+            shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
+            shiny::tags$th(style = "width:22%; padding:6px 8px;", "recommended_role"),
+            shiny::tags$th(style = "width:30%; padding:6px 8px;", "user_role"),
+            shiny::tags$th(style = "width:8%;  padding:6px 8px;", "sensitive")
+          )
+        ),
+        shiny::tags$tbody(rows)
+      )
+    })
+
+    shiny::observeEvent(input$role_change, ignoreNULL = TRUE, {
+      change <- input$role_change
+      roles  <- roles_local()
+      if (is.null(change) || is.null(roles)) return(invisible(NULL))
+
+      orig_row <- as.integer(change$row)
+      val      <- as.character(change$value)
+
+      if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) {
         return(invisible(NULL))
       }
+      if (!val %in% ROLE_OPTIONS) return(invisible(NULL))
 
-      user_role_col <- match("user_role", names(roles)) - 1L
-      if (is.na(user_role_col) || !identical(edit_info$col, user_role_col)) {
-        return(invisible(NULL))
-      }
-
-      if (is.na(edit_info$row) || edit_info$row < 1L || edit_info$row > nrow(roles)) {
-        return(invisible(NULL))
-      }
-
-      roles$user_role[[edit_info$row]] <- as.character(edit_info$value)
+      roles$user_role[[orig_row]] <- val
       roles_local(roles)
-
       invisible(NULL)
     })
 

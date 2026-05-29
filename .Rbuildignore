@@ -9,4 +9,7 @@
 ^LICENSE\.md$
 ^DataGangeR Design System$
 ^DataGangeR Design System updated\.zip$
+^DataGangeR Design System\.zip$
 ^browser_harness.*\.R$
+^design-handoff
+^docs$

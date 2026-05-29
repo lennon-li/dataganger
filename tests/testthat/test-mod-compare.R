@@ -1,10 +1,14 @@
 compare_test_state <- function(raw_data = NULL, synthetic = NULL,
-                               comparison = NULL, privacy = NULL) {
+                               comparison = NULL, privacy = NULL,
+                               roles = NULL, stale = NULL) {
   shiny::reactiveValues(
-    raw_data = raw_data,
-    synthetic = synthetic,
+    raw_data   = raw_data,
+    synthetic  = synthetic,
     comparison = comparison,
-    privacy = privacy
+    privacy    = privacy,
+    roles      = roles,
+    stale      = stale %||% list(comparison = FALSE),
+    nav_request = NULL
   )
 }
 
@@ -28,93 +32,54 @@ comparison_fixture <- function(seed = 1) {
   )
 
   list(
-    raw_data = example_health_survey,
-    synthetic = synthetic,
+    raw_data   = example_health_survey,
+    synthetic  = synthetic,
     comparison = comparison,
-    privacy = privacy
+    privacy    = privacy,
+    roles      = roles
   )
 }
 
-test_that("mod_compare_ui exposes all four tabs and stale banner", {
+test_that("mod_compare_ui has header, subtitle, export button, and stale banner", {
   testthat::skip_if_not_installed("shiny")
 
-  ui <- mod_compare_ui("compare")
+  ui   <- mod_compare_ui("compare")
   html <- paste(as.character(ui), collapse = "\n")
 
-  expect_match(html, "Dataset")
-  expect_match(html, "Numeric")
-  expect_match(html, "Categorical")
-  expect_match(html, "Privacy")
+  expect_match(html, "Compare datasets")
+  expect_match(html, "Step 05")
+  expect_match(html, "go_export")
   expect_match(html, "stale__comparison")
 })
 
-test_that("dataset and privacy tabs render expected summaries", {
+test_that("compare_body renders empty-state card when no synthetic data", {
   testthat::skip_if_not_installed("shiny")
 
-  fixture <- comparison_fixture(seed = 7)
-  state <- compare_test_state(
-    raw_data = fixture$raw_data,
-    synthetic = fixture$synthetic,
-    comparison = fixture$comparison,
-    privacy = fixture$privacy
-  )
+  state <- compare_test_state()
 
   shiny::testServer(mod_compare_server, args = list(state = state), {
     session$flushReact()
-
-    dataset_html <- paste(as.character(output$dataset_tab), collapse = "\n")
-    privacy_html <- paste(as.character(output$privacy_tab), collapse = "\n")
-
-    expect_match(dataset_html, "Original")
-    expect_match(dataset_html, "Synthetic")
-    expect_match(
-      privacy_html,
-      paste0("Exact row matches: ", attr(state$privacy, "exact_row_matches", exact = TRUE))
-    )
+    body_html <- paste(as.character(output$compare_body), collapse = "\n")
+    expect_match(body_html, "Generate synthetic data first")
   })
 })
 
-test_that("numeric and categorical tabs fall back cleanly when comparisons are empty", {
+test_that("compare_body renders var-rail and var-detail when data is present", {
   testthat::skip_if_not_installed("shiny")
 
-  comparison <- structure(
-    list(
-      dataset = tibble::tibble(metric = "nrow", original = 5, synthetic = 5, value = NA_real_),
-      numeric = tibble::tibble(),
-      categorical = tibble::tibble(),
-      relationship = tibble::tibble(),
-      privacy_flags = NULL,
-      meta = list()
-    ),
-    class = "dataganger_comparison"
-  )
-  privacy <- tibble::tibble(
-    variable = character(0),
-    flag = character(0),
-    severity = character(0),
-    recommendation = character(0)
-  )
-  attr(privacy, "exact_row_matches") <- 0L
-  class(privacy) <- c("dataganger_privacy_check", class(privacy))
-
-  state <- compare_test_state(
-    raw_data = data.frame(group = letters[1:5], stringsAsFactors = FALSE),
-    synthetic = data.frame(group = letters[1:5], stringsAsFactors = FALSE),
-    comparison = comparison,
-    privacy = privacy
+  fixture <- comparison_fixture(seed = 7)
+  state   <- compare_test_state(
+    raw_data  = fixture$raw_data,
+    synthetic = fixture$synthetic,
+    roles     = fixture$roles
   )
 
   shiny::testServer(mod_compare_server, args = list(state = state), {
     session$flushReact()
-
-    expect_match(
-      paste(as.character(output$numeric_tab), collapse = "\n"),
-      "No numeric comparison available\\."
-    )
-    expect_match(
-      paste(as.character(output$categorical_tab), collapse = "\n"),
-      "No categorical comparison available\\."
-    )
+    body_html <- paste(as.character(output$compare_body), collapse = "\n")
+    expect_match(body_html, "compare-layout")
+    expect_match(body_html, "var-rail")
+    expect_match(body_html, "var-detail")
   })
 })
 
@@ -122,10 +87,12 @@ test_that("adjust_settings sets nav_request to purpose", {
   testthat::skip_if_not_installed("shiny")
 
   state <- shiny::reactiveValues(
-    raw_data = NULL,
-    synthetic = NULL,
-    comparison = NULL,
-    privacy = NULL,
+    raw_data    = NULL,
+    synthetic   = NULL,
+    comparison  = NULL,
+    privacy     = NULL,
+    roles       = NULL,
+    stale       = list(comparison = FALSE),
     nav_request = NULL
   )
 
@@ -135,4 +102,25 @@ test_that("adjust_settings sets nav_request to purpose", {
   })
 
   expect_identical(shiny::isolate(state$nav_request), "purpose")
+})
+
+test_that("go_export sets nav_request to export", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- shiny::reactiveValues(
+    raw_data    = NULL,
+    synthetic   = NULL,
+    comparison  = NULL,
+    privacy     = NULL,
+    roles       = NULL,
+    stale       = list(comparison = FALSE),
+    nav_request = NULL
+  )
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$setInputs(go_export = 1L)
+    session$flushReact()
+  })
+
+  expect_identical(shiny::isolate(state$nav_request), "export")
 })
