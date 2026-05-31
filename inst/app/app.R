@@ -232,7 +232,7 @@ server <- function(input, output, session) {
     current_step_num(cur)
     session$sendCustomMessage("setCurrentStep", list(
       current = cur,
-      max     = max_step_reached()
+      max     = shiny::isolate(max_step_reached())
     ))
   }
 
