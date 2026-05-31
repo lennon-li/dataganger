@@ -3,6 +3,12 @@
 #' @keywords internal
 #' @noRd
 mod_synthesis_controls_ui <- function(id) {
+  mod_synthesis_controls_spec_ui(id)
+}
+
+#' @keywords internal
+#' @noRd
+mod_synthesis_controls_objective_ui <- function(id) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   ns <- shiny::NS(id)
@@ -12,14 +18,13 @@ mod_synthesis_controls_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Synthesis Spec"),
-        shiny::tags$h1("Configure synthesis"),
+        shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Objective"),
+        shiny::tags$h1("Set your objective"),
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Tell us what you'll use the synthetic data for"),
-          " \u2014 that one choice sets sensible defaults for privacy hardening, coarsening, and fidelity. Open ",
-          shiny::tags$strong("Advanced Settings"),
-          " only if you need to override individual knobs."
+          " \u2014 that one choice presets sensible defaults for privacy hardening, ",
+          "coarsening, and fidelity across the rest of the workflow."
         )
       ),
       shiny::tags$div(
@@ -31,14 +36,24 @@ mod_synthesis_controls_ui <- function(id) {
             type = "button",
             class = "btn btn-secondary action-button",
             disabled = "disabled",
-            "Confirm and Continue \u2192"
+            "Continue to Upload \u2192"
           )
         ),
         shiny::conditionalPanel(
           condition = "input.purpose_group !== 'internal_hifi' || input.acknowledge_risk",
           ns = ns,
-          shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192", class = "btn-primary")
+          shiny::actionButton(ns("confirm_objective"), "Continue to Upload \u2192", class = "btn-primary")
         )
+      )
+    ),
+    shiny::tags$div(
+      class = "banner info",
+      shiny::tags$span(class = "icon", "i"),
+      shiny::tags$div(
+        shiny::tags$b("Why this comes first"),
+        " Your objective shapes every downstream default. The meters on each option show its ",
+        shiny::tags$span(style = "font-weight:600", "fidelity \u2194 privacy"),
+        " balance. Pick the closest match; nothing here is locked in."
       )
     ),
     shiny::tags$div(
@@ -48,48 +63,159 @@ mod_synthesis_controls_ui <- function(id) {
         shiny::tags$span(class = "title", "Purpose"),
         shiny::tags$span(class = "sub", "presets the synthesis defaults")
       ),
-      shiny::tags$p(
-        class = "spec-question",
-        "What are you creating synthetic data for?"
-      ),
-      shiny::radioButtons(
-      inputId = ns("purpose_group"),
-      label = NULL,
-      choiceNames = list(
-        "Code / App Prototype",
-        "Teaching / Demo Data",
-        "Safer External Sharing",
-        shiny::HTML("Advanced / Internal &#9662;")
-      ),
-      choiceValues = c("prototype", "teaching", "safer_external", "internal_hifi")
-    ),
-    shiny::conditionalPanel(
-      condition = "input.purpose_group === 'prototype'",
-      ns = ns,
-      shiny::radioButtons(
-        inputId = ns("prototype_choice"),
-        label = NULL,
-        choices = c(
-          "AI-assisted programming" = "ai_programming",
-          "Shiny / app prototype" = "shiny_prototype",
-          "Model pipeline prototype" = "model_prototype"
+      shiny::tags$p(class = "spec-question", "What are you creating synthetic data for?"),
+      objective_cards(ns),
+      shiny::tags$div(
+        style = "display:none",
+        shiny::radioButtons(
+          inputId = ns("purpose_group"),
+          label = NULL,
+          choiceValues = c("prototype", "teaching", "safer_external", "internal_hifi"),
+          choiceNames = c("prototype", "teaching", "safer_external", "internal_hifi"),
+          selected = "prototype"
+        ),
+        shiny::radioButtons(
+          inputId = ns("prototype_choice"),
+          label = NULL,
+          choices = c("ai_programming", "shiny_prototype", "model_prototype"),
+          selected = "ai_programming"
         )
+      ),
+      shiny::uiOutput(ns("purpose_detail"))
+    )
+  )
+}
+
+#' @keywords internal
+#' @noRd
+dg_purpose_card <- function(ns, key, group, title, line, fid, priv, risk = FALSE, selected = FALSE) {
+  meter <- function(label, n, color) {
+    shiny::tags$div(
+      class = "pc-meter",
+      shiny::tags$span(class = "pc-meter-lbl", label),
+      shiny::tags$span(
+        class = "pc-bars",
+        lapply(seq_len(5L), function(i) {
+          shiny::tags$span(
+            class = "blk",
+            style = sprintf(
+              "font-size:11px;color:%s",
+              if (i <= n) color else "var(--paper-300)"
+            ),
+            "\u25b0"
+          )
+        })
       )
+    )
+  }
+
+  shiny::tags$div(
+    class = paste("purpose-card", if (risk) "risk", if (selected) "selected"),
+    `data-group` = group,
+    `data-key` = key,
+    onclick = sprintf(
+      "DGsetPurpose(this,'%s','%s',%s)",
+      group,
+      key,
+      if (identical(group, "prototype")) "true" else "false"
+    ),
+    shiny::tags$span(class = "pc-radio"),
+    shiny::tags$div(
+      class = "pc-body",
+      shiny::tags$div(class = "pc-title", title),
+      shiny::tags$div(class = "pc-line", line)
+    ),
+    shiny::tags$div(
+      class = "pc-meters",
+      meter("fidelity", fid, "var(--ink-700)"),
+      meter("privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)")
+    )
+  )
+}
+
+#' @keywords internal
+#' @noRd
+objective_cards <- function(ns) {
+  shiny::tagList(
+    shiny::tags$div(class = "objective-group-label", "Prototyping"),
+    dg_purpose_card(
+      ns, "ai_programming", "prototype", "AI-assisted programming",
+      "Hand to an AI or developer to write, test, and debug code.", 2, 4, selected = TRUE
+    ),
+    dg_purpose_card(
+      ns, "shiny_prototype", "prototype", "Shiny / app prototype",
+      "Test UI, filters, tables, plots, downloads, and reports.", 2, 4
+    ),
+    dg_purpose_card(
+      ns, "model_prototype", "prototype", "Model pipeline prototype",
+      "Exercise model code, formulas, and validation pipelines.", 3, 3
+    ),
+
+    shiny::tags$div(class = "objective-group-label", "Teaching & sharing"),
+    dg_purpose_card(
+      ns, "teaching", "teaching", "Teaching / demo data",
+      "Workshops, documentation, and reproducible examples.", 2, 4
+    ),
+    dg_purpose_card(
+      ns, "safer_external", "safer_external", "Safer external sharing",
+      "Share outside the team when low disclosure risk matters most.", 1, 5
+    ),
+
+    shiny::tags$div(class = "objective-group-label", "Advanced"),
+    dg_purpose_card(
+      ns, "internal_hifi", "internal_hifi", "Advanced / internal hi-fi",
+      "Maximum structural detail \u2014 internal use only.", 5, 1, risk = TRUE
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'internal_hifi'",
       ns = ns,
-      shiny::tags$details(
-        open = NA,
-        shiny::tags$summary(shiny::HTML("Advanced / Internal &#9662;")),
-        shiny::checkboxInput(
-          inputId = ns("acknowledge_risk"),
-          label = "I understand this mode may preserve sensitive patterns and is for internal use only.",
-          value = FALSE
+      shiny::tags$label(
+        class = "pc-ack",
+        shiny::tags$input(
+          type = "checkbox",
+          onclick = sprintf("Shiny.setInputValue('%s', this.checked, {priority: 'event'})", ns("acknowledge_risk"))
+        ),
+        shiny::tags$span("I understand this mode may preserve sensitive patterns and is for internal use only.")
+      )
+    )
+  )
+}
+
+#' @keywords internal
+#' @noRd
+mod_synthesis_controls_spec_ui <- function(id) {
+  rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
+
+  ns <- shiny::NS(id)
+
+  shiny::tagList(
+    shiny::tags$header(
+      class = "main-header",
+      shiny::tags$div(
+        class = "main-header-text",
+        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Synthesis Spec"),
+        shiny::tags$h1("Configure synthesis"),
+        shiny::tags$p(
+          class = "subtitle",
+          "Your objective presets the spec below. ",
+          shiny::tags$strong("Review what DataGangeR will run"),
+          " \u2014 and open ", shiny::tags$strong("Advanced Settings"),
+          " only if you need to override individual knobs."
         )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192", class = "btn-primary")
       )
     ),
-      shiny::uiOutput(ns("purpose_detail"))
+    shiny::tags$div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Objective"),
+        shiny::tags$span(class = "sub", "set in Step 01")
+      ),
+      shiny::uiOutput(ns("purpose_recap"))
     ),
     shiny::tags$div(
       class = "card",
@@ -180,6 +306,15 @@ mod_synthesis_controls_server <- function(id, state) {
       purpose_default()
     })
 
+    shiny::observeEvent(input$confirm_objective, ignoreNULL = TRUE, {
+      if (identical(current_purpose(), "internal_hifi")) {
+        shiny::req(isTRUE(input$acknowledge_risk))
+      }
+
+      state$objective_confirmed <- (state$objective_confirmed %||% 0L) + 1L
+      invisible(NULL)
+    })
+
     current_preset <- shiny::reactive({
       purpose <- current_purpose()
       shiny::req(purpose)
@@ -224,6 +359,37 @@ mod_synthesis_controls_server <- function(id, state) {
           )
         )
       )
+    })
+
+    output$purpose_recap <- shiny::renderUI({
+      purpose <- current_purpose()
+      shiny::req(purpose)
+
+      label <- c(
+        ai_programming = "AI-assisted programming",
+        shiny_prototype = "Shiny / app prototype",
+        model_prototype = "Model pipeline prototype",
+        teaching = "Teaching / demo data",
+        safer_external = "Safer external sharing",
+        internal_hifi = "Advanced / internal hi-fi"
+      )[[purpose]]
+
+      shiny::tags$div(
+        style = "display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap",
+        shiny::tags$div(
+          style = "display:flex;align-items:center;gap:10px;flex-wrap:wrap",
+          shiny::tags$span(class = "chip chip-synth", shiny::tags$span(class = "dot"), label),
+          shiny::tags$span(
+            style = "font-family:var(--font-mono);font-size:12px;color:var(--fg-muted)",
+            sprintf('purpose = "%s"', purpose)
+          )
+        ),
+        shiny::actionLink(session$ns("change_objective"), "\u2190 Change objective")
+      )
+    })
+
+    shiny::observeEvent(input$change_objective, ignoreNULL = TRUE, {
+      state$nav_request <- "objective"
     })
 
     output$advanced_settings <- shiny::renderUI({

@@ -606,3 +606,85 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
   vertical-align: middle;
 }
 
+/* ============================================================
+   OBJECTIVE PICKER (Step 01) — selectable purpose cards
+   Replaces the nested radio list. Each card is a whole hit
+   target; two mono meters expose the fidelity ↔ privacy
+   tradeoff. Selected = magenta ring + synth-50 wash (risk
+   variant uses the burnt-orange tokens).
+   ============================================================ */
+.objective-group-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  font-weight: 600;
+  margin: 14px 0 8px;
+}
+.objective-group-label:first-child { margin-top: 0; }
+
+.purpose-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-4);
+  background: var(--paper-50);
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.purpose-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-1); }
+.purpose-card.selected {
+  border-color: var(--synth-500);
+  background: var(--synth-50);
+  box-shadow: 0 0 0 1px var(--synth-500);
+}
+.purpose-card.risk.selected {
+  border-color: var(--risk-500);
+  background: var(--risk-50);
+  box-shadow: 0 0 0 1px var(--risk-500);
+}
+
+.pc-radio {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: grid; place-items: center;
+}
+.purpose-card.selected .pc-radio { border-color: var(--synth-500); }
+.purpose-card.selected .pc-radio::after {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--synth-500);
+}
+.purpose-card.risk.selected .pc-radio { border-color: var(--risk-500); }
+.purpose-card.risk.selected .pc-radio::after { background: var(--risk-500); }
+
+.pc-body { flex: 1 1 auto; min-width: 0; }
+.pc-title { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--ink-900); }
+.pc-line { font-family: var(--font-sans); font-size: 12px; color: var(--fg-muted); margin-top: 2px; line-height: 1.4; }
+
+.pc-meters { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+.pc-meter { display: flex; align-items: center; gap: 7px; }
+.pc-meter-lbl {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--fg-subtle); width: 52px; text-align: right;
+}
+.pc-bars { display: flex; gap: 2px; line-height: 1; }
+.pc-bars .blk { font-size: 11px; }
+
+/* Inline risk acknowledgement, shown inside the selected internal card */
+.pc-ack {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 4px 0 8px 30px;
+  padding: 10px 12px;
+  background: var(--risk-50);
+  border: 1px solid var(--risk-300);
+  border-radius: var(--radius-4);
+  font-family: var(--font-sans); font-size: 12.5px; line-height: 1.45; color: var(--risk-700);
+  cursor: pointer;
+}
+.pc-ack input { accent-color: var(--risk-500); margin-top: 2px; }
+

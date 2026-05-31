@@ -13,3 +13,4 @@
 ^browser_harness.*\.R$
 ^design-handoff
 ^docs$
+^Design$
