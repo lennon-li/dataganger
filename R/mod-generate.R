@@ -23,7 +23,7 @@ mod_generate_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Generation"),
+        shiny::tags$span(class = "eyebrow", "Step 05 \u00b7 Generation"),
         shiny::tags$h1("Generate synthetic data"),
         shiny::uiOutput(ns("header_subtitle"))
       ),
@@ -69,7 +69,7 @@ mod_generate_server <- function(id, state) {
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Click Generate"),
-          " to create your synthetic dataset using the spec from Step 03. Generation is fast \u2014 the synthetic preview will appear in the right panel as soon as it's done."
+          " to create your synthetic dataset using the spec from Step 04. Generation is fast \u2014 the synthetic preview will appear in the right panel as soon as it's done."
         )
       }
     })

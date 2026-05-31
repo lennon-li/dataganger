@@ -15,7 +15,7 @@ mod_roles_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 02 \u00b7 Column Roles"),
+        shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Column Roles"),
         shiny::tags$h1("Review column roles"),
         shiny::tags$p(
           class = "subtitle",

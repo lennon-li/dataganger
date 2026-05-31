@@ -47,7 +47,7 @@ test_that("mod_compare_ui has header, subtitle, export button, and stale banner"
   html <- paste(as.character(ui), collapse = "\n")
 
   expect_match(html, "Compare datasets")
-  expect_match(html, "Step 05")
+  expect_match(html, "Step 06")
   expect_match(html, "go_export")
   expect_match(html, "stale__comparison")
 })
