@@ -126,13 +126,7 @@ mod_roles_server <- function(id, state) {
       changed <- sum(!is.na(roles$user_role) & nzchar(roles$user_role))
       shiny::tags$div(
         shiny::tags$b("Auto-detected. Edit anything that's wrong."),
-        if (changed > 0L) {
-          shiny::tagList(
-            " \u00b7 ",
-            shiny::tags$b(as.character(changed)),
-            " changed from auto-detection."
-          )
-        }
+        if (changed > 0L) sprintf(" \u00b7 %d manually adjusted.", changed)
       )
     })
 
@@ -266,7 +260,6 @@ mod_roles_server <- function(id, state) {
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
-        sens <- if (isTRUE(r$sensitive)) "\u26a0" else ""
         shiny::tags$tr(
           shiny::tags$td(
             style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
@@ -285,8 +278,17 @@ mod_roles_server <- function(id, state) {
             make_select(orig_row, r$user_role, r$recommended_role, r$class)
           ),
           shiny::tags$td(
-            style = "text-align:center; font-size:12px; padding:6px 8px; color:var(--risk-500);",
-            sens
+            style = "text-align:center; padding:4px 8px;",
+            shiny::tags$input(
+              type     = "checkbox",
+              checked  = if (isTRUE(r$sensitive)) "checked" else NULL,
+              onchange = sprintf(
+                "Shiny.setInputValue('%s', {row: %d, value: this.checked}, {priority:'event'})",
+                session$ns("sensitivity_change"),
+                orig_row
+              ),
+              style = "width:15px; height:15px; cursor:pointer; accent-color:var(--risk-500);"
+            )
           )
         )
       })
@@ -321,6 +323,17 @@ mod_roles_server <- function(id, state) {
       if (!val %in% ROLE_OPTIONS) return(invisible(NULL))
 
       roles$user_role[[orig_row]] <- val
+      roles_local(roles)
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$sensitivity_change, ignoreNULL = TRUE, {
+      change <- input$sensitivity_change
+      roles  <- roles_local()
+      if (is.null(change) || is.null(roles)) return(invisible(NULL))
+      orig_row <- as.integer(change$row)
+      if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
+      roles$sensitive[[orig_row]] <- isTRUE(change$value)
       roles_local(roles)
       invisible(NULL)
     })

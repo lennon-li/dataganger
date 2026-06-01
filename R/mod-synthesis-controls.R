@@ -88,7 +88,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
 
 #' @keywords internal
 #' @noRd
-dg_purpose_card <- function(ns, key, group, title, line, fid, priv, risk = FALSE, selected = FALSE) {
+dg_purpose_card <- function(ns, key, group, title, line, fid, priv, ident, risk = FALSE, selected = FALSE) {
   meter <- function(label, n, color) {
     shiny::tags$div(
       class = "pc-meter",
@@ -128,7 +128,8 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, risk = FALSE
     shiny::tags$div(
       class = "pc-meters",
       meter("fidelity", fid, "var(--ink-700)"),
-      meter("privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)")
+      meter("privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
+      meter("identifiability", ident, "var(--risk-400)")
     )
   )
 }
@@ -137,34 +138,40 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, risk = FALSE
 #' @noRd
 objective_cards <- function(ns) {
   shiny::tagList(
+    shiny::tags$p(
+      style = "font-size:12px; color:var(--fg-muted); margin:0 0 16px;",
+      shiny::tags$strong("Fidelity:"), " more bars = closer to real data. ",
+      shiny::tags$strong("Privacy:"), " more bars = stronger protection against disclosure. ",
+      shiny::tags$strong("Identifiability:"), " more bars = harder to re-identify individuals."
+    ),
     shiny::tags$div(class = "objective-group-label", "Prototyping"),
     dg_purpose_card(
       ns, "ai_programming", "prototype", "AI-assisted programming",
-      "Hand to an AI or developer to write, test, and debug code.", 2, 4, selected = TRUE
+      "Hand to an AI or developer to write, test, and debug code.", 2, 4, 2, selected = TRUE
     ),
     dg_purpose_card(
       ns, "shiny_prototype", "prototype", "Shiny / app prototype",
-      "Test UI, filters, tables, plots, downloads, and reports.", 2, 4
+      "Test UI, filters, tables, plots, downloads, and reports.", 2, 4, 2
     ),
     dg_purpose_card(
       ns, "model_prototype", "prototype", "Model pipeline prototype",
-      "Exercise model code, formulas, and validation pipelines.", 3, 3
+      "Exercise model code, formulas, and validation pipelines.", 3, 3, 3
     ),
 
     shiny::tags$div(class = "objective-group-label", "Teaching & sharing"),
     dg_purpose_card(
       ns, "teaching", "teaching", "Teaching / demo data",
-      "Workshops, documentation, and reproducible examples.", 2, 4
+      "Workshops, documentation, and reproducible examples.", 2, 4, 1
     ),
     dg_purpose_card(
       ns, "safer_external", "safer_external", "Safer external sharing",
-      "Share outside the team when low disclosure risk matters most.", 1, 5
+      "Share outside the team when low disclosure risk matters most.", 1, 5, 1
     ),
 
     shiny::tags$div(class = "objective-group-label", "Advanced"),
     dg_purpose_card(
       ns, "internal_hifi", "internal_hifi", "Advanced / internal hi-fi",
-      "Maximum structural detail \u2014 internal use only.", 5, 1, risk = TRUE
+      "Maximum structural detail \u2014 internal use only.", 5, 1, 5, risk = TRUE
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'internal_hifi'",

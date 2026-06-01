@@ -440,3 +440,16 @@ a.btn-primary {
   user-select: none;
 }
 #resize-handle:hover { background: var(--synth-300); }
+
+/* ============ 10 · Console verbatim output ============ */
+.console pre.shiny-text-output {
+  background: transparent !important;
+  color: var(--paper-100) !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+}

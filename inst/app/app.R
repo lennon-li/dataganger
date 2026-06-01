@@ -129,7 +129,7 @@ sidebar_content <- tags$nav(
         document.addEventListener('mousemove', function(e) {
           if (!dragging) return;
           var newW = Math.max(240, Math.min(900, startW + (startX - e.clientX)));
-          shell.style.gridTemplateColumns = '260px 1fr ' + newW + 'px';
+          shell.style.gridTemplateColumns = '260px 1fr 5px ' + newW + 'px';
         });
         document.addEventListener('mouseup', function() {
           if (dragging) { dragging = false; document.body.style.cursor = ''; }
@@ -161,6 +161,14 @@ sidebar_content <- tags$nav(
     step_item(5, "Generation",      "generate"),
     step_item(6, "Comparison",      "compare"),
     step_item(7, "Export",          "export")
+  ),
+  tags$div(
+    style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
+    actionButton(
+      "reset_all", "\u21ba Start over",
+      class = "btn btn-sm btn-secondary",
+      style = "width:100%;"
+    )
   )
 )
 
@@ -200,6 +208,23 @@ ui <- bslib::page(
 
 server <- function(input, output, session) {
   state <- mod_state_server("state")
+
+  shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {
+    state$raw_data            <- NULL
+    state$profile             <- NULL
+    state$roles               <- NULL
+    state$roles_confirmed     <- 0L
+    state$objective_confirmed <- 0L
+    state$spec                <- NULL
+    state$spec_confirmed      <- 0L
+    state$synthetic           <- NULL
+    state$comparison          <- NULL
+    state$privacy             <- NULL
+    state$seed_used           <- NULL
+    state$nav_request         <- NULL
+    bslib::nav_select("app_tabs", "objective")
+    send_step_state(0L)
+  })
 
   mod_upload_server("upload", state)
   mod_roles_server("roles", state)

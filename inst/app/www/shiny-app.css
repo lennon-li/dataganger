@@ -2,7 +2,7 @@
 
 .app {
   display: grid;
-  grid-template-columns: 260px minmax(520px, 680px) minmax(360px, 1fr);
+  grid-template-columns: 260px minmax(520px, 680px) 5px minmax(360px, 1fr);
   min-height: 100vh;
   background: var(--bg);
   color: var(--fg);
@@ -11,9 +11,11 @@
   grid-template-columns: 260px 1fr;
 }
 .app.full-main .data-panel { display: none; }
+.app.full-main #resize-handle { display: none; }
 @media (max-width: 1180px) {
   .app, .app.full-main { grid-template-columns: 240px 1fr; }
   .data-panel { display: none; }
+  #resize-handle { display: none; }
 }
 
 /* ============ SIDEBAR ============ */
