@@ -255,9 +255,18 @@ DataGangeR should treat `synthpop` as a synthesis backend, not as a competitor.
 Target API:
 
 ```r
-synthesize_data(data, spec, engine = "internal")
+synthesize_data(data, spec, engine = "marginal")
 synthesize_data(data, spec, engine = "synthpop")
 ```
+
+UI wording:
+
+```text
+Built-in fast engine (marginal)
+synthpop engine (model-based)
+```
+
+Avoid describing the built-in engine as "random number generation." It should be described as DataGangeR's built-in marginal synthesis engine: fast, simple, and useful for development twins.
 
 ### Design position
 
@@ -265,13 +274,122 @@ synthesize_data(data, spec, engine = "synthpop")
 - `synthpop` can handle stronger statistical synthesis when requested.
 - Internal engine remains useful for fast schema-only and marginal development twins.
 
+### Required review before implementation
+
+Before implementing `synthpop` behind the UI, run a focused technical design review.
+
+Do **not** ask for a broad synthetic-data literature review. The review should translate `synthpop` into DataGangeR design decisions.
+
+Review task:
+
+```markdown
+# Review task: DataGangeR synthpop integration
+
+Goal: determine how DataGangeR should wrap `synthpop` as an optional synthesis engine behind the UI and CLI.
+
+Please answer:
+
+1. What does `synthpop::syn()` actually do?
+   - synthesis order
+   - default methods
+   - predictor matrix
+   - treatment of categorical, numeric, date, labelled, missing, and high-cardinality variables
+
+2. Which `synthpop` options matter for DataGangeR?
+   - which should be hidden
+   - which should be exposed under Advanced
+   - which should be controlled by DataGangeR purpose presets
+
+3. How should DataGangeR map purposes to synthpop settings?
+   - ai_programming
+   - shiny_prototype
+   - teaching
+   - model_prototype
+   - internal_hifi
+   - safer_external
+
+4. What preprocessing should DataGangeR do before calling synthpop?
+   - remove IDs
+   - drop or redact free text
+   - coarsen dates
+   - merge rare levels
+   - handle labelled SAS variables
+   - handle geography
+
+5. What postprocessing should DataGangeR do after synthpop?
+   - privacy_check()
+   - compare_synthetic()
+   - exact-row match check
+   - rare-level survival check
+   - code-readiness check
+   - export agent bundle
+
+6. What UI wording should be used?
+   - built-in fast engine
+   - synthpop engine
+   - warnings and explanations
+
+7. What should DataGangeR not claim?
+   - no privacy guarantee
+   - no legal compliance claim
+   - no claim that synthpop output is automatically safe for external sharing
+
+8. Licensing/dependency implications
+   - synthpop is GPL-2/GPL-3
+   - DataGangeR is currently MIT
+   - should synthpop stay in Suggests?
+   - should engine='synthpop' require optional installation?
+```
+
+### Initial implementation stance
+
+Keep `synthpop` optional.
+
+Recommended pattern:
+
+```r
+if (!requireNamespace("synthpop", quietly = TRUE)) {
+  cli::cli_abort("Install {.pkg synthpop} to use engine = 'synthpop'.")
+}
+
+syn_obj <- synthpop::syn(data, ...)
+synthetic <- syn_obj$syn
+```
+
+Do not move `synthpop` from `Suggests` to `Imports` until dependency and licensing implications are reviewed.
+
+### UI placement
+
+Put the engine selector under an Advanced section first:
+
+```text
+Advanced
+  Synthesis engine:
+    ○ Built-in fast engine (marginal)
+    ○ synthpop engine (model-based)
+```
+
+Suggested help text:
+
+```text
+Built-in fast engine
+Uses DataGangeR's built-in marginal synthesis. Best for AI programming,
+Shiny prototypes, teaching, and quick development twins.
+
+synthpop engine
+Uses model-based synthesis from the synthpop package. Better for preserving
+relationships between variables, but slower and requires more review before sharing.
+```
+
 ### Acceptance criteria
 
 - `engine = "synthpop"` no longer aborts when `synthpop` is installed.
 - Clear fallback message when `synthpop` is not installed.
-- Comparison reports work for both internal and `synthpop` engines.
+- Comparison reports work for both built-in marginal and `synthpop` engines.
 - Privacy checks run after either engine.
-- Documentation states when the internal engine is preferred and when `synthpop` is preferred.
+- Documentation states when the built-in marginal engine is preferred and when `synthpop` is preferred.
+- Shiny UI exposes engine choice under Advanced, not as the main decision.
+- CLI supports engine choice with a clear default.
 
 ## Priority 8: Add dry-run commands for agents
 
@@ -350,8 +468,9 @@ DataGangeR should feed Lens, not become Lens.
 4. Manifest fields for Lens exposure logging.
 5. Policy file / pDUA-lite input.
 6. Code-readiness checks.
-7. `synthpop` backend.
-8. Agent dry-run helper commands.
+7. Focused `synthpop` integration review.
+8. `synthpop` backend.
+9. Agent dry-run helper commands.
 
 ## Explicit non-goals for now
 
