@@ -1,7 +1,7 @@
 #' Launch the DataGangeR Shiny Application
 #'
 #' Opens the DataGangeR interactive workflow in a local Shiny app. Requires
-#' the `shiny` and `DT` packages (listed in `Suggests`).
+#' the `shiny`, `DT`, and `plotly` packages.
 #'
 #' @param max_upload_mb Maximum file upload size in megabytes. Default 50.
 #' @param launch Whether to launch the app. Default `interactive()`. Set to
@@ -18,7 +18,7 @@
 #' }
 run_app <- function(max_upload_mb = 50, launch = interactive(), port = NULL, ...) {
   rlang::check_installed(
-    c("shiny", "bslib", "DT", "ggplot2"),
+    c("shiny", "bslib", "DT", "ggplot2", "plotly"),
     reason = "to run the DataGangeR Shiny app"
   )
   options(shiny.maxRequestSize = max_upload_mb * 1024^2)

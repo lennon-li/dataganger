@@ -16,6 +16,7 @@
 #'     \item{class}{R class of the column.}
 #'     \item{recommended_role}{Role detected by heuristic.}
 #'     \item{user_role}{User-supplied override (initially `NA`).}
+#'     \item{simulation}{How the column is treated during synthesis.}
 #'     \item{reason}{Justification for the recommended role.}
 #'     \item{sensitive}{Whether the column may contain sensitive data.}
 #'   }
@@ -157,6 +158,7 @@ make_role_row <- function(name, r_class, role, reason, sensitive) {
     class            = r_class,
     recommended_role = role,
     user_role        = NA_character_,
+    simulation       = "synthesize",
     reason           = reason,
     sensitive        = sensitive
   )

@@ -76,6 +76,8 @@ synthesize_data <- function(data, spec, roles = NULL,
     seed_used <- NULL
   }
 
+  syn <- apply_simulation_treatment(syn, data, roles)
+
   # Build S3 object
   attr(syn, "spec")          <- spec
   attr(syn, "original_dims") <- original_dims
@@ -102,7 +104,7 @@ apply_name_strategy <- function(syn, spec, original) {
 
   n_cols <- ncol(syn)
   generic_names <- paste0("col_", seq_len(n_cols))
-  name_map <- stats::setNames(generic_names, names(original))
+  name_map <- stats::setNames(generic_names, names(syn))
 
   if (strategy %in% c("generic", "dictionary_only")) {
     # Store the original -> synthetic mapping inside the spec attribute so it
@@ -112,6 +114,51 @@ apply_name_strategy <- function(syn, spec, original) {
     attr(syn, "spec") <- spec_attr
     names(syn) <- unname(name_map)
     return(syn)
+  }
+
+  syn
+}
+
+apply_simulation_treatment <- function(syn, original, roles = NULL) {
+  if (is.null(roles) || !"variable" %in% names(roles)) {
+    return(syn)
+  }
+
+  treatment_col <- if ("simulation" %in% names(roles)) {
+    "simulation"
+  } else if ("treatment" %in% names(roles)) {
+    "treatment"
+  } else {
+    NULL
+  }
+
+  if (is.null(treatment_col)) {
+    return(syn)
+  }
+
+  treatment <- roles[[treatment_col]]
+  treatment[is.na(treatment) | !nzchar(treatment)] <- "synthesize"
+  treatment <- stats::setNames(treatment, roles$variable)
+
+  pass_cols <- intersect(names(treatment)[treatment == "pass_through"], names(original))
+  drop_cols <- intersect(names(treatment)[treatment == "drop"], names(syn))
+
+  if (length(pass_cols) > 0L && nrow(syn) != nrow(original)) {
+    cli::cli_abort(c(
+      "Cannot pass through original columns when synthetic row count differs from the original.",
+      "i" = "Pass-through columns require {.code nrow(synthetic) == nrow(original)}.",
+      "i" = "Use {.val Synthesise} or {.val Drop}, or set row count back to the original size."
+    ))
+  }
+
+  for (col in pass_cols) {
+    if (col %in% names(syn)) {
+      syn[[col]] <- original[[col]]
+    }
+  }
+
+  if (length(drop_cols) > 0L) {
+    syn <- syn[, !names(syn) %in% drop_cols, drop = FALSE]
   }
 
   syn

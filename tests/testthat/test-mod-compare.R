@@ -83,6 +83,37 @@ test_that("compare_body renders var-rail and var-detail when data is present", {
   })
 })
 
+test_that("compare_body excludes identifier variables from navigation", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(
+    record_id = sprintf("ID%03d", 1:30),
+    age = 1:30,
+    group = rep(c("a", "b"), 15),
+    stringsAsFactors = FALSE
+  )
+  synthetic <- raw
+  synthetic$age <- rev(synthetic$age)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "record_id"] <- "identifier"
+  roles$user_role[roles$variable == "age"] <- "numeric"
+
+  state <- compare_test_state(
+    raw_data = raw,
+    synthetic = synthetic,
+    roles = roles
+  )
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    body_html <- paste(as.character(output$compare_body), collapse = "\n")
+    expect_no_match(body_html, "record_id")
+    expect_match(body_html, "age")
+    expect_match(body_html, "group")
+  })
+})
+
 test_that("adjust_settings sets nav_request to purpose", {
   testthat::skip_if_not_installed("shiny")
 

@@ -190,12 +190,12 @@ objective_cards <- function(ns) {
 
 #' @keywords internal
 #' @noRd
-mod_synthesis_controls_spec_ui <- function(id) {
+mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   ns <- shiny::NS(id)
 
-  shiny::tagList(
+  header <- if (!isTRUE(embedded)) {
     shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
@@ -214,7 +214,13 @@ mod_synthesis_controls_spec_ui <- function(id) {
         class = "main-header-action",
         shiny::actionButton(ns("confirm"), "Confirm and Continue \u2192", class = "btn-primary")
       )
-    ),
+    )
+  } else {
+    NULL
+  }
+
+  shiny::tagList(
+    header,
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
@@ -228,21 +234,23 @@ mod_synthesis_controls_spec_ui <- function(id) {
       class = "card",
       shiny::tags$div(
         class = "card-header",
-        shiny::tags$span(class = "title", "Settings"),
-        shiny::tags$span(class = "sub", "advanced")
+        shiny::tags$span(class = "title", "Synthesis Settings"),
+        shiny::tags$span(class = "sub", "expanded by default")
+      ),
+      shiny::tags$p(
+        style = "margin:0 0 12px; color:var(--fg-muted); font-family:var(--font-sans); font-size:13px;",
+        "Defaults are safe \u2014 leave unchanged unless you have a reason."
       ),
       shiny::uiOutput(ns("advanced_settings"))
     ),
     shiny::tags$div(
       class = "card",
-      shiny::tags$div(
-        class = "card-header",
-        shiny::tags$span(class = "title", "Spec preview"),
-        shiny::tags$span(class = "sub", "will write to disk on synthesise")
-      ),
-      shiny::tags$div(
-        class = "console",
-        shiny::verbatimTextOutput(ns("spec_preview"))
+      shiny::tags$details(
+        shiny::tags$summary("Spec (for reproducibility)"),
+        shiny::tags$div(
+          class = "console",
+          shiny::verbatimTextOutput(ns("spec_preview"))
+        )
       )
     )
   )
@@ -405,8 +413,7 @@ mod_synthesis_controls_server <- function(id, state) {
       preset <- current_preset()
       current_n <- default_n()
 
-      shiny::tags$details(
-        shiny::tags$summary("Advanced Settings"),
+      shiny::tagList(
         shiny::numericInput(
           inputId = session$ns("seed"),
           label = "Seed",

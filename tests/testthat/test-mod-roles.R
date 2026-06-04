@@ -69,6 +69,65 @@ test_that("editing user_role and confirming writes back to state", {
   })
 })
 
+test_that("editing simulation treatment and confirming writes back to state", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  example_health_survey <- roles_load_example_data("example_health_survey")
+  csv_path <- roles_upload_fixture_path(
+    example_health_survey[1:5, ],
+    "roles-simulation-five.csv"
+  )
+
+  shiny::testServer(roles_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
+    session$flushReact()
+    session$flushReact()
+
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+
+    session$setInputs(
+      `roles-simulation_change` = list(row = 1L, value = "pass_through")
+    )
+    session$flushReact()
+    session$setInputs(`roles-confirm` = 1L)
+    session$flushReact()
+
+    expect_equal(state$roles$simulation[[1]], "pass_through")
+  })
+})
+
+test_that("invalid simulation treatment is ignored silently", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  example_health_survey <- roles_load_example_data("example_health_survey")
+  csv_path <- roles_upload_fixture_path(
+    example_health_survey[1:5, ],
+    "roles-simulation-invalid-five.csv"
+  )
+
+  shiny::testServer(roles_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
+    session$flushReact()
+    session$flushReact()
+
+    original_simulation <- state$roles$simulation
+    session$setInputs(
+      `roles-simulation_change` = list(row = 1L, value = "explode")
+    )
+    session$flushReact()
+    session$setInputs(`roles-confirm` = 1L)
+    session$flushReact()
+
+    expect_identical(state$roles$simulation, original_simulation)
+  })
+})
+
 test_that("confirming role edits invalidates downstream state", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")

@@ -46,7 +46,7 @@ mod_generate_ui <- function(id) {
     shiny::div(
       class = "btn-row",
       style = "margin-top:16px;",
-      shiny::actionButton(ns("try_new_seed"), "\u21ba Try new seed", class = "btn btn-secondary"),
+      shiny::actionButton(ns("try_new_seed"), "Regenerate", class = "btn btn-primary"),
       shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
     )
   )
@@ -63,13 +63,13 @@ mod_generate_server <- function(id, state) {
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Synthetic data ready."),
-          " The right panel now shows the doppelg\u00e4nger. Try a new seed to see how output varies, or continue to Compare to inspect distribution drift."
+          " The right panel now shows the doppelg\u00e4nger. Regenerate to see how output varies with a new seed, or continue to Compare to inspect distribution drift."
         )
       } else {
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Click Generate"),
-          " to create your synthetic dataset using the spec from Step 04. Generation is fast \u2014 the synthetic preview will appear in the right panel as soon as it's done."
+          " to create your synthetic dataset using the configuration from Step 03. Generation is fast \u2014 the synthetic preview will appear in the right panel as soon as it's done."
         )
       }
     })
@@ -222,7 +222,7 @@ mod_generate_server <- function(id, state) {
     })
 
     shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
-      state$nav_request <- "purpose"
+      state$nav_request <- "configure"
     })
 
     shiny::observeEvent(input$go_compare, ignoreNULL = TRUE, ignoreInit = TRUE, {

@@ -507,6 +507,29 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
   margin-bottom: 24px;
   min-height: 480px;
 }
+.compare-layout-tabs {
+  display: block;
+}
+.compare-layout-tabs .var-tab-nav {
+  position: static;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.compare-layout-tabs .var-tab-nav .var-rail-eyebrow {
+  flex: 0 0 auto;
+}
+.compare-layout-tabs .var-tab {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+}
+.compare-layout-tabs .var-tab.active {
+  border-color: var(--synth-300);
+}
 
 .var-rail {
   background: var(--paper-100);
@@ -689,4 +712,3 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
   cursor: pointer;
 }
 .pc-ack input { accent-color: var(--risk-500); margin-top: 2px; }
-

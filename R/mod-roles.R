@@ -2,7 +2,7 @@
 #'
 #' @keywords internal
 #' @noRd
-mod_roles_ui <- function(id) {
+mod_roles_ui <- function(id, embedded = FALSE) {
   rlang::check_installed(
     c("shiny", "DT"),
     reason = "to use the DataGangeR Shiny modules"
@@ -10,7 +10,7 @@ mod_roles_ui <- function(id) {
 
   ns <- shiny::NS(id)
 
-  shiny::tagList(
+  header <- if (!isTRUE(embedded)) {
     shiny::tags$header(
       class = "main-header",
       shiny::tags$div(
@@ -32,7 +32,13 @@ mod_roles_ui <- function(id) {
           class = "btn btn-primary"
         )
       )
-    ),
+    )
+  } else {
+    NULL
+  }
+
+  shiny::tagList(
+    header,
     shiny::tags$div(
       class = "banner info",
       shiny::tags$span(class = "icon", "i"),
@@ -77,6 +83,17 @@ mod_roles_server <- function(id, state) {
     role_filter <- shiny::reactiveVal("all")
     row_map     <- shiny::reactiveVal(integer(0))
 
+    ensure_simulation_column <- function(roles) {
+      if (is.null(roles)) {
+        return(roles)
+      }
+      if (!"simulation" %in% names(roles)) {
+        roles$simulation <- "synthesize"
+      }
+      roles$simulation[is.na(roles$simulation) | !nzchar(roles$simulation)] <- "synthesize"
+      roles
+    }
+
     normalize_edit_info <- function(info) {
       if (is.null(info)) {
         return(NULL)
@@ -93,7 +110,7 @@ mod_roles_server <- function(id, state) {
 
     shiny::observe({
       shiny::req(state$roles)
-      roles_local(state$roles)
+      roles_local(ensure_simulation_column(state$roles))
     })
 
     visible_roles <- shiny::reactive({
@@ -185,6 +202,7 @@ mod_roles_server <- function(id, state) {
 
     ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
                       "date", "free_text", "geography", "drop")
+    SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
 
     # Map human-readable recommended_role text -> a ROLE_OPTIONS value
     rec_to_role <- function(rec) {
@@ -257,6 +275,35 @@ mod_roles_server <- function(id, state) {
         )
       }
 
+      make_simulation_select <- function(orig_row, simulation) {
+        current <- simulation %||% "synthesize"
+        if (!current %in% SIMULATION_OPTIONS) {
+          current <- "synthesize"
+        }
+        labels <- c(
+          synthesize = "Synthesise",
+          pass_through = "Pass through",
+          drop = "Drop"
+        )
+        opts <- lapply(SIMULATION_OPTIONS, function(opt) {
+          shiny::tags$option(
+            value    = opt,
+            selected = if (identical(opt, current)) "selected" else NULL,
+            labels[[opt]]
+          )
+        })
+        shiny::tags$select(
+          class = "input",
+          style = "width:100%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px;",
+          onchange = sprintf(
+            "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
+            session$ns("simulation_change"),
+            orig_row
+          ),
+          opts
+        )
+      }
+
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
@@ -264,6 +311,10 @@ mod_roles_server <- function(id, state) {
           shiny::tags$td(
             style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
             r$variable
+          ),
+          shiny::tags$td(
+            style = "min-width:128px; padding:4px 8px;",
+            make_simulation_select(orig_row, r$simulation)
           ),
           shiny::tags$td(
             style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
@@ -298,10 +349,11 @@ mod_roles_server <- function(id, state) {
         style = "width:100%; border-collapse:collapse;",
         shiny::tags$thead(
           shiny::tags$tr(
-            shiny::tags$th(style = "width:28%; padding:6px 8px;", "variable"),
+            shiny::tags$th(style = "width:20%; padding:6px 8px;", "variable"),
+            shiny::tags$th(style = "width:16%; padding:6px 8px;", "Simulation"),
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
-            shiny::tags$th(style = "width:22%; padding:6px 8px;", "recommended_role"),
-            shiny::tags$th(style = "width:30%; padding:6px 8px;", "user_role"),
+            shiny::tags$th(style = "width:20%; padding:6px 8px;", "recommended_role"),
+            shiny::tags$th(style = "width:24%; padding:6px 8px;", "user_role"),
             shiny::tags$th(style = "width:8%;  padding:6px 8px;", "sensitive")
           )
         ),
@@ -324,6 +376,7 @@ mod_roles_server <- function(id, state) {
 
       roles$user_role[[orig_row]] <- val
       roles_local(roles)
+      state$roles <- roles
       invisible(NULL)
     })
 
@@ -335,12 +388,29 @@ mod_roles_server <- function(id, state) {
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
       roles$sensitive[[orig_row]] <- isTRUE(change$value)
       roles_local(roles)
+      state$roles <- roles
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$simulation_change, ignoreNULL = TRUE, {
+      change <- input$simulation_change
+      roles  <- roles_local()
+      if (is.null(change) || is.null(roles)) return(invisible(NULL))
+      orig_row <- as.integer(change$row)
+      val <- as.character(change$value)
+      if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
+      if (!val %in% SIMULATION_OPTIONS) return(invisible(NULL))
+      roles <- ensure_simulation_column(roles)
+      roles$simulation[[orig_row]] <- val
+      roles_local(roles)
+      state$roles <- roles
       invisible(NULL)
     })
 
     shiny::observeEvent(input$confirm, ignoreNULL = TRUE, {
       roles <- roles_local()
       shiny::req(roles)
+      roles <- ensure_simulation_column(roles)
       state$roles <- roles
       state$roles_confirmed <- (state$roles_confirmed %||% 0L) + 1L
       invisible(NULL)

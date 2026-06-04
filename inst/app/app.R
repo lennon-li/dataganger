@@ -97,7 +97,7 @@ sidebar_content <- tags$nav(
       window.DGsetPurpose = DGsetPurpose;
 
       // k±1 navigation: only adjacent steps are clickable
-      var STEP_ORDER = ['objective','upload','roles','spec','generate','compare','export'];
+      var STEP_ORDER = ['objective','upload','configure','generate','compare','export'];
       Shiny.addCustomMessageHandler('setCurrentStep', function(data) {
         var cur = data.current;   // 0-based index into STEP_ORDER
         var max = data.max;       // 0-based furthest reached
@@ -156,11 +156,10 @@ sidebar_content <- tags$nav(
     class = "steps",
     step_item(1, "Objective",       "objective"),
     step_item(2, "Upload data",     "upload"),
-    step_item(3, "Column roles",    "roles"),
-    step_item(4, "Synthesis spec",  "spec"),
-    step_item(5, "Generation",      "generate"),
-    step_item(6, "Comparison",      "compare"),
-    step_item(7, "Export",          "export")
+    step_item(3, "Configure",       "configure"),
+    step_item(4, "Generation",      "generate"),
+    step_item(5, "Comparison",      "compare"),
+    step_item(6, "Export",          "export")
   ),
   tags$div(
     style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
@@ -171,6 +170,52 @@ sidebar_content <- tags$nav(
     )
   )
 )
+
+configure_ui <- function() {
+  shiny::tagList(
+    shiny::tags$header(
+      class = "main-header",
+      shiny::tags$div(
+        class = "main-header-text",
+        shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Configure"),
+        shiny::tags$h1("Configure synthesis"),
+        shiny::tags$p(
+          class = "subtitle",
+          "Review column roles, then adjust synthesis settings only if needed. ",
+          shiny::tags$strong("Defaults are safe"),
+          " for the objective you selected."
+        )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::actionButton(
+          shiny::NS("synthesis_controls")("confirm"),
+          "Confirm and Continue \u2192",
+          class = "btn btn-primary"
+        )
+      )
+    ),
+    shiny::tags$section(
+      class = "configure-section",
+      shiny::tags$div(
+        class = "section-label",
+        style = "margin:0 0 8px;",
+        "Column Roles"
+      ),
+      mod_roles_ui("roles", embedded = TRUE)
+    ),
+    shiny::tags$section(
+      class = "configure-section",
+      style = "margin-top:24px;",
+      shiny::tags$div(
+        class = "section-label",
+        style = "margin:0 0 8px;",
+        "Synthesis Settings"
+      ),
+      mod_synthesis_controls_spec_ui("synthesis_controls", embedded = TRUE)
+    )
+  )
+}
 
 ui <- bslib::page(
   theme = dg_theme,
@@ -189,8 +234,7 @@ ui <- bslib::page(
         id = "app_tabs",
         bslib::nav_panel_hidden("objective", mod_synthesis_controls_objective_ui("synthesis_controls")),
         bslib::nav_panel_hidden("upload",    mod_upload_ui("upload")),
-        bslib::nav_panel_hidden("roles",     mod_roles_ui("roles")),
-        bslib::nav_panel_hidden("spec",      mod_synthesis_controls_spec_ui("synthesis_controls")),
+        bslib::nav_panel_hidden("configure", configure_ui()),
         bslib::nav_panel_hidden("generate",  mod_generate_ui("generate")),
         bslib::nav_panel_hidden("compare",   mod_compare_ui("compare")),
         bslib::nav_panel_hidden("export",    mod_export_ui("export"))
@@ -239,13 +283,12 @@ server <- function(input, output, session) {
     send_step_state(0L)
   }, once = TRUE)
 
-  STEP_IDS  <- c("objective", "upload", "roles", "spec", "generate", "compare", "export")
+  STEP_IDS  <- c("objective", "upload", "configure", "generate", "compare", "export")
 
   # Compute the furthest step reached (0-based index into STEP_IDS)
   max_step_reached <- shiny::reactive({
-    if (!is.null(state$synthetic))                      return(6L)
-    if (isTRUE(state$spec_confirmed > 0L))              return(4L)
-    if (isTRUE(state$roles_confirmed > 0L))             return(3L)
+    if (!is.null(state$synthetic))                      return(5L)
+    if (isTRUE(state$spec_confirmed > 0L))              return(3L)
     if (!is.null(state$raw_data))                       return(2L)
     if (isTRUE(state$objective_confirmed > 0L))         return(1L)
     0L
@@ -290,25 +333,17 @@ server <- function(input, output, session) {
     }
   })
 
-  # Auto-advance to roles once data is uploaded
+  # Auto-advance to Configure once data is uploaded
   observeEvent(state$roles, ignoreNULL = TRUE, once = TRUE, {
-    bslib::nav_select("app_tabs", "roles")
+    bslib::nav_select("app_tabs", "configure")
     send_step_state(2L)
-  })
-
-  # Auto-advance to spec once roles are confirmed
-  observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
-    if (isTRUE(state$roles_confirmed > 0L)) {
-      bslib::nav_select("app_tabs", "spec")
-      send_step_state(3L)
-    }
   })
 
   # Auto-advance to generate once spec is confirmed
   observeEvent(state$spec_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
     if (isTRUE(state$spec_confirmed > 0L)) {
       bslib::nav_select("app_tabs", "generate")
-      send_step_state(4L)
+      send_step_state(3L)
     }
   })
 
@@ -324,12 +359,12 @@ server <- function(input, output, session) {
 
   observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
     if (isTRUE(state$roles_confirmed > 0L)) {
-      session$sendCustomMessage("setDoneStep", "roles")
+      session$sendCustomMessage("setDoneStep", "configure")
     }
   })
 
   observeEvent(state$spec, ignoreNULL = TRUE, {
-    session$sendCustomMessage("setDoneStep", "spec")
+    session$sendCustomMessage("setDoneStep", "configure")
   })
 
   observeEvent(state$synthetic, ignoreNULL = TRUE, {
@@ -349,13 +384,15 @@ server <- function(input, output, session) {
   # full-main class toggle: on when Compare step is active
   observe({
     cur <- current_step_num()
-    session$sendCustomMessage("setFullMain", cur == 5L)
+    session$sendCustomMessage("setFullMain", cur == 4L)
   })
 
   # Module navigation requests (e.g. "← Adjust settings", "Continue to Export →")
   observeEvent(state$nav_request, ignoreNULL = TRUE, {
     target  <- state$nav_request
-    if (identical(target, "purpose")) target <- "spec"
+    if (identical(target, "purpose") || identical(target, "spec") || identical(target, "roles")) {
+      target <- "configure"
+    }
     state$nav_request <- NULL
     tgt_idx <- match(target, STEP_IDS) - 1L
     if (!is.na(tgt_idx) && tgt_idx <= max_step_reached()) {
