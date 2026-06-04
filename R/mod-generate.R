@@ -127,7 +127,7 @@ mod_generate_server <- function(id, state) {
       started_at <- Sys.time()
       result <- tryCatch(
         shiny::withProgress(message = "Synthesizing...", value = 0, {
-          synthetic <- synthesize_data(state$raw_data, spec_with_seed)
+          synthetic <- synthesize_data(state$raw_data, spec_with_seed, roles = state$roles)
           shiny::setProgress(value = 0.3)
 
           comparison <- compare_synthetic(
