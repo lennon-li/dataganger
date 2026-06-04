@@ -2,8 +2,9 @@ test_that("detect_roles() returns correct S3 class and columns", {
   df <- data.frame(x = 1:5, y = letters[1:5])
   r <- detect_roles(df)
   expect_s3_class(r, "dataganger_roles")
-  expect_named(r, c("variable", "class", "recommended_role", "user_role", "reason", "sensitive"))
+  expect_named(r, c("variable", "class", "recommended_role", "user_role", "simulation", "reason", "sensitive"))
   expect_equal(r$variable, c("x", "y"))
+  expect_equal(r$simulation, c("synthesize", "synthesize"))
 })
 
 test_that("detect_roles() detects ID candidate from high cardinality", {

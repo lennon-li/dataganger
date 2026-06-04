@@ -12,11 +12,11 @@ mod_compare_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 05 \u00b7 Compare"),
+        shiny::tags$span(class = "eyebrow", "Step 06 \u00b7 Compare"),
         shiny::tags$h1("Compare datasets"),
         shiny::tags$p(
           class = "subtitle",
-          shiny::tags$strong("Click any variable on the left"),
+          shiny::tags$strong("Click any variable tab"),
           " to compare its distribution. Green = original, magenta = synthetic. Larger \u0394 or TVD values mean greater drift \u2014 investigate before sharing."
         )
       ),
@@ -36,7 +36,7 @@ mod_compare_ui <- function(id) {
 
 mod_compare_server <- function(id, state) {
   rlang::check_installed(
-    c("shiny", "ggplot2"),
+    c("shiny", "plotly"),
     reason = "to use the DataGangeR Shiny modules"
   )
 
@@ -77,9 +77,20 @@ mod_compare_server <- function(id, state) {
     })
     shiny::outputOptions(output, "stale__comparison", suspendWhenHidden = FALSE)
 
-    shiny::observe({
+    comparable_vars <- shiny::reactive({
       shiny::req(state$raw_data)
-      vars <- names(state$raw_data)
+      vars <- intersect(names(state$raw_data), names(state$synthetic %||% state$raw_data))
+      roles <- state$roles
+      kinds <- stats::setNames(
+        vapply(vars, function(v) eff_kind(v, roles, state$raw_data[[v]]), character(1)),
+        vars
+      )
+      vars[!kinds %in% c("identifier")]
+    })
+
+    shiny::observe({
+      vars <- comparable_vars()
+      shiny::req(length(vars) > 0L)
       if (is.null(selected_var()) || !(selected_var() %in% vars)) {
         selected_var(vars[[1L]])
       }
@@ -87,10 +98,6 @@ mod_compare_server <- function(id, state) {
 
     shiny::observeEvent(input$var_select, ignoreNULL = TRUE, {
       selected_var(input$var_select)
-    })
-
-    shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
-      state$nav_request <- "purpose"
     })
 
     shiny::observeEvent(input$go_export, ignoreNULL = TRUE, {
@@ -108,9 +115,19 @@ mod_compare_server <- function(id, state) {
         ))
       }
 
-      vars    <- names(state$raw_data)
+      vars    <- comparable_vars()
       roles   <- state$roles
       current <- selected_var()
+
+      if (length(vars) == 0L) {
+        return(shiny::tags$div(
+          class = "card",
+          shiny::tags$p(
+            style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin:0;",
+            "No comparable variables remain after excluding identifier columns."
+          )
+        ))
+      }
 
       kind_map <- stats::setNames(
         vapply(vars, function(v) eff_kind(v, roles, state$raw_data[[v]]), character(1)),
@@ -164,14 +181,14 @@ mod_compare_server <- function(id, state) {
             )
           )
         ),
-        shiny::plotOutput(session$ns("var_plot"), height = "220px"),
+        plotly::plotlyOutput(session$ns("var_plot"), height = "360px"),
         shiny::uiOutput(session$ns("var_stats"))
       )
 
       shiny::tags$div(
-        class = "compare-layout",
-        shiny::tags$aside(
-          class = "var-rail",
+        class = "compare-layout compare-layout-tabs",
+        shiny::tags$div(
+          class = "var-rail var-tab-nav",
           shiny::tags$div(class = "var-rail-eyebrow", paste0("Variables \u00b7 ", length(vars))),
           rail_btns
         ),
@@ -179,7 +196,7 @@ mod_compare_server <- function(id, state) {
       )
     })
 
-    output$var_plot <- shiny::renderPlot({
+    output$var_plot <- plotly::renderPlotly({
       shiny::req(state$raw_data, state$synthetic, selected_var())
       var   <- selected_var()
       roles <- state$roles
@@ -189,68 +206,165 @@ mod_compare_server <- function(id, state) {
 
       kind <- eff_kind(var, roles, orig[[var]])
 
-      # Non-distribution roles: show a simple annotation
-      if (kind %in% c("identifier", "free_text", "geography", "drop")) {
-        return(
-          ggplot2::ggplot() +
-            ggplot2::annotate("text", x = 0.5, y = 0.5,
-                              label = paste0(kind, " \u2014 no distribution plot"),
-                              color = "grey60", size = 4) +
-            ggplot2::theme_void()
+      empty_plot <- function(label) {
+        plotly::plot_ly(type = "scatter", mode = "markers") |>
+          plotly::layout(
+            xaxis = list(visible = FALSE),
+            yaxis = list(visible = FALSE),
+            annotations = list(list(
+              text = label,
+              x = 0.5,
+              y = 0.5,
+              xref = "paper",
+              yref = "paper",
+              showarrow = FALSE,
+              font = list(color = "#6E716A", size = 14)
+            )),
+            paper_bgcolor = "rgba(0,0,0,0)",
+            plot_bgcolor = "rgba(0,0,0,0)"
+          )
+      }
+
+      plotly_common <- function(p) {
+        plotly::layout(
+          p,
+          legend = list(orientation = "h", x = 0, y = -0.15),
+          paper_bgcolor = "rgba(0,0,0,0)",
+          plot_bgcolor = "rgba(0,0,0,0)",
+          margin = list(l = 48, r = 16, t = 36, b = 48)
         )
       }
 
+      explicit_missing <- function(x) {
+        vals <- as.character(x)
+        vals[is.na(vals)] <- "(Missing)"
+        vals
+      }
+
+      prop_by_level <- function(vals, lvls) {
+        vapply(lvls, function(l) mean(vals == l), numeric(1))
+      }
+
+      if (kind %in% c("free_text", "geography", "drop")) {
+        return(empty_plot(paste0(kind, " \u2014 no distribution plot")))
+      }
+
       if (kind %in% c("categorical", "logical")) {
-        orig_vals  <- as.character(orig[[var]])
-        synth_vals <- as.character(synth[[var]])
+        orig_vals  <- explicit_missing(orig[[var]])
+        synth_vals <- explicit_missing(synth[[var]])
         lvls <- sort(unique(c(orig_vals, synth_vals)))
-        orig_prop  <- vapply(lvls, function(l) mean(orig_vals  == l, na.rm = TRUE), numeric(1))
-        synth_prop <- vapply(lvls, function(l) mean(synth_vals == l, na.rm = TRUE), numeric(1))
+        orig_prop  <- prop_by_level(orig_vals, lvls)
+        synth_prop <- prop_by_level(synth_vals, lvls)
         dat <- data.frame(
-          level  = rep(lvls, 2L),
-          prop   = c(orig_prop, synth_prop),
-          source = rep(c("original", "synthetic"), each = length(lvls)),
+          level = lvls,
+          original = orig_prop,
+          synthetic = synth_prop,
           stringsAsFactors = FALSE
         )
-        dat$level  <- factor(dat$level,  levels = rev(lvls))
-        dat$source <- factor(dat$source, levels = c("original", "synthetic"))
-        ggplot2::ggplot(dat, ggplot2::aes(y = .data$level, x = .data$prop, fill = .data$source)) +
-          ggplot2::geom_col(position = ggplot2::position_dodge2(reverse = TRUE), width = 0.6) +
-          ggplot2::scale_fill_manual(values = c(original = "#4F7D32", synthetic = "#D43A8A")) +
-          ggplot2::scale_x_continuous(labels = function(x) paste0(round(x * 100, 0), "%")) +
-          ggplot2::labs(x = NULL, y = NULL, fill = NULL) +
-          ggplot2::theme_minimal(base_size = 12) +
-          ggplot2::theme(legend.position = "none", panel.grid.minor = ggplot2::element_blank())
+        p <- plotly::plot_ly(dat, y = ~level) |>
+          plotly::add_bars(
+            x = ~original,
+            name = "Original",
+            orientation = "h",
+            marker = list(color = "#4F7D32")
+          ) |>
+          plotly::add_bars(
+            x = ~synthetic,
+            name = "Synthetic",
+            orientation = "h",
+            marker = list(color = "#D43A8A")
+          ) |>
+          plotly::layout(
+            barmode = "group",
+            xaxis = list(title = "proportion", tickformat = ".0%"),
+            yaxis = list(title = "")
+          )
+        return(plotly_common(p))
 
       } else if (kind == "date") {
-        ggplot2::ggplot() +
-          ggplot2::annotate("text", x = 0.5, y = 0.5,
-                            label = "See table below",
-                            color = "grey60", size = 4) +
-          ggplot2::theme_void()
+        orig_vec  <- orig[[var]][!is.na(orig[[var]])]
+        synth_vec <- synth[[var]][!is.na(synth[[var]])]
+        if (length(orig_vec) == 0L || length(synth_vec) == 0L) {
+          return(empty_plot("No non-missing dates to plot"))
+        }
+        p <- plotly::plot_ly() |>
+          plotly::add_histogram(
+            x = orig_vec,
+            name = "Original",
+            marker = list(color = "#4F7D32"),
+            opacity = 0.65
+          ) |>
+          plotly::add_histogram(
+            x = synth_vec,
+            name = "Synthetic",
+            marker = list(color = "#D43A8A"),
+            opacity = 0.65
+          ) |>
+          plotly::layout(
+            barmode = "overlay",
+            xaxis = list(title = var),
+            yaxis = list(title = "count")
+          )
+        return(plotly_common(p))
 
       } else {
         orig_vec  <- as.numeric(orig[[var]])
         synth_vec <- as.numeric(synth[[var]])
         orig_vec  <- orig_vec[!is.na(orig_vec)]
         synth_vec <- synth_vec[!is.na(synth_vec)]
-        shiny::req(length(orig_vec) > 0L, length(synth_vec) > 0L)
-        df_orig  <- data.frame(x = orig_vec)
-        df_synth <- data.frame(x = synth_vec)
-        ggplot2::ggplot() +
-          ggplot2::geom_histogram(data = df_orig,  ggplot2::aes(x = .data$x),
-                                  fill = "#4F7D32", alpha = 0.72, bins = 28) +
-          ggplot2::geom_histogram(data = df_synth, ggplot2::aes(x = .data$x),
-                                  fill = "#D43A8A", alpha = 0.72, bins = 28) +
-          ggplot2::geom_vline(xintercept = mean(orig_vec),
-                              color = "#2E5118", linetype = "dashed", linewidth = 0.8) +
-          ggplot2::geom_vline(xintercept = mean(synth_vec),
-                              color = "#91205C", linetype = "dashed", linewidth = 0.8) +
-          ggplot2::labs(x = var, y = "count") +
-          ggplot2::theme_minimal(base_size = 12) +
-          ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
+        if (length(orig_vec) == 0L || length(synth_vec) == 0L) {
+          return(empty_plot("No non-missing numeric values to plot"))
+        }
+
+        probs <- seq(0, 1, length.out = min(101L, max(length(orig_vec), length(synth_vec))))
+        qdat <- data.frame(
+          original = as.numeric(stats::quantile(orig_vec, probs = probs, na.rm = TRUE, names = FALSE)),
+          synthetic = as.numeric(stats::quantile(synth_vec, probs = probs, na.rm = TRUE, names = FALSE))
+        )
+        lims <- range(c(qdat$original, qdat$synthetic), finite = TRUE)
+
+        qq <- plotly::plot_ly(qdat, x = ~original, y = ~synthetic) |>
+          plotly::add_markers(
+            name = "QQ quantiles",
+            marker = list(color = "#D43A8A", size = 6, opacity = 0.78)
+          ) |>
+          plotly::add_lines(
+            x = lims,
+            y = lims,
+            name = "Perfect match",
+            line = list(color = "#4F7D32", dash = "dash"),
+            inherit = FALSE
+          ) |>
+          plotly::layout(
+            title = "QQ plot: original vs synthetic quantiles",
+            xaxis = list(title = "Original quantiles"),
+            yaxis = list(title = "Synthetic quantiles")
+          )
+
+        hist <- plotly::plot_ly() |>
+          plotly::add_histogram(
+            x = orig_vec,
+            name = "Original",
+            marker = list(color = "#4F7D32"),
+            opacity = 0.65
+          ) |>
+          plotly::add_histogram(
+            x = synth_vec,
+            name = "Synthetic",
+            marker = list(color = "#D43A8A"),
+            opacity = 0.65
+          ) |>
+          plotly::layout(
+            title = "Histogram overlay",
+            barmode = "overlay",
+            xaxis = list(title = var),
+            yaxis = list(title = "count")
+          )
+
+        p <- plotly::subplot(qq, hist, nrows = 2, shareX = FALSE, titleY = TRUE, margin = 0.08)
+        return(plotly_common(p))
       }
-    }, bg = "transparent")
+    })
 
     output$var_stats <- shiny::renderUI({
       shiny::req(state$raw_data, state$synthetic, selected_var())
@@ -269,12 +383,24 @@ mod_compare_server <- function(id, state) {
         ))
       }
 
+      explicit_missing <- function(x) {
+        vals <- as.character(x)
+        vals[is.na(vals)] <- "(Missing)"
+        vals
+      }
+
+      prop_by_level <- function(vals, lvls) {
+        vapply(lvls, function(l) mean(vals == l), numeric(1))
+      }
+
+      fmt_pct <- function(x) sprintf("%.0f%%", 100 * x)
+
       if (kind %in% c("categorical", "logical")) {
-        orig_vals  <- as.character(orig[[var]])
-        synth_vals <- as.character(synth[[var]])
+        orig_vals  <- explicit_missing(orig[[var]])
+        synth_vals <- explicit_missing(synth[[var]])
         lvls <- sort(unique(c(orig_vals, synth_vals)))
-        orig_prop  <- vapply(lvls, function(l) mean(orig_vals  == l, na.rm = TRUE), numeric(1))
-        synth_prop <- vapply(lvls, function(l) mean(synth_vals == l, na.rm = TRUE), numeric(1))
+        orig_prop  <- prop_by_level(orig_vals, lvls)
+        synth_prop <- prop_by_level(synth_vals, lvls)
         tvd    <- 0.5 * sum(abs(orig_prop - synth_prop))
         tvd_ok <- tvd < 0.05
         shiny::tags$div(
@@ -294,6 +420,23 @@ mod_compare_server <- function(id, state) {
       } else if (kind == "date") {
         orig_vec  <- orig[[var]]
         synth_vec <- synth[[var]]
+        date_summary <- function(x) {
+          non_missing <- x[!is.na(x)]
+          missing_prop <- mean(explicit_missing(x) == "(Missing)")
+          if (length(non_missing) == 0L) {
+            return(list(min = "\u2014", max = "\u2014", span = "\u2014", missing = fmt_pct(missing_prop)))
+          }
+          min_val <- min(non_missing, na.rm = TRUE)
+          max_val <- max(non_missing, na.rm = TRUE)
+          list(
+            min = as.character(min_val),
+            max = as.character(max_val),
+            span = as.character(as.integer(difftime(max_val, min_val, units = "days"))),
+            missing = fmt_pct(missing_prop)
+          )
+        }
+        orig_sum <- date_summary(orig_vec)
+        synth_sum <- date_summary(synth_vec)
         shiny::tags$table(
           class = "data",
           style = "margin-top:8px;",
@@ -305,22 +448,23 @@ mod_compare_server <- function(id, state) {
           shiny::tags$tbody(
             shiny::tags$tr(
               shiny::tags$td(class = "name", "min"),
-              shiny::tags$td(as.character(min(orig_vec,  na.rm = TRUE))),
-              shiny::tags$td(as.character(min(synth_vec, na.rm = TRUE)))
+              shiny::tags$td(orig_sum$min),
+              shiny::tags$td(synth_sum$min)
             ),
             shiny::tags$tr(
               shiny::tags$td(class = "name", "max"),
-              shiny::tags$td(as.character(max(orig_vec,  na.rm = TRUE))),
-              shiny::tags$td(as.character(max(synth_vec, na.rm = TRUE)))
+              shiny::tags$td(orig_sum$max),
+              shiny::tags$td(synth_sum$max)
             ),
             shiny::tags$tr(
               shiny::tags$td(class = "name", "span (days)"),
-              shiny::tags$td(class = "num", as.character(as.integer(
-                difftime(max(orig_vec, na.rm = TRUE), min(orig_vec, na.rm = TRUE), units = "days")
-              ))),
-              shiny::tags$td(class = "num", as.character(as.integer(
-                difftime(max(synth_vec, na.rm = TRUE), min(synth_vec, na.rm = TRUE), units = "days")
-              )))
+              shiny::tags$td(class = "num", orig_sum$span),
+              shiny::tags$td(class = "num", synth_sum$span)
+            ),
+            shiny::tags$tr(
+              shiny::tags$td(class = "name", "(Missing)"),
+              shiny::tags$td(class = "num", orig_sum$missing),
+              shiny::tags$td(class = "num", synth_sum$missing)
             )
           )
         )

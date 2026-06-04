@@ -22,6 +22,7 @@ Imports:
     dplyr,
     haven,
     jsonlite,
+    plotly,
     purrr,
     readr,
     readxl,

@@ -25,7 +25,8 @@ mod_roles_server              <- dataganger:::mod_roles_server
 mod_roles_ui                  <- dataganger:::mod_roles_ui
 mod_state_server              <- dataganger:::mod_state_server
 mod_synthesis_controls_server <- dataganger:::mod_synthesis_controls_server
-mod_synthesis_controls_ui     <- dataganger:::mod_synthesis_controls_ui
+mod_synthesis_controls_objective_ui <- dataganger:::mod_synthesis_controls_objective_ui
+mod_synthesis_controls_spec_ui      <- dataganger:::mod_synthesis_controls_spec_ui
 mod_upload_server             <- dataganger:::mod_upload_server
 mod_upload_ui                 <- dataganger:::mod_upload_ui
 mod_data_panel_server         <- dataganger:::mod_data_panel_server
@@ -87,8 +88,16 @@ sidebar_content <- tags$nav(
         else { shell.classList.remove('full-main'); }
       });
 
+      function DGsetPurpose(el, group, key, isProto) {
+        document.querySelectorAll('.purpose-card').forEach(function(c){ c.classList.remove('selected'); });
+        el.classList.add('selected');
+        Shiny.setInputValue('synthesis_controls-purpose_group', group, {priority: 'event'});
+        if (isProto) Shiny.setInputValue('synthesis_controls-prototype_choice', key, {priority: 'event'});
+      }
+      window.DGsetPurpose = DGsetPurpose;
+
       // k±1 navigation: only adjacent steps are clickable
-      var STEP_ORDER = ['upload','roles','purpose','generate','compare','export'];
+      var STEP_ORDER = ['objective','upload','configure','generate','compare','export'];
       Shiny.addCustomMessageHandler('setCurrentStep', function(data) {
         var cur = data.current;   // 0-based index into STEP_ORDER
         var max = data.max;       // 0-based furthest reached
@@ -120,7 +129,7 @@ sidebar_content <- tags$nav(
         document.addEventListener('mousemove', function(e) {
           if (!dragging) return;
           var newW = Math.max(240, Math.min(900, startW + (startX - e.clientX)));
-          shell.style.gridTemplateColumns = '260px 1fr ' + newW + 'px';
+          shell.style.gridTemplateColumns = '260px 1fr 5px ' + newW + 'px';
         });
         document.addEventListener('mouseup', function() {
           if (dragging) { dragging = false; document.body.style.cursor = ''; }
@@ -145,14 +154,68 @@ sidebar_content <- tags$nav(
   tags$div(class = "section-label", "Workflow"),
   tags$ul(
     class = "steps",
-    step_item(1, "Upload data",     "upload"),
-    step_item(2, "Column roles",    "roles"),
-    step_item(3, "Synthesis spec",  "purpose"),
+    step_item(1, "Objective",       "objective"),
+    step_item(2, "Upload data",     "upload"),
+    step_item(3, "Configure",       "configure"),
     step_item(4, "Generation",      "generate"),
     step_item(5, "Comparison",      "compare"),
     step_item(6, "Export",          "export")
+  ),
+  tags$div(
+    style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
+    actionButton(
+      "reset_all", "\u21ba Start over",
+      class = "btn btn-sm btn-secondary",
+      style = "width:100%;"
+    )
   )
 )
+
+configure_ui <- function() {
+  shiny::tagList(
+    shiny::tags$header(
+      class = "main-header",
+      shiny::tags$div(
+        class = "main-header-text",
+        shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Configure"),
+        shiny::tags$h1("Configure synthesis"),
+        shiny::tags$p(
+          class = "subtitle",
+          "Review column roles, then adjust synthesis settings only if needed. ",
+          shiny::tags$strong("Defaults are safe"),
+          " for the objective you selected."
+        )
+      ),
+      shiny::tags$div(
+        class = "main-header-action",
+        shiny::actionButton(
+          shiny::NS("synthesis_controls")("confirm"),
+          "Confirm and Continue \u2192",
+          class = "btn btn-primary"
+        )
+      )
+    ),
+    shiny::tags$section(
+      class = "configure-section",
+      shiny::tags$div(
+        class = "section-label",
+        style = "margin:0 0 8px;",
+        "Column Roles"
+      ),
+      mod_roles_ui("roles", embedded = TRUE)
+    ),
+    shiny::tags$section(
+      class = "configure-section",
+      style = "margin-top:24px;",
+      shiny::tags$div(
+        class = "section-label",
+        style = "margin:0 0 8px;",
+        "Synthesis Settings"
+      ),
+      mod_synthesis_controls_spec_ui("synthesis_controls", embedded = TRUE)
+    )
+  )
+}
 
 ui <- bslib::page(
   theme = dg_theme,
@@ -169,12 +232,12 @@ ui <- bslib::page(
       class = "main",
       bslib::navset_hidden(
         id = "app_tabs",
-        bslib::nav_panel_hidden("upload",   mod_upload_ui("upload")),
-        bslib::nav_panel_hidden("roles",    mod_roles_ui("roles")),
-        bslib::nav_panel_hidden("purpose",  mod_synthesis_controls_ui("synthesis_controls")),
-        bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
-        bslib::nav_panel_hidden("compare",  mod_compare_ui("compare")),
-        bslib::nav_panel_hidden("export",   mod_export_ui("export"))
+        bslib::nav_panel_hidden("objective", mod_synthesis_controls_objective_ui("synthesis_controls")),
+        bslib::nav_panel_hidden("upload",    mod_upload_ui("upload")),
+        bslib::nav_panel_hidden("configure", configure_ui()),
+        bslib::nav_panel_hidden("generate",  mod_generate_ui("generate")),
+        bslib::nav_panel_hidden("compare",   mod_compare_ui("compare")),
+        bslib::nav_panel_hidden("export",    mod_export_ui("export"))
       )
     ),
     tags$div(
@@ -190,6 +253,23 @@ ui <- bslib::page(
 server <- function(input, output, session) {
   state <- mod_state_server("state")
 
+  shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {
+    state$raw_data            <- NULL
+    state$profile             <- NULL
+    state$roles               <- NULL
+    state$roles_confirmed     <- 0L
+    state$objective_confirmed <- 0L
+    state$spec                <- NULL
+    state$spec_confirmed      <- 0L
+    state$synthetic           <- NULL
+    state$comparison          <- NULL
+    state$privacy             <- NULL
+    state$seed_used           <- NULL
+    state$nav_request         <- NULL
+    bslib::nav_select("app_tabs", "objective")
+    send_step_state(0L)
+  })
+
   mod_upload_server("upload", state)
   mod_roles_server("roles", state)
   mod_synthesis_controls_server("synthesis_controls", state)
@@ -203,14 +283,14 @@ server <- function(input, output, session) {
     send_step_state(0L)
   }, once = TRUE)
 
-  STEP_IDS  <- c("upload", "roles", "purpose", "generate", "compare", "export")
+  STEP_IDS  <- c("objective", "upload", "configure", "generate", "compare", "export")
 
   # Compute the furthest step reached (0-based index into STEP_IDS)
   max_step_reached <- shiny::reactive({
     if (!is.null(state$synthetic))                      return(5L)
     if (isTRUE(state$spec_confirmed > 0L))              return(3L)
-    if (isTRUE(state$roles_confirmed > 0L))             return(2L)
-    if (!is.null(state$raw_data))                       return(1L)
+    if (!is.null(state$raw_data))                       return(2L)
+    if (isTRUE(state$objective_confirmed > 0L))         return(1L)
     0L
   })
 
@@ -220,7 +300,7 @@ server <- function(input, output, session) {
     current_step_num(cur)
     session$sendCustomMessage("setCurrentStep", list(
       current = cur,
-      max     = max_step_reached()
+      max     = shiny::isolate(max_step_reached())
     ))
   }
 
@@ -245,18 +325,18 @@ server <- function(input, output, session) {
     }
   })
 
-  # Auto-advance to roles once data is uploaded
-  observeEvent(state$roles, ignoreNULL = TRUE, once = TRUE, {
-    bslib::nav_select("app_tabs", "roles")
-    send_step_state(1L)
+  # Auto-advance to upload once objective is confirmed
+  observeEvent(state$objective_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$objective_confirmed > 0L)) {
+      bslib::nav_select("app_tabs", "upload")
+      send_step_state(1L)
+    }
   })
 
-  # Auto-advance to purpose once roles are confirmed
-  observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
-    if (isTRUE(state$roles_confirmed > 0L)) {
-      bslib::nav_select("app_tabs", "purpose")
-      send_step_state(2L)
-    }
+  # Auto-advance to Configure once data is uploaded
+  observeEvent(state$roles, ignoreNULL = TRUE, once = TRUE, {
+    bslib::nav_select("app_tabs", "configure")
+    send_step_state(2L)
   })
 
   # Auto-advance to generate once spec is confirmed
@@ -267,18 +347,24 @@ server <- function(input, output, session) {
     }
   })
 
+  observeEvent(state$objective_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (isTRUE(state$objective_confirmed > 0L)) {
+      session$sendCustomMessage("setDoneStep", "objective")
+    }
+  })
+
   observeEvent(state$raw_data, ignoreNULL = TRUE, {
     session$sendCustomMessage("setDoneStep", "upload")
   })
 
   observeEvent(state$roles_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
     if (isTRUE(state$roles_confirmed > 0L)) {
-      session$sendCustomMessage("setDoneStep", "roles")
+      session$sendCustomMessage("setDoneStep", "configure")
     }
   })
 
   observeEvent(state$spec, ignoreNULL = TRUE, {
-    session$sendCustomMessage("setDoneStep", "purpose")
+    session$sendCustomMessage("setDoneStep", "configure")
   })
 
   observeEvent(state$synthetic, ignoreNULL = TRUE, {
@@ -304,6 +390,9 @@ server <- function(input, output, session) {
   # Module navigation requests (e.g. "← Adjust settings", "Continue to Export →")
   observeEvent(state$nav_request, ignoreNULL = TRUE, {
     target  <- state$nav_request
+    if (identical(target, "purpose") || identical(target, "spec") || identical(target, "roles")) {
+      target <- "configure"
+    }
     state$nav_request <- NULL
     tgt_idx <- match(target, STEP_IDS) - 1L
     if (!is.na(tgt_idx) && tgt_idx <= max_step_reached()) {

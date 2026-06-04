@@ -250,7 +250,7 @@ test_that("try_new_seed runs synthesis and stores a new seed_used", {
   expect_false(is.null(shiny::isolate(state$seed_used)))
 })
 
-test_that("adjust_settings sets nav_request to purpose", {
+test_that("adjust_settings sets nav_request to configure", {
   testthat::skip_if_not_installed("shiny")
 
   state <- generate_test_state(
@@ -263,5 +263,5 @@ test_that("adjust_settings sets nav_request to purpose", {
     session$flushReact()
   })
 
-  expect_identical(shiny::isolate(state$nav_request), "purpose")
+  expect_identical(shiny::isolate(state$nav_request), "configure")
 })

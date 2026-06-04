@@ -47,7 +47,7 @@ test_that("mod_compare_ui has header, subtitle, export button, and stale banner"
   html <- paste(as.character(ui), collapse = "\n")
 
   expect_match(html, "Compare datasets")
-  expect_match(html, "Step 05")
+  expect_match(html, "Step 06")
   expect_match(html, "go_export")
   expect_match(html, "stale__comparison")
 })
@@ -83,25 +83,35 @@ test_that("compare_body renders var-rail and var-detail when data is present", {
   })
 })
 
-test_that("adjust_settings sets nav_request to purpose", {
+test_that("compare_body excludes identifier variables from navigation", {
   testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
 
-  state <- shiny::reactiveValues(
-    raw_data    = NULL,
-    synthetic   = NULL,
-    comparison  = NULL,
-    privacy     = NULL,
-    roles       = NULL,
-    stale       = list(comparison = FALSE),
-    nav_request = NULL
+  raw <- data.frame(
+    record_id = sprintf("ID%03d", 1:30),
+    age = 1:30,
+    group = rep(c("a", "b"), 15),
+    stringsAsFactors = FALSE
+  )
+  synthetic <- raw
+  synthetic$age <- rev(synthetic$age)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "record_id"] <- "identifier"
+  roles$user_role[roles$variable == "age"] <- "numeric"
+
+  state <- compare_test_state(
+    raw_data = raw,
+    synthetic = synthetic,
+    roles = roles
   )
 
   shiny::testServer(mod_compare_server, args = list(state = state), {
-    session$setInputs(adjust_settings = 1L)
     session$flushReact()
+    body_html <- paste(as.character(output$compare_body), collapse = "\n")
+    expect_no_match(body_html, "record_id")
+    expect_match(body_html, "age")
+    expect_match(body_html, "group")
   })
-
-  expect_identical(shiny::isolate(state$nav_request), "purpose")
 })
 
 test_that("go_export sets nav_request to export", {
@@ -123,4 +133,43 @@ test_that("go_export sets nav_request to export", {
   })
 
   expect_identical(shiny::isolate(state$nav_request), "export")
+})
+
+test_that("categorical comparison treats NA as an explicit missing level", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(group = c("a", NA, NA), stringsAsFactors = FALSE)
+  synthetic <- data.frame(group = c("a", "b", NA), stringsAsFactors = FALSE)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "group"] <- "categorical"
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "TVD =")
+    expect_no_match(stats_html, "NaN")
+  })
+})
+
+test_that("date comparison handles all-missing dates without Inf summaries", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(visit_date = as.Date(c(NA, NA, NA)))
+  synthetic <- data.frame(visit_date = as.Date(c(NA, NA, NA)))
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "visit_date"] <- "date"
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "\\(Missing\\)")
+    expect_no_match(stats_html, "Inf")
+    expect_no_match(stats_html, "NaN")
+  })
 })

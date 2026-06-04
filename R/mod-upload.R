@@ -20,7 +20,7 @@ mod_upload_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Upload Data"),
+        shiny::tags$span(class = "eyebrow", "Step 02 \u00b7 Upload Data"),
         shiny::tags$h1("Upload your data"),
         shiny::tags$p(
           class = "subtitle",
@@ -178,7 +178,7 @@ mod_upload_server <- function(id, state) {
       shiny::req(state$raw_data)
       shiny::actionButton(
         inputId = session$ns("go_roles"),
-        label   = "Continue to Roles \u2192",
+        label   = "Continue to Configure \u2192",
         class   = "btn btn-primary"
       )
     })

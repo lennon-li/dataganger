@@ -345,6 +345,51 @@ test_that("synthesize_data() marginal mixed types all work", {
   expect_equal(ncol(syn), 5)
 })
 
+test_that("simulation treatment passes through and drops columns", {
+  df <- data.frame(
+    id = sprintf("ID%03d", 1:30),
+    x = 1:30,
+    omit = letters[seq_len(30)],
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$simulation[roles$variable == "id"] <- "pass_through"
+  roles$simulation[roles$variable == "omit"] <- "drop"
+  spec <- synth_spec(purpose = "teaching")
+
+  syn <- synthesize_data(df, spec, roles = roles)
+
+  expect_identical(syn$id, df$id)
+  expect_false("omit" %in% names(syn))
+  expect_true("x" %in% names(syn))
+})
+
+test_that("pass-through treatment requires original row count", {
+  df <- data.frame(id = sprintf("ID%03d", 1:30), x = 1:30)
+  roles <- detect_roles(df)
+  roles$simulation[roles$variable == "id"] <- "pass_through"
+  spec <- synth_spec(purpose = "teaching", n = 10)
+
+  expect_error(
+    synthesize_data(df, spec, roles = roles),
+    "Cannot pass through original columns"
+  )
+})
+
+test_that("name_strategy maps only output columns after drop treatment", {
+  df <- data.frame(keep = 1:10, omit = 11:20)
+  roles <- detect_roles(df)
+  roles$simulation[roles$variable == "omit"] <- "drop"
+  spec <- synth_spec(purpose = "teaching", name_strategy = "generic")
+
+  syn <- synthesize_data(df, spec, roles = roles)
+  nm <- attr(syn, "spec")$name_map
+
+  expect_named(syn, "col_1")
+  expect_equal(nm, c(keep = "col_1"))
+  expect_false("omit" %in% names(nm))
+})
+
 # ---- Phase 2.1 fix tests ----
 
 # Fix 1 — remove_ids
