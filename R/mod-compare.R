@@ -36,7 +36,7 @@ mod_compare_ui <- function(id) {
 
 mod_compare_server <- function(id, state) {
   rlang::check_installed(
-    c("shiny", "ggplot2", "plotly"),
+    c("shiny", "plotly"),
     reason = "to use the DataGangeR Shiny modules"
   )
 
@@ -98,10 +98,6 @@ mod_compare_server <- function(id, state) {
 
     shiny::observeEvent(input$var_select, ignoreNULL = TRUE, {
       selected_var(input$var_select)
-    })
-
-    shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
-      state$nav_request <- "purpose"
     })
 
     shiny::observeEvent(input$go_export, ignoreNULL = TRUE, {
@@ -239,16 +235,26 @@ mod_compare_server <- function(id, state) {
         )
       }
 
+      explicit_missing <- function(x) {
+        vals <- as.character(x)
+        vals[is.na(vals)] <- "(Missing)"
+        vals
+      }
+
+      prop_by_level <- function(vals, lvls) {
+        vapply(lvls, function(l) mean(vals == l), numeric(1))
+      }
+
       if (kind %in% c("free_text", "geography", "drop")) {
         return(empty_plot(paste0(kind, " \u2014 no distribution plot")))
       }
 
       if (kind %in% c("categorical", "logical")) {
-        orig_vals  <- as.character(orig[[var]])
-        synth_vals <- as.character(synth[[var]])
+        orig_vals  <- explicit_missing(orig[[var]])
+        synth_vals <- explicit_missing(synth[[var]])
         lvls <- sort(unique(c(orig_vals, synth_vals)))
-        orig_prop  <- vapply(lvls, function(l) mean(orig_vals  == l, na.rm = TRUE), numeric(1))
-        synth_prop <- vapply(lvls, function(l) mean(synth_vals == l, na.rm = TRUE), numeric(1))
+        orig_prop  <- prop_by_level(orig_vals, lvls)
+        synth_prop <- prop_by_level(synth_vals, lvls)
         dat <- data.frame(
           level = lvls,
           original = orig_prop,
@@ -377,12 +383,24 @@ mod_compare_server <- function(id, state) {
         ))
       }
 
+      explicit_missing <- function(x) {
+        vals <- as.character(x)
+        vals[is.na(vals)] <- "(Missing)"
+        vals
+      }
+
+      prop_by_level <- function(vals, lvls) {
+        vapply(lvls, function(l) mean(vals == l), numeric(1))
+      }
+
+      fmt_pct <- function(x) sprintf("%.0f%%", 100 * x)
+
       if (kind %in% c("categorical", "logical")) {
-        orig_vals  <- as.character(orig[[var]])
-        synth_vals <- as.character(synth[[var]])
+        orig_vals  <- explicit_missing(orig[[var]])
+        synth_vals <- explicit_missing(synth[[var]])
         lvls <- sort(unique(c(orig_vals, synth_vals)))
-        orig_prop  <- vapply(lvls, function(l) mean(orig_vals  == l, na.rm = TRUE), numeric(1))
-        synth_prop <- vapply(lvls, function(l) mean(synth_vals == l, na.rm = TRUE), numeric(1))
+        orig_prop  <- prop_by_level(orig_vals, lvls)
+        synth_prop <- prop_by_level(synth_vals, lvls)
         tvd    <- 0.5 * sum(abs(orig_prop - synth_prop))
         tvd_ok <- tvd < 0.05
         shiny::tags$div(
@@ -402,6 +420,23 @@ mod_compare_server <- function(id, state) {
       } else if (kind == "date") {
         orig_vec  <- orig[[var]]
         synth_vec <- synth[[var]]
+        date_summary <- function(x) {
+          non_missing <- x[!is.na(x)]
+          missing_prop <- mean(explicit_missing(x) == "(Missing)")
+          if (length(non_missing) == 0L) {
+            return(list(min = "\u2014", max = "\u2014", span = "\u2014", missing = fmt_pct(missing_prop)))
+          }
+          min_val <- min(non_missing, na.rm = TRUE)
+          max_val <- max(non_missing, na.rm = TRUE)
+          list(
+            min = as.character(min_val),
+            max = as.character(max_val),
+            span = as.character(as.integer(difftime(max_val, min_val, units = "days"))),
+            missing = fmt_pct(missing_prop)
+          )
+        }
+        orig_sum <- date_summary(orig_vec)
+        synth_sum <- date_summary(synth_vec)
         shiny::tags$table(
           class = "data",
           style = "margin-top:8px;",
@@ -413,22 +448,23 @@ mod_compare_server <- function(id, state) {
           shiny::tags$tbody(
             shiny::tags$tr(
               shiny::tags$td(class = "name", "min"),
-              shiny::tags$td(as.character(min(orig_vec,  na.rm = TRUE))),
-              shiny::tags$td(as.character(min(synth_vec, na.rm = TRUE)))
+              shiny::tags$td(orig_sum$min),
+              shiny::tags$td(synth_sum$min)
             ),
             shiny::tags$tr(
               shiny::tags$td(class = "name", "max"),
-              shiny::tags$td(as.character(max(orig_vec,  na.rm = TRUE))),
-              shiny::tags$td(as.character(max(synth_vec, na.rm = TRUE)))
+              shiny::tags$td(orig_sum$max),
+              shiny::tags$td(synth_sum$max)
             ),
             shiny::tags$tr(
               shiny::tags$td(class = "name", "span (days)"),
-              shiny::tags$td(class = "num", as.character(as.integer(
-                difftime(max(orig_vec, na.rm = TRUE), min(orig_vec, na.rm = TRUE), units = "days")
-              ))),
-              shiny::tags$td(class = "num", as.character(as.integer(
-                difftime(max(synth_vec, na.rm = TRUE), min(synth_vec, na.rm = TRUE), units = "days")
-              )))
+              shiny::tags$td(class = "num", orig_sum$span),
+              shiny::tags$td(class = "num", synth_sum$span)
+            ),
+            shiny::tags$tr(
+              shiny::tags$td(class = "name", "(Missing)"),
+              shiny::tags$td(class = "num", orig_sum$missing),
+              shiny::tags$td(class = "num", synth_sum$missing)
             )
           )
         )

@@ -114,27 +114,6 @@ test_that("compare_body excludes identifier variables from navigation", {
   })
 })
 
-test_that("adjust_settings sets nav_request to purpose", {
-  testthat::skip_if_not_installed("shiny")
-
-  state <- shiny::reactiveValues(
-    raw_data    = NULL,
-    synthetic   = NULL,
-    comparison  = NULL,
-    privacy     = NULL,
-    roles       = NULL,
-    stale       = list(comparison = FALSE),
-    nav_request = NULL
-  )
-
-  shiny::testServer(mod_compare_server, args = list(state = state), {
-    session$setInputs(adjust_settings = 1L)
-    session$flushReact()
-  })
-
-  expect_identical(shiny::isolate(state$nav_request), "purpose")
-})
-
 test_that("go_export sets nav_request to export", {
   testthat::skip_if_not_installed("shiny")
 
@@ -154,4 +133,43 @@ test_that("go_export sets nav_request to export", {
   })
 
   expect_identical(shiny::isolate(state$nav_request), "export")
+})
+
+test_that("categorical comparison treats NA as an explicit missing level", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(group = c("a", NA, NA), stringsAsFactors = FALSE)
+  synthetic <- data.frame(group = c("a", "b", NA), stringsAsFactors = FALSE)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "group"] <- "categorical"
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "TVD =")
+    expect_no_match(stats_html, "NaN")
+  })
+})
+
+test_that("date comparison handles all-missing dates without Inf summaries", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(visit_date = as.Date(c(NA, NA, NA)))
+  synthetic <- data.frame(visit_date = as.Date(c(NA, NA, NA)))
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "visit_date"] <- "date"
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "\\(Missing\\)")
+    expect_no_match(stats_html, "Inf")
+    expect_no_match(stats_html, "NaN")
+  })
 })
