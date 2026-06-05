@@ -472,7 +472,13 @@ mod_synthesis_controls_server <- function(id, state) {
             choices = c("coarsen", "aggregate", "preserve"),
             selected = preset$geography_strategy
           )
-        }
+        },
+        shiny::selectInput(
+          inputId = session$ns("preserve_missingness"),
+          label = "preserve_missingness",
+          choices = c("approx", "exact", "none"),
+          selected = preset$preserve_missingness %||% "approx"
+        )
       )
     })
 
@@ -529,7 +535,8 @@ mod_synthesis_controls_server <- function(id, state) {
           coarsen_dates = isTRUE(input$coarsen_dates %||% preset$coarsen_dates),
           merge_rare = isTRUE(input$merge_rare %||% preset$merge_rare),
           free_text_strategy = preset$free_text_strategy,
-          geography_strategy = current_geo_strategy
+          geography_strategy = current_geo_strategy,
+          preserve_missingness = input$preserve_missingness %||% preset$preserve_missingness %||% "approx"
         ),
         error = function(e) {
           if (!(identical(purpose, "internal_hifi") && !isTRUE(input$acknowledge_risk))) {

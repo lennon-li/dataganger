@@ -98,10 +98,9 @@ test_that("synth_spec() rejects invalid name_strategy", {
   )
 })
 
-test_that("synth_spec() rejects exact missingness", {
-  expect_error(
-    synth_spec(purpose = "teaching", preserve_missingness = "exact"),
-    "not yet implemented"
+test_that("synth_spec() accepts exact missingness", {
+  expect_silent(
+    synth_spec(purpose = "teaching", preserve_missingness = "exact")
   )
 })
 
