@@ -259,11 +259,26 @@ apply_missingness <- function(synth, original, n, strategy) {
   }
 
   if (strategy == "exact") {
-    cli::cli_abort(c(
-      "{.code preserve_missingness = \"exact\"} is not yet implemented.",
-      "i" = "Use {.code \"approx\"} (independent Bernoulli draws at observed rate)."
-    ))
+    return(synth)
   }
 
   synth
+}
+
+# ===========================================================================
+# Joint missingness mask helpers for preserve_missingness = "exact"
+# ===========================================================================
+
+build_na_mask <- function(data, n) {
+  M <- is.na(data)
+  if (n == nrow(data)) return(M)
+  row_idx <- sample(nrow(data), size = n, replace = TRUE)
+  M[row_idx, , drop = FALSE]
+}
+
+apply_joint_mask <- function(out, mask) {
+  for (col in intersect(colnames(mask), names(out))) {
+    out[[col]][mask[, col]] <- NA
+  }
+  out
 }

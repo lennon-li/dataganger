@@ -236,14 +236,6 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     ))
   }
 
-  # "exact" missingness not in scope (R5)
-  if (isTRUE(spec$preserve_missingness == "exact")) {
-    cli::cli_abort(c(
-      "{.code preserve_missingness = \"exact\"} is not yet implemented.",
-      "i" = "Use {.code \"approx\"} (independent Bernoulli draws at observed rate)."
-    ))
-  }
-
   invisible(spec)
 }
 
