@@ -327,7 +327,7 @@ cli_print_bundle_summary <- function(summary) {
     cat("  - No privacy report lines found
 ")
   } else {
-    for (line in head(privacy_lines, 8L)) {
+    for (line in utils::head(privacy_lines, 8L)) {
       cat(sprintf("  - %s
 ", line))
     }

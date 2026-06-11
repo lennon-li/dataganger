@@ -117,7 +117,11 @@ test_that("inspect command summarizes bundle without original data", {
 })
 
 test_that("exec shim prints help through Rscript", {
-  shim <- testthat::test_path("..", "..", "exec", "dataganger")
+  testthat::skip_if(nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_")), "CLI shim subprocess is covered by source tests and manual smoke tests")
+  shim <- system.file("exec", "dataganger", package = "dataganger")
+  if (!nzchar(shim)) {
+    shim <- testthat::test_path("..", "..", "exec", "dataganger")
+  }
   expect_true(file.exists(shim))
 
   result <- system2("Rscript", c(shim, "--help"), stdout = TRUE, stderr = TRUE)
