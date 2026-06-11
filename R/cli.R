@@ -157,11 +157,28 @@ cli_cmd_profile <- function(args) {
   cli_status_ok()
 }
 
+
+cli_write_yaml <- function(x, path) {
+  yaml::write_yaml(x, path)
+  invisible(path)
+}
+
+cli_roles_to_list <- function(roles) {
+  list(roles = lapply(seq_len(nrow(roles)), function(i) as.list(roles[i, , drop = FALSE])))
+}
+
 cli_cmd_roles <- function(args) {
   parsed <- cli_parse_options(args, allowed = "out")
-  cli_require_n_positionals(parsed, 1L, "roles", "data file")
-  cli_require_option(parsed, "out")
-  cli_status_error()
+  input <- cli_require_n_positionals(parsed, 1L, "roles", "data file")[[1]]
+  out <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  profile <- profile_data(data)
+  roles <- detect_roles(data, profile = profile)
+  cli_write_yaml(cli_roles_to_list(roles), out)
+  cli::cli_alert_success("Wrote roles YAML: {out}")
+  cli_status_ok()
 }
 
 cli_cmd_spec <- function(args) {
