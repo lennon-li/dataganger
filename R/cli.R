@@ -200,6 +200,23 @@ cli_cmd_spec <- function(args) {
   cli_status_ok()
 }
 
+
+cli_read_spec_yaml <- function(path) {
+  cli_assert_existing_file(path)
+  raw <- yaml::read_yaml(path)
+  if (is.null(raw$purpose) || !nzchar(raw$purpose)) {
+    stop("Spec YAML must contain a non-empty purpose field", call. = FALSE)
+  }
+
+  allowed <- c(
+    "level", "n", "name_strategy", "seed", "preserve_correlations",
+    "coarsen_dates", "merge_rare", "free_text_strategy",
+    "geography_strategy", "rare_level_min_n", "preserve_missingness"
+  )
+  override <- raw[intersect(names(raw), allowed)]
+  do.call(synth_spec, c(list(purpose = raw$purpose), override))
+}
+
 cli_cmd_synthesize <- function(args) {
   parsed <- cli_parse_options(args, allowed = c("spec", "out"))
   cli_require_n_positionals(parsed, 1L, "synthesize", "data file")

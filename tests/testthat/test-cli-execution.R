@@ -57,3 +57,14 @@ test_that("spec command returns processing error for invalid purpose", {
   expect_identical(result$code, 1L)
   expect_false(file.exists(out_path))
 })
+
+test_that("synthesize reports processing error when spec file is missing", {
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  out_path <- file.path(tmp, "bundle.zip")
+
+  result <- run_cli(c("synthesize", data_path, "--spec", file.path(tmp, "missing.yaml"), "--out", out_path))
+
+  expect_identical(result$code, 1L)
+  expect_false(file.exists(out_path))
+})

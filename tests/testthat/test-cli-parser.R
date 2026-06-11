@@ -44,3 +44,16 @@ test_that("unknown options are syntax errors", {
   expect_identical(code, 2L)
   expect_true(any(grepl("Unknown option --loud", err, fixed = TRUE)))
 })
+
+test_that("CLI reconstructs dataganger_spec from YAML", {
+  tmp <- withr::local_tempdir()
+  path <- file.path(tmp, "spec.yaml")
+  yaml::write_yaml(list(purpose = "teaching", n = 3, seed = 99), path)
+
+  spec <- dataganger:::cli_read_spec_yaml(path)
+
+  expect_s3_class(spec, "dataganger_spec")
+  expect_equal(spec$purpose, "teaching")
+  expect_equal(spec$n, 3)
+  expect_equal(spec$seed, 99)
+})
