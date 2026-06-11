@@ -21,7 +21,7 @@ Invisibly \code{NULL}.
 }
 \description{
 Opens the DataGangeR interactive workflow in a local Shiny app. Requires
-the \code{shiny} and \code{DT} packages (listed in \code{Suggests}).
+the \code{shiny}, \code{bslib}, \code{DT}, and \code{plotly} packages.
 }
 \examples{
 if (interactive()) {
