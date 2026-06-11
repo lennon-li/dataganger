@@ -20,6 +20,7 @@ An S3 object of class \code{dataganger_roles}, a tibble with columns:
 \item{class}{R class of the column.}
 \item{recommended_role}{Role detected by heuristic.}
 \item{user_role}{User-supplied override (initially \code{NA}).}
+\item{simulation}{How the column is treated during synthesis.}
 \item{reason}{Justification for the recommended role.}
 \item{sensitive}{Whether the column may contain sensitive data.}
 }
