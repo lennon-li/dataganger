@@ -675,7 +675,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
 
   spec_json <- jsonlite::toJSON(spec_for_manifest, auto_unbox = TRUE, null = "null", pretty = TRUE)
   spec_hash <- hash_text(spec_json)
-  file_hashes <- as.list(unname(tools::sha256sum(files)))
+  file_hashes <- as.list(hash_files(files))
   names(file_hashes) <- basename(files)
 
   manifest <- list(
@@ -720,9 +720,19 @@ resolve_include_original_names <- function(include_original_names, purpose, spec
 }
 
 hash_text <- function(text) {
-  tmp <- tempfile(fileext = ".json")
-  writeLines(text, con = tmp, useBytes = TRUE)
-  unname(tools::sha256sum(tmp))
+  digest::digest(text, algo = "sha256", serialize = FALSE)
+}
+
+hash_files <- function(files) {
+  vapply(
+    files,
+    digest::digest,
+    algo = "sha256",
+    file = TRUE,
+    serialize = FALSE,
+    FUN.VALUE = character(1),
+    USE.NAMES = FALSE
+  )
 }
 
 zip_bundle <- function(bundle_dir, output_path) {
