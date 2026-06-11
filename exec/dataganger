@@ -1,0 +1,19 @@
+#!/usr/bin/env Rscript
+
+args <- commandArgs(trailingOnly = TRUE)
+cmd_args <- commandArgs(trailingOnly = FALSE)
+file_arg <- grep("^--file=", cmd_args, value = TRUE)
+script_path <- if (length(file_arg)) normalizePath(sub("^--file=", "", file_arg[[1]]), mustWork = FALSE) else NA_character_
+repo_root <- if (!is.na(script_path)) dirname(dirname(script_path)) else getwd()
+
+has_installed_cli <- requireNamespace("dataganger", quietly = TRUE) &&
+  exists("dataganger_cli", envir = asNamespace("dataganger"), inherits = FALSE)
+
+if (has_installed_cli) {
+  dataganger::dataganger_cli(args, quit = TRUE)
+} else if (requireNamespace("pkgload", quietly = TRUE) && file.exists(file.path(repo_root, "DESCRIPTION"))) {
+  pkgload::load_all(repo_root, quiet = TRUE)
+  get("dataganger_cli", envir = asNamespace("dataganger"))(args, quit = TRUE)
+} else {
+  stop("The dataganger package must be installed or available as a source checkout", call. = FALSE)
+}

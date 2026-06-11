@@ -115,3 +115,11 @@ test_that("inspect command summarizes bundle without original data", {
   expect_true(any(grepl("Variables:", out, fixed = TRUE)))
   expect_true(any(grepl("Privacy", out, fixed = TRUE)))
 })
+
+test_that("exec shim prints help through Rscript", {
+  shim <- testthat::test_path("..", "..", "exec", "dataganger")
+  expect_true(file.exists(shim))
+
+  result <- system2("Rscript", c(shim, "--help"), stdout = TRUE, stderr = TRUE)
+  expect_true(any(grepl("Usage: dataganger", result, fixed = TRUE)))
+})
