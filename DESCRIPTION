@@ -34,6 +34,7 @@ Imports:
     utils,
     vctrs,
     withr,
+    yaml,
     zip
 Suggests:
     bslib,
