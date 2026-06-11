@@ -129,11 +129,32 @@ cli_assert_existing_file <- function(path) {
   invisible(path)
 }
 
+
+cli_write_json <- function(x, path) {
+  jsonlite::write_json(x, path, auto_unbox = TRUE, pretty = TRUE, na = "null")
+  invisible(path)
+}
+
+cli_profile_to_list <- function(profile) {
+  list(
+    n_rows = unclass(profile)$n_rows,
+    n_cols = unclass(profile)$n_cols,
+    generated_at = format(unclass(profile)$generated_at, usetz = TRUE),
+    profile = as.data.frame(unclass(profile)$profile)
+  )
+}
+
 cli_cmd_profile <- function(args) {
   parsed <- cli_parse_options(args, allowed = "out")
-  cli_require_n_positionals(parsed, 1L, "profile", "data file")
-  cli_require_option(parsed, "out")
-  cli_status_error()
+  input <- cli_require_n_positionals(parsed, 1L, "profile", "data file")[[1]]
+  out <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  profile <- profile_data(data)
+  cli_write_json(cli_profile_to_list(profile), out)
+  cli::cli_alert_success("Wrote profile JSON: {out}")
+  cli_status_ok()
 }
 
 cli_cmd_roles <- function(args) {
