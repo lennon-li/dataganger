@@ -181,12 +181,23 @@ cli_cmd_roles <- function(args) {
   cli_status_ok()
 }
 
+
+cli_spec_to_list <- function(spec) {
+  x <- unclass(spec)
+  x$generated_at <- NULL
+  x
+}
+
 cli_cmd_spec <- function(args) {
   parsed <- cli_parse_options(args, allowed = c("purpose", "out"))
   cli_require_n_positionals(parsed, 0L, "spec", "data file")
-  cli_require_option(parsed, "purpose")
-  cli_require_option(parsed, "out")
-  cli_status_error()
+  purpose <- cli_require_option(parsed, "purpose")
+  out <- cli_require_option(parsed, "out")
+
+  spec <- synth_spec(purpose = purpose)
+  cli_write_yaml(cli_spec_to_list(spec), out)
+  cli::cli_alert_success("Wrote spec YAML: {out}")
+  cli_status_ok()
 }
 
 cli_cmd_synthesize <- function(args) {

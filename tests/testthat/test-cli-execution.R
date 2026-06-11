@@ -31,3 +31,29 @@ test_that("roles command writes roles YAML", {
   expect_true(any(vapply(roles$roles, function(x) identical(x$variable, "id"), logical(1))))
   expect_true(any(vapply(roles$roles, function(x) identical(x$variable, "score"), logical(1))))
 })
+
+test_that("spec command writes synth spec YAML", {
+  tmp <- withr::local_tempdir()
+  out_path <- file.path(tmp, "spec.yaml")
+
+  result <- run_cli(c("spec", "--purpose", "ai_programming", "--out", out_path))
+
+  expect_identical(result$code, 0L)
+  expect_true(file.exists(out_path))
+
+  spec <- yaml::read_yaml(out_path)
+  expect_equal(spec$purpose, "ai_programming")
+  expect_equal(spec$level, "marginal")
+  expect_equal(spec$name_strategy, "preserve")
+  expect_equal(spec$engine_required, "internal")
+})
+
+test_that("spec command returns processing error for invalid purpose", {
+  tmp <- withr::local_tempdir()
+  out_path <- file.path(tmp, "spec.yaml")
+
+  result <- run_cli(c("spec", "--purpose", "not_a_purpose", "--out", out_path))
+
+  expect_identical(result$code, 1L)
+  expect_false(file.exists(out_path))
+})
