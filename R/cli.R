@@ -219,10 +219,46 @@ cli_read_spec_yaml <- function(path) {
 
 cli_cmd_synthesize <- function(args) {
   parsed <- cli_parse_options(args, allowed = c("spec", "out"))
-  cli_require_n_positionals(parsed, 1L, "synthesize", "data file")
-  cli_require_option(parsed, "spec")
-  cli_require_option(parsed, "out")
-  cli_status_error()
+  input <- cli_require_n_positionals(parsed, 1L, "synthesize", "data file")[[1]]
+  spec_path <- cli_require_option(parsed, "spec")
+  out <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  spec <- cli_read_spec_yaml(spec_path)
+  profile <- profile_data(data)
+  roles <- detect_roles(data, profile = profile)
+  pre_privacy <- privacy_check(data, roles = roles, stage = "pre")
+  hardened_spec <- synth_spec(
+    purpose = spec$purpose,
+    level = spec$level,
+    n = spec$n,
+    roles = roles,
+    privacy = pre_privacy,
+    name_strategy = spec$name_strategy,
+    seed = spec$seed,
+    preserve_correlations = spec$preserve_correlations,
+    coarsen_dates = spec$coarsen_dates,
+    merge_rare = spec$merge_rare,
+    free_text_strategy = spec$free_text_strategy,
+    geography_strategy = spec$geography_strategy,
+    rare_level_min_n = spec$rare_level_min_n,
+    preserve_missingness = spec$preserve_missingness
+  )
+  synthetic <- synthesize_data(data, hardened_spec, roles = roles)
+  comparison <- compare_synthetic(data, synthetic, roles = roles)
+  post_privacy <- privacy_check(data, synthetic, roles = roles, stage = "post", spec = hardened_spec)
+
+  export_synthetic(
+    synthetic,
+    original = data,
+    comparison = comparison,
+    privacy = post_privacy,
+    path = out,
+    format = "zip"
+  )
+  cli::cli_alert_success("Wrote synthetic bundle: {out}")
+  cli_status_ok()
 }
 
 cli_cmd_inspect <- function(args) {

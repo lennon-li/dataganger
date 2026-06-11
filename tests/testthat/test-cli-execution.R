@@ -68,3 +68,31 @@ test_that("synthesize reports processing error when spec file is missing", {
   expect_identical(result$code, 1L)
   expect_false(file.exists(out_path))
 })
+
+test_that("synthesize command writes standard bundle zip", {
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path <- file.path(tmp, "synthetic_bundle.zip")
+  yaml::write_yaml(list(purpose = "teaching", n = 5, seed = 123), spec_path)
+
+  result <- run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path))
+
+  expect_identical(result$code, 0L)
+  expect_true(file.exists(out_path))
+
+  listing <- utils::unzip(out_path, list = TRUE)
+  expect_setequal(
+    listing$Name,
+    c(
+      "synthetic_data.csv",
+      "data_dictionary.csv",
+      "comparison_report.html",
+      "privacy_report.txt",
+      "load_data.R",
+      "ai-readme.md",
+      "README.md",
+      "manifest.json"
+    )
+  )
+})
