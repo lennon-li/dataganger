@@ -57,3 +57,17 @@ test_that("CLI reconstructs dataganger_spec from YAML", {
   expect_equal(spec$n, 3)
   expect_equal(spec$seed, 99)
 })
+
+test_that("missing input file returns processing status", {
+  tmp <- withr::local_tempdir()
+  out_path <- file.path(tmp, "profile.json")
+  result <- run_cli(c("profile", file.path(tmp, "missing.csv"), "--out", out_path))
+
+  expect_identical(result$code, 1L)
+  expect_false(file.exists(out_path))
+})
+
+test_that("missing option values return syntax status", {
+  result <- run_cli(c("profile", "data.csv", "--out"))
+  expect_identical(result$code, 2L)
+})
