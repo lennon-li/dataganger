@@ -80,22 +80,87 @@ cli_usage_error <- function(message) {
   )
 }
 
+
+cli_parse_options <- function(args, allowed = character()) {
+  positionals <- character()
+  options <- list()
+  i <- 1L
+
+  while (i <= length(args)) {
+    token <- args[[i]]
+    if (startsWith(token, "--")) {
+      key <- substring(token, 3L)
+      if (!(key %in% allowed)) {
+        stop(cli_usage_error(sprintf("Unknown option --%s", key)))
+      }
+      if (i == length(args) || startsWith(args[[i + 1L]], "--")) {
+        stop(cli_usage_error(sprintf("Missing value for option --%s", key)))
+      }
+      options[[key]] <- args[[i + 1L]]
+      i <- i + 2L
+    } else {
+      positionals <- c(positionals, token)
+      i <- i + 1L
+    }
+  }
+
+  list(positionals = positionals, options = options)
+}
+
+cli_require_option <- function(parsed, name) {
+  value <- parsed$options[[name]]
+  if (is.null(value) || !nzchar(value)) {
+    stop(cli_usage_error(sprintf("Missing required option --%s", name)))
+  }
+  value
+}
+
+cli_require_n_positionals <- function(parsed, n, command, label) {
+  if (length(parsed$positionals) != n) {
+    stop(cli_usage_error(sprintf("%s requires exactly %s %s", command, if (identical(n, 1L)) "one" else as.character(n), label)))
+  }
+  parsed$positionals
+}
+
+cli_assert_existing_file <- function(path) {
+  if (!file.exists(path)) {
+    stop(sprintf("Input file does not exist: %s", path), call. = FALSE)
+  }
+  invisible(path)
+}
+
 cli_cmd_profile <- function(args) {
-  cli_usage_error("profile requires exactly one data file")
+  parsed <- cli_parse_options(args, allowed = "out")
+  cli_require_n_positionals(parsed, 1L, "profile", "data file")
+  cli_require_option(parsed, "out")
+  cli_status_error()
 }
 
 cli_cmd_roles <- function(args) {
-  cli_usage_error("roles requires exactly one data file")
+  parsed <- cli_parse_options(args, allowed = "out")
+  cli_require_n_positionals(parsed, 1L, "roles", "data file")
+  cli_require_option(parsed, "out")
+  cli_status_error()
 }
 
 cli_cmd_spec <- function(args) {
-  cli_usage_error("Missing required option --purpose")
+  parsed <- cli_parse_options(args, allowed = c("purpose", "out"))
+  cli_require_n_positionals(parsed, 0L, "spec", "data file")
+  cli_require_option(parsed, "purpose")
+  cli_require_option(parsed, "out")
+  cli_status_error()
 }
 
 cli_cmd_synthesize <- function(args) {
-  cli_usage_error("synthesize requires exactly one data file")
+  parsed <- cli_parse_options(args, allowed = c("spec", "out"))
+  cli_require_n_positionals(parsed, 1L, "synthesize", "data file")
+  cli_require_option(parsed, "spec")
+  cli_require_option(parsed, "out")
+  cli_status_error()
 }
 
 cli_cmd_inspect <- function(args) {
-  cli_usage_error("inspect requires exactly one bundle file")
+  parsed <- cli_parse_options(args, allowed = character())
+  cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")
+  cli_status_error()
 }
