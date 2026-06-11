@@ -96,3 +96,22 @@ test_that("synthesize command writes standard bundle zip", {
     )
   )
 })
+
+test_that("inspect command summarizes bundle without original data", {
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  bundle_path <- file.path(tmp, "synthetic_bundle.zip")
+  yaml::write_yaml(list(purpose = "teaching", n = 5, seed = 123), spec_path)
+  expect_identical(
+    dataganger_cli(c("synthesize", data_path, "--spec", spec_path, "--out", bundle_path), quit = FALSE),
+    0L
+  )
+
+  out <- capture.output(code <- dataganger_cli(c("inspect", bundle_path), quit = FALSE))
+
+  expect_identical(code, 0L)
+  expect_true(any(grepl("Synthetic bundle", out, fixed = TRUE)))
+  expect_true(any(grepl("Variables:", out, fixed = TRUE)))
+  expect_true(any(grepl("Privacy", out, fixed = TRUE)))
+})

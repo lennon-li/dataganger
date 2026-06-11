@@ -261,8 +261,83 @@ cli_cmd_synthesize <- function(args) {
   cli_status_ok()
 }
 
+
+cli_unpack_bundle_file <- function(zip_path, member, tmp) {
+  utils::unzip(zip_path, files = member, exdir = tmp, junkpaths = TRUE)
+  file.path(tmp, basename(member))
+}
+
+cli_read_bundle_summary <- function(zip_path) {
+  cli_assert_existing_file(zip_path)
+  listing <- utils::unzip(zip_path, list = TRUE)
+  required <- c("manifest.json", "data_dictionary.csv", "privacy_report.txt")
+  missing <- setdiff(required, listing$Name)
+  if (length(missing) > 0L) {
+    stop(sprintf("Bundle is missing required file: %s", paste(missing, collapse = ", ")), call. = FALSE)
+  }
+
+  tmp <- tempfile("dataganger-inspect-")
+  dir.create(tmp)
+  on.exit(unlink(tmp, recursive = TRUE, force = TRUE), add = TRUE)
+
+  manifest_path <- cli_unpack_bundle_file(zip_path, "manifest.json", tmp)
+  dictionary_path <- cli_unpack_bundle_file(zip_path, "data_dictionary.csv", tmp)
+  privacy_path <- cli_unpack_bundle_file(zip_path, "privacy_report.txt", tmp)
+
+  manifest <- jsonlite::read_json(manifest_path, simplifyVector = TRUE)
+  dictionary <- readr::read_csv(dictionary_path, show_col_types = FALSE)
+  privacy <- readLines(privacy_path, warn = FALSE)
+
+  list(
+    manifest = manifest,
+    dictionary = dictionary,
+    privacy = privacy,
+    files = listing$Name
+  )
+}
+
+cli_print_bundle_summary <- function(summary) {
+  manifest <- summary$manifest
+  dictionary <- summary$dictionary
+  privacy <- summary$privacy
+
+  cat("Synthetic bundle
+")
+  cat(sprintf("Purpose: %s
+", manifest$purpose %||% "unknown"))
+  cat(sprintf("Variables: %d
+", nrow(dictionary)))
+  cat(sprintf("Files: %d
+", length(summary$files)))
+
+  if ("type" %in% names(dictionary)) {
+    type_counts <- sort(table(dictionary$type), decreasing = TRUE)
+    cat("Schema types:
+")
+    for (nm in names(type_counts)) {
+      cat(sprintf("  - %s: %d
+", nm, unname(type_counts[[nm]])))
+    }
+  }
+
+  privacy_lines <- privacy[nzchar(privacy)]
+  cat("Privacy exposure ratings:
+")
+  if (length(privacy_lines) == 0L) {
+    cat("  - No privacy report lines found
+")
+  } else {
+    for (line in head(privacy_lines, 8L)) {
+      cat(sprintf("  - %s
+", line))
+    }
+  }
+}
+
 cli_cmd_inspect <- function(args) {
   parsed <- cli_parse_options(args, allowed = character())
-  cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")
-  cli_status_error()
+  bundle <- cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")[[1]]
+  summary <- cli_read_bundle_summary(bundle)
+  cli_print_bundle_summary(summary)
+  cli_status_ok()
 }
