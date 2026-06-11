@@ -4,7 +4,7 @@
 \alias{dataganger_cli}
 \title{DataGangeR command-line interface}
 \usage{
-dataganger_cli(args = commandArgs(trailingOnly = TRUE), quit = TRUE)
+dataganger_cli(args = commandArgs(trailingOnly = TRUE), quit = FALSE)
 }
 \arguments{
 \item{args}{Character vector of trailing command-line arguments.}

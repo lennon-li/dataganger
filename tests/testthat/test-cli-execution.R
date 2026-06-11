@@ -124,6 +124,6 @@ test_that("exec shim prints help through Rscript", {
   }
   expect_true(file.exists(shim))
 
-  result <- system2("Rscript", c(shim, "--help"), stdout = TRUE, stderr = TRUE)
+  result <- system2("Rscript", c(shQuote(shim), "--help"), stdout = TRUE, stderr = TRUE)
   expect_true(any(grepl("Usage: dataganger", result, fixed = TRUE)))
 })

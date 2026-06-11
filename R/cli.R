@@ -8,7 +8,7 @@
 #'
 #' @return Integer status code: `0` success, `1` processing error, `2` syntax error.
 #' @export
-dataganger_cli <- function(args = commandArgs(trailingOnly = TRUE), quit = TRUE) {
+dataganger_cli <- function(args = commandArgs(trailingOnly = TRUE), quit = FALSE) {
   status <- cli_dispatch(args)
   if (isTRUE(quit)) {
     base::quit(save = "no", status = status, runLast = FALSE)
@@ -45,11 +45,11 @@ cli_dispatch <- function(args) {
       )
     },
     dataganger_cli_usage_error = function(e) {
-      cli::cli_alert_danger(conditionMessage(e))
+      cli::cli_alert_danger("{conditionMessage(e)}")
       cli_status_usage()
     },
     error = function(e) {
-      cli::cli_alert_danger(conditionMessage(e))
+      cli::cli_alert_danger("{conditionMessage(e)}")
       cli_status_error()
     }
   )
