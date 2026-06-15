@@ -38,9 +38,9 @@ exports a zip bundle suitable for passing to an AI agent. Includes a
 \code{diagnostic_view.json} that describes column roles and what was blocked.
 }
 \examples{
-\donttest{
+\dontrun{
 make_agent_bundle(
-  file = system.file("extdata/example.csv", package = "dataganger"),
+  file = "path/to/data.csv",
   out  = tempfile(fileext = ".zip")
 )
 }

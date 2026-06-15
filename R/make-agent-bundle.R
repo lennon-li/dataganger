@@ -18,9 +18,9 @@
 #' @export
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' make_agent_bundle(
-#'   file = system.file("extdata/example.csv", package = "dataganger"),
+#'   file = "path/to/data.csv",
 #'   out  = tempfile(fileext = ".zip")
 #' )
 #' }
@@ -55,7 +55,7 @@ make_agent_bundle <- function(file, out, purpose = "ai_programming",
   synthetic <- synthesize_data(data, spec, roles = roles)
 
   if (nrow(synthetic) == 0L) {
-    cli::cli_abort("Synthesis produced 0 rows — cannot create agent bundle")
+    cli::cli_abort("Synthesis produced 0 rows; cannot create agent bundle")
   }
 
   comparison   <- compare_synthetic(data, synthetic, roles = roles)
