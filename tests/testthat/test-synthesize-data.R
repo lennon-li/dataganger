@@ -1,4 +1,4 @@
-# Tests for synthesize_data() — [2.9]-[2.14]
+# Tests for synthesize_data() - [2.9]-[2.14]
 
 # ---- Schema synthesis ----
 
@@ -133,13 +133,21 @@ test_that("synthesize_data() missingness = none produces no NAs", {
 
 # ---- Engine checks ----
 
-test_that("synthesize_data() errors cleanly for synthpop engine", {
-  df <- data.frame(x = 1:5)
+test_that("synthesize_data() errors when synthpop is not installed and engine = 'synthpop'", {
+  skip_if(requireNamespace("synthpop", quietly = TRUE), "synthpop is installed")
+  df   <- data.frame(x = 1:5)
   spec <- synth_spec(purpose = "teaching")
   expect_error(
     synthesize_data(df, spec, engine = "synthpop"),
     "synthpop"
   )
+})
+
+test_that("synthesize_data() accepts engine = 'marginal' as alias for internal", {
+  df   <- data.frame(x = 1:10, y = rnorm(10))
+  spec <- synth_spec(purpose = "teaching")
+  syn  <- synthesize_data(df, spec, engine = "marginal")
+  expect_s3_class(syn, "dataganger_synthetic")
 })
 
 test_that("synthesize_data() errors for hifi engine_required", {
@@ -392,7 +400,7 @@ test_that("name_strategy maps only output columns after drop treatment", {
 
 # ---- Phase 2.1 fix tests ----
 
-# Fix 1 — remove_ids
+# Fix 1 - remove_ids
 test_that("remove_ids masks ID columns with NA", {
   # Use x with low cardinality so it's not also flagged as ID candidate
   df <- data.frame(
@@ -407,7 +415,7 @@ test_that("remove_ids masks ID columns with NA", {
   expect_false(all(is.na(syn$x)))
 })
 
-# Fix 2 — haven::labelled() in schema synthesis
+# Fix 2 - haven::labelled() in schema synthesis
 test_that("schema synthesis handles haven_labelled column without error", {
   df <- tibble::tibble(
     status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2)),
@@ -420,7 +428,7 @@ test_that("schema synthesis handles haven_labelled column without error", {
   expect_type(syn$status, "character")
 })
 
-# Fix 3 — factor levels preserved for rare levels
+# Fix 3 - factor levels preserved for rare levels
 test_that("factor synthesis preserves rare levels in levels()", {
   df <- data.frame(
     f = factor(c(rep("common", 199), "rare"))
@@ -431,7 +439,7 @@ test_that("factor synthesis preserves rare levels in levels()", {
   expect_true("rare" %in% levels(syn$f))
 })
 
-# Fix 4 — name_map stored inside spec attribute
+# Fix 4 - name_map stored inside spec attribute
 test_that("name_strategy dictionary_only stores name_map in spec attr", {
   df <- data.frame(patient_name = 1:5, age_years = 21:25)
   spec <- synth_spec(purpose = "teaching", n = 5,
@@ -444,7 +452,7 @@ test_that("name_strategy dictionary_only stores name_map in spec attr", {
   expect_equal(nm[["age_years"]], "col_2")
 })
 
-# F2 — ".other" sentinel does not collide with real "other"
+# F2 - ".other" sentinel does not collide with real "other"
 test_that("rare-merge uses .other sentinel not other", {
   df <- data.frame(
     f = factor(c(rep("other", 100), rep("x", 3), rep("y", 2)))

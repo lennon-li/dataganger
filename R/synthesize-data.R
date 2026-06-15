@@ -1,15 +1,17 @@
 #' Synthesize a data double
 #'
 #' Creates a synthetic copy of a dataset using the specified specification
-#' and engine. In v0.1 only the internal engine is available — it supports
-#' schema-only (Level 1) and marginal (Level 2) synthesis.
+#' and engine. The internal engine supports schema-only (Level 1) and
+#' marginal (Level 2) synthesis. The optional synthpop engine is used when
+#' requested and installed.
 #'
 #' @param data A data frame to synthesize from.
 #' @param spec A `dataganger_spec` object from [synth_spec()].
 #' @param roles Optional; a `dataganger_roles` object from [detect_roles()].
 #'   Informs column treatment but does not override the spec.
-#' @param engine Character. Engine to use. Currently only `"internal"` is
-#'   supported in v0.1.
+#' @param engine Character or `NULL`. Engine to use: `"internal"`,
+#'   `"marginal"` (alias for `"internal"`), or `"synthpop"`.
+#'   When `NULL`, defaults to `spec$engine` or `"internal"`.
 #'
 #' @return An S3 object of class `dataganger_synthetic`, a tibble with
 #'   attributes `spec`, `original_dims`, `seed_used`, and `generated_at`.
@@ -20,9 +22,7 @@
 #' spec <- synth_spec(purpose = "teaching")
 #' syn <- synthesize_data(dat, spec)
 synthesize_data <- function(data, spec, roles = NULL,
-                            engine = c("internal", "synthpop")) {
-  engine <- match.arg(engine)
-
+                            engine = NULL) {
   if (!is.data.frame(data)) {
     cli::cli_abort("{.arg data} must be a data frame, not {.obj_type_friendly {data}}")
   }
@@ -31,14 +31,11 @@ synthesize_data <- function(data, spec, roles = NULL,
     cli::cli_abort("{.arg spec} must be a {.cls dataganger_spec} object")
   }
 
-  # Engine availability check [2.12]
-  if (engine == "synthpop") {
-    cli::cli_abort(c(
-      "The synthpop engine is not available in v0.1.",
-      "i" = 'Use {.code engine = "internal"}.',
-      "i" = "synthpop support is planned for a future release."
-    ))
-  }
+  # "marginal" is a user-friendly alias for "internal" (per todo.md API)
+  spec_engine <- spec[["engine", exact = TRUE]]
+  engine <- engine %||% spec_engine %||% "internal"
+  engine <- match.arg(engine, c("internal", "marginal", "synthpop"))
+  if (engine == "marginal") engine <- "internal"
 
   if (spec$engine_required == "hifi") {
     cli::cli_abort(c(
@@ -50,7 +47,20 @@ synthesize_data <- function(data, spec, roles = NULL,
   # Record dimensions before synthesis
   original_dims <- list(nrow = nrow(data), ncol = ncol(data))
 
-  # Execute synthesis — wrap in with_seed if seed is set (C4)
+  if (engine == "synthpop") {
+    syn <- synthesize_synthpop(data, spec, roles = roles)
+    syn <- apply_simulation_treatment(syn, data, roles)
+    attr(syn, "spec")          <- spec
+    attr(syn, "original_dims") <- list(nrow = nrow(data), ncol = ncol(data))
+    attr(syn, "seed_used")     <- spec$seed
+    attr(syn, "generated_at")  <- Sys.time()
+    attr(syn, "engine")        <- "synthpop"
+    class(syn) <- c("dataganger_synthetic", class(syn))
+    syn <- apply_name_strategy(syn, spec, data)
+    return(syn)
+  }
+
+  # Execute synthesis - wrap in with_seed if seed is set (C4)
   run_synthesis <- function() {
     level <- spec$level %||% "marginal"
 
@@ -83,6 +93,7 @@ synthesize_data <- function(data, spec, roles = NULL,
   attr(syn, "original_dims") <- original_dims
   attr(syn, "seed_used")     <- seed_used
   attr(syn, "generated_at")  <- Sys.time()
+  attr(syn, "engine")        <- "internal"
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   # [2.13] Apply name_strategy (after spec attr is set so name_map survives)
