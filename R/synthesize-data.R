@@ -54,9 +54,9 @@ synthesize_data <- function(data, spec, roles = NULL,
     attr(syn, "original_dims") <- list(nrow = nrow(data), ncol = ncol(data))
     attr(syn, "seed_used")     <- spec$seed
     attr(syn, "generated_at")  <- Sys.time()
-    attr(syn, "engine")        <- "synthpop"
     class(syn) <- c("dataganger_synthetic", class(syn))
     syn <- apply_name_strategy(syn, spec, data)
+    attr(syn, "engine")        <- "synthpop"
     return(syn)
   }
 
@@ -93,11 +93,11 @@ synthesize_data <- function(data, spec, roles = NULL,
   attr(syn, "original_dims") <- original_dims
   attr(syn, "seed_used")     <- seed_used
   attr(syn, "generated_at")  <- Sys.time()
-  attr(syn, "engine")        <- "internal"
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   # [2.13] Apply name_strategy (after spec attr is set so name_map survives)
   syn <- apply_name_strategy(syn, spec, data)
+  attr(syn, "engine") <- "internal"
 
   syn
 }
