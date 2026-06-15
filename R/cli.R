@@ -39,6 +39,7 @@ cli_dispatch <- function(args) {
         synthesize = cli_cmd_synthesize(rest),
         inspect = cli_cmd_inspect(rest),
         "make-agent-bundle" = cli_cmd_make_agent_bundle(rest),
+        "export-diagnostic" = cli_cmd_export_diagnostic(rest),
         {
           cli::cli_alert_danger("Unknown command: {command}")
           cli_status_usage()
@@ -68,6 +69,7 @@ cli_print_help <- function() {
       "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip>",
       "  inspect <synthetic_bundle.zip>",
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
+      "  export-diagnostic <data-file> --out <diagnostic_view.json>",
       sep = "\n"
     ),
     "\n",
@@ -358,5 +360,17 @@ cli_cmd_make_agent_bundle <- function(args) {
 
   make_agent_bundle(input, out = out, purpose = purpose, seed = seed)
   cli::cli_alert_success("Wrote agent bundle: {out}")
+  cli_status_ok()
+}
+
+cli_cmd_export_diagnostic <- function(args) {
+  parsed <- cli_parse_options(args, allowed = c("out"))
+  input  <- cli_require_n_positionals(parsed, 1L, "export-diagnostic", "data file")[[1]]
+  out    <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  export_diagnostic_package(data, path = out)
+  cli::cli_alert_success("Wrote diagnostic schema: {out}")
   cli_status_ok()
 }

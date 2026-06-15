@@ -164,3 +164,26 @@ test_that("make-agent-bundle uses ai_programming as default purpose", {
   diag <- jsonlite::read_json(file.path(extract_dir, "diagnostic_view.json"))
   expect_equal(diag$purpose, "ai_programming")
 })
+
+test_that("export-diagnostic command writes valid diagnostic JSON", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  out_path  <- file.path(tmp, "diag.json")
+
+  result <- run_cli(c("export-diagnostic", data_path, "--out", out_path))
+
+  expect_identical(result$code, 0L)
+  expect_true(file.exists(out_path))
+  diag <- jsonlite::read_json(out_path)
+  expect_equal(diag$source, "dataganger")
+  expect_type(diag$dataset$n_rows_bucket, "character")
+  expect_true(length(diag$columns) > 0L)
+})
+
+test_that("export-diagnostic exits 2 when --out is missing", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+
+  result <- run_cli(c("export-diagnostic", data_path))
+  expect_identical(result$code, 2L)
+})
