@@ -12,6 +12,7 @@ synth_spec(
   privacy = NULL,
   name_strategy = NULL,
   seed = NULL,
+  engine = NULL,
   acknowledge_risk = FALSE,
   ...
 )
@@ -37,6 +38,10 @@ or \code{"dictionary_only"}. If \code{NULL}, derived from the preset.}
 
 \item{seed}{Integer or \code{NULL}. Reproducibility seed.}
 
+\item{engine}{Character or \code{NULL}. Synthesis engine: \code{"internal"},
+\code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}. If \code{NULL},
+defaults to \code{"internal"}.}
+
 \item{acknowledge_risk}{Logical. Required to be \code{TRUE} when
 \code{purpose = "internal_hifi"}.}
 
@@ -51,7 +56,7 @@ An S3 object of class \code{dataganger_spec} (a named list).
 \description{
 Builds a synthesis specification from a purpose preset with optional
 user overrides. The specification records the synthesis parameters and
-the required engine, but does not check engine availability — that is
+the required engine, but does not check engine availability - that is
 done by \code{\link[=synthesize_data]{synthesize_data()}}.
 }
 \examples{

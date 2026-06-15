@@ -52,7 +52,8 @@ make_agent_bundle <- function(file, out, purpose = "ai_programming",
   spec <- synth_spec(purpose = purpose, seed = seed, roles = roles,
                      privacy = pre_privacy)
 
-  synthetic <- synthesize_data(data, spec, roles = roles)
+  synthetic <- synthesize_data(data, spec, roles = roles,
+                               engine = spec[["engine", exact = TRUE]] %||% "internal")
 
   if (nrow(synthetic) == 0L) {
     cli::cli_abort("Synthesis produced 0 rows; cannot create agent bundle")

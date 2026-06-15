@@ -2,7 +2,7 @@
 #'
 #' Builds a synthesis specification from a purpose preset with optional
 #' user overrides. The specification records the synthesis parameters and
-#' the required engine, but does not check engine availability — that is
+#' the required engine, but does not check engine availability - that is
 #' done by [synthesize_data()].
 #'
 #' @param purpose Character. One of `"ai_programming"`, `"shiny_prototype"`,
@@ -18,6 +18,9 @@
 #' @param name_strategy Character or `NULL`. One of `"preserve"`, `"generic"`,
 #'   or `"dictionary_only"`. If `NULL`, derived from the preset.
 #' @param seed Integer or `NULL`. Reproducibility seed.
+#' @param engine Character or `NULL`. Synthesis engine: `"internal"`,
+#'   `"marginal"` (alias for `"internal"`), or `"synthpop"`. If `NULL`,
+#'   defaults to `"internal"`.
 #' @param acknowledge_risk Logical. Required to be `TRUE` when
 #'   `purpose = "internal_hifi"`.
 #' @param ... Additional arguments passed to the spec list. Currently supports
@@ -38,6 +41,7 @@ synth_spec <- function(purpose,
                        privacy = NULL,
                        name_strategy = NULL,
                        seed = NULL,
+                       engine = NULL,
                        acknowledge_risk = FALSE,
                        ...) {
 
@@ -61,6 +65,17 @@ synth_spec <- function(purpose,
   if (!is.null(n))             preset$n             <- n
   if (!is.null(name_strategy)) preset$name_strategy <- name_strategy
   if (!is.null(seed))          preset$seed          <- seed
+
+  if (!is.null(engine)) {
+    valid_engines <- c("internal", "marginal", "synthpop")
+    if (!engine %in% valid_engines) {
+      cli::cli_abort(c(
+        "Invalid engine: {.val {engine}}",
+        "i" = "Valid engines: {.val {valid_engines}}"
+      ))
+    }
+    preset$engine <- engine
+  }
 
   # --- Absorb ... into spec ---
   dots <- list(...)
@@ -86,7 +101,7 @@ synth_spec <- function(purpose,
 }
 
 # ===========================================================================
-# Preset table — exact mapping from implementation plan §4.1
+# Preset table - exact mapping from implementation plan section 4.1
 # ===========================================================================
 
 preset_table <- function(purpose) {
@@ -328,6 +343,11 @@ print.dataganger_spec <- function(x, ...) {
   if (!is.null(x$seed)) {
     cli::cli_h3("Seed")
     cli::cli_text("{x$seed}")
+  }
+
+  engine <- x[["engine", exact = TRUE]]
+  if (!is.null(engine)) {
+    cli::cli_li("Engine: {.val {engine}}")
   }
 
   if (isTRUE(x$acknowledged_risk)) {
