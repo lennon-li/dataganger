@@ -1,0 +1,13 @@
+test_that("bucket_nrows() returns correct bands", {
+  expect_equal(bucket_nrows(0L),     "<100")
+  expect_equal(bucket_nrows(50L),    "<100")
+  expect_equal(bucket_nrows(99L),    "<100")
+  expect_equal(bucket_nrows(100L),   "100-999")
+  expect_equal(bucket_nrows(999L),   "100-999")
+  expect_equal(bucket_nrows(1000L),  "1000-9999")
+  expect_equal(bucket_nrows(9999L),  "1000-9999")
+  expect_equal(bucket_nrows(10000L), "10000-49999")
+  expect_equal(bucket_nrows(49999L), "10000-49999")
+  expect_equal(bucket_nrows(50000L), "50000+")
+  expect_equal(bucket_nrows(1e6L),   "50000+")
+})
