@@ -187,3 +187,21 @@ test_that("export-diagnostic exits 2 when --out is missing", {
   result <- run_cli(c("export-diagnostic", data_path))
   expect_identical(result$code, 2L)
 })
+
+
+test_that("synthesize --engine internal works (explicit flag)", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path  <- file.path(tmp, "bundle.zip")
+
+  spec <- synth_spec(purpose = "teaching")
+  yaml::write_yaml(unclass(spec), spec_path)
+
+  result <- run_cli(c("synthesize", data_path,
+                      "--spec", spec_path,
+                      "--out", out_path,
+                      "--engine", "internal"))
+  expect_identical(result$code, 0L)
+  expect_true(file.exists(out_path))
+})

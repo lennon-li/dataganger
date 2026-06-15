@@ -66,7 +66,7 @@ cli_print_help <- function() {
       "  profile <data-file> --out <profile.json>",
       "  roles <data-file> --out <roles.yaml>",
       "  spec --purpose <purpose> --out <spec.yaml>",
-      "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip>",
+      "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--engine <internal|synthpop>]",
       "  inspect <synthetic_bundle.zip>",
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
       "  export-diagnostic <data-file> --out <diagnostic_view.json>",
@@ -222,7 +222,7 @@ cli_read_spec_yaml <- function(path) {
 }
 
 cli_cmd_synthesize <- function(args) {
-  parsed <- cli_parse_options(args, allowed = c("spec", "out"))
+  parsed <- cli_parse_options(args, allowed = c("spec", "out", "engine"))
   input <- cli_require_n_positionals(parsed, 1L, "synthesize", "data file")[[1]]
   spec_path <- cli_require_option(parsed, "spec")
   out <- cli_require_option(parsed, "out")
@@ -249,7 +249,8 @@ cli_cmd_synthesize <- function(args) {
     rare_level_min_n = spec$rare_level_min_n,
     preserve_missingness = spec$preserve_missingness
   )
-  synthetic <- synthesize_data(data, hardened_spec, roles = roles)
+  engine    <- parsed$options[["engine"]] %||% hardened_spec[["engine", exact = TRUE]] %||% "internal"
+  synthetic <- synthesize_data(data, hardened_spec, roles = roles, engine = engine)
   comparison <- compare_synthetic(data, synthetic, roles = roles)
   post_privacy <- privacy_check(data, synthetic, roles = roles, stage = "post", spec = hardened_spec)
 
