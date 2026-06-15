@@ -38,6 +38,7 @@ cli_dispatch <- function(args) {
         spec = cli_cmd_spec(rest),
         synthesize = cli_cmd_synthesize(rest),
         inspect = cli_cmd_inspect(rest),
+        "make-agent-bundle" = cli_cmd_make_agent_bundle(rest),
         {
           cli::cli_alert_danger("Unknown command: {command}")
           cli_status_usage()
@@ -66,6 +67,7 @@ cli_print_help <- function() {
       "  spec --purpose <purpose> --out <spec.yaml>",
       "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip>",
       "  inspect <synthetic_bundle.zip>",
+      "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
       sep = "\n"
     ),
     "\n",
@@ -339,5 +341,22 @@ cli_cmd_inspect <- function(args) {
   bundle <- cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")[[1]]
   summary <- cli_read_bundle_summary(bundle)
   cli_print_bundle_summary(summary)
+  cli_status_ok()
+}
+
+cli_cmd_make_agent_bundle <- function(args) {
+  parsed  <- cli_parse_options(args, allowed = c("out", "purpose", "seed"))
+  input   <- cli_require_n_positionals(parsed, 1L, "make-agent-bundle", "data file")[[1]]
+  out     <- cli_require_option(parsed, "out")
+  purpose <- parsed$options[["purpose"]] %||% "ai_programming"
+  seed    <- if (!is.null(parsed$options[["seed"]])) {
+    as.integer(parsed$options[["seed"]])
+  } else {
+    NULL
+  }
+  cli_assert_existing_file(input)
+
+  make_agent_bundle(input, out = out, purpose = purpose, seed = seed)
+  cli::cli_alert_success("Wrote agent bundle: {out}")
   cli_status_ok()
 }

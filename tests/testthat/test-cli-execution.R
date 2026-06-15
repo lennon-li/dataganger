@@ -127,3 +127,40 @@ test_that("exec shim prints help through Rscript", {
   result <- system2("Rscript", c(shQuote(shim), "--help"), stdout = TRUE, stderr = TRUE)
   expect_true(any(grepl("Usage: dataganger", result, fixed = TRUE)))
 })
+
+test_that("make-agent-bundle command writes a valid bundle zip", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  out_path  <- file.path(tmp, "agent.zip")
+
+  result <- run_cli(c("make-agent-bundle", data_path, "--out", out_path))
+
+  expect_identical(result$code, 0L)
+  expect_true(file.exists(out_path))
+  listing <- utils::unzip(out_path, list = TRUE)$Name
+  expect_true("synthetic_data.csv"   %in% listing)
+  expect_true("diagnostic_view.json" %in% listing)
+})
+
+test_that("make-agent-bundle exits 2 when --out is missing", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+
+  result <- run_cli(c("make-agent-bundle", data_path))
+  expect_identical(result$code, 2L)
+})
+
+test_that("make-agent-bundle uses ai_programming as default purpose", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  out_path  <- file.path(tmp, "agent.zip")
+
+  result <- run_cli(c("make-agent-bundle", data_path, "--out", out_path))
+  expect_identical(result$code, 0L)
+
+  extract_dir <- file.path(tmp, "extracted")
+  dir.create(extract_dir)
+  utils::unzip(out_path, exdir = extract_dir)
+  diag <- jsonlite::read_json(file.path(extract_dir, "diagnostic_view.json"))
+  expect_equal(diag$purpose, "ai_programming")
+})
