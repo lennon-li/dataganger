@@ -10,6 +10,8 @@ if (pkgload_available && pkgload::is_dev_package("dataganger")) {
 library(shiny)
 library(bslib)
 
+shiny::addResourcePath("www", system.file("app/www", package = "dataganger"))
+
 detect_roles                  <- dataganger::detect_roles
 mod_compare_server            <- dataganger:::mod_compare_server
 mod_compare_ui                <- dataganger:::mod_compare_ui
@@ -54,8 +56,8 @@ step_item <- function(num, label, input_id) {
 
 sidebar_content <- tags$div(
   tags$head(
-    tags$link(rel = "stylesheet", href = "colors_and_type.css"),
-    tags$link(rel = "stylesheet", href = "shiny-app.css"),
+    tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
+    tags$link(rel = "stylesheet", href = "www/shiny-app.css"),
     tags$link(
       rel = "stylesheet",
       href = "https://unpkg.com/lucide-static@1.14.0/font/lucide.min.css"
