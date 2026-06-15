@@ -43,6 +43,7 @@ Suggests:
     knitr,
     rmarkdown,
     shiny,
+    shinytest2,
     spelling,
     synthpop,
     testthat (>= 3.0.0)
