@@ -89,6 +89,37 @@ test_that("read_input() error on non-existent file", {
   )
 })
 
+test_that("read_input() encoding arg is applied to CSV locale", {
+  tmp <- withr::local_tempdir()
+  # Write a CSV with a latin1 character (e-acute)
+  csv_file <- file.path(tmp, "encoded.csv")
+  writeBin(chartr("é", "e", iconv("name\nAndré", to = "latin1")), csv_file)
+  con <- file(csv_file, open = "wb")
+  writeBin(iconv("name\nAndré", to = "latin1", toRaw = TRUE)[[1]], con)
+  close(con)
+  out <- read_input(csv_file, encoding = "latin1")
+  expect_s3_class(out, "tbl_df")
+  expect_equal(out$name, "André")
+})
+
+test_that("read_input() encoding is ignored when caller supplies locale", {
+  tmp <- withr::local_tempdir()
+  csv_file <- file.path(tmp, "simple.csv")
+  readr::write_csv(data.frame(x = 1:3), csv_file)
+  # Should not error — caller locale wins, encoding arg is silently skipped
+  out <- read_input(csv_file, encoding = "UTF-8",
+                    locale = readr::locale(encoding = "UTF-8"))
+  expect_s3_class(out, "tbl_df")
+})
+
+test_that("read_input() encoding arg is ignored for non-CSV formats", {
+  file <- testthat::test_path("fixtures", "tiny.xlsx")
+  # encoding is silently ignored for Excel; should not error
+  out <- read_input(file, encoding = "UTF-8")
+  expect_s3_class(out, "tbl_df")
+  expect_equal(nrow(out), 10)
+})
+
 test_that("read_input() CSV round-trips with readr writer", {
   tmp <- withr::local_tempdir()
   df <- data.frame(

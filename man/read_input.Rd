@@ -4,13 +4,18 @@
 \alias{read_input}
 \title{Read a data file into a tibble}
 \usage{
-read_input(file, sheet = NULL, ...)
+read_input(file, sheet = NULL, encoding = NULL, ...)
 }
 \arguments{
 \item{file}{Path to the data file.}
 
 \item{sheet}{For Excel files, the sheet name or index to read. Passed to
 \code{\link[readxl:read_excel]{readxl::read_excel()}}. Ignored for non-Excel formats.}
+
+\item{encoding}{Character encoding for CSV files (e.g. \code{"UTF-8"},
+\code{"latin1"}). Passed as \code{readr::locale(encoding = encoding)}. Ignored when
+reading non-CSV formats or when the caller already supplies a \code{locale}
+argument in \code{...}.}
 
 \item{...}{Additional arguments passed to the underlying reader
 (\code{readr::read_csv()}, \code{readxl::read_excel()}, \code{haven::read_sas()}, or
@@ -27,4 +32,5 @@ files into a tibble. Dispatches on file extension.
 \examples{
 f <- system.file("extdata", package = "dataganger")
 # read_input(file.path(f, "example.csv"))
+# read_input(file.path(f, "example.csv"), encoding = "latin1")
 }

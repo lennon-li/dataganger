@@ -179,6 +179,15 @@ test_that("print.dataganger_roles works without error", {
   expect_no_error(print(r))
 })
 
+test_that("detect_roles() does not classify long character values as ID even at high cardinality", {
+  # 50 unique strings each ~30 chars, no spaces — high cardinality but long values
+  vals <- sprintf("item-description-key-value-%03d", 1:50)
+  df <- data.frame(item_desc = vals, stringsAsFactors = FALSE)
+  r <- detect_roles(df)
+  expect_false(r$recommended_role[1] == "ID candidate",
+               label = "long char column should not be classified as ID candidate")
+})
+
 test_that("detect_roles() rejects non-data-frame", {
   expect_error(detect_roles("not a df"), "must be a data frame")
 })
