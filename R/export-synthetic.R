@@ -173,12 +173,13 @@ export_synthetic <- function(synthetic,
   }
 
   write_manifest(
-    bundle_dir = bundle_dir,
-    synthetic = synthetic,
-    spec = spec,
-    purpose = purpose,
-    exact_row_matches = exact_row_matches,
-    include_original_names = include_original_names
+    bundle_dir             = bundle_dir,
+    synthetic              = synthetic,
+    spec                   = spec,
+    purpose                = purpose,
+    exact_row_matches      = exact_row_matches,
+    include_original_names = include_original_names,
+    original               = original
   )
 
   if (identical(format, "zip")) {
@@ -665,7 +666,7 @@ html_escape <- function(x) {
 }
 
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
-                           include_original_names = TRUE) {
+                           include_original_names = TRUE, original = NULL) {
   files <- list.files(bundle_dir, full.names = TRUE, all.files = FALSE, no.. = TRUE)
   files <- files[basename(files) != "manifest.json"]
   spec_for_manifest <- unclass(spec %||% list())
@@ -687,7 +688,18 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     spec_hash = spec_hash,
     exact_row_matches = exact_row_matches,
     synthetic_dims = list(nrow = nrow(synthetic), ncol = ncol(synthetic)),
-    file_sha256 = file_hashes
+    file_sha256 = file_hashes,
+    source                  = "dataganger",
+    original_rows_bucket    = if (!is.null(original)) bucket_nrows(nrow(original)) else NULL,
+    original_columns_count  = if (!is.null(original)) ncol(original) else NULL,
+    raw_rows_included       = FALSE,
+    free_text_included      = FALSE,
+    ids_included            = FALSE,
+    plots_included          = FALSE,
+    original_names_included = isTRUE(include_original_names),
+    factor_levels_included  = isTRUE(spec$level %in% c("marginal", "hifi")),
+    numeric_ranges_included = FALSE,
+    policy_file             = NULL
   )
 
   jsonlite::write_json(
