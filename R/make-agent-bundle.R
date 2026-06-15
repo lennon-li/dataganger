@@ -63,8 +63,8 @@ make_agent_bundle <- function(file, out, purpose = "ai_programming",
                                 stage = "post", spec = spec)
 
   tmp_dir <- tempfile("dataganger-bundle-")
-  dir.create(tmp_dir, recursive = TRUE)
   on.exit(unlink(tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  dir.create(tmp_dir, recursive = TRUE)
 
   export_synthetic(
     synthetic,
@@ -113,9 +113,8 @@ bucket_nrows <- function(n) {
 build_diagnostic_view <- function(roles, dictionary, synthetic, purpose) {
   col_info <- lapply(seq_len(nrow(roles)), function(i) {
     var_name  <- roles$variable[i]
-    treatment <- dictionary$treatment[
-      match(var_name, dictionary$synthetic_variable)
-    ] %||% "synthesized"
+    idx <- match(var_name, dictionary$synthetic_variable)
+    treatment <- if (!is.na(idx)) dictionary$treatment[[idx]] else "synthesized"
     list(
       name      = var_name,
       role      = roles$recommended_role[i],
@@ -133,7 +132,7 @@ build_diagnostic_view <- function(roles, dictionary, synthetic, purpose) {
     purpose            = purpose,
     dataset = list(
       n_rows_bucket = bucket_nrows(nrow(synthetic)),
-      n_cols        = ncol(synthetic)
+      n_cols        = length(col_info)
     ),
     columns = col_info,
     blocked = list(
