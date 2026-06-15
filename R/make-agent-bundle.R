@@ -58,9 +58,10 @@ make_agent_bundle <- function(file, out, purpose = "ai_programming",
     cli::cli_abort("Synthesis produced 0 rows; cannot create agent bundle")
   }
 
-  comparison   <- compare_synthetic(data, synthetic, roles = roles)
-  post_privacy <- privacy_check(data, synthetic, roles = roles,
-                                stage = "post", spec = spec)
+  comparison     <- compare_synthetic(data, synthetic, roles = roles)
+  post_privacy   <- privacy_check(data, synthetic, roles = roles,
+                                  stage = "post", spec = spec)
+  code_readiness <- check_code_readiness(data, synthetic, roles = roles)
 
   tmp_dir <- tempfile("dataganger-bundle-")
   on.exit(unlink(tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
@@ -71,6 +72,7 @@ make_agent_bundle <- function(file, out, purpose = "ai_programming",
     original       = data,
     comparison     = comparison,
     privacy        = post_privacy,
+    code_readiness = code_readiness,
     path           = tmp_dir,
     format         = "dir",
     include_report = FALSE,

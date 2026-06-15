@@ -18,6 +18,7 @@ test_that("make_agent_bundle() produces a valid zip with all required files", {
   expect_true("manifest.json"        %in% listing)
   expect_true("load_data.R"          %in% listing)
   expect_true("diagnostic_view.json" %in% listing)
+  expect_true("code_readiness_report.json" %in% listing)
   expect_false("comparison_report.html" %in% listing)
 })
 

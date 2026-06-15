@@ -16,6 +16,7 @@ export_synthetic(
   include_original_names = NULL,
   fail_on_exact_match = FALSE,
   include_report = TRUE,
+  code_readiness = NULL,
   overwrite = FALSE
 )
 }
@@ -58,6 +59,10 @@ manifest, and a warning is emitted instead.}
 \code{comparison_report.html}. If \code{rmarkdown}/\code{knitr} are unavailable, the
 report is skipped with a message instead of an error.}
 
+\item{code_readiness}{Optional \code{dataganger_code_readiness} object from
+\code{\link[=check_code_readiness]{check_code_readiness()}}. When supplied, writes
+\code{code_readiness_report.json} into the bundle.}
+
 \item{overwrite}{Logical. When \code{FALSE} (the default), existing output paths
 are refused.}
 }
@@ -73,7 +78,7 @@ re-loading the bundle. By default the bundle is written as a zip archive.
 dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
 spec <- synth_spec(purpose = "teaching", seed = 1)
 syn <- synthesize_data(dat, spec)
-\donttest{
+\dontrun{
 export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))
 }
 }

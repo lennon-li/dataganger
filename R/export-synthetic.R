@@ -31,6 +31,9 @@
 #' @param include_report Logical. When `TRUE` (the default), write
 #'   `comparison_report.html`. If `rmarkdown`/`knitr` are unavailable, the
 #'   report is skipped with a message instead of an error.
+#' @param code_readiness Optional `dataganger_code_readiness` object from
+#'   [check_code_readiness()]. When supplied, writes
+#'   `code_readiness_report.json` into the bundle.
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
 #'
@@ -41,7 +44,7 @@
 #' dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
 #' spec <- synth_spec(purpose = "teaching", seed = 1)
 #' syn <- synthesize_data(dat, spec)
-#' \donttest{
+#' \dontrun{
 #' export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))
 #' }
 export_synthetic <- function(synthetic,
@@ -55,6 +58,7 @@ export_synthetic <- function(synthetic,
                              include_original_names = NULL,
                              fail_on_exact_match = FALSE,
                              include_report = TRUE,
+                             code_readiness = NULL,
                              overwrite = FALSE) {
   format <- match.arg(format)
 
@@ -181,6 +185,29 @@ export_synthetic <- function(synthetic,
     include_original_names = include_original_names,
     original               = original
   )
+
+  if (!is.null(code_readiness)) {
+    cr_list <- list(
+      summary = code_readiness$summary,
+      checks  = lapply(seq_len(nrow(code_readiness$checks)), function(i) {
+        as.list(code_readiness$checks[i, ])
+      }),
+      meta = list(
+        generated_at = format(code_readiness$meta$generated_at, usetz = TRUE),
+        nrow_orig    = code_readiness$meta$nrow_orig,
+        ncol_orig    = code_readiness$meta$ncol_orig,
+        nrow_syn     = code_readiness$meta$nrow_syn,
+        ncol_syn     = code_readiness$meta$ncol_syn
+      )
+    )
+    jsonlite::write_json(
+      cr_list,
+      path       = file.path(bundle_dir, "code_readiness_report.json"),
+      auto_unbox = TRUE,
+      pretty     = TRUE,
+      null       = "null"
+    )
+  }
 
   if (identical(format, "zip")) {
     zip_bundle(bundle_dir, output_path)
