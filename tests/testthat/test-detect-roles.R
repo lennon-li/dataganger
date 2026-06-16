@@ -22,6 +22,28 @@ test_that("detect_roles() does NOT flag high-cardinality as ID when nrow < 20", 
   expect_false(r$recommended_role[r$variable == "col_x"] == "ID candidate")
 })
 
+test_that("detect_roles() labels distinctive numeric as numeric, not ID candidate", {
+  # High-cardinality numeric with no ID-like name: users classify it in the UI,
+  # so it must NOT be auto-flagged as an identifier (design intent).
+  df <- data.frame(measurement = seq(1.1, 50.1, length.out = 50))
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "numeric")
+  expect_false(r$recommended_role[1] == "ID candidate")
+})
+
+test_that("detect_roles() still flags distinctive numeric as ID when name matches", {
+  df <- data.frame(record_id = seq(1.1, 50.1, length.out = 50))
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "ID candidate")
+  expect_match(r$reason[1], "name matches ID pattern")
+})
+
+test_that("detect_roles() still flags distinctive character as ID candidate", {
+  df <- data.frame(token = sprintf("tok-%03d", 1:50))
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "ID candidate")
+})
+
 test_that("detect_roles() detects ID from column name pattern", {
   # Use data that does NOT trigger the cardinality-based ID check
   # n_distinct=3, nrow=25 → ratio 0.12 < 0.95, so only name triggers ID
@@ -131,17 +153,17 @@ test_that("detect_roles() classifies low-cardinality region as geography before 
   expect_equal(r$recommended_role[1], "geography")
 })
 
-test_that("detect_roles() returns unknown for columns with no match", {
+test_that("detect_roles() labels a distinctive numeric column as numeric", {
   # 50 rows, exactly 30 distinct values → n_distinct=30
   # ratio 30/50=0.6, >=0.05 and <0.95 AND n_distinct=30 > 20
-  # So doesn't hit ID (ratio < 0.95), doesn't hit categorical (ratio >= 0.05 AND > 20)
-  # Name "normal_col" matches no patterns → unknown
+  # Not ID (ratio < 0.95), not categorical (ratio >= 0.05 AND > 20), numeric class
+  # Name "normal_col" matches no patterns → numeric (user classifies via UI)
   df <- data.frame(
     normal_col = c(1:30, 1:20),
     stringsAsFactors = FALSE
   )
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "unknown")
+  expect_equal(r$recommended_role[1], "numeric")
 })
 
 test_that("detect_roles() marks ID, date, geography, free text as sensitive", {
