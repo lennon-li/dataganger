@@ -39,8 +39,7 @@ synthesize_data <- function(data, spec, roles = NULL,
   engine <- match.arg(engine, c("internal", "marginal", "synthpop"))
   if (engine == "marginal") engine <- "internal"
 
-  if (engine == "synthpop" && is.null(explicit) &&
-      !requireNamespace("synthpop", quietly = TRUE)) {
+  if (engine == "synthpop" && is.null(explicit) && !synthpop_available()) {
     cli::cli_warn(
       "Install {.pkg synthpop} for full-fidelity synthesis; using the marginal engine for now."
     )

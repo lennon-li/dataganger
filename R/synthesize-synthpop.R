@@ -1,5 +1,11 @@
+# Test seam: a single mockable point for synthpop availability so the
+# graceful-fallback path can be exercised even when synthpop is installed.
+synthpop_available <- function() {
+  requireNamespace("synthpop", quietly = TRUE)
+}
+
 synthesize_synthpop <- function(data, spec, roles = NULL) {
-  if (!requireNamespace("synthpop", quietly = TRUE)) {
+  if (!synthpop_available()) {
     cli::cli_abort(c(
       "Package {.pkg synthpop} is required for {.code engine = 'synthpop'}.",
       "i" = "Install it with: {.run install.packages(\"synthpop\")}"
