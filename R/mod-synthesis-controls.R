@@ -30,7 +30,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
       shiny::tags$div(
         class = "main-header-action",
         shiny::conditionalPanel(
-          condition = "input.purpose_group === 'internal_hifi' && !input.acknowledge_risk",
+          condition = "input.purpose_group === 'analytics' && !input.acknowledge_risk",
           ns = ns,
           shiny::tags$button(
             type = "button",
@@ -40,7 +40,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
           )
         ),
         shiny::conditionalPanel(
-          condition = "input.purpose_group !== 'internal_hifi' || input.acknowledge_risk",
+          condition = "input.purpose_group !== 'analytics' || input.acknowledge_risk",
           ns = ns,
           shiny::actionButton(ns("confirm_objective"), "Continue to Upload \u2192", class = "btn-primary")
         )
@@ -70,15 +70,9 @@ mod_synthesis_controls_objective_ui <- function(id) {
         shiny::radioButtons(
           inputId = ns("purpose_group"),
           label = NULL,
-          choiceValues = c("prototype", "teaching", "safer_external", "internal_hifi"),
-          choiceNames = c("prototype", "teaching", "safer_external", "internal_hifi"),
-          selected = "prototype"
-        ),
-        shiny::radioButtons(
-          inputId = ns("prototype_choice"),
-          label = NULL,
-          choices = c("ai_programming", "shiny_prototype", "model_prototype"),
-          selected = "ai_programming"
+          choiceValues = c("demo", "development", "analytics"),
+          choiceNames = c("demo", "development", "analytics"),
+          selected = "demo"
         )
       ),
       shiny::uiOutput(ns("purpose_detail"))
@@ -144,37 +138,20 @@ objective_cards <- function(ns) {
       shiny::tags$strong("Privacy:"), " more bars = stronger protection against disclosure. ",
       shiny::tags$strong("Identifiability:"), " more bars = harder to re-identify individuals."
     ),
-    shiny::tags$div(class = "objective-group-label", "Prototyping"),
     dg_purpose_card(
-      ns, "ai_programming", "prototype", "AI-assisted programming",
-      "Hand to an AI or developer to write, test, and debug code.", 2, 4, 2, selected = TRUE
+      ns, "demo", "demo", "Demo / Teaching",
+      "Share externally, teach with, or use in presentations.", 2, 4, 1, selected = TRUE
     ),
     dg_purpose_card(
-      ns, "shiny_prototype", "prototype", "Shiny / app prototype",
-      "Test UI, filters, tables, plots, downloads, and reports.", 2, 4, 2
+      ns, "development", "development", "Development",
+      "Build apps, AI tooling, or model pipelines.", 3, 3, 3
     ),
     dg_purpose_card(
-      ns, "model_prototype", "prototype", "Model pipeline prototype",
-      "Exercise model code, formulas, and validation pipelines.", 3, 3, 4
-    ),
-
-    shiny::tags$div(class = "objective-group-label", "Teaching & sharing"),
-    dg_purpose_card(
-      ns, "teaching", "teaching", "Teaching / demo data",
-      "Workshops, documentation, and reproducible examples.", 2, 4, 1
-    ),
-    dg_purpose_card(
-      ns, "safer_external", "safer_external", "Safer external sharing",
-      "Share outside the team when low disclosure risk matters most.", 1, 5, 1
-    ),
-
-    shiny::tags$div(class = "objective-group-label", "Advanced"),
-    dg_purpose_card(
-      ns, "internal_hifi", "internal_hifi", "Advanced / internal hi-fi",
+      ns, "analytics", "analytics", "Internal Analytics",
       "Maximum structural detail \u2014 internal use only.", 5, 1, 5, risk = TRUE
     ),
     shiny::conditionalPanel(
-      condition = "input.purpose_group === 'internal_hifi'",
+      condition = "input.purpose_group === 'analytics'",
       ns = ns,
       shiny::tags$label(
         class = "pc-ack",
@@ -262,59 +239,32 @@ mod_synthesis_controls_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   purpose_copy <- list(
-    ai_programming = list(
-      use_when = "You want synthetic data to help write, test, or debug code.",
-      preserves = "column names \u00b7 column types \u00b7 approximate missingness \u00b7 plausible values \u00b7 safe categorical levels",
-      does_not_preserve = "exact relationships \u00b7 rare categories \u00b7 exact dates \u00b7 free text \u00b7 direct identifiers",
-      recommended_use = "Sharing with ChatGPT, Claude Code, Codex, Copilot, Gemini, or a developer to write code.",
-      privacy_caution = "Useful for code generation, not for inference or public release."
+    demo = list(
+      use_when = "You want safe synthetic data to share externally, teach with, or use in presentations.",
+      preserves = "column names \u00b7 column types \u00b7 approximate distributions \u00b7 plausible values \u00b7 low-level relationships",
+      does_not_preserve = "exact records \u00b7 precise dates \u00b7 free text \u00b7 direct identifiers \u00b7 rare categories",
+      recommended_use = "Classrooms, workshops, documentation, external demos, public-facing examples.",
+      privacy_caution = "Not a formal privacy guarantee. Review all privacy warnings before sharing externally."
     ),
-    shiny_prototype = list(
-      preserves = "columns needed for filters \u00b7 safe factor levels \u00b7 date ranges/formats \u00b7 numeric ranges \u00b7 enough rows for UI testing",
-      does_not_preserve = "exact records \u00b7 sensitive text \u00b7 precise geography \u00b7 rare small groups",
-      recommended_use = "Testing UI, filters, tables, plots, downloads, and reports.",
-      privacy_caution = "Good for interface behavior, not for reproducing real findings."
+    development = list(
+      use_when = "You want synthetic data for building code, apps, or model pipelines.",
+      preserves = "column names \u00b7 column types \u00b7 distributions \u00b7 relationships between variables (when synthpop is installed)",
+      does_not_preserve = "exact records \u00b7 exact model coefficients \u00b7 individual trajectories",
+      recommended_use = "AI-assisted coding, Shiny app testing, model pipeline development, UI testing.",
+      privacy_caution = "Relationship-preserving synthesis may retain sensitive patterns. Not for external release."
     ),
-    model_prototype = list(
-      preserves = "outcome variable type \u00b7 predictor types \u00b7 approximate marginal distributions \u00b7 relationships between variables for pipeline testing",
-      does_not_preserve = "exact records \u00b7 exact model coefficients \u00b7 exact subgroup effects \u00b7 individual trajectories",
-      recommended_use = "Testing model code, formulas, tidymodels workflows, report generation, validation pipelines.",
-      privacy_caution = "Relationship-preserving synthesis can retain sensitive patterns; review privacy warnings before sharing."
-    ),
-    teaching = list(
-      preserves = "clean variable structure \u00b7 plausible distributions \u00b7 examples of missingness \u00b7 simple patterns useful for teaching",
-      does_not_preserve = "real institutional labels \u00b7 exact dates \u00b7 rare categories \u00b7 sensitive details",
-      recommended_use = "Teaching, documentation, workshops, reproducible examples.",
-      privacy_caution = "Make examples clearer than real data; avoid implying real scientific findings."
-    ),
-    safer_external = list(
-      preserves = "broad schema \u00b7 general data types \u00b7 coarse distributions \u00b7 approximate missingness",
-      does_not_preserve = "original column names (by default) \u00b7 direct identifiers \u00b7 free text \u00b7 precise dates \u00b7 precise geography \u00b7 rare categories \u00b7 strong relationships",
-      recommended_use = "Sharing outside the immediate team when lower disclosure risk matters more than fidelity.",
-      privacy_caution = "Still not a formal privacy guarantee. Review all privacy warnings before sharing."
-    ),
-    internal_hifi = list(
-      preserves = "maximum structural detail and relationships between variables when synthpop is installed.",
+    analytics = list(
+      use_when = "You want the highest-fidelity synthetic data for internal statistical work.",
+      preserves = "maximum structural detail \u00b7 relationships between variables \u00b7 rare categories \u00b7 precise dates",
       does_not_preserve = "a low-risk disclosure posture.",
-      recommended_use = "Internal development only.",
+      recommended_use = "Internal development, validation studies, statistical auditing.",
       privacy_caution = "May preserve sensitive patterns. Not for external sharing. Requires explicit risk acknowledgement."
     )
   )
 
   shiny::moduleServer(id, function(input, output, session) {
     purpose_default <- function() {
-      if (is.null(input$purpose_group)) {
-        return(NULL)
-      }
-
-      switch(
-        input$purpose_group,
-        prototype = if (is.null(input$prototype_choice)) "ai_programming" else input$prototype_choice,
-        teaching = "teaching",
-        safer_external = "safer_external",
-        internal_hifi = "internal_hifi",
-        NULL
-      )
+      input$purpose_group
     }
 
     current_purpose <- shiny::reactive({
@@ -322,7 +272,7 @@ mod_synthesis_controls_server <- function(id, state) {
     })
 
     shiny::observeEvent(input$confirm_objective, ignoreNULL = TRUE, {
-      if (identical(current_purpose(), "internal_hifi")) {
+      if (identical(current_purpose(), "analytics")) {
         shiny::req(isTRUE(input$acknowledge_risk))
       }
 
@@ -355,13 +305,7 @@ mod_synthesis_controls_server <- function(id, state) {
           shiny::p(shiny::tags$strong("Use when:"), paste(copy$use_when))
         },
         shiny::p(shiny::tags$strong("Preserves:"), paste(copy$preserves)),
-        shiny::p(shiny::tags$strong(
-          if (purpose == "ai_programming") {
-            "Does not preserve by default:"
-          } else {
-            "Does not preserve:"
-          }
-        ), paste(copy$does_not_preserve)),
+        shiny::p(shiny::tags$strong("Does not preserve:"), paste(copy$does_not_preserve)),
         shiny::p(shiny::tags$strong("Recommended use:"), paste(copy$recommended_use)),
         shiny::tags$div(
           class = "banner risk",
@@ -379,12 +323,9 @@ mod_synthesis_controls_server <- function(id, state) {
       shiny::req(purpose)
 
       label <- c(
-        ai_programming = "AI-assisted programming",
-        shiny_prototype = "Shiny / app prototype",
-        model_prototype = "Model pipeline prototype",
-        teaching = "Teaching / demo data",
-        safer_external = "Safer external sharing",
-        internal_hifi = "Advanced / internal hi-fi"
+        demo        = "Demo / Teaching",
+        development = "Development",
+        analytics   = "Internal Analytics"
       )[[purpose]]
 
       shiny::tags$div(
@@ -423,19 +364,12 @@ mod_synthesis_controls_server <- function(id, state) {
           value = current_n,
           min = 100
         ),
-        if (identical(purpose, "safer_external")) {
-          shiny::tagList(
-            shiny::p(shiny::tags$strong("name_strategy:"), "generic"),
-            shiny::p(class = "text-muted", "Set by your purpose choice")
-          )
-        } else {
-          shiny::selectInput(
-            inputId = session$ns("name_strategy"),
-            label = "name_strategy",
-            choices = c("preserve", "generic", "dictionary_only"),
-            selected = preset$name_strategy
-          )
-        },
+        shiny::selectInput(
+          inputId = session$ns("name_strategy"),
+          label = "name_strategy",
+          choices = c("preserve", "generic", "dictionary_only"),
+          selected = preset$name_strategy
+        ),
         shiny::sliderInput(
           inputId = session$ns("rare_level_min_n"),
           label = "rare_level_min_n",
@@ -458,19 +392,12 @@ mod_synthesis_controls_server <- function(id, state) {
           paste(preset$free_text_strategy)
         ),
         shiny::p(class = "text-muted", "Set by your purpose choice"),
-        if (identical(purpose, "safer_external")) {
-          shiny::tagList(
-            shiny::p(shiny::tags$strong("geography_strategy:"), "aggregate"),
-            shiny::p(class = "text-muted", "Set by your purpose choice")
-          )
-        } else {
-          shiny::selectInput(
-            inputId = session$ns("geography_strategy"),
-            label = "geography_strategy",
-            choices = c("coarsen", "aggregate", "preserve"),
-            selected = preset$geography_strategy
-          )
-        },
+        shiny::selectInput(
+          inputId = session$ns("geography_strategy"),
+          label = "geography_strategy",
+          choices = c("coarsen", "aggregate", "preserve"),
+          selected = preset$geography_strategy
+        ),
         shiny::selectInput(
           inputId = session$ns("preserve_missingness"),
           label = "preserve_missingness",
@@ -495,16 +422,12 @@ mod_synthesis_controls_server <- function(id, state) {
       preset <- current_preset()
       current_rows_n <- input$rows_n
       current_seed <- input$seed
-      current_name_strategy <- if (identical(purpose, "safer_external")) {
-        "generic"
-      } else if (!is.null(input$name_strategy)) {
+      current_name_strategy <- if (!is.null(input$name_strategy)) {
         input$name_strategy
       } else {
         preset$name_strategy
       }
-      current_geo_strategy <- if (identical(purpose, "safer_external")) {
-        "aggregate"
-      } else if (!is.null(input$geography_strategy)) {
+      current_geo_strategy <- if (!is.null(input$geography_strategy)) {
         input$geography_strategy
       } else {
         preset$geography_strategy
@@ -537,7 +460,7 @@ mod_synthesis_controls_server <- function(id, state) {
           preserve_missingness = input$preserve_missingness %||% preset$preserve_missingness %||% "approx"
         ),
         error = function(e) {
-          if (!(identical(purpose, "internal_hifi") && !isTRUE(input$acknowledge_risk))) {
+          if (!(identical(purpose, "analytics") && !isTRUE(input$acknowledge_risk))) {
             shiny::showNotification(conditionMessage(e), type = "error")
           }
           NULL
@@ -550,7 +473,7 @@ mod_synthesis_controls_server <- function(id, state) {
       shiny::req(spec)
       print(spec)
 
-      if (identical(spec$purpose, "model_prototype")) {
+      if (identical(spec$purpose, "development")) {
         cat("Relationship-aware synthesis uses synthpop when installed.\n")
       }
     })
@@ -559,7 +482,7 @@ mod_synthesis_controls_server <- function(id, state) {
       spec <- current_spec()
       shiny::req(spec)
 
-      if (identical(current_purpose(), "internal_hifi")) {
+      if (identical(current_purpose(), "analytics")) {
         shiny::req(isTRUE(input$acknowledge_risk))
       }
 
