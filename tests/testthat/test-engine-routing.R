@@ -9,19 +9,16 @@ test_that("engine_from_correlations() maps correlation settings to engines", {
 
 test_that("engine_from_correlations() routes objective presets", {
   expected <- c(
-    teaching = "internal",
-    safer_external = "internal",
-    ai_programming = "internal",
-    shiny_prototype = "internal",
-    model_prototype = "synthpop",
-    internal_hifi = "synthpop"
+    demo        = "internal",
+    development = "synthpop",
+    analytics   = "synthpop"
   )
 
   for (purpose in names(expected)) {
-    spec <- suppressWarnings(synth_spec(
+    spec <- synth_spec(
       purpose = purpose,
-      acknowledge_risk = identical(purpose, "internal_hifi")
-    ))
+      acknowledge_risk = identical(purpose, "analytics")
+    )
     expect_equal(engine_from_correlations(spec), expected[[purpose]], info = purpose)
   }
 })

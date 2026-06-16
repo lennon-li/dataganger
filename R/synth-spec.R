@@ -5,8 +5,8 @@
 #' the required engine, but does not check engine availability - that is
 #' done by [synthesize_data()].
 #'
-#' @param purpose Character. One of `"ai_programming"`, `"shiny_prototype"`,
-#'   `"teaching"`, `"model_prototype"`, `"internal_hifi"`, `"safer_external"`.
+#' @param purpose Character. One of `"demo"`, `"development"`, or `"analytics"`.
+#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
 #' @param level Character or `NULL`. Synthesis level: `"schema"` or
 #'   `"marginal"`. If `NULL`, derived from the preset.
 #' @param n Integer or `NULL`. Number of rows to synthesize. If `NULL`,
@@ -22,7 +22,7 @@
 #'   `"internal"`, `"marginal"` (alias for `"internal"`), or `"synthpop"`.
 #'   If `NULL`, [synthesize_data()] derives the engine from the objective.
 #' @param acknowledge_risk Logical. Required to be `TRUE` when
-#'   `purpose = "internal_hifi"`.
+#'   `purpose = "analytics"`.
 #' @param ... Additional arguments passed to the spec list. Currently supports
 #'   `preserve_correlations`, `coarsen_dates`, `merge_rare`,
 #'   `free_text_strategy`, `geography_strategy`, `rare_level_min_n`,
@@ -32,8 +32,9 @@
 #' @export
 #'
 #' @examples
-#' synth_spec(purpose = "teaching")
-#' synth_spec(purpose = "ai_programming", n = 200, seed = 42)
+#' synth_spec(purpose = "demo")
+#' synth_spec(purpose = "development", n = 200, seed = 42)
+#' synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 synth_spec <- function(purpose,
                        level = NULL,
                        n = NULL,
@@ -45,10 +46,7 @@ synth_spec <- function(purpose,
                        acknowledge_risk = FALSE,
                        ...) {
 
-  valid_purposes <- c(
-    "ai_programming", "shiny_prototype", "teaching",
-    "model_prototype", "internal_hifi", "safer_external"
-  )
+  valid_purposes <- c("demo", "development", "analytics")
 
   if (!purpose %in% valid_purposes) {
     cli::cli_abort(c(
@@ -106,7 +104,7 @@ synth_spec <- function(purpose,
 
 preset_table <- function(purpose) {
   switch(purpose,
-    ai_programming = list(
+    demo = list(
       level               = "marginal",
       n                   = NULL,
       preserve_correlations = "low",
@@ -119,33 +117,7 @@ preset_table <- function(purpose) {
       preserve_missingness = "approx",
       seed                = NULL
     ),
-    shiny_prototype = list(
-      level               = "marginal",
-      n                   = NULL,
-      preserve_correlations = "low",
-      coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
-      free_text_strategy  = "drop",
-      geography_strategy  = "coarsen",
-      name_strategy       = "preserve",
-      rare_level_min_n    = 5,
-      preserve_missingness = "approx",
-      seed                = NULL
-    ),
-    teaching = list(
-      level               = "marginal",
-      n                   = NULL,
-      preserve_correlations = "none",
-      coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
-      free_text_strategy  = "drop",
-      geography_strategy  = "coarsen",
-      name_strategy       = "preserve",
-      rare_level_min_n    = 5,
-      preserve_missingness = "approx",
-      seed                = NULL
-    ),
-    model_prototype = list(
+    development = list(
       level               = "marginal",
       n                   = NULL,
       preserve_correlations = "moderate",
@@ -158,7 +130,7 @@ preset_table <- function(purpose) {
       preserve_missingness = "approx",
       seed                = NULL
     ),
-    internal_hifi = list(
+    analytics = list(
       level               = "hifi",
       n                   = NULL,
       preserve_correlations = "high",
@@ -168,19 +140,6 @@ preset_table <- function(purpose) {
       geography_strategy  = "preserve",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
-      preserve_missingness = "approx",
-      seed                = NULL
-    ),
-    safer_external = list(
-      level               = "schema",
-      n                   = NULL,
-      preserve_correlations = "none",
-      coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
-      free_text_strategy  = "drop",
-      geography_strategy  = "aggregate",
-      name_strategy       = "generic",
-      rare_level_min_n    = 10,
       preserve_missingness = "approx",
       seed                = NULL
     ),
@@ -203,19 +162,19 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     cli::cli_abort("{.arg rare_level_min_n} must be > 1, got {spec$rare_level_min_n}")
   }
 
-  # internal_hifi requires acknowledge_risk
-  if (purpose == "internal_hifi" && !isTRUE(acknowledge_risk)) {
+  # analytics requires acknowledge_risk
+  if (purpose == "analytics" && !isTRUE(acknowledge_risk)) {
     cli::cli_abort(c(
-      "Purpose {.val internal_hifi} requires {.arg acknowledge_risk = TRUE}",
+      "Purpose {.val analytics} requires {.arg acknowledge_risk = TRUE}",
       "i" = "High-fidelity synthesis may preserve sensitive patterns.",
       "i" = "Set {.code acknowledge_risk = TRUE} to proceed."
     ))
   }
 
-  # model_prototype soft warning (C1)
-  if (purpose == "model_prototype") {
-    cli::cli_warn(
-      "Model prototype synthesis preserves relationships when {.pkg synthpop} is installed; review privacy warnings before sharing output."
+  # development routes to synthpop when available
+  if (purpose == "development") {
+    cli::cli_inform(
+      c("i" = "Development synthesis uses {.pkg synthpop} for correlation-aware output when installed; review privacy warnings before sharing.")
     )
   }
 
@@ -305,7 +264,7 @@ apply_privacy_hardening <- function(spec, privacy, roles) {
 # ===========================================================================
 
 engine_for <- function(level, purpose) {
-  if (level == "hifi" || purpose == "internal_hifi") {
+  if (level == "hifi" || purpose == "analytics") {
     return("hifi")
   }
   "internal"
@@ -362,7 +321,7 @@ print.dataganger_spec <- function(x, ...) {
     cli::cli_alert_warning("Risk acknowledged by user")
   }
 
-  if (x$purpose == "model_prototype") {
+  if (x$purpose == "development") {
     cli::cli_alert_info("Relationship-aware synthesis uses synthpop when installed.")
   }
 
