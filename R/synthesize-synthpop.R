@@ -29,7 +29,8 @@ spec_to_synthpop_args <- function(spec, roles, data) {
 
   num_cont <- names(work)[vapply(work, is_continuous_numeric, logical(1))]
   if (length(num_cont)) {
-    args$smoothing <- stats::setNames(rep("density", length(num_cont)), num_cont)
+    # synthpop::syn() requires `smoothing` as a named list, not a named vector
+    args$smoothing <- stats::setNames(as.list(rep("density", length(num_cont))), num_cont)
   }
 
   args

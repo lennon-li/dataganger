@@ -297,8 +297,11 @@ synthpop_disclosure_panel <- function(original, synthetic, roles) {
     return(NULL)
   }
 
-  original_qi <- original[, qi_cols, drop = FALSE]
-  synthetic_qi <- synthetic[, qi_cols, drop = FALSE]
+  # synthpop::disclosure() does base `data[, j]` column extraction internally,
+  # which returns sub-tibbles (not vectors) for tbl_df input and fails with
+  # "cannot xtfrm data frames"; coerce to plain data.frame first.
+  original_qi <- as.data.frame(original[, qi_cols, drop = FALSE])
+  synthetic_qi <- as.data.frame(synthetic[, qi_cols, drop = FALSE])
 
   # Keep disclosure() scoped to role-flagged QI columns; sample rows later if
   # this is still too costly on very large data.

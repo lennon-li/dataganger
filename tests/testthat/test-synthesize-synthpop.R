@@ -2,7 +2,10 @@ test_that("spec_to_synthpop_args() maps n, seed, exclusions, and smoothing", {
   df <- data.frame(
     record_id = paste0("ID-", 1:25),
     notes = sprintf("this is long free text value number %02d", 1:25),
-    score = seq(1.1, 25.1, length.out = 25),
+    # continuous (non-integer) but not all-distinct, so it is not flagged an
+    # ID candidate (distinct_ratio < 0.95) and survives to the smoothing step
+    score = rep(c(1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.1, 11.2, 12.3),
+                length.out = 25),
     bounded = rep(1:5, length.out = 25),
     group = rep(letters[1:5], length.out = 25),
     stringsAsFactors = FALSE
