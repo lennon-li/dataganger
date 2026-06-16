@@ -205,3 +205,63 @@ test_that("synthesize --engine internal works (explicit flag)", {
   expect_identical(result$code, 0L)
   expect_true(file.exists(out_path))
 })
+
+test_that("synthesize routes model_prototype to synthpop and records provenance (no --engine)", {
+  skip_if_not_installed("synthpop")
+  tmp       <- withr::local_tempdir()
+  data_path <- file.path(tmp, "data.csv")
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path  <- file.path(tmp, "bundle.zip")
+
+  set.seed(11)
+  n <- 60
+  x <- rnorm(n)
+  readr::write_csv(
+    tibble::tibble(
+      x = x,
+      lab_value = round(2 * x + rnorm(n, sd = 0.3), 2),  # distinctive numeric -> kept
+      arm = rep(c("A", "B"), length.out = n)
+    ),
+    data_path
+  )
+  # model_prototype presets preserve_correlations = "moderate" -> synthpop engine
+  yaml::write_yaml(list(purpose = "model_prototype", n = n, seed = 7L), spec_path)
+
+  # small synthetic data can trip the exact-row-match privacy warning; not under test here
+  result <- suppressWarnings(
+    run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path))
+  )
+  expect_identical(result$code, 0L)
+  expect_true(file.exists(out_path))
+
+  extract_dir <- file.path(tmp, "extracted")
+  dir.create(extract_dir)
+  utils::unzip(out_path, exdir = extract_dir)
+
+  manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  expect_equal(manifest$engine, "synthpop")
+  expect_match(manifest$synthesis_citation, "synthpop", ignore.case = TRUE)
+
+  syn <- readr::read_csv(file.path(extract_dir, "synthetic_data.csv"), show_col_types = FALSE)
+  expect_true("lab_value" %in% names(syn))  # distinctive numeric survived end-to-end
+})
+
+test_that("synthesize records internal engine and no synthpop citation for teaching", {
+  tmp       <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path  <- file.path(tmp, "bundle.zip")
+  yaml::write_yaml(list(purpose = "teaching", n = 5, seed = 123), spec_path)
+
+  result <- suppressWarnings(
+    run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path))
+  )
+  expect_identical(result$code, 0L)
+
+  extract_dir <- file.path(tmp, "extracted")
+  dir.create(extract_dir)
+  utils::unzip(out_path, exdir = extract_dir)
+  manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  expect_equal(manifest$engine, "internal")
+  expect_null(manifest$synthesis_citation)
+})
