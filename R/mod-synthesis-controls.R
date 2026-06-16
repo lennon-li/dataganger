@@ -155,7 +155,7 @@ objective_cards <- function(ns) {
     ),
     dg_purpose_card(
       ns, "model_prototype", "prototype", "Model pipeline prototype",
-      "Exercise model code, formulas, and validation pipelines.", 3, 3, 3
+      "Exercise model code, formulas, and validation pipelines.", 3, 3, 4
     ),
 
     shiny::tags$div(class = "objective-group-label", "Teaching & sharing"),
@@ -276,10 +276,10 @@ mod_synthesis_controls_server <- function(id, state) {
       privacy_caution = "Good for interface behavior, not for reproducing real findings."
     ),
     model_prototype = list(
-      preserves = "outcome variable type \u00b7 predictor types \u00b7 approximate marginal distributions \u00b7 enough structure for pipeline testing",
-      does_not_preserve = "true correlations \u00b7 true outcome relationships \u00b7 exact model coefficients \u00b7 subgroup effects \u00b7 individual trajectories",
+      preserves = "outcome variable type \u00b7 predictor types \u00b7 approximate marginal distributions \u00b7 relationships between variables for pipeline testing",
+      does_not_preserve = "exact records \u00b7 exact model coefficients \u00b7 exact subgroup effects \u00b7 individual trajectories",
       recommended_use = "Testing model code, formulas, tidymodels workflows, report generation, validation pipelines.",
-      privacy_caution = "v0.1 uses marginal synthesis only. Relationship-aware synthesis is planned for a future release."
+      privacy_caution = "Relationship-preserving synthesis can retain sensitive patterns; review privacy warnings before sharing."
     ),
     teaching = list(
       preserves = "clean variable structure \u00b7 plausible distributions \u00b7 examples of missingness \u00b7 simple patterns useful for teaching",
@@ -294,10 +294,10 @@ mod_synthesis_controls_server <- function(id, state) {
       privacy_caution = "Still not a formal privacy guarantee. Review all privacy warnings before sharing."
     ),
     internal_hifi = list(
-      preserves = "more structural detail than other modes, once fully available.",
+      preserves = "maximum structural detail and relationships between variables when synthpop is installed.",
       does_not_preserve = "a low-risk disclosure posture.",
       recommended_use = "Internal development only.",
-      privacy_caution = "May preserve sensitive patterns. Not for external sharing. Requires explicit risk acknowledgement. Note: High-fidelity synthesis engine is reserved for v0.2."
+      privacy_caution = "May preserve sensitive patterns. Not for external sharing. Requires explicit risk acknowledgement."
     )
   )
 
@@ -356,9 +356,7 @@ mod_synthesis_controls_server <- function(id, state) {
         },
         shiny::p(shiny::tags$strong("Preserves:"), paste(copy$preserves)),
         shiny::p(shiny::tags$strong(
-          if (purpose == "model_prototype") {
-            "Does not preserve (v0.1):"
-          } else if (purpose == "ai_programming") {
+          if (purpose == "ai_programming") {
             "Does not preserve by default:"
           } else {
             "Does not preserve:"
@@ -553,7 +551,7 @@ mod_synthesis_controls_server <- function(id, state) {
       print(spec)
 
       if (identical(spec$purpose, "model_prototype")) {
-        cat("Relationship-aware synthesis is post-MVP; marginal synthesis only.\n")
+        cat("Relationship-aware synthesis uses synthpop when installed.\n")
       }
     })
 

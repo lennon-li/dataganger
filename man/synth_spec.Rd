@@ -38,9 +38,9 @@ or \code{"dictionary_only"}. If \code{NULL}, derived from the preset.}
 
 \item{seed}{Integer or \code{NULL}. Reproducibility seed.}
 
-\item{engine}{Character or \code{NULL}. Synthesis engine: \code{"internal"},
-\code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}. If \code{NULL},
-defaults to \code{"internal"}.}
+\item{engine}{Character or \code{NULL}. Optional explicit synthesis engine:
+\code{"internal"}, \code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}.
+If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
 
 \item{acknowledge_risk}{Logical. Required to be \code{TRUE} when
 \code{purpose = "internal_hifi"}.}

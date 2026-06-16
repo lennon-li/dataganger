@@ -16,7 +16,8 @@ Informs column treatment but does not override the spec.}
 
 \item{engine}{Character or \code{NULL}. Engine to use: \code{"internal"},
 \code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}.
-When \code{NULL}, defaults to \code{spec$engine} or \code{"internal"}.}
+When \code{NULL}, defaults to \code{spec$engine} or derives from
+\code{spec$preserve_correlations}.}
 }
 \value{
 An S3 object of class \code{dataganger_synthetic}, a tibble with
@@ -25,8 +26,8 @@ attributes \code{spec}, \code{original_dims}, \code{seed_used}, and \code{genera
 \description{
 Creates a synthetic copy of a dataset using the specified specification
 and engine. The internal engine supports schema-only (Level 1) and
-marginal (Level 2) synthesis. The optional synthpop engine is used when
-requested and installed.
+marginal (Level 2) synthesis. The optional synthpop engine is used for
+objectives that request moderate or high relationship preservation.
 }
 \examples{
 dat <- data.frame(x = 1:5, y = letters[1:5])

@@ -94,7 +94,7 @@ test_that("confirming a changed spec sets all stale flags", {
         session$setInputs(`controls-prototype_choice` = "model_prototype")
         session$flushReact()
       },
-      "Relationship-aware synthesis is planned for a future release"
+      "Model prototype synthesis preserves relationships"
     )
     session$setInputs(`controls-confirm` = 2L)
     session$flushReact()

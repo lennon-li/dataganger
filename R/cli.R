@@ -249,7 +249,7 @@ cli_cmd_synthesize <- function(args) {
     rare_level_min_n = spec$rare_level_min_n,
     preserve_missingness = spec$preserve_missingness
   )
-  engine    <- parsed$options[["engine"]] %||% hardened_spec[["engine", exact = TRUE]] %||% "internal"
+  engine    <- parsed$options[["engine"]]
   synthetic <- synthesize_data(data, hardened_spec, roles = roles, engine = engine)
   comparison <- compare_synthetic(data, synthetic, roles = roles)
   post_privacy <- privacy_check(data, synthetic, roles = roles, stage = "post", spec = hardened_spec)

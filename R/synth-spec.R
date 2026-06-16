@@ -18,9 +18,9 @@
 #' @param name_strategy Character or `NULL`. One of `"preserve"`, `"generic"`,
 #'   or `"dictionary_only"`. If `NULL`, derived from the preset.
 #' @param seed Integer or `NULL`. Reproducibility seed.
-#' @param engine Character or `NULL`. Synthesis engine: `"internal"`,
-#'   `"marginal"` (alias for `"internal"`), or `"synthpop"`. If `NULL`,
-#'   defaults to `"internal"`.
+#' @param engine Character or `NULL`. Optional explicit synthesis engine:
+#'   `"internal"`, `"marginal"` (alias for `"internal"`), or `"synthpop"`.
+#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
 #' @param acknowledge_risk Logical. Required to be `TRUE` when
 #'   `purpose = "internal_hifi"`.
 #' @param ... Additional arguments passed to the spec list. Currently supports
@@ -215,7 +215,7 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
   # model_prototype soft warning (C1)
   if (purpose == "model_prototype") {
     cli::cli_warn(
-      "Relationship-aware synthesis is planned for a future release. In v0.1, model_prototype uses marginal synthesis and does not intentionally preserve correlations between variables."
+      "Model prototype synthesis preserves relationships when {.pkg synthpop} is installed; review privacy warnings before sharing output."
     )
   }
 
@@ -311,6 +311,14 @@ engine_for <- function(level, purpose) {
   "internal"
 }
 
+engine_from_correlations <- function(spec) {
+  pc <- spec$preserve_correlations %||% "none"
+  if (pc %in% c("moderate", "high")) {
+    return("synthpop")
+  }
+  "internal"
+}
+
 # ===========================================================================
 # Print method
 # ===========================================================================
@@ -355,7 +363,7 @@ print.dataganger_spec <- function(x, ...) {
   }
 
   if (x$purpose == "model_prototype") {
-    cli::cli_alert_info("Relationship-aware synthesis is post-MVP; marginal synthesis only.")
+    cli::cli_alert_info("Relationship-aware synthesis uses synthpop when installed.")
   }
 
   invisible(x)

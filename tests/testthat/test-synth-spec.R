@@ -58,7 +58,7 @@ test_that("synth_spec() accepts acknowledge_risk = TRUE for internal_hifi", {
 test_that("synth_spec() warns on model_prototype", {
   expect_warning(
     synth_spec(purpose = "model_prototype"),
-    "does not intentionally preserve correlations between variables"
+    "preserves relationships when .*synthpop"
   )
 })
 
@@ -141,7 +141,7 @@ test_that("synth_spec() accepts all 6 purposes without extra args", {
     if (p == "model_prototype") {
       expect_warning(
         synth_spec(purpose = p),
-        "does not intentionally preserve correlations between variables"
+        "preserves relationships when .*synthpop"
       )
     } else {
       expect_no_error(synth_spec(purpose = p))
