@@ -39,6 +39,8 @@ test_that("make_agent_bundle() diagnostic_view.json has valid shape", {
 
   expect_equal(diag$source,  "dataganger")
   expect_equal(diag$purpose, "ai_programming")
+  expect_equal(diag$engine,  "internal")
+  expect_null(diag$synthesis_citation)
   expect_type(diag$dataganger_version,      "character")
   expect_type(diag$dataset$n_rows_bucket,   "character")
   expect_type(diag$dataset$n_cols,          "integer")

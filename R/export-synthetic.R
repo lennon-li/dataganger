@@ -710,6 +710,12 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     dataganger_version = as.character(utils::packageVersion("dataganger")),
     generated_at = as.character(Sys.time()),
     purpose = purpose,
+    engine = attr(synthetic, "engine", exact = TRUE) %||% "unknown",
+    synthesis_citation = if (identical(attr(synthetic, "engine", exact = TRUE), "synthpop")) {
+      synthpop_citation()
+    } else {
+      NULL
+    },
     seed = spec$seed %||% NULL,
     spec = spec_for_manifest,
     spec_hash = spec_hash,

@@ -151,6 +151,57 @@ test_that("privacy_check() post with masked IDs is clean", {
   expect_equal(nrow(id_flags), 0)
 })
 
+test_that("privacy_check() internal path does not add synthpop disclosure", {
+  df <- data.frame(city = rep(c("Toronto", "Ottawa"), 20), group = rep(letters[1:4], 10))
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "teaching", n = 20, seed = 1L)
+  syn <- synthesize_data(df, spec, roles = roles)
+  pc <- privacy_check(df, syn, roles = roles, stage = "post", spec = spec)
+  expect_null(attr(pc, "synthpop_disclosure", exact = TRUE))
+  expect_false(any(grepl("synthpop disclosure", pc$variable, fixed = TRUE)))
+})
+
+test_that("privacy_check() synthpop path folds disclosure numbers into panel", {
+  df <- data.frame(city = rep(c("Toronto", "Ottawa"), 20), group = rep(letters[1:4], 10))
+  roles <- detect_roles(df)
+  syn <- tibble::as_tibble(df)
+  attr(syn, "engine") <- "synthpop"
+
+  testthat::local_mocked_bindings(
+    synthpop_disclosure_panel = function(original, synthetic, roles) {
+      list(
+        keys = "city",
+        target = "group",
+        identity_repu = 1.25,
+        attribute_disco = 2.5,
+        raw = list()
+      )
+    }
+  )
+
+  pc <- privacy_check(df, syn, roles = roles, stage = "post")
+  disclosure <- attr(pc, "synthpop_disclosure", exact = TRUE)
+  expect_equal(disclosure$identity_repu, 1.25)
+  expect_equal(disclosure$attribute_disco, 2.5)
+  expect_true(any(grepl("repU", pc$flag)))
+  expect_true(any(grepl("DiSCO", pc$flag)))
+})
+
+test_that("privacy_check() computes synthpop disclosure when synthpop is installed", {
+  skip_if_not_installed("synthpop")
+  df <- data.frame(
+    city = rep(c("Toronto", "Ottawa", "Montreal", "Calgary"), each = 10),
+    group = rep(letters[1:5], length.out = 40),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- suppressWarnings(synth_spec(purpose = "model_prototype", n = 30, seed = 1L))
+  syn <- synthesize_data(df, spec, roles = roles)
+  pc <- privacy_check(df, syn, roles = roles, stage = "post", spec = spec)
+  expect_equal(attr(syn, "engine"), "synthpop")
+  expect_false(is.null(attr(pc, "synthpop_disclosure", exact = TRUE)))
+})
+
 test_that("privacy_check() print method works", {
   df <- data.frame(patient_id = 1:50, x = rnorm(50))
   roles <- detect_roles(df)

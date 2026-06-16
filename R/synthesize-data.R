@@ -2,8 +2,8 @@
 #'
 #' Creates a synthetic copy of a dataset using the specified specification
 #' and engine. The internal engine supports schema-only (Level 1) and
-#' marginal (Level 2) synthesis. The optional synthpop engine is used when
-#' requested and installed.
+#' marginal (Level 2) synthesis. The optional synthpop engine is used for
+#' objectives that request moderate or high relationship preservation.
 #'
 #' @param data A data frame to synthesize from.
 #' @param spec A `dataganger_spec` object from [synth_spec()].
@@ -11,7 +11,8 @@
 #'   Informs column treatment but does not override the spec.
 #' @param engine Character or `NULL`. Engine to use: `"internal"`,
 #'   `"marginal"` (alias for `"internal"`), or `"synthpop"`.
-#'   When `NULL`, defaults to `spec$engine` or `"internal"`.
+#'   When `NULL`, defaults to `spec$engine` or derives from
+#'   `spec$preserve_correlations`.
 #'
 #' @return An S3 object of class `dataganger_synthetic`, a tibble with
 #'   attributes `spec`, `original_dims`, `seed_used`, and `generated_at`.
@@ -33,15 +34,17 @@ synthesize_data <- function(data, spec, roles = NULL,
 
   # "marginal" is a user-friendly alias for "internal" (per todo.md API)
   spec_engine <- spec[["engine", exact = TRUE]]
-  engine <- engine %||% spec_engine %||% "internal"
+  explicit <- engine %||% spec_engine
+  engine <- explicit %||% engine_from_correlations(spec)
   engine <- match.arg(engine, c("internal", "marginal", "synthpop"))
   if (engine == "marginal") engine <- "internal"
 
-  if (spec$engine_required == "hifi") {
-    cli::cli_abort(c(
-      "The hifi engine is reserved for v0.2.",
-      "i" = 'Use {.code level = "marginal"} for now.'
-    ))
+  if (engine == "synthpop" && is.null(explicit) &&
+      !requireNamespace("synthpop", quietly = TRUE)) {
+    cli::cli_warn(
+      "Install {.pkg synthpop} for full-fidelity synthesis; using the marginal engine for now."
+    )
+    engine <- "internal"
   }
 
   # Record dimensions before synthesis
@@ -63,6 +66,9 @@ synthesize_data <- function(data, spec, roles = NULL,
   # Execute synthesis - wrap in with_seed if seed is set (C4)
   run_synthesis <- function() {
     level <- spec$level %||% "marginal"
+    if (identical(level, "hifi")) {
+      level <- "marginal"
+    }
 
     syn <- switch(level,
       schema = synthesize_schema(data, spec, roles),

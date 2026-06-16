@@ -150,13 +150,54 @@ test_that("synthesize_data() accepts engine = 'marginal' as alias for internal",
   expect_s3_class(syn, "dataganger_synthetic")
 })
 
-test_that("synthesize_data() errors for hifi engine_required", {
-  df <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "internal_hifi", acknowledge_risk = TRUE)
-  expect_error(
-    synthesize_data(df, spec),
-    "hifi engine"
+test_that("synthesize_data() derives synthpop when installed", {
+  skip_if_not_installed("synthpop")
+  df <- data.frame(
+    x = rnorm(30),
+    y = rep(letters[1:3], length.out = 30),
+    stringsAsFactors = FALSE
   )
+  spec <- suppressWarnings(synth_spec(purpose = "model_prototype", seed = 1L))
+  syn <- synthesize_data(df, spec)
+  expect_equal(attr(syn, "engine"), "synthpop")
+})
+
+test_that("synthesize_data() falls back when derived synthpop is unavailable", {
+  skip_if(requireNamespace("synthpop", quietly = TRUE), "synthpop is installed")
+  df <- data.frame(x = 1:20, y = rep(letters[1:4], each = 5))
+  spec <- suppressWarnings(synth_spec(purpose = "model_prototype", seed = 1L))
+  expect_warning(
+    syn <- synthesize_data(df, spec),
+    "Install .*synthpop.*full-fidelity"
+  )
+  expect_s3_class(syn, "dataganger_synthetic")
+  expect_equal(attr(syn, "engine"), "internal")
+})
+
+test_that("synthesize_data() routes objectives to expected engines", {
+  df <- data.frame(x = 1:20, y = rep(letters[1:4], each = 5))
+
+  teaching <- synth_spec(purpose = "teaching", seed = 1L)
+  syn_teaching <- synthesize_data(df, teaching)
+  expect_equal(attr(syn_teaching, "engine"), "internal")
+
+  model <- suppressWarnings(synth_spec(purpose = "model_prototype", seed = 1L))
+  hifi <- synth_spec(purpose = "internal_hifi", seed = 1L, acknowledge_risk = TRUE)
+
+  if (requireNamespace("synthpop", quietly = TRUE)) {
+    expect_equal(attr(synthesize_data(df, model), "engine"), "synthpop")
+    expect_equal(attr(synthesize_data(df, hifi), "engine"), "synthpop")
+  } else {
+    expect_warning(expect_equal(attr(synthesize_data(df, model), "engine"), "internal"), "synthpop")
+    expect_warning(expect_equal(attr(synthesize_data(df, hifi), "engine"), "internal"), "synthpop")
+  }
+})
+
+test_that("synthesize_data() explicit internal overrides a synthpop-implying spec", {
+  df <- data.frame(x = 1:5)
+  spec <- suppressWarnings(synth_spec(purpose = "model_prototype"))
+  syn <- synthesize_data(df, spec, engine = "internal")
+  expect_equal(attr(syn, "engine"), "internal")
 })
 
 # ---- Seed reproducibility ----

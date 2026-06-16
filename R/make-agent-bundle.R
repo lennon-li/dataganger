@@ -52,8 +52,7 @@ make_agent_bundle <- function(file, out, purpose = "ai_programming",
   spec <- synth_spec(purpose = purpose, seed = seed, roles = roles,
                      privacy = pre_privacy)
 
-  synthetic <- synthesize_data(data, spec, roles = roles,
-                               engine = spec[["engine", exact = TRUE]] %||% "internal")
+  synthetic <- synthesize_data(data, spec, roles = roles)
 
   if (nrow(synthetic) == 0L) {
     cli::cli_abort("Synthesis produced 0 rows; cannot create agent bundle")
@@ -133,6 +132,12 @@ build_diagnostic_view <- function(roles, dictionary, synthetic, purpose) {
     source             = "dataganger",
     dataganger_version = as.character(utils::packageVersion("dataganger")),
     purpose            = purpose,
+    engine             = attr(synthetic, "engine", exact = TRUE) %||% "unknown",
+    synthesis_citation = if (identical(attr(synthetic, "engine", exact = TRUE), "synthpop")) {
+      synthpop_citation()
+    } else {
+      NULL
+    },
     dataset = list(
       n_rows_bucket = bucket_nrows(nrow(synthetic)),
       n_cols        = length(col_info)

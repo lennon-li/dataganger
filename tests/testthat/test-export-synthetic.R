@@ -180,6 +180,22 @@ test_that("export_synthetic() writes zip output", {
   )
 })
 
+test_that("export_synthetic() manifest records synthpop engine and citation", {
+  tmp <- withr::local_tempdir()
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 8)
+  attr(syn, "engine") <- "synthpop"
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "synthpop-bundle")
+  export_synthetic(syn, path = out_dir, format = "dir", include_report = FALSE)
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  expect_equal(manifest$engine, "synthpop")
+  expect_match(manifest$synthesis_citation, "Nowok B, Raab GM, Dibben C")
+  expect_match(manifest$synthesis_citation, "10.18637/jss.v074.i11", fixed = TRUE)
+})
+
 test_that("export_synthetic() omits original_variable for safer_external exports", {
   tmp <- withr::local_tempdir()
   data("example_health_survey", package = "dataganger")
