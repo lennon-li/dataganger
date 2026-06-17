@@ -1,6 +1,6 @@
 test_that("export_synthetic() requires explicit path", {
   syn <- tibble::tibble(x = 1:3)
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 1)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 1)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   expect_error(
@@ -14,7 +14,7 @@ test_that("export_synthetic() writes the full bundle file set", {
   data("example_health_survey", package = "dataganger")
 
   roles <- detect_roles(example_health_survey)
-  spec <- synth_spec(purpose = "ai_programming", seed = 1, n = 40)
+  spec <- synth_spec(purpose = "development", seed = 1, n = 40)
   syn <- synthesize_data(example_health_survey, spec, roles = roles)
   cmp <- compare_synthetic(example_health_survey, syn, roles = roles)
   prv <- privacy_check(example_health_survey, syn, roles = roles, stage = "post", spec = spec)
@@ -71,7 +71,7 @@ test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {
     text = c("=sum(A1:A2)", "  +oops", "-bad", "@cmd", "safe"),
     grp = factor(c("a", "b", "c", "d", "e"))
   )
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 2)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 2)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   out_dir <- file.path(tmp, "bundle-dir")
@@ -92,7 +92,7 @@ test_that("export_synthetic() warns but succeeds on exact-row matches by default
     grp = rep(letters[1:4], each = 5)
   )
   syn <- original
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 3)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 3)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   out_dir <- file.path(tmp, "warn-dir")
@@ -116,7 +116,7 @@ test_that("export_synthetic() errors on exact-row matches when fail_on_exact_mat
     grp = rep(letters[1:4], each = 5)
   )
   syn <- original
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 3)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 3)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   expect_error(
@@ -135,7 +135,7 @@ test_that("export_synthetic() refuses to overwrite existing output without flag"
   tmp <- withr::local_tempdir()
 
   syn <- tibble::tibble(x = 1:3)
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 4)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 4)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   out_dir <- file.path(tmp, "bundle-dir")
@@ -152,7 +152,7 @@ test_that("export_synthetic() writes zip output", {
   data("example_health_survey", package = "dataganger")
 
   roles <- detect_roles(example_health_survey)
-  spec <- synth_spec(purpose = "ai_programming", seed = 5, n = 30)
+  spec <- synth_spec(purpose = "development", seed = 5, n = 30)
   syn <- synthesize_data(example_health_survey, spec, roles = roles)
 
   zip_path <- file.path(tmp, "bundle.zip")
@@ -183,7 +183,7 @@ test_that("export_synthetic() writes zip output", {
 test_that("export_synthetic() manifest records synthpop engine and citation", {
   tmp <- withr::local_tempdir()
   syn <- tibble::tibble(x = 1:3)
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 8)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 8)
   attr(syn, "engine") <- "synthpop"
   class(syn) <- c("dataganger_synthetic", class(syn))
 
@@ -196,15 +196,16 @@ test_that("export_synthetic() manifest records synthpop engine and citation", {
   expect_match(manifest$synthesis_citation, "10.18637/jss.v074.i11", fixed = TRUE)
 })
 
-test_that("export_synthetic() omits original_variable for safer_external exports", {
+test_that("export_synthetic() omits original_variable when name_strategy is dictionary_only", {
   tmp <- withr::local_tempdir()
   data("example_health_survey", package = "dataganger")
 
   roles <- detect_roles(example_health_survey)
-  spec <- synth_spec(purpose = "safer_external")
+  spec <- synth_spec(purpose = "demo")
+  spec$name_strategy <- "dictionary_only"
   syn <- synthesize_data(example_health_survey, spec, roles = roles)
 
-  out_dir <- file.path(tmp, "safer-external-bundle")
+  out_dir <- file.path(tmp, "dictionary-only-bundle")
   export_synthetic(
     syn,
     original = example_health_survey,
@@ -223,7 +224,7 @@ test_that("export_synthetic() omits original_variable for safer_external exports
 test_that("export_synthetic() skips report gracefully when report deps are unavailable", {
   tmp <- withr::local_tempdir()
   syn <- tibble::tibble(x = 1:3)
-  attr(syn, "spec") <- synth_spec(purpose = "teaching", seed = 9)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 9)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
   testthat::local_mocked_bindings(

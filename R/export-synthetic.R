@@ -22,8 +22,8 @@
 #'   purpose recorded in `attr(synthetic, "spec")` when available.
 #' @param include_original_names Logical or `NULL`. Controls whether
 #'   `data_dictionary.csv` includes original variable names. When `NULL`, this
-#'   defaults to `TRUE` for `purpose = "ai_programming"` and `FALSE` for
-#'   `purpose = "safer_external"` or `name_strategy = "dictionary_only"`.
+#'   defaults to `TRUE` unless `name_strategy = "dictionary_only"`, in which
+#'   case it defaults to `FALSE`.
 #' @param fail_on_exact_match Logical. When `TRUE`, abort export if exact-row
 #'   matches are detected for `nrow(original) >= 20`. When `FALSE` (the
 #'   default), exact-row matches are recorded in the privacy report and
@@ -42,7 +42,7 @@
 #'
 #' @examples
 #' dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
-#' spec <- synth_spec(purpose = "teaching", seed = 1)
+#' spec <- synth_spec(purpose = "demo", seed = 1)
 #' syn <- synthesize_data(dat, spec)
 #' \dontrun{
 #' export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))
@@ -751,14 +751,6 @@ resolve_include_original_names <- function(include_original_names, purpose, spec
 
   if (identical(spec$name_strategy, "dictionary_only")) {
     return(FALSE)
-  }
-
-  if (identical(purpose, "safer_external")) {
-    return(FALSE)
-  }
-
-  if (identical(purpose, "ai_programming")) {
-    return(TRUE)
   }
 
   TRUE

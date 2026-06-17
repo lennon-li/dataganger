@@ -5,7 +5,7 @@ test_that("make_agent_bundle() produces a valid zip with all required files", {
   make_agent_bundle(
     file    = testthat::test_path("fixtures", "tiny.csv"),
     out     = out,
-    purpose = "ai_programming",
+    purpose = "development",
     seed    = 42L
   )
 
@@ -27,9 +27,10 @@ test_that("make_agent_bundle() diagnostic_view.json has valid shape", {
   out <- file.path(tmp, "agent.zip")
 
   make_agent_bundle(
-    file = testthat::test_path("fixtures", "tiny.csv"),
-    out  = out,
-    seed = 1L
+    file    = testthat::test_path("fixtures", "tiny.csv"),
+    out     = out,
+    purpose = "demo",
+    seed    = 1L
   )
 
   extract_dir <- file.path(tmp, "extracted")
@@ -38,7 +39,7 @@ test_that("make_agent_bundle() diagnostic_view.json has valid shape", {
   diag <- jsonlite::read_json(file.path(extract_dir, "diagnostic_view.json"))
 
   expect_equal(diag$source,  "dataganger")
-  expect_equal(diag$purpose, "ai_programming")
+  expect_equal(diag$purpose, "demo")
   expect_equal(diag$engine,  "internal")
   expect_null(diag$synthesis_citation)
   expect_type(diag$dataganger_version,      "character")

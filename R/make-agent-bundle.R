@@ -6,7 +6,7 @@
 #'
 #' @param file Path to the input data file. Passed to [read_input()].
 #' @param out Path for the output zip file.
-#' @param purpose Synthesis purpose preset. Defaults to \code{"ai_programming"}.
+#' @param purpose Synthesis purpose preset. Defaults to \code{"development"}.
 #'   See [synth_spec()] for valid values.
 #' @param seed Optional integer random seed for reproducible synthesis.
 #' @param overwrite Logical. When \code{FALSE} (the default), aborts if
@@ -24,7 +24,7 @@
 #'   out  = tempfile(fileext = ".zip")
 #' )
 #' }
-make_agent_bundle <- function(file, out, purpose = "ai_programming",
+make_agent_bundle <- function(file, out, purpose = "development",
                               seed = NULL, overwrite = FALSE, ...) {
   if (!is.character(out) || length(out) != 1L || !nzchar(out)) {
     cli::cli_abort("{.arg out} must be a single non-empty character string")

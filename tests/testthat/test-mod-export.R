@@ -1,7 +1,7 @@
 # Tests for mod_export_ui / mod_export_server
 # Uses testServer() - no runApp(), no browser()
 
-export_test_state <- function(purpose = "ai_programming", seed = 1L) {
+export_test_state <- function(purpose = "development", seed = 1L) {
   toy_data <- data.frame(secret_col = 1:3, val = c("x", "y", "z"))
 
   shiny::reactiveValues(
@@ -20,10 +20,10 @@ export_test_state <- function(purpose = "ai_programming", seed = 1L) {
   )
 }
 
-test_that("mod_export_server passes include_original_names=FALSE for safer_external", {
+test_that("mod_export_server passes include_original_names=FALSE for demo", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- export_test_state("safer_external")
+  state <- export_test_state("demo")
 
   shiny::testServer(mod_export_server, args = list(state = state), {
     session$setInputs(format = "csv", include_report = FALSE, fail_on_exact = FALSE)
@@ -37,10 +37,10 @@ test_that("mod_export_server passes include_original_names=FALSE for safer_exter
   })
 })
 
-test_that("mod_export_server exposes include_original_names=TRUE for ai_programming", {
+test_that("mod_export_server exposes include_original_names=TRUE for development", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- export_test_state("ai_programming")
+  state <- export_test_state("development")
 
   shiny::testServer(mod_export_server, args = list(state = state), {
     session$flushReact()
@@ -54,7 +54,7 @@ test_that("mod_export_server exposes include_original_names=TRUE for ai_programm
 test_that("download filename includes seed from state$seed_used", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- export_test_state(purpose = "ai_programming", seed = 12345L)
+  state <- export_test_state(purpose = "development", seed = 12345L)
 
   shiny::testServer(mod_export_server, args = list(state = state), {
     session$setInputs(format = "csv", include_report = FALSE, fail_on_exact = FALSE)
@@ -66,7 +66,7 @@ test_that("download filename includes seed from state$seed_used", {
 test_that("rds download filename also includes seed", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- export_test_state(purpose = "ai_programming", seed = 7L)
+  state <- export_test_state(purpose = "development", seed = 7L)
 
   shiny::testServer(mod_export_server, args = list(state = state), {
     session$setInputs(format = "rds", include_report = FALSE, fail_on_exact = FALSE)

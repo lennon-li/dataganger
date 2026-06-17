@@ -36,13 +36,13 @@ test_that("spec command writes synth spec YAML", {
   tmp <- withr::local_tempdir()
   out_path <- file.path(tmp, "spec.yaml")
 
-  result <- run_cli(c("spec", "--purpose", "ai_programming", "--out", out_path))
+  result <- run_cli(c("spec", "--purpose", "development", "--out", out_path))
 
   expect_identical(result$code, 0L)
   expect_true(file.exists(out_path))
 
   spec <- yaml::read_yaml(out_path)
-  expect_equal(spec$purpose, "ai_programming")
+  expect_equal(spec$purpose, "development")
   expect_equal(spec$level, "marginal")
   expect_equal(spec$name_strategy, "preserve")
   expect_equal(spec$engine_required, "internal")
@@ -74,7 +74,7 @@ test_that("synthesize command writes standard bundle zip", {
   data_path <- cli_fixture_csv(tmp)
   spec_path <- file.path(tmp, "spec.yaml")
   out_path <- file.path(tmp, "synthetic_bundle.zip")
-  yaml::write_yaml(list(purpose = "teaching", n = 5, seed = 123), spec_path)
+  yaml::write_yaml(list(purpose = "demo", n = 5, seed = 123), spec_path)
 
   result <- run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path))
 
@@ -102,7 +102,7 @@ test_that("inspect command summarizes bundle without original data", {
   data_path <- cli_fixture_csv(tmp)
   spec_path <- file.path(tmp, "spec.yaml")
   bundle_path <- file.path(tmp, "synthetic_bundle.zip")
-  yaml::write_yaml(list(purpose = "teaching", n = 5, seed = 123), spec_path)
+  yaml::write_yaml(list(purpose = "demo", n = 5, seed = 123), spec_path)
   expect_identical(
     dataganger_cli(c("synthesize", data_path, "--spec", spec_path, "--out", bundle_path), quit = FALSE),
     0L
@@ -150,7 +150,7 @@ test_that("make-agent-bundle exits 2 when --out is missing", {
   expect_identical(result$code, 2L)
 })
 
-test_that("make-agent-bundle uses ai_programming as default purpose", {
+test_that("make-agent-bundle uses development as default purpose", {
   tmp       <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)
   out_path  <- file.path(tmp, "agent.zip")
@@ -162,7 +162,7 @@ test_that("make-agent-bundle uses ai_programming as default purpose", {
   dir.create(extract_dir)
   utils::unzip(out_path, exdir = extract_dir)
   diag <- jsonlite::read_json(file.path(extract_dir, "diagnostic_view.json"))
-  expect_equal(diag$purpose, "ai_programming")
+  expect_equal(diag$purpose, "development")
 })
 
 test_that("export-diagnostic command writes valid diagnostic JSON", {
@@ -195,7 +195,7 @@ test_that("synthesize --engine internal works (explicit flag)", {
   spec_path <- file.path(tmp, "spec.yaml")
   out_path  <- file.path(tmp, "bundle.zip")
 
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   yaml::write_yaml(unclass(spec), spec_path)
 
   result <- run_cli(c("synthesize", data_path,
@@ -206,7 +206,7 @@ test_that("synthesize --engine internal works (explicit flag)", {
   expect_true(file.exists(out_path))
 })
 
-test_that("synthesize routes model_prototype to synthpop and records provenance (no --engine)", {
+test_that("synthesize routes development to synthpop and records provenance (no --engine)", {
   skip_if_not_installed("synthpop")
   tmp       <- withr::local_tempdir()
   data_path <- file.path(tmp, "data.csv")
@@ -224,8 +224,8 @@ test_that("synthesize routes model_prototype to synthpop and records provenance 
     ),
     data_path
   )
-  # model_prototype presets preserve_correlations = "moderate" -> synthpop engine
-  yaml::write_yaml(list(purpose = "model_prototype", n = n, seed = 7L), spec_path)
+  # development presets preserve_correlations = "moderate" -> synthpop engine
+  yaml::write_yaml(list(purpose = "development", n = n, seed = 7L), spec_path)
 
   # small synthetic data can trip the exact-row-match privacy warning; not under test here
   result <- suppressWarnings(
@@ -246,12 +246,12 @@ test_that("synthesize routes model_prototype to synthpop and records provenance 
   expect_true("lab_value" %in% names(syn))  # distinctive numeric survived end-to-end
 })
 
-test_that("synthesize records internal engine and no synthpop citation for teaching", {
+test_that("synthesize records internal engine and no synthpop citation for demo", {
   tmp       <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)
   spec_path <- file.path(tmp, "spec.yaml")
   out_path  <- file.path(tmp, "bundle.zip")
-  yaml::write_yaml(list(purpose = "teaching", n = 5, seed = 123), spec_path)
+  yaml::write_yaml(list(purpose = "demo", n = 5, seed = 123), spec_path)
 
   result <- suppressWarnings(
     run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path))

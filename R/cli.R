@@ -351,7 +351,7 @@ cli_cmd_make_agent_bundle <- function(args) {
   parsed  <- cli_parse_options(args, allowed = c("out", "purpose", "seed"))
   input   <- cli_require_n_positionals(parsed, 1L, "make-agent-bundle", "data file")[[1]]
   out     <- cli_require_option(parsed, "out")
-  purpose <- parsed$options[["purpose"]] %||% "ai_programming"
+  purpose <- parsed$options[["purpose"]] %||% "development"
   seed    <- if (!is.null(parsed$options[["seed"]])) {
     as.integer(parsed$options[["seed"]])
   } else {

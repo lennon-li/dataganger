@@ -25,7 +25,7 @@
 #'
 #' @examples
 #' orig <- data.frame(x = 1:10, y = factor(letters[1:10]))
-#' spec <- synth_spec(purpose = "teaching")
+#' spec <- synth_spec(purpose = "demo")
 #' syn  <- synthesize_data(orig, spec)
 #' check_code_readiness(orig, syn)
 check_code_readiness <- function(original, synthetic, roles = NULL) {

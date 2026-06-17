@@ -48,12 +48,12 @@ test_that("unknown options are syntax errors", {
 test_that("CLI reconstructs dataganger_spec from YAML", {
   tmp <- withr::local_tempdir()
   path <- file.path(tmp, "spec.yaml")
-  yaml::write_yaml(list(purpose = "teaching", n = 3, seed = 99), path)
+  yaml::write_yaml(list(purpose = "demo", n = 3, seed = 99), path)
 
   spec <- dataganger:::cli_read_spec_yaml(path)
 
   expect_s3_class(spec, "dataganger_spec")
-  expect_equal(spec$purpose, "teaching")
+  expect_equal(spec$purpose, "demo")
   expect_equal(spec$n, 3)
   expect_equal(spec$seed, 99)
 })
