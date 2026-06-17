@@ -7,7 +7,7 @@
 make_agent_bundle(
   file,
   out,
-  purpose = "ai_programming",
+  purpose = "development",
   seed = NULL,
   overwrite = FALSE,
   ...
@@ -18,7 +18,7 @@ make_agent_bundle(
 
 \item{out}{Path for the output zip file.}
 
-\item{purpose}{Synthesis purpose preset. Defaults to \code{"ai_programming"}.
+\item{purpose}{Synthesis purpose preset. Defaults to \code{"development"}.
 See \code{\link[=synth_spec]{synth_spec()}} for valid values.}
 
 \item{seed}{Optional integer random seed for reproducible synthesis.}

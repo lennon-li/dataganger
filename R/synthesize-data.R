@@ -20,7 +20,7 @@
 #'
 #' @examples
 #' dat <- data.frame(x = 1:5, y = letters[1:5])
-#' spec <- synth_spec(purpose = "teaching")
+#' spec <- synth_spec(purpose = "demo")
 #' syn <- synthesize_data(dat, spec)
 synthesize_data <- function(data, spec, roles = NULL,
                             engine = NULL) {

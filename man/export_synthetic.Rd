@@ -47,8 +47,8 @@ purpose recorded in \code{attr(synthetic, "spec")} when available.}
 
 \item{include_original_names}{Logical or \code{NULL}. Controls whether
 \code{data_dictionary.csv} includes original variable names. When \code{NULL}, this
-defaults to \code{TRUE} for \code{purpose = "ai_programming"} and \code{FALSE} for
-\code{purpose = "safer_external"} or \code{name_strategy = "dictionary_only"}.}
+defaults to \code{TRUE} unless \code{name_strategy = "dictionary_only"}, in which
+case it defaults to \code{FALSE}.}
 
 \item{fail_on_exact_match}{Logical. When \code{TRUE}, abort export if exact-row
 matches are detected for \code{nrow(original) >= 20}. When \code{FALSE} (the
@@ -76,7 +76,7 @@ re-loading the bundle. By default the bundle is written as a zip archive.
 }
 \examples{
 dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
-spec <- synth_spec(purpose = "teaching", seed = 1)
+spec <- synth_spec(purpose = "demo", seed = 1)
 syn <- synthesize_data(dat, spec)
 \dontrun{
 export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))

@@ -37,7 +37,7 @@ library(dataganger)
 # dat     <- read_input("my-data.csv")
 # profile <- profile_data(dat)
 # roles   <- detect_roles(dat, profile)
-# spec    <- synth_spec(purpose = "ai_programming", roles = roles, seed = 42)
+# spec    <- synth_spec(purpose = "development", roles = roles, seed = 42)
 # syn     <- synthesize_data(dat, spec, roles)
 # export_synthetic(syn, original = dat, path = "output.zip")
 ```
@@ -61,8 +61,8 @@ doi:10.18637/jss.v074.i11
 
 - **Package-first.** All core functions work from the R console; Shiny is an
   optional interface layer.
-- **Configurable disclosure posture.** Each synthesis purpose (`ai_programming`,
-  `teaching`, `safer_external`, etc.) applies appropriate defaults for coarsening,
+- **Configurable disclosure posture.** Each synthesis purpose (`development`,
+  `demo`, `analytics`, etc.) applies appropriate defaults for coarsening,
   name handling, and rare-level treatment.
 - **Honest comparisons.** The comparison report quantifies how closely the
   synthetic data mirrors the original so you can make an informed sharing
