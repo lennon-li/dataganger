@@ -1,4 +1,4 @@
-make_manifest_for_test <- function(purpose = "ai_programming", seed = 42L,
+make_manifest_for_test <- function(purpose = "development", seed = 42L,
                                     n = 10L) {
   df <- data.frame(
     id    = seq_len(n),
@@ -56,7 +56,7 @@ test_that("manifest.json plots_included is always false", {
 })
 
 test_that("manifest.json factor_levels_included is true for marginal synthesis", {
-  m <- make_manifest_for_test(purpose = "ai_programming")
+  m <- make_manifest_for_test(purpose = "development")
   expect_true(isTRUE(m$factor_levels_included))
 })
 
@@ -64,7 +64,7 @@ test_that("manifest.json factor_levels_included is false for schema synthesis", 
   df <- data.frame(x = 1:10, y = rep(c("a", "b"), 5), stringsAsFactors = FALSE)
   tmp  <- withr::local_tempdir()
   out  <- file.path(tmp, "bundle.zip")
-  spec <- synth_spec(purpose = "safer_external")
+  spec <- synth_spec(purpose = "demo", level = "schema")
   synthetic <- synthesize_data(df, spec)
   export_synthetic(synthetic, original = df, path = out, format = "zip")
 
@@ -89,7 +89,7 @@ test_that("manifest.json original_rows_bucket is null when original not supplied
   df  <- data.frame(x = 1:5)
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "bundle.zip")
-  spec      <- synth_spec(purpose = "ai_programming")
+  spec      <- synth_spec(purpose = "demo")
   synthetic <- synthesize_data(df, spec)
   export_synthetic(synthetic, path = out, format = "zip")
 

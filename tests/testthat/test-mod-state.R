@@ -5,7 +5,7 @@ test_that("new upload resets downstream state and clears stale flags", {
     state <- session$getReturned()
 
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
-    state$spec <- list(purpose = "ai_programming")
+    state$spec <- list(purpose = "development")
     state$synthetic <- tibble::tibble(x = 1)
     state$comparison <- list(ok = TRUE)
     state$privacy <- tibble::tibble(flag = "none")
@@ -40,7 +40,7 @@ test_that("roles change invalidates downstream state and marks all stale", {
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
     session$flushReact()
 
-    state$spec <- list(purpose = "ai_programming")
+    state$spec <- list(purpose = "development")
     state$synthetic <- NULL
     state$comparison <- list(ok = TRUE)
     state$privacy <- tibble::tibble(flag = "none")
@@ -71,7 +71,7 @@ test_that("spec change invalidates synthesis outputs and marks all stale", {
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
     session$flushReact()
 
-    state$spec <- list(purpose = "ai_programming")
+    state$spec <- list(purpose = "development")
     session$flushReact()
 
     state$synthetic <- tibble::tibble(x = 4:6)
@@ -79,10 +79,10 @@ test_that("spec change invalidates synthesis outputs and marks all stale", {
     state$privacy <- tibble::tibble(flag = "none")
     state$stale <- list(synthesis = FALSE, comparison = FALSE, export = FALSE)
 
-    state$spec <- list(purpose = "teaching")
+    state$spec <- list(purpose = "demo")
     session$flushReact()
 
-    expect_identical(state$spec, list(purpose = "teaching"))
+    expect_identical(state$spec, list(purpose = "demo"))
     expect_null(state$synthetic)
     expect_null(state$comparison)
     expect_null(state$privacy)

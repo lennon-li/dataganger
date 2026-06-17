@@ -65,7 +65,7 @@ test_that("second upload replaces raw_data and clears downstream state", {
     session$flushReact()
 
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
-    state$spec <- list(purpose = "ai_programming")
+    state$spec <- list(purpose = "development")
     state$synthetic <- tibble::tibble(x = 1)
     state$comparison <- list(ok = TRUE)
     state$privacy <- tibble::tibble(flag = "none")

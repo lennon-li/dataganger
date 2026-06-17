@@ -15,7 +15,7 @@ compare_test_state <- function(raw_data = NULL, synthetic = NULL,
 comparison_fixture <- function(seed = 1) {
   data("example_health_survey", package = "dataganger")
 
-  spec <- synth_spec(purpose = "ai_programming", seed = seed)
+  spec <- synth_spec(purpose = "development", seed = seed)
   synthetic <- synthesize_data(example_health_survey, spec)
   roles <- detect_roles(example_health_survey)
   comparison <- compare_synthetic(

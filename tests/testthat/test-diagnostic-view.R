@@ -35,10 +35,10 @@ test_that("build_diagnostic_view() returns correct structure", {
     stringsAsFactors = FALSE
   )
 
-  result <- build_diagnostic_view(roles, dictionary, synthetic, "ai_programming")
+  result <- build_diagnostic_view(roles, dictionary, synthetic, "development")
 
   expect_equal(result$source,  "dataganger")
-  expect_equal(result$purpose, "ai_programming")
+  expect_equal(result$purpose, "development")
   expect_type(result$dataganger_version, "character")
   expect_equal(result$dataset$n_rows_bucket, "100-999")
   expect_equal(result$dataset$n_cols, 4L)
@@ -74,7 +74,7 @@ test_that("build_diagnostic_view() blocked$free_text_examples is FALSE when no f
 
   synthetic <- data.frame(id = 1:10, score = 1:10)
 
-  result <- build_diagnostic_view(roles, dictionary, synthetic, "teaching")
+  result <- build_diagnostic_view(roles, dictionary, synthetic, "demo")
   expect_false(result$blocked$free_text_examples)
   expect_true(result$blocked$ids_synthesized)
 })
@@ -99,6 +99,6 @@ test_that("build_diagnostic_view() blocked$ids_synthesized is FALSE when no IDs"
   synthetic <- data.frame(grp = letters[1:5], score = 1:5,
                            stringsAsFactors = FALSE)
 
-  result <- build_diagnostic_view(roles, dictionary, synthetic, "teaching")
+  result <- build_diagnostic_view(roles, dictionary, synthetic, "demo")
   expect_false(result$blocked$ids_synthesized)
 })

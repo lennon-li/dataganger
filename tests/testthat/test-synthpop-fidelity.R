@@ -14,11 +14,11 @@ test_that("synthpop preserves a correlation that the internal engine destroys", 
   roles <- detect_roles(df)
   orig_cor <- abs(stats::cor(df$x, df$y))
 
-  spec_int <- synth_spec("teaching", seed = 1L)                          # none -> internal
+  spec_int <- synth_spec("demo", seed = 1L)                          # none -> internal
   syn_int <- synthesize_data(df, spec_int, roles = roles)
   cor_int <- abs(stats::cor(syn_int$x, syn_int$y))
 
-  spec_sp <- suppressWarnings(synth_spec("model_prototype", seed = 1L))  # moderate -> synthpop
+  spec_sp <- suppressWarnings(synth_spec("development", seed = 1L))  # moderate -> synthpop
   syn_sp <- synthesize_data(df, spec_sp, roles = roles)
   expect_equal(attr(syn_sp, "engine"), "synthpop")
   cor_sp <- abs(stats::cor(syn_sp$x, syn_sp$y))
@@ -41,7 +41,7 @@ test_that("distinctive numeric survives synthpop; only the ID-named column drops
   expect_equal(roles$recommended_role[roles$variable == "lab_value"], "numeric")
   expect_equal(roles$recommended_role[roles$variable == "patient_label"], "ID candidate")
 
-  spec <- suppressWarnings(synth_spec("model_prototype", seed = 2L))
+  spec <- suppressWarnings(synth_spec("development", seed = 2L))
   syn <- synthesize_data(df, spec, roles = roles)
   expect_equal(attr(syn, "engine"), "synthpop")
   expect_true("lab_value" %in% names(syn))
@@ -54,7 +54,7 @@ test_that("density smoothing keeps continuous values within a sane envelope", {
   set.seed(3)
   df <- data.frame(pct = runif(300, 0, 100), age = round(rnorm(300, 40, 10)))
   roles <- detect_roles(df)
-  spec <- suppressWarnings(synth_spec("model_prototype", seed = 3L))
+  spec <- suppressWarnings(synth_spec("development", seed = 3L))
   syn <- synthesize_data(df, spec, roles = roles)
   expect_equal(attr(syn, "engine"), "synthpop")
 
@@ -69,7 +69,7 @@ test_that("derived synthpop falls back to internal with a warning when synthpop 
   local_mocked_bindings(synthpop_available = function() FALSE)
   df <- data.frame(x = rnorm(30), y = rnorm(30))
   roles <- detect_roles(df)
-  spec <- suppressWarnings(synth_spec("model_prototype", seed = 1L))  # derived -> synthpop
+  spec <- suppressWarnings(synth_spec("development", seed = 1L))  # derived -> synthpop
   expect_warning(
     syn <- synthesize_data(df, spec, roles = roles),
     "marginal engine"
@@ -81,7 +81,7 @@ test_that("explicit engine = 'synthpop' errors when synthpop is unavailable", {
   local_mocked_bindings(synthpop_available = function() FALSE)
   df <- data.frame(x = rnorm(30), y = rnorm(30))
   roles <- detect_roles(df)
-  spec <- synth_spec("teaching")
+  spec <- synth_spec("demo")
   expect_error(
     synthesize_data(df, spec, roles = roles, engine = "synthpop"),
     "synthpop"

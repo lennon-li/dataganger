@@ -85,7 +85,7 @@ test_that("privacy_check() post flags unmasked ID columns", {
     x  = rep(1:5, 10)
   )
   roles <- detect_roles(df)
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "demo", n = 20)
   # Don't set remove_ids, so ID stays
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
@@ -98,7 +98,7 @@ test_that("privacy_check() post exact-row match check", {
     x  = rep(1:10, 5)
   )
   roles <- detect_roles(df)
-  spec <- synth_spec(purpose = "teaching", n = 200, seed = 1)
+  spec <- synth_spec(purpose = "demo", n = 200, seed = 1)
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   expect_s3_class(pc, "dataganger_privacy_check")
@@ -107,7 +107,7 @@ test_that("privacy_check() post exact-row match check", {
 
 test_that("privacy_check() post skips row-match when nrow < 20", {
   df <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   pc <- privacy_check(df, syn, stage = "post")
   expect_false(any(grepl("exact-row", pc$flag)))
@@ -118,7 +118,7 @@ test_that("privacy_check() post flags rare-category survival", {
   df <- data.frame(
     f = factor(c(rep("common", 95), rep("rare", 5)))
   )
-  spec <- synth_spec(purpose = "teaching", n = 50, rare_level_min_n = 10)
+  spec <- synth_spec(purpose = "demo", n = 50, rare_level_min_n = 10)
   syn <- synthesize_data(df, spec)
   pc <- privacy_check(df, syn, stage = "post", spec = spec)
   expect_s3_class(pc, "dataganger_privacy_check")
@@ -128,7 +128,7 @@ test_that("privacy_check() post flags date precision when coarsen_dates = TRUE",
   df <- data.frame(
     dt = as.Date("2024-01-01") + 0:29
   )
-  spec <- synth_spec(purpose = "teaching", n = 20, coarsen_dates = TRUE)
+  spec <- synth_spec(purpose = "demo", n = 20, coarsen_dates = TRUE)
   syn <- synthesize_data(df, spec)
   pc <- privacy_check(df, syn, stage = "post", spec = spec)
   # Dates should be coarsened to month, so post check should pass without MEDIUM flag
@@ -142,7 +142,7 @@ test_that("privacy_check() post with masked IDs is clean", {
     x = rnorm(50)
   )
   roles <- detect_roles(df)
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "demo", n = 20)
   spec$remove_ids <- TRUE
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
@@ -154,7 +154,7 @@ test_that("privacy_check() post with masked IDs is clean", {
 test_that("privacy_check() internal path does not add synthpop disclosure", {
   df <- data.frame(city = rep(c("Toronto", "Ottawa"), 20), group = rep(letters[1:4], 10))
   roles <- detect_roles(df)
-  spec <- synth_spec(purpose = "teaching", n = 20, seed = 1L)
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 1L)
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post", spec = spec)
   expect_null(attr(pc, "synthpop_disclosure", exact = TRUE))
@@ -195,7 +195,7 @@ test_that("privacy_check() computes synthpop disclosure when synthpop is install
     stringsAsFactors = FALSE
   )
   roles <- detect_roles(df)
-  spec <- suppressWarnings(synth_spec(purpose = "model_prototype", n = 30, seed = 1L))
+  spec <- suppressWarnings(synth_spec(purpose = "development", n = 30, seed = 1L))
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post", spec = spec)
   expect_equal(attr(syn, "engine"), "synthpop")
@@ -236,7 +236,7 @@ test_that("privacy_check() end-to-end on example_health_survey", {
   expect_s3_class(pc_pre, "dataganger_privacy_check")
   expect_true(any(pc_pre$severity == "HIGH"))
 
-  spec <- synth_spec(purpose = "ai_programming", seed = 1, n = 50)
+  spec <- synth_spec(purpose = "development", seed = 1, n = 50)
   syn <- synthesize_data(example_health_survey, spec, roles = roles)
   pc_post <- privacy_check(example_health_survey, syn, roles = roles, stage = "post")
   expect_s3_class(pc_post, "dataganger_privacy_check")

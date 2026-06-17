@@ -4,7 +4,7 @@
 
 test_that("synthesize_data() schema level returns typed placeholder rows", {
   df <- data.frame(x = 1:5, y = letters[1:5])
-  spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
+  spec <- synth_spec(purpose = "demo", level = "schema", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
   expect_s3_class(syn, "dataganger_synthetic")
   expect_s3_class(syn, "tbl_df")
@@ -22,7 +22,7 @@ test_that("synthesize_data() schema preserves types", {
     dt   = as.Date(c("2024-01-01", "2024-02-01", "2024-03-01")),
     stringsAsFactors = FALSE
   )
-  spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
+  spec <- synth_spec(purpose = "demo", level = "schema", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
   expect_type(syn$num, "double")
   expect_type(syn$chr, "character")
@@ -35,7 +35,7 @@ test_that("synthesize_data() schema with haven_labelled", {
   df <- tibble::tibble(
     status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2))
   )
-  spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
+  spec <- synth_spec(purpose = "demo", level = "schema", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), nrow(df))
   expect_equal(ncol(syn), 1)
@@ -46,7 +46,7 @@ test_that("synthesize_data() schema with haven_labelled", {
 
 test_that("synthesize_data() marginal returns correct dimensions", {
   df <- data.frame(x = 1:10, y = letters[1:10])
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "demo", n = 20)
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 20)
   expect_equal(ncol(syn), 2)
@@ -56,7 +56,7 @@ test_that("synthesize_data() marginal returns correct dimensions", {
 test_that("synthesize_data() marginal numeric column", {
   set.seed(1)
   df <- data.frame(val = rnorm(100, mean = 50, sd = 10))
-  spec <- synth_spec(purpose = "teaching", n = 200)
+  spec <- synth_spec(purpose = "demo", n = 200)
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 200)
   expect_type(syn$val, "double")
@@ -66,7 +66,7 @@ test_that("synthesize_data() marginal numeric column", {
 
 test_that("synthesize_data() marginal factor column", {
   df <- data.frame(group = factor(rep(c("A", "B", "C"), each = 10)))
-  spec <- synth_spec(purpose = "teaching", n = 50)
+  spec <- synth_spec(purpose = "demo", n = 50)
   syn <- synthesize_data(df, spec)
   expect_s3_class(syn$group, "factor")
   expect_true(all(as.character(syn$group) %in% c("A", "B", "C")))
@@ -76,14 +76,14 @@ test_that("synthesize_data() marginal Date column", {
   df <- data.frame(
     dt = as.Date(c("2023-01-15", "2023-06-20", "2023-12-01"))
   )
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   syn <- synthesize_data(df, spec)
   expect_s3_class(syn$dt, "Date")
 })
 
 test_that("synthesize_data() marginal logical column", {
   df <- data.frame(flag = c(TRUE, FALSE, TRUE, TRUE))
-  spec <- synth_spec(purpose = "teaching", n = 50)
+  spec <- synth_spec(purpose = "demo", n = 50)
   syn <- synthesize_data(df, spec)
   expect_type(syn$flag, "logical")
 })
@@ -96,7 +96,7 @@ test_that("synthesize_data() marginal haven_labelled column", {
       label = "Status"
     )
   )
-  spec <- synth_spec(purpose = "teaching", n = 20, merge_rare = FALSE)
+  spec <- synth_spec(purpose = "demo", n = 20, merge_rare = FALSE)
   syn <- synthesize_data(df, spec)
   expect_type(syn$status, "character")
   expect_true(all(stats::na.omit(syn$status) %in% c("Active", "Inactive")))
@@ -107,7 +107,7 @@ test_that("synthesize_data() marginal POSIXct column", {
     ts = as.POSIXct(c("2024-01-01 12:00:00", "2024-06-15 08:30:00")),
     stringsAsFactors = FALSE
   )
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   syn <- synthesize_data(df, spec)
   expect_s3_class(syn$ts, "POSIXct")
 })
@@ -116,7 +116,7 @@ test_that("synthesize_data() preserves missingness at approximate rate", {
   df <- data.frame(
     val = c(rnorm(80), rep(NA_real_, 20))
   )
-  spec <- synth_spec(purpose = "teaching", n = 1000,
+  spec <- synth_spec(purpose = "demo", n = 1000,
                      preserve_missingness = "approx")
   syn <- synthesize_data(df, spec)
   na_rate <- sum(is.na(syn$val)) / nrow(syn)
@@ -125,7 +125,7 @@ test_that("synthesize_data() preserves missingness at approximate rate", {
 
 test_that("synthesize_data() missingness = none produces no NAs", {
   df <- data.frame(val = c(rnorm(5), NA))
-  spec <- synth_spec(purpose = "teaching", n = 50,
+  spec <- synth_spec(purpose = "demo", n = 50,
                      preserve_missingness = "none")
   syn <- synthesize_data(df, spec)
   expect_equal(sum(is.na(syn$val)), 0)
@@ -136,7 +136,7 @@ test_that("synthesize_data() missingness = none produces no NAs", {
 test_that("synthesize_data() errors when synthpop is not installed and engine = 'synthpop'", {
   skip_if(requireNamespace("synthpop", quietly = TRUE), "synthpop is installed")
   df   <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   expect_error(
     synthesize_data(df, spec, engine = "synthpop"),
     "synthpop"
@@ -145,7 +145,7 @@ test_that("synthesize_data() errors when synthpop is not installed and engine = 
 
 test_that("synthesize_data() accepts engine = 'marginal' as alias for internal", {
   df   <- data.frame(x = 1:10, y = rnorm(10))
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   syn  <- synthesize_data(df, spec, engine = "marginal")
   expect_s3_class(syn, "dataganger_synthetic")
 })
@@ -157,7 +157,7 @@ test_that("synthesize_data() derives synthpop when installed", {
     y = rep(letters[1:3], length.out = 30),
     stringsAsFactors = FALSE
   )
-  spec <- suppressWarnings(synth_spec(purpose = "model_prototype", seed = 1L))
+  spec <- suppressWarnings(synth_spec(purpose = "development", seed = 1L))
   syn <- synthesize_data(df, spec)
   expect_equal(attr(syn, "engine"), "synthpop")
 })
@@ -165,7 +165,7 @@ test_that("synthesize_data() derives synthpop when installed", {
 test_that("synthesize_data() falls back when derived synthpop is unavailable", {
   skip_if(requireNamespace("synthpop", quietly = TRUE), "synthpop is installed")
   df <- data.frame(x = 1:20, y = rep(letters[1:4], each = 5))
-  spec <- suppressWarnings(synth_spec(purpose = "model_prototype", seed = 1L))
+  spec <- suppressWarnings(synth_spec(purpose = "development", seed = 1L))
   expect_warning(
     syn <- synthesize_data(df, spec),
     "Install .*synthpop.*full-fidelity"
@@ -177,12 +177,12 @@ test_that("synthesize_data() falls back when derived synthpop is unavailable", {
 test_that("synthesize_data() routes objectives to expected engines", {
   df <- data.frame(x = 1:20, y = rep(letters[1:4], each = 5))
 
-  teaching <- synth_spec(purpose = "teaching", seed = 1L)
+  teaching <- synth_spec(purpose = "demo", seed = 1L)
   syn_teaching <- synthesize_data(df, teaching)
   expect_equal(attr(syn_teaching, "engine"), "internal")
 
-  model <- suppressWarnings(synth_spec(purpose = "model_prototype", seed = 1L))
-  hifi <- synth_spec(purpose = "internal_hifi", seed = 1L, acknowledge_risk = TRUE)
+  model <- suppressWarnings(synth_spec(purpose = "development", seed = 1L))
+  hifi <- synth_spec(purpose = "analytics", seed = 1L, acknowledge_risk = TRUE)
 
   if (requireNamespace("synthpop", quietly = TRUE)) {
     expect_equal(attr(synthesize_data(df, model), "engine"), "synthpop")
@@ -195,7 +195,7 @@ test_that("synthesize_data() routes objectives to expected engines", {
 
 test_that("synthesize_data() explicit internal overrides a synthpop-implying spec", {
   df <- data.frame(x = 1:5)
-  spec <- suppressWarnings(synth_spec(purpose = "model_prototype"))
+  spec <- suppressWarnings(synth_spec(purpose = "development"))
   syn <- synthesize_data(df, spec, engine = "internal")
   expect_equal(attr(syn, "engine"), "internal")
 })
@@ -204,7 +204,7 @@ test_that("synthesize_data() explicit internal overrides a synthpop-implying spe
 
 test_that("synthesize_data() seed produces identical output", {
   df <- data.frame(x = rnorm(50), y = letters[1:50])
-  spec <- synth_spec(purpose = "teaching", n = 30, seed = 42)
+  spec <- synth_spec(purpose = "demo", n = 30, seed = 42)
   syn1 <- synthesize_data(df, spec)
   syn2 <- synthesize_data(df, spec)
   expect_equal(syn1$x, syn2$x)
@@ -215,7 +215,7 @@ test_that("synthesize_data() seed isolation does not mutate global RNG", {
   df <- data.frame(x = 1:10)
   set.seed(999)
   before <- .Random.seed
-  spec <- synth_spec(purpose = "teaching", n = 5, seed = 123)
+  spec <- synth_spec(purpose = "demo", n = 5, seed = 123)
   syn <- synthesize_data(df, spec)
   after <- .Random.seed
   expect_equal(before, after)
@@ -225,7 +225,7 @@ test_that("synthesize_data() seed isolation does not mutate global RNG", {
 
 test_that("synthesize_data() all-NA numeric column", {
   df <- data.frame(x = rep(NA_real_, 10))
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 5)
   expect_true(all(is.na(syn$x)))
@@ -233,7 +233,7 @@ test_that("synthesize_data() all-NA numeric column", {
 
 test_that("synthesize_data() all-NA character column", {
   df <- data.frame(x = rep(NA_character_, 10))
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   expect_true(all(is.na(syn$x)))
 })
@@ -245,7 +245,7 @@ test_that("synthesize_data() all-NA haven_labelled column", {
       labels = c(A = 1, B = 2)
     )
   )
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   expect_true(all(is.na(syn$x)))
   expect_type(syn$x, "character")
@@ -253,14 +253,14 @@ test_that("synthesize_data() all-NA haven_labelled column", {
 
 test_that("synthesize_data() 1-level factor does not error", {
   df <- data.frame(f = factor(rep("only", 10)))
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "demo", n = 20)
   expect_no_error(syn <- synthesize_data(df, spec))
   expect_s3_class(syn$f, "factor")
 })
 
 test_that("synthesize_data() 0-row input schema works", {
   df <- data.frame(x = numeric(0), y = character(0))
-  spec <- synth_spec(purpose = "safer_external")
+  spec <- synth_spec(purpose = "demo", level = "schema")
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 0)
   expect_equal(ncol(syn), 2)
@@ -268,14 +268,14 @@ test_that("synthesize_data() 0-row input schema works", {
 
 test_that("synth_spec() rejects n = 0 for public API", {
   expect_error(
-    synth_spec(purpose = "teaching", n = 0),
+    synth_spec(purpose = "demo", n = 0),
     "must be > 0"
   )
 })
 
 test_that("synthesize_data() 1-row input does not error", {
   df <- data.frame(x = 42, y = "hello")
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   expect_no_error(syn <- synthesize_data(df, spec))
   expect_equal(nrow(syn), 10)
 })
@@ -285,7 +285,7 @@ test_that("synthesize_data() 100% missing column handled", {
     good = 1:10,
     all_na = rep(NA_real_, 10)
   )
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   expect_true(all(is.na(syn$all_na)))
   expect_false(all(is.na(syn$good)))
@@ -295,7 +295,7 @@ test_that("synthesize_data() 100% missing column handled", {
 
 test_that("synthesize_data() name_strategy 'generic' renames columns", {
   df <- data.frame(patient_name = 1:5, age_years = 21:25)
-  spec <- synth_spec(purpose = "teaching", n = 5, name_strategy = "generic")
+  spec <- synth_spec(purpose = "demo", n = 5, name_strategy = "generic")
   syn <- synthesize_data(df, spec)
   expect_named(syn, c("col_1", "col_2"))
   expect_equal(attr(syn, "spec")$name_map[["patient_name"]], "col_1")
@@ -304,7 +304,7 @@ test_that("synthesize_data() name_strategy 'generic' renames columns", {
 
 test_that("synthesize_data() name_strategy 'dictionary_only' renames and stores map", {
   df <- data.frame(patient_name = 1:5, age_years = 21:25)
-  spec <- synth_spec(purpose = "teaching", n = 5,
+  spec <- synth_spec(purpose = "demo", n = 5,
                      name_strategy = "dictionary_only")
   syn <- synthesize_data(df, spec)
   expect_named(syn, c("col_1", "col_2"))
@@ -315,7 +315,7 @@ test_that("synthesize_data() name_strategy 'dictionary_only' renames and stores 
 
 test_that("synthesize_data() name_strategy 'preserve' keeps original names", {
   df <- data.frame(patient_name = 1:5, age_years = 21:25)
-  spec <- synth_spec(purpose = "teaching", n = 5, name_strategy = "preserve")
+  spec <- synth_spec(purpose = "demo", n = 5, name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
   expect_named(syn, c("patient_name", "age_years"))
 })
@@ -324,7 +324,7 @@ test_that("synthesize_data() name_strategy 'preserve' keeps original names", {
 
 test_that("synthesize_data() returns correct attributes", {
   df <- data.frame(x = 1:10)
-  spec <- synth_spec(purpose = "teaching", n = 5, seed = 7)
+  spec <- synth_spec(purpose = "demo", n = 5, seed = 7)
   syn <- synthesize_data(df, spec)
   expect_true(!is.null(attr(syn, "spec")))
   expect_equal(attr(syn, "original_dims"), list(nrow = 10, ncol = 1))
@@ -336,7 +336,7 @@ test_that("synthesize_data() returns correct attributes", {
 
 test_that("synthesize_data() rejects non-data-frame", {
   expect_error(
-    synthesize_data("not data", synth_spec(purpose = "teaching")),
+    synthesize_data("not data", synth_spec(purpose = "demo")),
     "must be a data frame"
   )
 })
@@ -350,13 +350,13 @@ test_that("synthesize_data() rejects non-spec", {
 
 test_that("synthesize_data() roles are optional", {
   df <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   expect_no_error(synthesize_data(df, spec, roles = NULL))
 })
 
 test_that("synthesize_data() marginal with character column", {
   df <- data.frame(txt = rep(c("hello", "world", "foo", "bar"), each = 3))
-  spec <- synth_spec(purpose = "teaching", n = 20, merge_rare = FALSE)
+  spec <- synth_spec(purpose = "demo", n = 20, merge_rare = FALSE)
   syn <- synthesize_data(df, spec)
   expect_type(syn$txt, "character")
   expect_true(all(syn$txt %in% c("hello", "world", "foo", "bar", NA)))
@@ -364,7 +364,7 @@ test_that("synthesize_data() marginal with character column", {
 
 test_that("synthesize_data() default n equals nrow(original)", {
   df <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "teaching")  # n = NULL
+  spec <- synth_spec(purpose = "demo")  # n = NULL
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 5)
 })
@@ -372,7 +372,7 @@ test_that("synthesize_data() default n equals nrow(original)", {
 test_that("synthesize_data() free text dropped when strategy is drop", {
   long_strings <- sprintf("very_long_text_for_free_text_test_%040d", 1:20)
   df <- data.frame(notes = long_strings, x = 1:20)
-  spec <- synth_spec(purpose = "teaching", n = 10,
+  spec <- synth_spec(purpose = "demo", n = 10,
                      free_text_strategy = "drop")
   syn <- synthesize_data(df, spec)
   expect_true(all(is.na(syn$notes)))
@@ -388,7 +388,7 @@ test_that("synthesize_data() marginal mixed types all work", {
     d = as.Date("2024-01-01") + 0:9,
     stringsAsFactors = FALSE
   )
-  spec <- synth_spec(purpose = "teaching", n = 30)
+  spec <- synth_spec(purpose = "demo", n = 30)
   expect_no_error(syn <- synthesize_data(df, spec))
   expect_equal(nrow(syn), 30)
   expect_equal(ncol(syn), 5)
@@ -404,7 +404,7 @@ test_that("simulation treatment passes through and drops columns", {
   roles <- detect_roles(df)
   roles$simulation[roles$variable == "id"] <- "pass_through"
   roles$simulation[roles$variable == "omit"] <- "drop"
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
 
   syn <- synthesize_data(df, spec, roles = roles)
 
@@ -417,7 +417,7 @@ test_that("pass-through treatment requires original row count", {
   df <- data.frame(id = sprintf("ID%03d", 1:30), x = 1:30)
   roles <- detect_roles(df)
   roles$simulation[roles$variable == "id"] <- "pass_through"
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
 
   expect_error(
     synthesize_data(df, spec, roles = roles),
@@ -429,7 +429,7 @@ test_that("name_strategy maps only output columns after drop treatment", {
   df <- data.frame(keep = 1:10, omit = 11:20)
   roles <- detect_roles(df)
   roles$simulation[roles$variable == "omit"] <- "drop"
-  spec <- synth_spec(purpose = "teaching", name_strategy = "generic")
+  spec <- synth_spec(purpose = "demo", name_strategy = "generic")
 
   syn <- synthesize_data(df, spec, roles = roles)
   nm <- attr(syn, "spec")$name_map
@@ -449,7 +449,7 @@ test_that("remove_ids masks ID columns with NA", {
     x  = rep(1:5, 10)
   )
   roles <- detect_roles(df)
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   spec$remove_ids <- TRUE
   syn <- synthesize_data(df, spec, roles = roles)
   expect_true(all(is.na(syn$id)))
@@ -462,7 +462,7 @@ test_that("schema synthesis handles haven_labelled column without error", {
     status = haven::labelled(c(1, 2, 1), labels = c(A = 1, B = 2)),
     x      = 1:3
   )
-  spec <- synth_spec(purpose = "safer_external", name_strategy = "preserve")
+  spec <- synth_spec(purpose = "demo", level = "schema", name_strategy = "preserve")
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), nrow(df))
   expect_equal(ncol(syn), 2)
@@ -474,7 +474,7 @@ test_that("factor synthesis preserves rare levels in levels()", {
   df <- data.frame(
     f = factor(c(rep("common", 199), "rare"))
   )
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   syn <- synthesize_data(df, spec)
   expect_s3_class(syn$f, "factor")
   expect_true("rare" %in% levels(syn$f))
@@ -483,7 +483,7 @@ test_that("factor synthesis preserves rare levels in levels()", {
 # Fix 4 - name_map stored inside spec attribute
 test_that("name_strategy dictionary_only stores name_map in spec attr", {
   df <- data.frame(patient_name = 1:5, age_years = 21:25)
-  spec <- synth_spec(purpose = "teaching", n = 5,
+  spec <- synth_spec(purpose = "demo", n = 5,
                      name_strategy = "dictionary_only")
   syn <- synthesize_data(df, spec)
   nm <- attr(syn, "spec")$name_map
@@ -498,7 +498,7 @@ test_that("rare-merge uses .other sentinel not other", {
   df <- data.frame(
     f = factor(c(rep("other", 100), rep("x", 3), rep("y", 2)))
   )
-  spec <- synth_spec(purpose = "teaching", n = 50, merge_rare = TRUE,
+  spec <- synth_spec(purpose = "demo", n = 50, merge_rare = TRUE,
                      rare_level_min_n = 5)
   syn <- synthesize_data(df, spec)
   # "other" was common so should survive; "x" and "y" merge to ".other"
@@ -506,10 +506,10 @@ test_that("rare-merge uses .other sentinel not other", {
 })
 
 # Safer_external end-to-end pipeline test
-test_that("safer_external pipeline completes on example_health_survey", {
+test_that("demo schema pipeline completes on example_health_survey", {
   skip_if_not_installed("dataganger")
   data("example_health_survey", package = "dataganger")
-  spec <- synth_spec(purpose = "safer_external")
+  spec <- synth_spec(purpose = "demo", level = "schema")
   syn <- synthesize_data(example_health_survey, spec)
   expect_equal(nrow(syn), nrow(example_health_survey))
   expect_equal(ncol(syn), ncol(example_health_survey))
