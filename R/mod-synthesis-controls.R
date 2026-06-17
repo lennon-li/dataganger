@@ -353,6 +353,25 @@ mod_synthesis_controls_server <- function(id, state) {
       current_n <- default_n()
 
       shiny::tagList(
+        shiny::selectInput(
+          inputId = session$ns("engine"),
+          label = "Engine",
+          choices = c(
+            "auto (derived from objective)" = "auto",
+            "internal (marginal, no dependencies)" = "internal",
+            "synthpop (relationship-aware)" = "synthpop"
+          ),
+          selected = "auto"
+        ),
+        shiny::tags$p(
+          class = "text-muted",
+          style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
+          if (rlang::is_installed("synthpop")) {
+            "✓ synthpop is installed"
+          } else {
+            "⚠ synthpop not installed — selecting it will fall back to internal"
+          }
+        ),
         shiny::numericInput(
           inputId = session$ns("seed"),
           label = "Seed",
@@ -444,6 +463,12 @@ mod_synthesis_controls_server <- function(id, state) {
         seed_arg <- as.integer(current_seed)
       }
 
+      engine_arg <- if (!is.null(input$engine) && !identical(input$engine, "auto")) {
+        input$engine
+      } else {
+        NULL
+      }
+
       tryCatch(
         synth_spec(
           purpose = purpose,
@@ -457,7 +482,8 @@ mod_synthesis_controls_server <- function(id, state) {
           merge_rare = isTRUE(input$merge_rare %||% preset$merge_rare),
           free_text_strategy = preset$free_text_strategy,
           geography_strategy = current_geo_strategy,
-          preserve_missingness = input$preserve_missingness %||% preset$preserve_missingness %||% "approx"
+          preserve_missingness = input$preserve_missingness %||% preset$preserve_missingness %||% "approx",
+          engine = engine_arg
         ),
         error = function(e) {
           if (!(identical(purpose, "analytics") && !isTRUE(input$acknowledge_risk))) {
