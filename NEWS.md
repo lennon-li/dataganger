@@ -1,4 +1,4 @@
-# dataganger 0.0.0.9000
+# dataganger 0.2.1
 
 * Shiny app interface refinements: the Objective step shows each purpose's
   details on selection and uses consistent "more bars = stronger" meters,
