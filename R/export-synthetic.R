@@ -1,8 +1,10 @@
 #' Export a synthetic data bundle
 #'
 #' Writes a reviewable export bundle containing the synthetic data, data
-#' dictionary, comparison report, privacy report, manifest, and helper files for
-#' re-loading the bundle. By default the bundle is written as a zip archive.
+#' dictionary, comparison report, privacy report, manifest, an `analysis.qmd`
+#' Quarto report (R and Python code to compare the synthetic data against the
+#' original), and helper files for re-loading the bundle. By default the bundle
+#' is written as a zip archive.
 #'
 #' @param synthetic A synthetic data frame, typically from [synthesize_data()].
 #' @param original Optional original data frame. When provided, used for the
@@ -141,6 +143,12 @@ export_synthetic <- function(synthetic,
   writeLines(
     render_load_data_template(synthetic, dictionary),
     con = file.path(bundle_dir, "load_data.R"),
+    useBytes = TRUE
+  )
+
+  writeLines(
+    render_analysis_template(synthetic, purpose = purpose),
+    con = file.path(bundle_dir, "analysis.qmd"),
     useBytes = TRUE
   )
 

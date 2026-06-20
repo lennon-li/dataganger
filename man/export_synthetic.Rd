@@ -71,8 +71,10 @@ Invisibly, the written bundle path.
 }
 \description{
 Writes a reviewable export bundle containing the synthetic data, data
-dictionary, comparison report, privacy report, manifest, and helper files for
-re-loading the bundle. By default the bundle is written as a zip archive.
+dictionary, comparison report, privacy report, manifest, an \code{analysis.qmd}
+Quarto report (R and Python code to compare the synthetic data against the
+original), and helper files for re-loading the bundle. By default the bundle
+is written as a zip archive.
 }
 \examples{
 dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))

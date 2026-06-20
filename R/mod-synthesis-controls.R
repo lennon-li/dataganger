@@ -19,7 +19,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
       shiny::tags$div(
         class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Objective"),
-        shiny::tags$h1("Set your objective"),
+        shiny::tags$h1("Objective"),
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Tell us what you'll use the synthetic data for"),
@@ -53,7 +53,8 @@ mod_synthesis_controls_objective_ui <- function(id) {
         shiny::tags$b("Why this comes first"),
         " Your objective shapes every downstream default. The meters on each option show its ",
         shiny::tags$span(style = "font-weight:600", "fidelity \u2194 privacy"),
-        " balance. Pick the closest match; nothing here is locked in."
+        " balance, plus how hard the result is to re-identify back to real individuals. ",
+        "Pick the closest match; nothing here is locked in."
       )
     ),
     shiny::tags$div(
@@ -66,6 +67,10 @@ mod_synthesis_controls_objective_ui <- function(id) {
       shiny::tags$p(class = "spec-question", "What are you creating synthetic data for?"),
       objective_cards(ns),
       shiny::tags$div(
+        id = ns("purpose_detail_host"),
+        shiny::uiOutput(ns("purpose_detail"))
+      ),
+      shiny::tags$div(
         style = "display:none",
         shiny::radioButtons(
           inputId = ns("purpose_group"),
@@ -74,8 +79,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
           choiceNames = c("demo", "development", "analytics"),
           selected = "demo"
         )
-      ),
-      shiny::uiOutput(ns("purpose_detail"))
+      )
     )
   )
 }
@@ -121,10 +125,11 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, ident, risk 
     ),
     shiny::tags$div(
       class = "pc-meters",
-      meter("fidelity", fid, "var(--ink-700)"),
-      meter("privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
-      meter("identifiability", ident, "var(--risk-400)")
-    )
+      meter("Fidelity", fid, "var(--ink-700)"),
+      meter("Privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
+      meter("Anonymity", ident, "var(--risk-400)")
+    ),
+    shiny::tags$div(class = "pc-detail-slot", `data-detail-slot` = key)
   )
 }
 
@@ -136,14 +141,14 @@ objective_cards <- function(ns) {
       style = "font-size:12px; color:var(--fg-muted); margin:0 0 16px;",
       shiny::tags$strong("Fidelity:"), " more bars = closer to real data. ",
       shiny::tags$strong("Privacy:"), " more bars = stronger protection against disclosure. ",
-      shiny::tags$strong("Identifiability:"), " more bars = harder to re-identify individuals."
+      shiny::tags$strong("Anonymity:"), " more bars = harder to re-identify individuals."
     ),
     dg_purpose_card(
       ns, "demo", "demo", "Demo / Teaching",
-      "Share externally, teach with, or use in presentations.", 2, 4, 1, selected = TRUE
+      "Share externally, teach with, or use in presentations.", 2, 4, 1
     ),
     dg_purpose_card(
-      ns, "development", "development", "Development",
+      ns, "development", "development", "Development and prototyping",
       "Build apps, AI tooling, or model pipelines.", 3, 3, 3
     ),
     dg_purpose_card(
@@ -295,6 +300,9 @@ mod_synthesis_controls_server <- function(id, state) {
     })
 
     output$purpose_detail <- shiny::renderUI({
+      if (!isTRUE(input$purpose_chosen)) {
+        return(NULL)
+      }
       purpose <- current_purpose()
       shiny::req(purpose)
 
@@ -324,7 +332,7 @@ mod_synthesis_controls_server <- function(id, state) {
 
       label <- c(
         demo        = "Demo / Teaching",
-        development = "Development",
+        development = "Development and prototyping",
         analytics   = "Internal Analytics"
       )[[purpose]]
 
@@ -367,10 +375,25 @@ mod_synthesis_controls_server <- function(id, state) {
           class = "text-muted",
           style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
           if (rlang::is_installed("synthpop")) {
-            "✓ synthpop is installed"
+            "\u2713 synthpop is installed"
           } else {
-            "⚠ synthpop not installed — selecting it will fall back to internal"
+            "\u26a0 synthpop not installed \u2014 selecting it will fall back to internal"
           }
+        ),
+        shiny::tags$div(
+          class = "engine-help",
+          shiny::tags$p(
+            shiny::tags$strong("Auto"),
+            " \u2014 picks the engine from your objective. Recommended unless you have a reason to override."
+          ),
+          shiny::tags$p(
+            shiny::tags$strong("Internal"),
+            " \u2014 synthesises each column from its own distribution (marginals only). Fast, dependency-free, ignores relationships between columns."
+          ),
+          shiny::tags$p(
+            shiny::tags$strong("synthpop"),
+            " \u2014 models columns conditionally on one another, so correlations and joint structure are preserved. Higher fidelity; requires the synthpop package."
+          )
         ),
         shiny::numericInput(
           inputId = session$ns("seed"),

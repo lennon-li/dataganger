@@ -33,6 +33,15 @@ mod_generate_ui <- function(id) {
       )
     ),
     stale_banner_ui("synthesis", ns = ns),
+    shiny::div(
+      class = "card",
+      shiny::tags$div(
+        class = "card-header",
+        shiny::tags$span(class = "title", "Your configuration"),
+        shiny::tags$span(class = "sub", "from steps 1\u20133")
+      ),
+      shiny::uiOutput(ns("config_recap"))
+    ),
     shiny::uiOutput(ns("result_stats")),
     shiny::div(
       class = "card",
@@ -47,7 +56,7 @@ mod_generate_ui <- function(id) {
       class = "btn-row",
       style = "margin-top:16px;",
       shiny::actionButton(ns("try_new_seed"), "Regenerate", class = "btn btn-primary"),
-      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
+      shiny::actionButton(ns("adjust_settings"), "\u2190 Adjust settings", class = "btn btn-secondary")
     )
   )
 }
@@ -90,6 +99,51 @@ mod_generate_server <- function(id, state) {
       }
     })
 
+    output$config_recap <- shiny::renderUI({
+      spec  <- state$spec
+      roles <- state$roles
+      if (is.null(spec)) {
+        return(shiny::tags$p(
+          class = "subtitle",
+          "Confirm your settings in Configuration to see a summary here."
+        ))
+      }
+      raw_data <- state$raw_data %||% data.frame()
+      n_over <- if (!is.null(roles)) sum(!is.na(roles$user_role) & nzchar(roles$user_role)) else 0L
+      engine <- spec[["engine", exact = TRUE]] %||% "auto"
+      row <- function(label, value) shiny::tags$tr(
+        shiny::tags$td(class = "name", label),
+        shiny::tags$td(value)
+      )
+      dash <- "\u2014"
+      fmt_val <- function(x) {
+        if (is.null(x) || (length(x) == 1L && is.na(x))) return(dash)
+        if (is.logical(x)) return(if (isTRUE(x)) "yes" else "no")
+        as.character(x)
+      }
+      preserve_missingness <- spec[["preserve_missingness", exact = TRUE]]
+      rare_level_min_n     <- spec[["rare_level_min_n", exact = TRUE]]
+      coarsen_dates        <- spec[["coarsen_dates", exact = TRUE]]
+      merge_rare           <- spec[["merge_rare", exact = TRUE]]
+      level                <- spec[["level", exact = TRUE]]
+      shiny::tags$table(
+        class = "data",
+        style = "margin-top:8px;",
+        shiny::tags$tbody(
+          row("Objective", spec$purpose %||% dash),
+          row("Engine", engine),
+          row("Rows to generate", as.character(spec$n %||% nrow(raw_data))),
+          row("Seed", if (!is.null(spec$seed)) as.character(spec$seed) else "random per run"),
+          row("Role overrides", sprintf("%d column(s) changed by you", n_over)),
+          row("Privacy level", fmt_val(level)),
+          row("Preserve missingness", fmt_val(preserve_missingness)),
+          row("Rare level min n", fmt_val(rare_level_min_n)),
+          row("Coarsen dates", fmt_val(coarsen_dates)),
+          row("Merge rare levels", fmt_val(merge_rare))
+        )
+      )
+    })
+
     last_duration <- shiny::reactiveVal(NULL)
 
     output$stale__synthesis <- shiny::renderText({
@@ -126,16 +180,22 @@ mod_generate_server <- function(id, state) {
 
       started_at <- Sys.time()
       result <- tryCatch(
-        shiny::withProgress(message = "Synthesizing...", value = 0, {
+        shiny::withProgress(message = "Synthesizing\u2026", value = 0.05, {
+          # Show motion + a phase label BEFORE the slow modelling call, so a
+          # long synthpop run reads as busy rather than hung.
+          shiny::setProgress(
+            value  = 0.05,
+            detail = "Modelling columns \u2014 this can take a moment on larger data"
+          )
           synthetic <- synthesize_data(state$raw_data, spec_with_seed, roles = state$roles)
-          shiny::setProgress(value = 0.3)
+          shiny::setProgress(value = 0.5, detail = "Comparing distributions\u2026")
 
           comparison <- compare_synthetic(
             state$raw_data,
             synthetic,
             roles = state$roles
           )
-          shiny::setProgress(value = 0.6)
+          shiny::setProgress(value = 0.75, detail = "Checking privacy\u2026")
 
           privacy <- privacy_check(
             state$raw_data,
@@ -144,7 +204,7 @@ mod_generate_server <- function(id, state) {
             stage = "post",
             spec = spec_with_seed
           )
-          shiny::setProgress(value = 1.0)
+          shiny::setProgress(value = 1.0, detail = "Finalising\u2026")
 
           list(
             synthetic = synthetic,

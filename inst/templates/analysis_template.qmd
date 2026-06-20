@@ -1,0 +1,160 @@
+---
+title: "DataGangeR: original vs synthetic comparison"
+format:
+  html:
+    toc: true
+    df-print: paged
+params:
+  original_path: "original_data.csv"
+  synthetic_path: "synthetic_data.csv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 4
+)
+library(ggplot2)
+```
+
+{%purpose_line}
+
+This report reads your original and synthetic datasets and compares them:
+summary statistics, distribution plots (green = original, magenta = synthetic),
+and DataGangeR's fidelity metrics. The **R** chunks run when you render this
+document. The **Python** chunks are included for reference (they are not run):
+copy them into your own Python environment, or set `eval: true` on them and
+render with a configured Python toolchain.
+
+Set the two file paths in the `params` block above (or edit the read chunks),
+then render with Quarto.
+
+## Read both datasets
+
+```{r read}
+original  <- utils::read.csv(params$original_path, stringsAsFactors = TRUE)
+synthetic <- utils::read.csv(params$synthetic_path, stringsAsFactors = TRUE)
+
+# Compare only the columns the two datasets share.
+shared    <- intersect(names(original), names(synthetic))
+original  <- original[, shared, drop = FALSE]
+synthetic <- synthetic[, shared, drop = FALSE]
+
+combined <- rbind(
+  cbind(original,  .source = "original"),
+  cbind(synthetic, .source = "synthetic")
+)
+combined$.source <- factor(combined$.source, levels = c("original", "synthetic"))
+
+# DataGangeR convention: green = original, magenta = synthetic.
+dg_cols <- c(original = "#3F8F4F", synthetic = "#D81B8C")
+```
+
+```{python}
+#| eval: false
+# Python reference (not executed)
+import pandas as pd
+
+original  = pd.read_csv("original_data.csv")
+synthetic = pd.read_csv("synthetic_data.csv")
+
+shared    = [c for c in original.columns if c in synthetic.columns]
+original, synthetic = original[shared], synthetic[shared]
+colors = {"original": "#3F8F4F", "synthetic": "#D81B8C"}
+```
+
+The original has `r nrow(original)` rows and the synthetic has
+`r nrow(synthetic)` rows across `r length(shared)` shared columns.
+
+## Summary statistics
+
+```{r summary}
+summary(original)
+summary(synthetic)
+```
+
+```{python}
+#| eval: false
+original.describe(include="all")
+synthetic.describe(include="all")
+```
+
+## Distribution comparisons
+
+Green is the original data; magenta is the synthetic data.
+
+```{r numeric-plots}
+numeric_cols <- {%numeric_cols}
+numeric_cols <- intersect(numeric_cols, shared)
+for (v in numeric_cols) {
+  print(
+    ggplot(combined, aes(x = .data[[v]], fill = .source)) +
+      geom_histogram(position = "identity", alpha = 0.5, bins = 30) +
+      scale_fill_manual(values = dg_cols) +
+      labs(title = v, x = v, fill = NULL) +
+      theme_minimal()
+  )
+}
+```
+
+```{r categorical-plots}
+categorical_cols <- {%categorical_cols}
+categorical_cols <- intersect(categorical_cols, shared)
+for (v in categorical_cols) {
+  print(
+    ggplot(combined, aes(x = .data[[v]], fill = .source)) +
+      geom_bar(position = "dodge") +
+      scale_fill_manual(values = dg_cols) +
+      labs(title = v, x = v, fill = NULL) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 30, hjust = 1))
+  )
+}
+```
+
+```{python}
+#| eval: false
+# Python reference (not executed)
+import matplotlib.pyplot as plt
+
+numeric_cols     = {%numeric_cols_py}
+categorical_cols = {%categorical_cols_py}
+
+for v in [c for c in numeric_cols if c in shared]:
+    fig, ax = plt.subplots()
+    for src, df in (("original", original), ("synthetic", synthetic)):
+        ax.hist(df[v].dropna(), bins=30, alpha=0.5, label=src, color=colors[src])
+    ax.set_title(v); ax.legend(); plt.show()
+
+for v in [c for c in categorical_cols if c in shared]:
+    cmp = pd.DataFrame({
+        "original":  original[v].value_counts(normalize=True),
+        "synthetic": synthetic[v].value_counts(normalize=True),
+    }).fillna(0)
+    cmp.plot.bar(color=[colors["original"], colors["synthetic"]], title=v)
+    plt.show()
+```
+
+## DataGangeR comparison metrics
+
+If the dataganger package is installed, this prints its built-in comparison:
+per-variable standardized differences for numeric columns and total variation
+distance for categorical columns.
+
+```{r dg-compare}
+if (requireNamespace("dataganger", quietly = TRUE)) {
+  comparison <- dataganger::compare_synthetic(original, synthetic)
+  print(comparison)
+} else {
+  message("Install the dataganger package for the built-in comparison metrics.")
+}
+```
+
+```{python}
+#| eval: false
+# Python reference (not executed): simple standardized-difference drift check
+for v in [c for c in numeric_cols if c in shared]:
+    om, sm = original[v].mean(), synthetic[v].mean()
+    osd = original[v].std() or 1.0
+    print(f"{v}: standardized mean diff = {abs(om - sm) / osd:.3f}")
+```

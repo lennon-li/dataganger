@@ -1,4 +1,4 @@
-# Tests for mod_export_ui / mod_export_server
+# Tests for mod_export_ui / mod_export_server (single-bundle design)
 # Uses testServer() - no runApp(), no browser()
 
 export_test_state <- function(purpose = "development", seed = 1L) {
@@ -20,57 +20,33 @@ export_test_state <- function(purpose = "development", seed = 1L) {
   )
 }
 
-test_that("mod_export_server passes include_original_names=FALSE for demo", {
+test_that("download filename is a seeded bundle zip", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- export_test_state("demo")
+  state <- export_test_state(purpose = "development", seed = 1L)
 
   shiny::testServer(mod_export_server, args = list(state = state), {
-    session$setInputs(format = "csv", include_report = FALSE, fail_on_exact = FALSE)
-    session$flushReact()
-
-    expect_match(output$download, "synthetic_data_seed1\\.csv$")
-
-    rendered_names_ui <- paste(as.character(output$names_ui), collapse = "")
-    expect_true(grepl("anonymized", rendered_names_ui, fixed = TRUE))
-    expect_false(grepl("include_original_names", rendered_names_ui, fixed = TRUE))
+    expect_match(output$download, "synthetic_data_seed1_bundle\\.zip$")
   })
 })
 
-test_that("mod_export_server exposes include_original_names=TRUE for development", {
-  testthat::skip_if_not_installed("shiny")
-
-  state <- export_test_state("development")
-
-  shiny::testServer(mod_export_server, args = list(state = state), {
-    session$flushReact()
-    rendered <- paste(as.character(output$names_ui), collapse = "")
-
-    expect_true(grepl("include_original_names", rendered, fixed = TRUE))
-    expect_true(grepl("checked=\\\"checked\\\"", rendered))
-  })
-})
-
-test_that("download filename includes seed from state$seed_used", {
+test_that("download filename reflects state$seed_used", {
   testthat::skip_if_not_installed("shiny")
 
   state <- export_test_state(purpose = "development", seed = 12345L)
 
   shiny::testServer(mod_export_server, args = list(state = state), {
-    session$setInputs(format = "csv", include_report = FALSE, fail_on_exact = FALSE)
-    session$flushReact()
-    expect_match(output$download, "synthetic_data_seed12345\\.csv$")
+    expect_match(output$download, "synthetic_data_seed12345_bundle\\.zip$")
   })
 })
 
-test_that("rds download filename also includes seed", {
+test_that("use_original_names is FALSE only for the demo purpose", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- export_test_state(purpose = "development", seed = 7L)
-
-  shiny::testServer(mod_export_server, args = list(state = state), {
-    session$setInputs(format = "rds", include_report = FALSE, fail_on_exact = FALSE)
-    session$flushReact()
-    expect_match(output$download, "synthetic_data_seed7\\.rds$")
+  shiny::testServer(mod_export_server, args = list(state = export_test_state("demo")), {
+    expect_false(use_original_names())
+  })
+  shiny::testServer(mod_export_server, args = list(state = export_test_state("development")), {
+    expect_true(use_original_names())
   })
 })

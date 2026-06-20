@@ -37,6 +37,7 @@ test_that("export_synthetic() writes the full bundle file set", {
       "comparison_report.html",
       "privacy_report.txt",
       "load_data.R",
+      "analysis.qmd",
       "ai-readme.md",
       "README.md",
       "manifest.json"
@@ -58,6 +59,7 @@ test_that("export_synthetic() writes the full bundle file set", {
       "comparison_report.html",
       "privacy_report.txt",
       "load_data.R",
+      "analysis.qmd",
       "ai-readme.md",
       "README.md"
     )
@@ -173,6 +175,7 @@ test_that("export_synthetic() writes zip output", {
       "comparison_report.html",
       "privacy_report.txt",
       "load_data.R",
+      "analysis.qmd",
       "ai-readme.md",
       "README.md",
       "manifest.json"

@@ -91,3 +91,14 @@ test_that("spec change invalidates synthesis outputs and marks all stale", {
     expect_true(isTRUE(state$stale$export))
   })
 })
+
+
+test_that("state initializes active_step and compare_selected_var", {
+  testthat::skip_if_not_installed("shiny")
+
+  shiny::testServer(mod_state_server, {
+    state <- session$getReturned()
+    expect_identical(state$active_step, "objective")
+    expect_null(state$compare_selected_var)
+  })
+})

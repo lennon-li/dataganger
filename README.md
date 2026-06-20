@@ -44,12 +44,14 @@ library(dataganger)
 
 ## Synthesis engines
 
-DataGangeR uses two synthesis engines, chosen automatically by your objective.
-Lower-fidelity objectives use an internal marginal engine. For **Model pipeline
-prototype** and **Advanced / internal hi-fi** objectives - where preserving
-relationships between variables matters - DataGangeR uses the synthpop package
-(Nowok, Raab & Dibben, 2016). Install it with
-`install.packages("synthpop")` to enable these objectives at full fidelity.
+DataGangeR uses two synthesis engines. By default the engine is chosen
+automatically by your objective: lower-fidelity objectives use a
+dependency-free internal marginal engine, while the **analytics** purpose - and
+any high-fidelity setting, where preserving relationships between variables
+matters - uses the synthpop package (Nowok, Raab & Dibben, 2016). In the Shiny
+app you can also choose the engine explicitly (auto, internal, or synthpop).
+Install it with `install.packages("synthpop")` to enable
+relationship-preserving synthesis at full fidelity.
 
 Please cite synthpop when you use that engine:
 
