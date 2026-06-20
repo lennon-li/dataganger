@@ -3,7 +3,7 @@
 # Internal function. Returns a 0-row tibble with column names and types
 # matching the original. No values are synthesized.
 #
-# Used by: safer_external preset, level = "schema"
+# Used by: demo preset, level = "schema"
 
 synthesize_schema <- function(data, spec, roles = NULL) {
   if (!is.data.frame(data)) {

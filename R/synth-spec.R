@@ -2,11 +2,11 @@
 #'
 #' Builds a synthesis specification from a purpose preset with optional
 #' user overrides. The specification records the synthesis parameters and
-#' the required engine, but does not check engine availability — that is
+#' the required engine, but does not check engine availability - that is
 #' done by [synthesize_data()].
 #'
-#' @param purpose Character. One of `"ai_programming"`, `"shiny_prototype"`,
-#'   `"teaching"`, `"model_prototype"`, `"internal_hifi"`, `"safer_external"`.
+#' @param purpose Character. One of `"demo"`, `"development"`, or `"analytics"`.
+#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
 #' @param level Character or `NULL`. Synthesis level: `"schema"` or
 #'   `"marginal"`. If `NULL`, derived from the preset.
 #' @param n Integer or `NULL`. Number of rows to synthesize. If `NULL`,
@@ -18,8 +18,11 @@
 #' @param name_strategy Character or `NULL`. One of `"preserve"`, `"generic"`,
 #'   or `"dictionary_only"`. If `NULL`, derived from the preset.
 #' @param seed Integer or `NULL`. Reproducibility seed.
+#' @param engine Character or `NULL`. Optional explicit synthesis engine:
+#'   `"internal"`, `"marginal"` (alias for `"internal"`), or `"synthpop"`.
+#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
 #' @param acknowledge_risk Logical. Required to be `TRUE` when
-#'   `purpose = "internal_hifi"`.
+#'   `purpose = "analytics"`.
 #' @param ... Additional arguments passed to the spec list. Currently supports
 #'   `preserve_correlations`, `coarsen_dates`, `merge_rare`,
 #'   `free_text_strategy`, `geography_strategy`, `rare_level_min_n`,
@@ -29,8 +32,9 @@
 #' @export
 #'
 #' @examples
-#' synth_spec(purpose = "teaching")
-#' synth_spec(purpose = "ai_programming", n = 200, seed = 42)
+#' synth_spec(purpose = "demo")
+#' synth_spec(purpose = "development", n = 200, seed = 42)
+#' synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 synth_spec <- function(purpose,
                        level = NULL,
                        n = NULL,
@@ -38,13 +42,11 @@ synth_spec <- function(purpose,
                        privacy = NULL,
                        name_strategy = NULL,
                        seed = NULL,
+                       engine = NULL,
                        acknowledge_risk = FALSE,
                        ...) {
 
-  valid_purposes <- c(
-    "ai_programming", "shiny_prototype", "teaching",
-    "model_prototype", "internal_hifi", "safer_external"
-  )
+  valid_purposes <- c("demo", "development", "analytics")
 
   if (!purpose %in% valid_purposes) {
     cli::cli_abort(c(
@@ -61,6 +63,17 @@ synth_spec <- function(purpose,
   if (!is.null(n))             preset$n             <- n
   if (!is.null(name_strategy)) preset$name_strategy <- name_strategy
   if (!is.null(seed))          preset$seed          <- seed
+
+  if (!is.null(engine)) {
+    valid_engines <- c("internal", "marginal", "synthpop")
+    if (!engine %in% valid_engines) {
+      cli::cli_abort(c(
+        "Invalid engine: {.val {engine}}",
+        "i" = "Valid engines: {.val {valid_engines}}"
+      ))
+    }
+    preset$engine <- engine
+  }
 
   # --- Absorb ... into spec ---
   dots <- list(...)
@@ -86,12 +99,12 @@ synth_spec <- function(purpose,
 }
 
 # ===========================================================================
-# Preset table — exact mapping from implementation plan §4.1
+# Preset table - exact mapping from implementation plan section 4.1
 # ===========================================================================
 
 preset_table <- function(purpose) {
   switch(purpose,
-    ai_programming = list(
+    demo = list(
       level               = "marginal",
       n                   = NULL,
       preserve_correlations = "low",
@@ -104,33 +117,7 @@ preset_table <- function(purpose) {
       preserve_missingness = "approx",
       seed                = NULL
     ),
-    shiny_prototype = list(
-      level               = "marginal",
-      n                   = NULL,
-      preserve_correlations = "low",
-      coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
-      free_text_strategy  = "drop",
-      geography_strategy  = "coarsen",
-      name_strategy       = "preserve",
-      rare_level_min_n    = 5,
-      preserve_missingness = "approx",
-      seed                = NULL
-    ),
-    teaching = list(
-      level               = "marginal",
-      n                   = NULL,
-      preserve_correlations = "none",
-      coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
-      free_text_strategy  = "drop",
-      geography_strategy  = "coarsen",
-      name_strategy       = "preserve",
-      rare_level_min_n    = 5,
-      preserve_missingness = "approx",
-      seed                = NULL
-    ),
-    model_prototype = list(
+    development = list(
       level               = "marginal",
       n                   = NULL,
       preserve_correlations = "moderate",
@@ -143,7 +130,7 @@ preset_table <- function(purpose) {
       preserve_missingness = "approx",
       seed                = NULL
     ),
-    internal_hifi = list(
+    analytics = list(
       level               = "hifi",
       n                   = NULL,
       preserve_correlations = "high",
@@ -153,19 +140,6 @@ preset_table <- function(purpose) {
       geography_strategy  = "preserve",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
-      preserve_missingness = "approx",
-      seed                = NULL
-    ),
-    safer_external = list(
-      level               = "schema",
-      n                   = NULL,
-      preserve_correlations = "none",
-      coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
-      free_text_strategy  = "drop",
-      geography_strategy  = "aggregate",
-      name_strategy       = "generic",
-      rare_level_min_n    = 10,
       preserve_missingness = "approx",
       seed                = NULL
     ),
@@ -188,19 +162,19 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     cli::cli_abort("{.arg rare_level_min_n} must be > 1, got {spec$rare_level_min_n}")
   }
 
-  # internal_hifi requires acknowledge_risk
-  if (purpose == "internal_hifi" && !isTRUE(acknowledge_risk)) {
+  # analytics requires acknowledge_risk
+  if (purpose == "analytics" && !isTRUE(acknowledge_risk)) {
     cli::cli_abort(c(
-      "Purpose {.val internal_hifi} requires {.arg acknowledge_risk = TRUE}",
+      "Purpose {.val analytics} requires {.arg acknowledge_risk = TRUE}",
       "i" = "High-fidelity synthesis may preserve sensitive patterns.",
       "i" = "Set {.code acknowledge_risk = TRUE} to proceed."
     ))
   }
 
-  # model_prototype soft warning (C1)
-  if (purpose == "model_prototype") {
-    cli::cli_warn(
-      "Relationship-aware synthesis is planned for a future release. In v0.1, model_prototype uses marginal synthesis and does not intentionally preserve correlations between variables."
+  # development routes to synthpop when available
+  if (purpose == "development") {
+    cli::cli_inform(
+      c("i" = "Development synthesis uses {.pkg synthpop} for correlation-aware output when installed; review privacy warnings before sharing.")
     )
   }
 
@@ -233,14 +207,6 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     cli::cli_abort(c(
       "Invalid preserve_missingness: {.val {spec$preserve_missingness}}",
       "i" = "Valid values: {.val {valid_missingness}}"
-    ))
-  }
-
-  # "exact" missingness not in scope (R5)
-  if (isTRUE(spec$preserve_missingness == "exact")) {
-    cli::cli_abort(c(
-      "{.code preserve_missingness = \"exact\"} is not yet implemented.",
-      "i" = "Use {.code \"approx\"} (independent Bernoulli draws at observed rate)."
     ))
   }
 
@@ -298,8 +264,16 @@ apply_privacy_hardening <- function(spec, privacy, roles) {
 # ===========================================================================
 
 engine_for <- function(level, purpose) {
-  if (level == "hifi" || purpose == "internal_hifi") {
+  if (level == "hifi" || purpose == "analytics") {
     return("hifi")
+  }
+  "internal"
+}
+
+engine_from_correlations <- function(spec) {
+  pc <- spec$preserve_correlations %||% "none"
+  if (pc %in% c("moderate", "high")) {
+    return("synthpop")
   }
   "internal"
 }
@@ -338,12 +312,17 @@ print.dataganger_spec <- function(x, ...) {
     cli::cli_text("{x$seed}")
   }
 
+  engine <- x[["engine", exact = TRUE]]
+  if (!is.null(engine)) {
+    cli::cli_li("Engine: {.val {engine}}")
+  }
+
   if (isTRUE(x$acknowledged_risk)) {
     cli::cli_alert_warning("Risk acknowledged by user")
   }
 
-  if (x$purpose == "model_prototype") {
-    cli::cli_alert_info("Relationship-aware synthesis is post-MVP; marginal synthesis only.")
+  if (x$purpose == "development") {
+    cli::cli_alert_info("Relationship-aware synthesis uses synthpop when installed.")
   }
 
   invisible(x)

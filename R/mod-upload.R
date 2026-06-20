@@ -178,7 +178,7 @@ mod_upload_server <- function(id, state) {
       shiny::req(state$raw_data)
       shiny::actionButton(
         inputId = session$ns("go_roles"),
-        label   = "Continue to Roles \u2192",
+        label   = "Continue to Configure \u2192",
         class   = "btn btn-primary"
       )
     })

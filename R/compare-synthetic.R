@@ -15,7 +15,7 @@
 #'
 #' @examples
 #' dat <- data.frame(x = 1:10, y = letters[1:10])
-#' spec <- synth_spec(purpose = "teaching")
+#' spec <- synth_spec(purpose = "demo")
 #' syn <- synthesize_data(dat, spec)
 #' compare_synthetic(dat, syn)
 compare_synthetic <- function(original, synthetic, roles = NULL) {
@@ -366,7 +366,7 @@ print.dataganger_comparison <- function(x, ...) {
 #'
 #' @examples
 #' dat <- data.frame(x = 1:10, y = letters[1:10])
-#' spec <- synth_spec(purpose = "teaching")
+#' spec <- synth_spec(purpose = "demo")
 #' syn <- synthesize_data(dat, spec)
 #' cmp <- compare_synthetic(dat, syn)
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {

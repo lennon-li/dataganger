@@ -25,7 +25,7 @@ correlations. Returns a structured \code{dataganger_comparison} object.
 }
 \examples{
 dat <- data.frame(x = 1:10, y = letters[1:10])
-spec <- synth_spec(purpose = "teaching")
+spec <- synth_spec(purpose = "demo")
 syn <- synthesize_data(dat, spec)
 compare_synthetic(dat, syn)
 }

@@ -116,6 +116,10 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
   }
 
   out <- tibble::as_tibble(cols)
+  if (missingness == "exact") {
+    mask <- build_na_mask(data, n)
+    out  <- apply_joint_mask(out, mask)
+  }
   out
 }
 

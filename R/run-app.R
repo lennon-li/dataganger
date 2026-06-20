@@ -1,7 +1,7 @@
 #' Launch the DataGangeR Shiny Application
 #'
 #' Opens the DataGangeR interactive workflow in a local Shiny app. Requires
-#' the `shiny`, `DT`, and `plotly` packages.
+#' the `shiny`, `bslib`, `DT`, and `plotly` packages.
 #'
 #' @param max_upload_mb Maximum file upload size in megabytes. Default 50.
 #' @param launch Whether to launch the app. Default `interactive()`. Set to

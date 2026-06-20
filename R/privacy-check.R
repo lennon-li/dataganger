@@ -42,6 +42,7 @@ privacy_check <- function(original, synthetic = NULL, roles = NULL,
     attr(flags, "exact_row_matches") <- 0L
   } else {
     flags <- privacy_check_post(original, synthetic, roles, spec)
+    flags <- augment_synthpop_disclosure(flags, original, synthetic, roles)
   }
 
   attr(flags, "stage")   <- stage
@@ -259,6 +260,153 @@ exact_row_match_count <- function(original, synthetic, role_map = NULL) {
   orig_key <- row_key(original[, match_cols, drop = FALSE])
   syn_key <- row_key(synthetic[, match_cols, drop = FALSE])
   as.integer(sum(syn_key %in% orig_key, na.rm = TRUE))
+}
+
+augment_synthpop_disclosure <- function(flags, original, synthetic, roles) {
+  if (!identical(attr(synthetic, "engine", exact = TRUE), "synthpop")) {
+    return(flags)
+  }
+
+  disclosure <- synthpop_disclosure_panel(original, synthetic, roles)
+  if (is.null(disclosure)) {
+    return(flags)
+  }
+
+  rows <- synthpop_disclosure_flags(disclosure)
+  if (nrow(rows) > 0L) {
+    flags <- dplyr::bind_rows(flags, rows)
+  }
+  attr(flags, "synthpop_disclosure") <- disclosure
+  flags
+}
+
+synthpop_disclosure_panel <- function(original, synthetic, roles) {
+  if (!requireNamespace("synthpop", quietly = TRUE)) {
+    return(NULL)
+  }
+
+  qi_cols <- synthpop_disclosure_cols(roles)
+  qi_cols <- intersect(qi_cols, intersect(names(original), names(synthetic)))
+  if (length(qi_cols) < 2L) {
+    return(NULL)
+  }
+
+  target <- qi_cols[[length(qi_cols)]]
+  keys <- setdiff(qi_cols, target)
+  if (length(keys) == 0L) {
+    return(NULL)
+  }
+
+  # synthpop::disclosure() does base `data[, j]` column extraction internally,
+  # which returns sub-tibbles (not vectors) for tbl_df input and fails with
+  # "cannot xtfrm data frames"; coerce to plain data.frame first.
+  original_qi <- as.data.frame(original[, qi_cols, drop = FALSE])
+  synthetic_qi <- as.data.frame(synthetic[, qi_cols, drop = FALSE])
+
+  # Keep disclosure() scoped to role-flagged QI columns; sample rows later if
+  # this is still too costly on very large data.
+  result <- tryCatch(
+    synthpop::disclosure(
+      synthetic_qi,
+      original_qi,
+      keys = keys,
+      target = target,
+      print.flag = FALSE
+    ),
+    error = function(e) NULL
+  )
+  if (is.null(result)) {
+    return(NULL)
+  }
+
+  list(
+    keys = keys,
+    target = target,
+    identity_repu = disclosure_numeric(result$ident, "repU"),
+    attribute_disco = disclosure_numeric(result$attrib, "DiSCO"),
+    raw = result
+  )
+}
+
+synthpop_disclosure_cols <- function(roles) {
+  if (is.null(roles) || !"variable" %in% names(roles)) {
+    return(character())
+  }
+
+  role <- if ("recommended_role" %in% names(roles)) {
+    roles$recommended_role
+  } else {
+    rep(NA_character_, nrow(roles))
+  }
+
+  sensitive <- if ("sensitive" %in% names(roles)) {
+    isTRUE_vec(roles$sensitive)
+  } else {
+    rep(FALSE, nrow(roles))
+  }
+
+  roles$variable[
+    role %in% c("ID candidate", "date", "geography", "categorical candidate", "label_check") |
+      sensitive
+  ]
+}
+
+isTRUE_vec <- function(x) {
+  vapply(x, isTRUE, logical(1))
+}
+
+synthpop_disclosure_flags <- function(disclosure) {
+  rows <- list()
+  if (!is.na(disclosure$identity_repu)) {
+    rows[[length(rows) + 1L]] <- make_flag(
+      "(synthpop disclosure)",
+      sprintf("Identity disclosure repU: %.2f", disclosure$identity_repu),
+      "LOW",
+      "Review synthpop disclosure metrics before sharing relationship-preserving synthetic data"
+    )
+  }
+  if (!is.na(disclosure$attribute_disco)) {
+    rows[[length(rows) + 1L]] <- make_flag(
+      "(synthpop disclosure)",
+      sprintf("Attribute disclosure DiSCO: %.2f", disclosure$attribute_disco),
+      "LOW",
+      "Review synthpop disclosure metrics before sharing relationship-preserving synthetic data"
+    )
+  }
+
+  if (length(rows) == 0L) {
+    return(tibble::tibble(
+      variable       = character(0),
+      flag           = character(0),
+      severity       = character(0),
+      recommendation = character(0)
+    ))
+  }
+
+  dplyr::bind_rows(rows)
+}
+
+disclosure_numeric <- function(x, name) {
+  if (is.null(x)) {
+    return(NA_real_)
+  }
+
+  if (is.data.frame(x) || is.matrix(x)) {
+    nms <- colnames(x)
+    idx <- which(tolower(nms) == tolower(name))
+    if (length(idx)) {
+      return(as.numeric(x[1, idx[[1]]]))
+    }
+  }
+
+  if (is.list(x) && !is.null(names(x))) {
+    idx <- which(tolower(names(x)) == tolower(name))
+    if (length(idx)) {
+      return(as.numeric(x[[idx[[1]]]][[1]]))
+    }
+  }
+
+  NA_real_
 }
 
 # ===========================================================================

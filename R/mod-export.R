@@ -80,7 +80,7 @@ mod_export_server <- function(id, state) {
     output$names_ui <- shiny::renderUI({
       purpose <- state$spec$purpose
 
-      if (!is.null(purpose) && identical(purpose, "safer_external")) {
+      if (!is.null(purpose) && identical(purpose, "demo")) {
         shiny::tags$p(
           class = "t-body-sm",
           "Column names will be anonymized to protect variable identity."
@@ -109,7 +109,7 @@ mod_export_server <- function(id, state) {
 
         purpose <- state$spec$purpose
         input_format <- if (is.null(input$format)) "csv" else input$format
-        use_original_names <- if (!is.null(purpose) && identical(purpose, "safer_external")) {
+        use_original_names <- if (!is.null(purpose) && identical(purpose, "demo")) {
           FALSE
         } else {
           isTRUE(input$include_original_names)

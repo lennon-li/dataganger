@@ -22,8 +22,8 @@
 #'   purpose recorded in `attr(synthetic, "spec")` when available.
 #' @param include_original_names Logical or `NULL`. Controls whether
 #'   `data_dictionary.csv` includes original variable names. When `NULL`, this
-#'   defaults to `TRUE` for `purpose = "ai_programming"` and `FALSE` for
-#'   `purpose = "safer_external"` or `name_strategy = "dictionary_only"`.
+#'   defaults to `TRUE` unless `name_strategy = "dictionary_only"`, in which
+#'   case it defaults to `FALSE`.
 #' @param fail_on_exact_match Logical. When `TRUE`, abort export if exact-row
 #'   matches are detected for `nrow(original) >= 20`. When `FALSE` (the
 #'   default), exact-row matches are recorded in the privacy report and
@@ -31,6 +31,9 @@
 #' @param include_report Logical. When `TRUE` (the default), write
 #'   `comparison_report.html`. If `rmarkdown`/`knitr` are unavailable, the
 #'   report is skipped with a message instead of an error.
+#' @param code_readiness Optional `dataganger_code_readiness` object from
+#'   [check_code_readiness()]. When supplied, writes
+#'   `code_readiness_report.json` into the bundle.
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
 #'
@@ -39,9 +42,9 @@
 #'
 #' @examples
 #' dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
-#' spec <- synth_spec(purpose = "teaching", seed = 1)
+#' spec <- synth_spec(purpose = "demo", seed = 1)
 #' syn <- synthesize_data(dat, spec)
-#' \donttest{
+#' \dontrun{
 #' export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))
 #' }
 export_synthetic <- function(synthetic,
@@ -55,6 +58,7 @@ export_synthetic <- function(synthetic,
                              include_original_names = NULL,
                              fail_on_exact_match = FALSE,
                              include_report = TRUE,
+                             code_readiness = NULL,
                              overwrite = FALSE) {
   format <- match.arg(format)
 
@@ -173,13 +177,37 @@ export_synthetic <- function(synthetic,
   }
 
   write_manifest(
-    bundle_dir = bundle_dir,
-    synthetic = synthetic,
-    spec = spec,
-    purpose = purpose,
-    exact_row_matches = exact_row_matches,
-    include_original_names = include_original_names
+    bundle_dir             = bundle_dir,
+    synthetic              = synthetic,
+    spec                   = spec,
+    purpose                = purpose,
+    exact_row_matches      = exact_row_matches,
+    include_original_names = include_original_names,
+    original               = original
   )
+
+  if (!is.null(code_readiness)) {
+    cr_list <- list(
+      summary = code_readiness$summary,
+      checks  = lapply(seq_len(nrow(code_readiness$checks)), function(i) {
+        as.list(code_readiness$checks[i, ])
+      }),
+      meta = list(
+        generated_at = format(code_readiness$meta$generated_at, usetz = TRUE),
+        nrow_orig    = code_readiness$meta$nrow_orig,
+        ncol_orig    = code_readiness$meta$ncol_orig,
+        nrow_syn     = code_readiness$meta$nrow_syn,
+        ncol_syn     = code_readiness$meta$ncol_syn
+      )
+    )
+    jsonlite::write_json(
+      cr_list,
+      path       = file.path(bundle_dir, "code_readiness_report.json"),
+      auto_unbox = TRUE,
+      pretty     = TRUE,
+      null       = "null"
+    )
+  }
 
   if (identical(format, "zip")) {
     zip_bundle(bundle_dir, output_path)
@@ -665,7 +693,7 @@ html_escape <- function(x) {
 }
 
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
-                           include_original_names = TRUE) {
+                           include_original_names = TRUE, original = NULL) {
   files <- list.files(bundle_dir, full.names = TRUE, all.files = FALSE, no.. = TRUE)
   files <- files[basename(files) != "manifest.json"]
   spec_for_manifest <- unclass(spec %||% list())
@@ -675,19 +703,36 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
 
   spec_json <- jsonlite::toJSON(spec_for_manifest, auto_unbox = TRUE, null = "null", pretty = TRUE)
   spec_hash <- hash_text(spec_json)
-  file_hashes <- as.list(unname(tools::sha256sum(files)))
+  file_hashes <- as.list(hash_files(files))
   names(file_hashes) <- basename(files)
 
   manifest <- list(
     dataganger_version = as.character(utils::packageVersion("dataganger")),
     generated_at = as.character(Sys.time()),
     purpose = purpose,
+    engine = attr(synthetic, "engine", exact = TRUE) %||% "unknown",
+    synthesis_citation = if (identical(attr(synthetic, "engine", exact = TRUE), "synthpop")) {
+      synthpop_citation()
+    } else {
+      NULL
+    },
     seed = spec$seed %||% NULL,
     spec = spec_for_manifest,
     spec_hash = spec_hash,
     exact_row_matches = exact_row_matches,
     synthetic_dims = list(nrow = nrow(synthetic), ncol = ncol(synthetic)),
-    file_sha256 = file_hashes
+    file_sha256 = file_hashes,
+    source                  = "dataganger",
+    original_rows_bucket    = if (!is.null(original)) bucket_nrows(nrow(original)) else NULL,
+    original_columns_count  = if (!is.null(original)) ncol(original) else NULL,
+    raw_rows_included       = FALSE,
+    free_text_included      = FALSE,
+    ids_included            = FALSE,
+    plots_included          = FALSE,
+    original_names_included = isTRUE(include_original_names),
+    factor_levels_included  = isTRUE(spec$level %in% c("marginal", "hifi")),
+    numeric_ranges_included = FALSE,
+    policy_file             = NULL
   )
 
   jsonlite::write_json(
@@ -708,21 +753,23 @@ resolve_include_original_names <- function(include_original_names, purpose, spec
     return(FALSE)
   }
 
-  if (identical(purpose, "safer_external")) {
-    return(FALSE)
-  }
-
-  if (identical(purpose, "ai_programming")) {
-    return(TRUE)
-  }
-
   TRUE
 }
 
 hash_text <- function(text) {
-  tmp <- tempfile(fileext = ".json")
-  writeLines(text, con = tmp, useBytes = TRUE)
-  unname(tools::sha256sum(tmp))
+  digest::digest(text, algo = "sha256", serialize = FALSE)
+}
+
+hash_files <- function(files) {
+  vapply(
+    files,
+    digest::digest,
+    algo = "sha256",
+    file = TRUE,
+    serialize = FALSE,
+    FUN.VALUE = character(1),
+    USE.NAMES = FALSE
+  )
 }
 
 zip_bundle <- function(bundle_dir, output_path) {

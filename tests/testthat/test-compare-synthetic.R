@@ -2,7 +2,7 @@
 
 test_that("compare_synthetic() returns dataganger_comparison", {
   df <- data.frame(x = 1:5, y = letters[1:5])
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_s3_class(cmp, "dataganger_comparison")
@@ -12,7 +12,7 @@ test_that("compare_synthetic() returns dataganger_comparison", {
 
 test_that("compare_synthetic() dataset-level metrics", {
   df <- data.frame(x = 1:10, y = rnorm(10))
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "demo", n = 20)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   ds <- cmp$dataset
@@ -24,7 +24,7 @@ test_that("compare_synthetic() dataset-level metrics", {
 
 test_that("compare_synthetic() numeric comparison", {
   df <- data.frame(a = rnorm(50, 10, 2), b = rnorm(50, 5, 1))
-  spec <- synth_spec(purpose = "teaching", n = 100, seed = 1)
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 1)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   num <- cmp$numeric
@@ -36,7 +36,7 @@ test_that("compare_synthetic() numeric comparison", {
 
 test_that("compare_synthetic() standardized diff is computed correctly", {
   df <- data.frame(x = c(1:4, 5))
-  spec <- synth_spec(purpose = "teaching", n = 5, seed = 1)
+  spec <- synth_spec(purpose = "demo", n = 5, seed = 1)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_true(!is.na(cmp$numeric$std_diff[1]))
@@ -44,7 +44,7 @@ test_that("compare_synthetic() standardized diff is computed correctly", {
 
 test_that("compare_synthetic() categorical comparison", {
   df <- data.frame(f = factor(rep(c("a", "b", "c"), each = 5)))
-  spec <- synth_spec(purpose = "teaching", n = 30)
+  spec <- synth_spec(purpose = "demo", n = 30)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   cat <- cmp$categorical
@@ -56,7 +56,7 @@ test_that("compare_synthetic() categorical comparison", {
 
 test_that("compare_synthetic() TVD is between 0 and 1", {
   df <- data.frame(f = factor(rep(c("x", "y"), each = 10)))
-  spec <- synth_spec(purpose = "teaching", n = 50)
+  spec <- synth_spec(purpose = "demo", n = 50)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_true(cmp$categorical$tvd[1] >= 0)
@@ -65,7 +65,7 @@ test_that("compare_synthetic() TVD is between 0 and 1", {
 
 test_that("compare_synthetic() relationship with 2+ numeric columns", {
   df <- data.frame(a = 1:20, b = 20:1, c = rnorm(20))
-  spec <- synth_spec(purpose = "teaching", n = 20)
+  spec <- synth_spec(purpose = "demo", n = 20)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_true(nrow(cmp$relationship) >= 1)
@@ -76,7 +76,7 @@ test_that("compare_synthetic() relationship with 2+ numeric columns", {
 
 test_that("compare_synthetic() relationship with <2 numeric columns is empty", {
   df <- data.frame(x = letters[1:10], y = factor(rep("a", 10)))
-  spec <- synth_spec(purpose = "teaching", n = 10)
+  spec <- synth_spec(purpose = "demo", n = 10)
   syn <- synthesize_data(df, spec)
   expect_message(
     cmp <- compare_synthetic(df, syn),
@@ -87,7 +87,7 @@ test_that("compare_synthetic() relationship with <2 numeric columns is empty", {
 
 test_that("compare_synthetic() handles all-NA numeric column", {
   df <- data.frame(x = rep(NA_real_, 10), y = 1:10)
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_true(nrow(cmp$numeric) >= 1)
@@ -96,7 +96,7 @@ test_that("compare_synthetic() handles all-NA numeric column", {
 
 test_that("compare_synthetic() handles no numeric columns", {
   df <- data.frame(x = letters[1:5], y = factor(letters[1:5]))
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_equal(nrow(cmp$numeric), 0)
@@ -104,7 +104,7 @@ test_that("compare_synthetic() handles no numeric columns", {
 
 test_that("compare_synthetic() handles no categorical columns", {
   df <- data.frame(x = 1:5, y = 6:10)
-  spec <- synth_spec(purpose = "teaching", n = 5)
+  spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_equal(nrow(cmp$categorical), 0)
@@ -119,7 +119,7 @@ test_that("compare_synthetic() rejects non-data-frame", {
 
 test_that("compare_synthetic() print method works", {
   df <- data.frame(x = 1:5, y = letters[1:5])
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_no_error(print(cmp))
@@ -127,7 +127,7 @@ test_that("compare_synthetic() print method works", {
 
 test_that("compare_synthetic() meta includes generation time", {
   df <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_s3_class(cmp$meta$generated_at, "POSIXct")
@@ -137,7 +137,7 @@ test_that("compare_synthetic() meta includes generation time", {
 
 test_that("compare_synthetic() categorical comparison for character columns", {
   df <- data.frame(txt = c("hello", "world", "hello", "foo", "bar"))
-  spec <- synth_spec(purpose = "teaching", n = 20, merge_rare = FALSE)
+  spec <- synth_spec(purpose = "demo", n = 20, merge_rare = FALSE)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_true(nrow(cmp$categorical) >= 1)
@@ -149,7 +149,7 @@ test_that("plot_comparison() errors if ggplot2 missing", {
     "ggplot2 is installed"
   )
   df <- data.frame(x = 1:5)
-  spec <- synth_spec(purpose = "teaching")
+  spec <- synth_spec(purpose = "demo")
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_error(plot_comparison(cmp))
@@ -158,7 +158,7 @@ test_that("plot_comparison() errors if ggplot2 missing", {
 test_that("plot_comparison() returns plots when ggplot2 available", {
   skip_if_not_installed("ggplot2")
   df <- data.frame(x = rnorm(20), f = factor(rep(c("a", "b"), 10)))
-  spec <- synth_spec(purpose = "teaching", n = 20, seed = 1)
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 1)
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   p <- plot_comparison(cmp)
@@ -169,7 +169,7 @@ test_that("plot_comparison() returns plots when ggplot2 available", {
 
 test_that("compare_synthetic() works with toy dataset", {
   data("example_health_survey", package = "dataganger")
-  spec <- synth_spec(purpose = "ai_programming", seed = 1)
+  spec <- synth_spec(purpose = "development", seed = 1)
   syn <- synthesize_data(example_health_survey, spec)
   cmp <- compare_synthetic(example_health_survey, syn)
   expect_s3_class(cmp, "dataganger_comparison")

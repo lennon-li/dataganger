@@ -6,29 +6,28 @@ synth_controls_host_server <- function(id) {
   })
 }
 
-test_that("A1 confirm writes ai_programming spec", {
+test_that("A1 confirm writes development spec", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
     state <- session$getReturned()$state
 
-    session$setInputs(`controls-purpose_group` = "prototype")
-    session$setInputs(`controls-prototype_choice` = "ai_programming")
+    session$setInputs(`controls-purpose_group` = "development")
     session$flushReact()
     session$setInputs(`controls-confirm` = 1L)
     session$flushReact()
 
-    expect_identical(state$spec$purpose, "ai_programming")
+    expect_identical(state$spec$purpose, "development")
   })
 })
 
-test_that("internal_hifi without checkbox leaves state spec NULL", {
+test_that("analytics without checkbox leaves state spec NULL", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
     state <- session$getReturned()$state
 
-    session$setInputs(`controls-purpose_group` = "internal_hifi")
+    session$setInputs(`controls-purpose_group` = "analytics")
     session$setInputs(`controls-acknowledge_risk` = FALSE)
     session$flushReact()
     session$setInputs(`controls-confirm` = 1L)
@@ -38,36 +37,35 @@ test_that("internal_hifi without checkbox leaves state spec NULL", {
   })
 })
 
-test_that("internal_hifi with checkbox writes internal_hifi spec", {
+test_that("analytics with checkbox writes analytics spec", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
     state <- session$getReturned()$state
 
-    session$setInputs(`controls-purpose_group` = "internal_hifi")
+    session$setInputs(`controls-purpose_group` = "analytics")
     session$setInputs(`controls-acknowledge_risk` = TRUE)
     session$flushReact()
     session$setInputs(`controls-confirm` = 1L)
     session$flushReact()
 
-    expect_identical(state$spec$purpose, "internal_hifi")
+    expect_identical(state$spec$purpose, "analytics")
     expect_true(isTRUE(state$spec$acknowledged_risk))
   })
 })
 
-test_that("safer_external spec fixes name and geography strategies", {
+test_that("demo spec uses preset name and geography strategies", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
     state <- session$getReturned()$state
 
-    session$setInputs(`controls-purpose_group` = "safer_external")
+    session$setInputs(`controls-purpose_group` = "demo")
     session$flushReact()
     session$setInputs(`controls-confirm` = 1L)
     session$flushReact()
 
-    expect_identical(state$spec$name_strategy, "generic")
-    expect_identical(state$spec$geography_strategy, "aggregate")
+    expect_identical(state$spec$purpose, "demo")
   })
 })
 
@@ -77,8 +75,7 @@ test_that("confirming a changed spec sets all stale flags", {
   shiny::testServer(synth_controls_host_server, {
     state <- session$getReturned()$state
 
-    session$setInputs(`controls-purpose_group` = "prototype")
-    session$setInputs(`controls-prototype_choice` = "ai_programming")
+    session$setInputs(`controls-purpose_group` = "development")
     session$flushReact()
     session$setInputs(`controls-confirm` = 1L)
     session$flushReact()
@@ -89,13 +86,9 @@ test_that("confirming a changed spec sets all stale flags", {
     state$stale <- list(synthesis = FALSE, comparison = FALSE, export = FALSE)
     session$flushReact()
 
-    expect_warning(
-      {
-        session$setInputs(`controls-prototype_choice` = "model_prototype")
-        session$flushReact()
-      },
-      "Relationship-aware synthesis is planned for a future release"
-    )
+    session$setInputs(`controls-purpose_group` = "analytics")
+    session$setInputs(`controls-acknowledge_risk` = TRUE)
+    session$flushReact()
     session$setInputs(`controls-confirm` = 2L)
     session$flushReact()
 

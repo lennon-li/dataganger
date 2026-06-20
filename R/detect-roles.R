@@ -120,14 +120,30 @@ detect_single_role <- function(x, name, n_rows) {
   }
 
   # Test 6: high cardinality → ID candidate
+  # Guard: character columns with long median values are not IDs even when
+  # unique — they belong in free text territory and only reached here due to
+  # edge cases in is_free_text_candidate (e.g. non-sentence long strings).
+  # Numeric columns are excluded: distinctive numbers (lab values, prices,
+  # measurements) are not identifiers unless the column name says so (Test 5).
+  # They fall through to the numeric rule below for the user to classify in
+  # the UI — DataGangeR is designed for the user to make that call.
   distinct_ratio <- if (n_rows > 0) n_distinct / n_rows else 0
-  if (distinct_ratio >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
+  is_long_char <- is.character(x) && {
+    x_obs <- x[!is.na(x) & nzchar(trimws(x))]
+    length(x_obs) > 0 && stats::median(nchar(x_obs), na.rm = TRUE) > 20
+  }
+  if (!is_long_char && !is.numeric(x) && distinct_ratio >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
     return(make_role_row(name, r_class, "ID candidate", "n_distinct/nrow >= 0.95", TRUE))
   }
 
   # Test 7: low cardinality → categorical candidate
   if (distinct_ratio < 0.05 || n_distinct <= 20) {
     return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", FALSE))
+  }
+
+  # Test 8: distinctive numeric → numeric (user classifies via UI)
+  if (is.numeric(x)) {
+    return(make_role_row(name, r_class, "numeric", "distinctive numeric; classify via UI", FALSE))
   }
 
   # Default

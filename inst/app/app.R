@@ -92,7 +92,6 @@ sidebar_content <- tags$nav(
         document.querySelectorAll('.purpose-card').forEach(function(c){ c.classList.remove('selected'); });
         el.classList.add('selected');
         Shiny.setInputValue('synthesis_controls-purpose_group', group, {priority: 'event'});
-        if (isProto) Shiny.setInputValue('synthesis_controls-prototype_choice', key, {priority: 'event'});
       }
       window.DGsetPurpose = DGsetPurpose;
 

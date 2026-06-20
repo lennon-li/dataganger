@@ -1,0 +1,377 @@
+#' DataGangeR command-line interface
+#'
+#' Testable command-line entrypoint used by the installed `exec/dataganger` shim.
+#'
+#' @param args Character vector of trailing command-line arguments.
+#' @param quit Logical. When `TRUE`, terminate the R process using the returned
+#'   status code. Tests pass `FALSE` and assert the integer code.
+#'
+#' @return Integer status code: `0` success, `1` processing error, `2` syntax error.
+#' @export
+dataganger_cli <- function(args = commandArgs(trailingOnly = TRUE), quit = FALSE) {
+  status <- cli_dispatch(args)
+  if (isTRUE(quit)) {
+    base::quit(save = "no", status = status, runLast = FALSE)
+  }
+  status
+}
+
+cli_status_ok <- function() 0L
+cli_status_error <- function() 1L
+cli_status_usage <- function() 2L
+
+cli_dispatch <- function(args) {
+  tryCatch(
+    {
+      if (length(args) == 0L || identical(args[[1]], "--help") || identical(args[[1]], "-h")) {
+        cli_print_help()
+        return(cli_status_ok())
+      }
+
+      command <- args[[1]]
+      rest <- args[-1]
+
+      switch(
+        command,
+        profile = cli_cmd_profile(rest),
+        roles = cli_cmd_roles(rest),
+        spec = cli_cmd_spec(rest),
+        synthesize = cli_cmd_synthesize(rest),
+        inspect = cli_cmd_inspect(rest),
+        "make-agent-bundle" = cli_cmd_make_agent_bundle(rest),
+        "export-diagnostic" = cli_cmd_export_diagnostic(rest),
+        {
+          cli::cli_alert_danger("Unknown command: {command}")
+          cli_status_usage()
+        }
+      )
+    },
+    dataganger_cli_usage_error = function(e) {
+      cli::cli_alert_danger("{conditionMessage(e)}")
+      cli_status_usage()
+    },
+    error = function(e) {
+      cli::cli_alert_danger("{conditionMessage(e)}")
+      cli_status_error()
+    }
+  )
+}
+
+cli_print_help <- function() {
+  cat(
+    paste(
+      "Usage: dataganger <command> [options]",
+      "",
+      "Commands:",
+      "  profile <data-file> --out <profile.json>",
+      "  roles <data-file> --out <roles.yaml>",
+      "  spec --purpose <purpose> --out <spec.yaml>",
+      "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--engine <internal|synthpop>]",
+      "  inspect <synthetic_bundle.zip>",
+      "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
+      "  export-diagnostic <data-file> --out <diagnostic_view.json>",
+      sep = "\n"
+    ),
+    "\n",
+    sep = ""
+  )
+}
+
+cli_usage_error <- function(message) {
+  structure(
+    list(message = message, call = NULL),
+    class = c("dataganger_cli_usage_error", "error", "condition")
+  )
+}
+
+
+cli_parse_options <- function(args, allowed = character()) {
+  positionals <- character()
+  options <- list()
+  i <- 1L
+
+  while (i <= length(args)) {
+    token <- args[[i]]
+    if (startsWith(token, "--")) {
+      key <- substring(token, 3L)
+      if (!(key %in% allowed)) {
+        stop(cli_usage_error(sprintf("Unknown option --%s", key)))
+      }
+      if (i == length(args) || startsWith(args[[i + 1L]], "--")) {
+        stop(cli_usage_error(sprintf("Missing value for option --%s", key)))
+      }
+      options[[key]] <- args[[i + 1L]]
+      i <- i + 2L
+    } else {
+      positionals <- c(positionals, token)
+      i <- i + 1L
+    }
+  }
+
+  list(positionals = positionals, options = options)
+}
+
+cli_require_option <- function(parsed, name) {
+  value <- parsed$options[[name]]
+  if (is.null(value) || !nzchar(value)) {
+    stop(cli_usage_error(sprintf("Missing required option --%s", name)))
+  }
+  value
+}
+
+cli_require_n_positionals <- function(parsed, n, command, label) {
+  if (length(parsed$positionals) != n) {
+    stop(cli_usage_error(sprintf("%s requires exactly %s %s", command, if (identical(n, 1L)) "one" else as.character(n), label)))
+  }
+  parsed$positionals
+}
+
+cli_assert_existing_file <- function(path) {
+  if (!file.exists(path)) {
+    stop(sprintf("Input file does not exist: %s", path), call. = FALSE)
+  }
+  invisible(path)
+}
+
+
+cli_write_json <- function(x, path) {
+  jsonlite::write_json(x, path, auto_unbox = TRUE, pretty = TRUE, na = "null")
+  invisible(path)
+}
+
+cli_profile_to_list <- function(profile) {
+  list(
+    n_rows = unclass(profile)$n_rows,
+    n_cols = unclass(profile)$n_cols,
+    generated_at = format(unclass(profile)$generated_at, usetz = TRUE),
+    profile = as.data.frame(unclass(profile)$profile)
+  )
+}
+
+cli_cmd_profile <- function(args) {
+  parsed <- cli_parse_options(args, allowed = "out")
+  input <- cli_require_n_positionals(parsed, 1L, "profile", "data file")[[1]]
+  out <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  profile <- profile_data(data)
+  cli_write_json(cli_profile_to_list(profile), out)
+  cli::cli_alert_success("Wrote profile JSON: {out}")
+  cli_status_ok()
+}
+
+
+cli_write_yaml <- function(x, path) {
+  yaml::write_yaml(x, path)
+  invisible(path)
+}
+
+cli_roles_to_list <- function(roles) {
+  list(roles = lapply(seq_len(nrow(roles)), function(i) as.list(roles[i, , drop = FALSE])))
+}
+
+cli_cmd_roles <- function(args) {
+  parsed <- cli_parse_options(args, allowed = "out")
+  input <- cli_require_n_positionals(parsed, 1L, "roles", "data file")[[1]]
+  out <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  profile <- profile_data(data)
+  roles <- detect_roles(data, profile = profile)
+  cli_write_yaml(cli_roles_to_list(roles), out)
+  cli::cli_alert_success("Wrote roles YAML: {out}")
+  cli_status_ok()
+}
+
+
+cli_spec_to_list <- function(spec) {
+  x <- unclass(spec)
+  x$generated_at <- NULL
+  x
+}
+
+cli_cmd_spec <- function(args) {
+  parsed <- cli_parse_options(args, allowed = c("purpose", "out"))
+  cli_require_n_positionals(parsed, 0L, "spec", "data file")
+  purpose <- cli_require_option(parsed, "purpose")
+  out <- cli_require_option(parsed, "out")
+
+  spec <- synth_spec(purpose = purpose)
+  cli_write_yaml(cli_spec_to_list(spec), out)
+  cli::cli_alert_success("Wrote spec YAML: {out}")
+  cli_status_ok()
+}
+
+
+cli_read_spec_yaml <- function(path) {
+  cli_assert_existing_file(path)
+  raw <- yaml::read_yaml(path)
+  if (is.null(raw$purpose) || !nzchar(raw$purpose)) {
+    stop("Spec YAML must contain a non-empty purpose field", call. = FALSE)
+  }
+
+  allowed <- c(
+    "level", "n", "name_strategy", "seed", "preserve_correlations",
+    "coarsen_dates", "merge_rare", "free_text_strategy",
+    "geography_strategy", "rare_level_min_n", "preserve_missingness"
+  )
+  override <- raw[intersect(names(raw), allowed)]
+  do.call(synth_spec, c(list(purpose = raw$purpose), override))
+}
+
+cli_cmd_synthesize <- function(args) {
+  parsed <- cli_parse_options(args, allowed = c("spec", "out", "engine"))
+  input <- cli_require_n_positionals(parsed, 1L, "synthesize", "data file")[[1]]
+  spec_path <- cli_require_option(parsed, "spec")
+  out <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  spec <- cli_read_spec_yaml(spec_path)
+  profile <- profile_data(data)
+  roles <- detect_roles(data, profile = profile)
+  pre_privacy <- privacy_check(data, roles = roles, stage = "pre")
+  hardened_spec <- synth_spec(
+    purpose = spec$purpose,
+    level = spec$level,
+    n = spec$n,
+    roles = roles,
+    privacy = pre_privacy,
+    name_strategy = spec$name_strategy,
+    seed = spec$seed,
+    preserve_correlations = spec$preserve_correlations,
+    coarsen_dates = spec$coarsen_dates,
+    merge_rare = spec$merge_rare,
+    free_text_strategy = spec$free_text_strategy,
+    geography_strategy = spec$geography_strategy,
+    rare_level_min_n = spec$rare_level_min_n,
+    preserve_missingness = spec$preserve_missingness
+  )
+  engine    <- parsed$options[["engine"]]
+  synthetic <- synthesize_data(data, hardened_spec, roles = roles, engine = engine)
+  comparison <- compare_synthetic(data, synthetic, roles = roles)
+  post_privacy <- privacy_check(data, synthetic, roles = roles, stage = "post", spec = hardened_spec)
+
+  export_synthetic(
+    synthetic,
+    original = data,
+    comparison = comparison,
+    privacy = post_privacy,
+    path = out,
+    format = "zip"
+  )
+  cli::cli_alert_success("Wrote synthetic bundle: {out}")
+  cli_status_ok()
+}
+
+
+cli_unpack_bundle_file <- function(zip_path, member, tmp) {
+  utils::unzip(zip_path, files = member, exdir = tmp, junkpaths = TRUE)
+  file.path(tmp, basename(member))
+}
+
+cli_read_bundle_summary <- function(zip_path) {
+  cli_assert_existing_file(zip_path)
+  listing <- utils::unzip(zip_path, list = TRUE)
+  required <- c("manifest.json", "data_dictionary.csv", "privacy_report.txt")
+  missing <- setdiff(required, listing$Name)
+  if (length(missing) > 0L) {
+    stop(sprintf("Bundle is missing required file: %s", paste(missing, collapse = ", ")), call. = FALSE)
+  }
+
+  tmp <- tempfile("dataganger-inspect-")
+  dir.create(tmp)
+  on.exit(unlink(tmp, recursive = TRUE, force = TRUE), add = TRUE)
+
+  manifest_path <- cli_unpack_bundle_file(zip_path, "manifest.json", tmp)
+  dictionary_path <- cli_unpack_bundle_file(zip_path, "data_dictionary.csv", tmp)
+  privacy_path <- cli_unpack_bundle_file(zip_path, "privacy_report.txt", tmp)
+
+  manifest <- jsonlite::read_json(manifest_path, simplifyVector = TRUE)
+  dictionary <- readr::read_csv(dictionary_path, show_col_types = FALSE)
+  privacy <- readLines(privacy_path, warn = FALSE)
+
+  list(
+    manifest = manifest,
+    dictionary = dictionary,
+    privacy = privacy,
+    files = listing$Name
+  )
+}
+
+cli_print_bundle_summary <- function(summary) {
+  manifest <- summary$manifest
+  dictionary <- summary$dictionary
+  privacy <- summary$privacy
+
+  cat("Synthetic bundle
+")
+  cat(sprintf("Purpose: %s
+", manifest$purpose %||% "unknown"))
+  cat(sprintf("Variables: %d
+", nrow(dictionary)))
+  cat(sprintf("Files: %d
+", length(summary$files)))
+
+  if ("type" %in% names(dictionary)) {
+    type_counts <- sort(table(dictionary$type), decreasing = TRUE)
+    cat("Schema types:
+")
+    for (nm in names(type_counts)) {
+      cat(sprintf("  - %s: %d
+", nm, unname(type_counts[[nm]])))
+    }
+  }
+
+  privacy_lines <- privacy[nzchar(privacy)]
+  cat("Privacy exposure ratings:
+")
+  if (length(privacy_lines) == 0L) {
+    cat("  - No privacy report lines found
+")
+  } else {
+    for (line in utils::head(privacy_lines, 8L)) {
+      cat(sprintf("  - %s
+", line))
+    }
+  }
+}
+
+cli_cmd_inspect <- function(args) {
+  parsed <- cli_parse_options(args, allowed = character())
+  bundle <- cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")[[1]]
+  summary <- cli_read_bundle_summary(bundle)
+  cli_print_bundle_summary(summary)
+  cli_status_ok()
+}
+
+cli_cmd_make_agent_bundle <- function(args) {
+  parsed  <- cli_parse_options(args, allowed = c("out", "purpose", "seed"))
+  input   <- cli_require_n_positionals(parsed, 1L, "make-agent-bundle", "data file")[[1]]
+  out     <- cli_require_option(parsed, "out")
+  purpose <- parsed$options[["purpose"]] %||% "development"
+  seed    <- if (!is.null(parsed$options[["seed"]])) {
+    as.integer(parsed$options[["seed"]])
+  } else {
+    NULL
+  }
+  cli_assert_existing_file(input)
+
+  make_agent_bundle(input, out = out, purpose = purpose, seed = seed)
+  cli::cli_alert_success("Wrote agent bundle: {out}")
+  cli_status_ok()
+}
+
+cli_cmd_export_diagnostic <- function(args) {
+  parsed <- cli_parse_options(args, allowed = c("out"))
+  input  <- cli_require_n_positionals(parsed, 1L, "export-diagnostic", "data file")[[1]]
+  out    <- cli_require_option(parsed, "out")
+  cli_assert_existing_file(input)
+
+  data <- read_input(input)
+  export_diagnostic_package(data, path = out)
+  cli::cli_alert_success("Wrote diagnostic schema: {out}")
+  cli_status_ok()
+}

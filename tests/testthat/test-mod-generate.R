@@ -35,7 +35,7 @@ capture_notifications <- function() {
 test_that("generate warns when state raw_data is NULL", {
   testthat::skip_if_not_installed("shiny")
 
-  state <- generate_test_state(spec = synth_spec(purpose = "ai_programming"))
+  state <- generate_test_state(spec = synth_spec(purpose = "development"))
   recorder <- capture_notifications()
   withr::local_options(recorder$options)
 
@@ -75,7 +75,7 @@ test_that("successful generation populates synthetic outputs", {
   testthat::skip_if_not_installed("shiny")
 
   data("example_health_survey", package = "dataganger")
-  spec <- synth_spec(purpose = "ai_programming", seed = 1)
+  spec <- synth_spec(purpose = "development", seed = 1)
   state <- generate_test_state(data = example_health_survey, spec = spec)
 
   shiny::testServer(mod_generate_server, args = list(state = state), {
@@ -93,7 +93,7 @@ test_that("successful generation clears stale flags", {
   testthat::skip_if_not_installed("shiny")
 
   data("example_health_survey", package = "dataganger")
-  spec <- synth_spec(purpose = "ai_programming", seed = 2)
+  spec <- synth_spec(purpose = "development", seed = 2)
   state <- generate_test_state(data = example_health_survey, spec = spec)
 
   shiny::testServer(mod_generate_server, args = list(state = state), {
@@ -111,7 +111,7 @@ test_that("synthesis errors notify and leave state untouched", {
   testthat::skip_if_not_installed("shiny")
 
   data("example_health_survey", package = "dataganger")
-  spec <- synth_spec(purpose = "ai_programming", seed = 3)
+  spec <- synth_spec(purpose = "development", seed = 3)
   state <- generate_test_state(data = example_health_survey, spec = spec)
   recorder <- capture_notifications()
   withr::local_options(recorder$options)
@@ -165,7 +165,7 @@ test_that("generate stores seed_used when spec seed is NULL", {
 
   state <- generate_test_state(
     data = data.frame(x = 1:3),
-    spec = synth_spec(purpose = "ai_programming")
+    spec = synth_spec(purpose = "development")
   )
   stubs <- make_stub_bindings()
   testthat::local_mocked_bindings(
@@ -189,7 +189,7 @@ test_that("generate uses spec seed when not NULL", {
 
   state <- generate_test_state(
     data = data.frame(x = 1:3),
-    spec = synth_spec(purpose = "ai_programming", seed = 42L)
+    spec = synth_spec(purpose = "development", seed = 42L)
   )
   stubs <- make_stub_bindings()
   testthat::local_mocked_bindings(
@@ -211,7 +211,7 @@ test_that("result_summary includes Seed line after generation", {
 
   state <- generate_test_state(
     data = data.frame(x = 1:3),
-    spec = synth_spec(purpose = "ai_programming", seed = 99L)
+    spec = synth_spec(purpose = "development", seed = 99L)
   )
   stubs <- make_stub_bindings()
   testthat::local_mocked_bindings(
@@ -232,7 +232,7 @@ test_that("try_new_seed runs synthesis and stores a new seed_used", {
 
   state <- generate_test_state(
     data = data.frame(x = 1:3),
-    spec = synth_spec(purpose = "ai_programming")
+    spec = synth_spec(purpose = "development")
   )
   stubs <- make_stub_bindings()
   testthat::local_mocked_bindings(
@@ -255,7 +255,7 @@ test_that("adjust_settings sets nav_request to configure", {
 
   state <- generate_test_state(
     data = data.frame(x = 1:3),
-    spec = synth_spec(purpose = "ai_programming")
+    spec = synth_spec(purpose = "development")
   )
 
   shiny::testServer(mod_generate_server, args = list(state = state), {

@@ -12,13 +12,14 @@ synth_spec(
   privacy = NULL,
   name_strategy = NULL,
   seed = NULL,
+  engine = NULL,
   acknowledge_risk = FALSE,
   ...
 )
 }
 \arguments{
-\item{purpose}{Character. One of \code{"ai_programming"}, \code{"shiny_prototype"},
-\code{"teaching"}, \code{"model_prototype"}, \code{"internal_hifi"}, \code{"safer_external"}.}
+\item{purpose}{Character. One of \code{"demo"}, \code{"development"}, or \code{"analytics"}.
+If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
 
 \item{level}{Character or \code{NULL}. Synthesis level: \code{"schema"} or
 \code{"marginal"}. If \code{NULL}, derived from the preset.}
@@ -37,8 +38,12 @@ or \code{"dictionary_only"}. If \code{NULL}, derived from the preset.}
 
 \item{seed}{Integer or \code{NULL}. Reproducibility seed.}
 
+\item{engine}{Character or \code{NULL}. Optional explicit synthesis engine:
+\code{"internal"}, \code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}.
+If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
+
 \item{acknowledge_risk}{Logical. Required to be \code{TRUE} when
-\code{purpose = "internal_hifi"}.}
+\code{purpose = "analytics"}.}
 
 \item{...}{Additional arguments passed to the spec list. Currently supports
 \code{preserve_correlations}, \code{coarsen_dates}, \code{merge_rare},
@@ -51,10 +56,11 @@ An S3 object of class \code{dataganger_spec} (a named list).
 \description{
 Builds a synthesis specification from a purpose preset with optional
 user overrides. The specification records the synthesis parameters and
-the required engine, but does not check engine availability — that is
+the required engine, but does not check engine availability - that is
 done by \code{\link[=synthesize_data]{synthesize_data()}}.
 }
 \examples{
-synth_spec(purpose = "teaching")
-synth_spec(purpose = "ai_programming", n = 200, seed = 42)
+synth_spec(purpose = "demo")
+synth_spec(purpose = "development", n = 200, seed = 42)
+synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 }

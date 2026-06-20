@@ -4,6 +4,15 @@
   if (is.null(x)) y else x
 }
 
+synthpop_citation <- function() {
+  paste(
+    "Nowok B, Raab GM, Dibben C (2016).",
+    "\"synthpop: Bespoke Creation of Synthetic Data in R.\"",
+    "Journal of Statistical Software, 74(11), 1-26.",
+    "doi:10.18637/jss.v074.i11"
+  )
+}
+
 # Safely compute length-unique for vctrs compatibility
 n_distinct_safe <- function(x) {
   length(unique(x))
@@ -69,4 +78,3 @@ seed_stub <- function(seed, code) {
 utils_stub <- function() {
   utils::head(utils::installed.packages())
 }
-

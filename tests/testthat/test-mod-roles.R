@@ -145,7 +145,7 @@ test_that("confirming role edits invalidates downstream state", {
     session$flushReact()
     session$flushReact()
 
-    state$spec <- list(purpose = "ai_programming")
+    state$spec <- list(purpose = "development")
     state$synthetic <- tibble::tibble(x = 1)
     state$comparison <- list(ok = TRUE)
     state$privacy <- tibble::tibble(flag = "none")

@@ -15,3 +15,5 @@
 ^docs$
 ^Design$
 ^Screenshot .*\.png$
+^\.hermes$
+^todo\.md$

@@ -4,7 +4,7 @@
 \alias{synthesize_data}
 \title{Synthesize a data double}
 \usage{
-synthesize_data(data, spec, roles = NULL, engine = c("internal", "synthpop"))
+synthesize_data(data, spec, roles = NULL, engine = NULL)
 }
 \arguments{
 \item{data}{A data frame to synthesize from.}
@@ -14,8 +14,10 @@ synthesize_data(data, spec, roles = NULL, engine = c("internal", "synthpop"))
 \item{roles}{Optional; a \code{dataganger_roles} object from \code{\link[=detect_roles]{detect_roles()}}.
 Informs column treatment but does not override the spec.}
 
-\item{engine}{Character. Engine to use. Currently only \code{"internal"} is
-supported in v0.1.}
+\item{engine}{Character or \code{NULL}. Engine to use: \code{"internal"},
+\code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}.
+When \code{NULL}, defaults to \code{spec$engine} or derives from
+\code{spec$preserve_correlations}.}
 }
 \value{
 An S3 object of class \code{dataganger_synthetic}, a tibble with
@@ -23,11 +25,12 @@ attributes \code{spec}, \code{original_dims}, \code{seed_used}, and \code{genera
 }
 \description{
 Creates a synthetic copy of a dataset using the specified specification
-and engine. In v0.1 only the internal engine is available — it supports
-schema-only (Level 1) and marginal (Level 2) synthesis.
+and engine. The internal engine supports schema-only (Level 1) and
+marginal (Level 2) synthesis. The optional synthpop engine is used for
+objectives that request moderate or high relationship preservation.
 }
 \examples{
 dat <- data.frame(x = 1:5, y = letters[1:5])
-spec <- synth_spec(purpose = "teaching")
+spec <- synth_spec(purpose = "demo")
 syn <- synthesize_data(dat, spec)
 }
