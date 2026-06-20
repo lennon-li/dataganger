@@ -1,6 +1,7 @@
 generate_test_state <- function(data = NULL, spec = NULL) {
   shiny::reactiveValues(
     raw_data = data,
+    roles = NULL,
     spec = spec,
     synthetic = NULL,
     comparison = NULL,
@@ -14,6 +15,12 @@ generate_test_state <- function(data = NULL, spec = NULL) {
     )
   )
 }
+
+test_that("generate UI exposes a configuration recap output", {
+  html <- as.character(mod_generate_ui("generate"))
+  expect_match(html, "Your configuration")
+  expect_match(html, "generate-config_recap")
+})
 
 capture_notifications <- function() {
   notifications <- list()

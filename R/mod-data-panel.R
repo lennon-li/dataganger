@@ -127,6 +127,23 @@ mod_data_panel_server <- function(id, state) {
         ))
       }
 
+      if (identical(state$active_step, "compare") &&
+          !is.null(state$synthetic) &&
+          !is.null(state$compare_selected_var)) {
+        var <- state$compare_selected_var
+        return(shiny::tagList(
+          shiny::tags$div(
+            class = "dp-eyebrow",
+            style = "margin:8px 0;",
+            sprintf("Row-by-row \u00b7 %s", var)
+          ),
+          shiny::tags$div(
+            class = "dp-scroll",
+            DT::DTOutput(session$ns("dp_compare_table"), height = "auto")
+          )
+        ))
+      }
+
       df <- if (active_tab() == "synth" && !is.null(state$synthetic)) {
         state$synthetic
       } else {
@@ -136,7 +153,6 @@ mod_data_panel_server <- function(id, state) {
       n_rows  <- nrow(df)
       n_cols  <- ncol(df)
       pct_na  <- round(mean(is.na(df)) * 100, 1)
-      show_n  <- min(24L, n_rows)
       src_lbl <- if (active_tab() == "synth") {
         paste0("seed = ", if (!is.null(state$seed_used)) state$seed_used else "?")
       } else {
@@ -168,9 +184,7 @@ mod_data_panel_server <- function(id, state) {
         ),
         shiny::tags$div(
           class = "dp-footer",
-          shiny::tags$span(
-            sprintf("showing 1\u2013%d of %d", show_n, n_rows)
-          ),
+          shiny::tags$span(sprintf("%d rows total", n_rows)),
           shiny::tags$span(src_lbl)
         )
       )
@@ -185,12 +199,13 @@ mod_data_panel_server <- function(id, state) {
       }
 
       dt <- DT::datatable(
-        utils::head(df, 24L),
+        df,
         options  = list(
-          dom        = "t",
+          dom        = "tp",
           ordering   = FALSE,
           scrollX    = TRUE,
-          pageLength = 24L
+          pageLength = 24L,
+          lengthChange = FALSE
         ),
         rownames  = FALSE,
         class     = "compact",
@@ -211,6 +226,43 @@ mod_data_panel_server <- function(id, state) {
       dt
     })
 
+
+    output$dp_compare_table <- DT::renderDT({
+      shiny::req(
+        identical(state$active_step, "compare"),
+        state$raw_data,
+        state$synthetic,
+        state$compare_selected_var
+      )
+      var <- state$compare_selected_var
+      shiny::req(var %in% names(state$raw_data), var %in% names(state$synthetic))
+      n <- max(nrow(state$raw_data), nrow(state$synthetic))
+      pad <- function(x) {
+        length(x) <- n
+        x
+      }
+      cmp <- data.frame(
+        Original = pad(state$raw_data[[var]]),
+        Synthetic = pad(state$synthetic[[var]]),
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      )
+      DT::datatable(
+        cmp,
+        options = list(
+          dom = "tp",
+          ordering = FALSE,
+          scrollX = TRUE,
+          pageLength = 24L,
+          lengthChange = FALSE
+        ),
+        rownames = TRUE,
+        class = "compact",
+        selection = "none"
+      )
+    })
+
     invisible(NULL)
   })
 }
+

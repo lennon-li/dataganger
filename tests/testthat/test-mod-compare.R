@@ -5,10 +5,12 @@ compare_test_state <- function(raw_data = NULL, synthetic = NULL,
     raw_data   = raw_data,
     synthetic  = synthetic,
     comparison = comparison,
+    compare_selected_var = NULL,
     privacy    = privacy,
     roles      = roles,
     stale      = stale %||% list(comparison = FALSE),
-    nav_request = NULL
+    nav_request = NULL,
+    active_step = NULL
   )
 }
 
@@ -35,6 +37,7 @@ comparison_fixture <- function(seed = 1) {
     raw_data   = example_health_survey,
     synthetic  = synthetic,
     comparison = comparison,
+    compare_selected_var = NULL,
     privacy    = privacy,
     roles      = roles
   )
@@ -50,6 +53,13 @@ test_that("mod_compare_ui has header, subtitle, export button, and stale banner"
   expect_match(html, "Step 06")
   expect_match(html, "go_export")
   expect_match(html, "stale__comparison")
+})
+
+test_that("compare subtitle defines delta and TVD", {
+  html <- as.character(mod_compare_ui("compare"))
+  expect_match(html, "TVD")
+  expect_match(html, "total variation distance", ignore.case = TRUE)
+  expect_match(html, "Δ")
 })
 
 test_that("compare_body renders empty-state card when no synthetic data", {
@@ -171,5 +181,28 @@ test_that("date comparison handles all-missing dates without Inf summaries", {
     expect_match(stats_html, "\\(Missing\\)")
     expect_no_match(stats_html, "Inf")
     expect_no_match(stats_html, "NaN")
+  })
+})
+
+
+test_that("compare publishes selected variable to shared state", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- shiny::reactiveValues(
+    raw_data = data.frame(a = 1:5, b = letters[1:5]),
+    synthetic = data.frame(a = 5:1, b = letters[5:1]),
+    comparison = NULL,
+    compare_selected_var = NULL,
+    privacy = NULL,
+    roles = NULL,
+    stale = list(comparison = FALSE),
+    nav_request = NULL,
+    active_step = NULL
+  )
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$setInputs(var_select = "a")
+    session$flushReact()
+    expect_equal(state$compare_selected_var, "a")
   })
 })

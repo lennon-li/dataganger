@@ -81,19 +81,25 @@ sidebar_content <- tags$nav(
         var el = document.getElementById('step-' + stepId);
         if (el) el.classList.remove('locked');
       });
-      Shiny.addCustomMessageHandler('setFullMain', function(on) {
-        var shell = document.getElementById('app-shell');
-        if (!shell) return;
-        if (on) { shell.classList.add('full-main'); }
-        else { shell.classList.remove('full-main'); }
-      });
 
       function DGsetPurpose(el, group, key, isProto) {
         document.querySelectorAll('.purpose-card').forEach(function(c){ c.classList.remove('selected'); });
         el.classList.add('selected');
         Shiny.setInputValue('synthesis_controls-purpose_group', group, {priority: 'event'});
+        var host = document.getElementById('synthesis_controls-purpose_detail_host');
+        var slot = el.querySelector('.pc-detail-slot');
+        if (host && slot) { slot.appendChild(host); }
       }
       window.DGsetPurpose = DGsetPurpose;
+      function DGplaceDetailDefault() {
+        var sel = document.querySelector('.purpose-card.selected');
+        var host = document.getElementById('synthesis_controls-purpose_detail_host');
+        if (sel && host) {
+          var slot = sel.querySelector('.pc-detail-slot');
+          if (slot) slot.appendChild(host);
+        }
+      }
+      $(document).on('shiny:connected', function(){ setTimeout(DGplaceDetailDefault, 150); });
 
       // k±1 navigation: only adjacent steps are clickable
       var STEP_ORDER = ['objective','upload','configure','generate','compare','export'];
@@ -128,7 +134,7 @@ sidebar_content <- tags$nav(
         document.addEventListener('mousemove', function(e) {
           if (!dragging) return;
           var newW = Math.max(240, Math.min(900, startW + (startX - e.clientX)));
-          shell.style.gridTemplateColumns = '260px 1fr 5px ' + newW + 'px';
+          shell.style.gridTemplateColumns = '200px 1fr 5px ' + newW + 'px';
         });
         document.addEventListener('mouseup', function() {
           if (dragging) { dragging = false; document.body.style.cursor = ''; }
@@ -155,7 +161,7 @@ sidebar_content <- tags$nav(
     class = "steps",
     step_item(1, "Objective",       "objective"),
     step_item(2, "Upload data",     "upload"),
-    step_item(3, "Configure",       "configure"),
+    step_item(3, "Configuration",   "configure"),
     step_item(4, "Generation",      "generate"),
     step_item(5, "Comparison",      "compare"),
     step_item(6, "Export",          "export")
@@ -262,9 +268,11 @@ server <- function(input, output, session) {
     state$spec_confirmed      <- 0L
     state$synthetic           <- NULL
     state$comparison          <- NULL
+    state$compare_selected_var <- NULL
     state$privacy             <- NULL
     state$seed_used           <- NULL
     state$nav_request         <- NULL
+    state$active_step         <- "objective"
     bslib::nav_select("app_tabs", "objective")
     send_step_state(0L)
   })
@@ -297,6 +305,7 @@ server <- function(input, output, session) {
 
   send_step_state <- function(cur) {
     current_step_num(cur)
+    state$active_step <- STEP_IDS[[cur + 1L]]
     session$sendCustomMessage("setCurrentStep", list(
       current = cur,
       max     = shiny::isolate(max_step_reached())
@@ -378,12 +387,6 @@ server <- function(input, output, session) {
   observe({
     max_step_reached()
     send_step_state(current_step_num())
-  })
-
-  # full-main class toggle: on when Compare step is active
-  observe({
-    cur <- current_step_num()
-    session$sendCustomMessage("setFullMain", cur == 4L)
   })
 
   # Module navigation requests (e.g. "← Adjust settings", "Continue to Export →")

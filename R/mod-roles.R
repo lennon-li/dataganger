@@ -253,6 +253,9 @@ mod_roles_server <- function(id, state) {
       make_select <- function(orig_row, user_role, recommended_role, class_col) {
         effective  <- eff_role(user_role, recommended_role, class_col)
         overridden <- !is.na(user_role) && nzchar(user_role)
+        needs_review <- !overridden &&
+          !is.na(recommended_role) && nzchar(recommended_role) &&
+          !identical(tolower(effective %||% ""), tolower(class_to_role(class_col) %||% ""))
         opts <- lapply(ROLE_OPTIONS, function(opt) {
           shiny::tags$option(
             value    = opt,
@@ -260,7 +263,7 @@ mod_roles_server <- function(id, state) {
             opt
           )
         })
-        shiny::tags$select(
+        sel <- shiny::tags$select(
           class    = "input",
           style    = sprintf(
             "width:100%%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px; %s",
@@ -272,6 +275,14 @@ mod_roles_server <- function(id, state) {
             orig_row
           ),
           opts
+        )
+        shiny::tags$div(
+          class = paste(
+            "role-select-wrap",
+            if (overridden) "is-overridden",
+            if (needs_review) "needs-review"
+          ),
+          sel
         )
       }
 
@@ -353,7 +364,7 @@ mod_roles_server <- function(id, state) {
             shiny::tags$th(style = "width:16%; padding:6px 8px;", "Simulation"),
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
             shiny::tags$th(style = "width:20%; padding:6px 8px;", "recommended_role"),
-            shiny::tags$th(style = "width:24%; padding:6px 8px;", "user_role"),
+            shiny::tags$th(style = "width:24%; padding:6px 8px;", "TYPE"),
             shiny::tags$th(style = "width:8%;  padding:6px 8px;", "sensitive")
           )
         ),

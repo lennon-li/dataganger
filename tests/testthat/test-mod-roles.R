@@ -197,3 +197,26 @@ test_that("editing a non-user_role column is ignored silently", {
     expect_identical(state$roles$user_role, original_user_roles)
   })
 })
+
+
+test_that("roles table labels the override column TYPE", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  example_health_survey <- roles_load_example_data("example_health_survey")
+  csv_path <- roles_upload_fixture_path(
+    example_health_survey[1:5, ],
+    "roles-type-header.csv"
+  )
+
+  shiny::testServer(roles_host_server, {
+    session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
+    session$flushReact()
+    session$flushReact()
+
+    html <- paste(as.character(output$`roles-roles_table`), collapse = "
+")
+    expect_match(html, ">TYPE<")
+    expect_false(grepl(">user_role<", html))
+  })
+})

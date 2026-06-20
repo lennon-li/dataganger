@@ -14,10 +14,19 @@ mod_compare_ui <- function(id) {
         class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 06 \u00b7 Compare"),
         shiny::tags$h1("Compare datasets"),
-        shiny::tags$p(
+        shiny::tags$div(
           class = "subtitle",
-          shiny::tags$strong("Click any variable tab"),
-          " to compare its distribution. Green = original, magenta = synthetic. Larger \u0394 or TVD values mean greater drift \u2014 investigate before sharing."
+          shiny::tags$p("Click any variable on the left to compare its distribution."),
+          shiny::tags$p("Green is your original data; magenta is the synthetic data."),
+          shiny::tags$p(
+            shiny::tags$strong("\u0394 (delta)"),
+            " is the gap between an original and synthetic statistic \u2014 bigger means more drift."
+          ),
+          shiny::tags$p(
+            shiny::tags$strong("TVD (total variation distance)"),
+            " summarises how far two category distributions are apart, from 0 (identical) to 1 (no overlap)."
+          ),
+          shiny::tags$p("Investigate large \u0394 or TVD values before sharing the data.")
         )
       ),
       shiny::tags$div(
@@ -98,6 +107,10 @@ mod_compare_server <- function(id, state) {
 
     shiny::observeEvent(input$var_select, ignoreNULL = TRUE, {
       selected_var(input$var_select)
+    })
+
+    shiny::observe({
+      state$compare_selected_var <- selected_var()
     })
 
     shiny::observeEvent(input$go_export, ignoreNULL = TRUE, {

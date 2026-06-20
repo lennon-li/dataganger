@@ -41,9 +41,11 @@ mod_state_server <- function(id) {
       spec_confirmed = 0L,
       synthetic = NULL,
       comparison = NULL,
+      compare_selected_var = NULL,
       privacy = NULL,
       seed_used = NULL,
       nav_request = NULL,
+      active_step = "objective",
       stale = make_stale_flags(FALSE)
     )
 
@@ -74,6 +76,7 @@ mod_state_server <- function(id) {
       state$spec <- NULL
       state$synthetic <- NULL
       state$comparison <- NULL
+      state$compare_selected_var <- NULL
       state$privacy <- NULL
       state$seed_used <- NULL
       set_stale_flags(FALSE)
@@ -96,6 +99,7 @@ mod_state_server <- function(id) {
       state$spec <- NULL
       state$synthetic <- NULL
       state$comparison <- NULL
+      state$compare_selected_var <- NULL
       state$privacy <- NULL
       set_stale_flags(TRUE)
     })
@@ -115,6 +119,7 @@ mod_state_server <- function(id) {
 
       state$synthetic <- NULL
       state$comparison <- NULL
+      state$compare_selected_var <- NULL
       state$privacy <- NULL
       state$seed_used <- NULL
       set_stale_flags(TRUE)
