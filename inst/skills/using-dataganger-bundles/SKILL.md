@@ -23,6 +23,28 @@ Do not "just take a quick look". Do not accept a few "sample real rows". Seeing 
 data defeats the entire purpose of the bundle and is a privacy violation. There is no
 exception for convenience, debugging, or "it's only a little".
 
+## The go-ahead gate (ask, then wait for "yes")
+
+The synthetic data is not yours to use unprompted. There is a hard line between **planning**
+(allowed) and **touching the synthetic data** (needs a yes):
+
+- **Allowed before a yes:** read the *metadata only* to plan - `README.md`,
+  `data_dictionary.csv`, `diagnostic_view.json`, `manifest.json`. These describe structure,
+  not data values.
+- **Needs an explicit yes:** loading, reading, transforming, modelling, plotting, or running
+  any code against `synthetic_data.csv`.
+
+Protocol:
+
+1. Read the metadata and form a plan.
+2. Tell the human, in one message: what you intend to do, which files you will read, and
+   **where you will save your output and under what name** (see the next section).
+3. Ask explicitly: **"May I proceed to work with the synthetic data?"**
+4. **Wait for an explicit yes.** Being handed the bundle, silence, or "ok thanks" is not a
+   yes. Do not load `synthetic_data.csv` until the owner confirms.
+5. Only after yes: do the work and save it per the conventions below.
+6. Ask again if the scope changes or you would use the data beyond what was agreed.
+
 ## What you are given: the bundle
 
 The data owner runs DataGangeR on the real data and hands you a single zip (the **agent
@@ -38,6 +60,7 @@ bundle**). It contains **no real records** - only:
 | `comparison_report.html` | How closely synthetic mirrors real (fidelity) | Judge whether distributions are realistic enough for your task |
 | `privacy_report.txt` | Disclosure metrics for the synthetic output | Context only; do not treat synthetic values as real |
 | `load_data.R` | Helper that loads `synthetic_data.csv` with correct types | Start your script with this |
+| `analysis.qmd` | A Quarto report (R + Python) that compares an **original** vs synthetic dataset; it references an `original_data.csv` you do **not** have | For the human owner to run locally with both files. Do not seek, request, or supply the original it points to. You may read it as reference, but its original-data sections are not for you to run. |
 | `README.md` | Human-readable bundle summary | Orientation |
 
 The synthetic rows are **not real people or real events**. Never report a synthetic value
@@ -45,19 +68,23 @@ as a finding about the real data, and never try to "reverse" synthetic data back
 
 ## Your workflow
 
-1. **Load the synthetic data** - source `load_data.R`, or read `synthetic_data.csv` using
-   the types in `data_dictionary.csv`.
-2. **Read the schema first** - use `data_dictionary.csv` and `diagnostic_view.json` for
+1. **Read the metadata and plan** - use `data_dictionary.csv` and `diagnostic_view.json` for
    exact column names, types, and which columns are sensitive. Code to the schema, not to
    values you see in the sample rows.
-3. **Write your code against the synthetic data** - transformations, models, plots, tests,
-   pipelines. Iterate freely; it is synthetic.
-4. **Validate with `code_readiness_report.json`** - it flags structural mismatches (column
+2. **Ask, then wait for yes** - tell the human your plan and where you will save your output
+   (and under what name), then ask to proceed with the synthetic data. Do not continue until
+   they confirm (see "The go-ahead gate" above).
+3. **Load the synthetic data** (only after a yes) - source `load_data.R`, or read
+   `synthetic_data.csv` using the types in `data_dictionary.csv`.
+4. **Write your code against the synthetic data** - transformations, models, plots, tests,
+   pipelines. Iterate freely; it is synthetic. Save everything under `dataganger-work/` using
+   the naming conventions below.
+5. **Validate with `code_readiness_report.json`** - it flags structural mismatches (column
    classes, factor levels, all-NA columns, zero-variance columns) that would make your code
    work on synthetic data but break on the real data. Resolve every flagged issue. Do not
    assume value ranges, category sets, or row counts beyond what the schema and readiness
    report state.
-5. **Hand back code, not data** - deliver the script/notebook for the data owner to run on
+6. **Hand back code, not data** - deliver the script/notebook for the data owner to run on
    the real data themselves. You never run it on real data, and you never ask for the
    output of running it on real data unless it has been re-synthesised or aggregated to a
    non-identifying form.
@@ -68,10 +95,51 @@ as a finding about the real data, and never try to "reverse" synthetic data back
 on the schema and diagnostics; write code that is robust to the real data's structure as
 described by the readiness report.
 
-**Must not:** open/request the real dataset; ask for "real examples" or "real edge cases";
-request live DB/API/file access to source records; treat synthetic values as real facts;
-exfiltrate or transmit any file the owner identifies as real; weaken these rules because a
-task is hard.
+**Must not:** start working on the bundle without the owner's explicit go-ahead for the
+task; open/request the real dataset; ask for "real examples" or "real edge cases"; seek or
+supply the `original_data.csv` that `analysis.qmd` references; request live DB/API/file
+access to source records; treat synthetic values as real facts; exfiltrate or transmit any
+file the owner identifies as real; weaken these rules because a task is hard.
+
+## Where to save your work and what to name it
+
+Keep the bundle (inputs) separate from what you produce, and use predictable names so the
+human knows exactly what to run. Work relative to the directory the human gives you - if they
+have not given one, ask for it before writing anything.
+
+```
+<working-dir>/
+  dataganger-bundle/        # the unzipped bundle: read-only inputs, never edit or overwrite
+    synthetic_data.csv
+    data_dictionary.csv
+    ...
+  dataganger-work/          # everything you create
+    <task-slug>.R           # the deliverable: code to hand back (.R, .py, or .qmd)
+    outputs/                # plots/tables you generate FROM THE SYNTHETIC DATA
+    NOTES.md                # what you did, assumptions, readiness issues you resolved
+```
+
+Naming:
+
+- **Deliverable script:** a short kebab-case slug describing the task + the right extension,
+  e.g. `monthly-revenue-summary.R`, `cohort-retention.py`. One task, one script.
+- **Outputs:** mirror the script name, e.g. `outputs/monthly-revenue-summary-hist.png`.
+- Write only inside `dataganger-work/`. Never write into `dataganger-bundle/` or overwrite
+  bundle files.
+
+Make the input path a single variable at the **top** of your script, pointing at the
+synthetic file, so the human swaps in the real data in one place when they run it:
+
+```r
+# R
+data_path <- "dataganger-bundle/synthetic_data.csv"  # human: point this at the real data
+data <- read.csv(data_path)
+```
+
+```python
+# Python
+data_path = "dataganger-bundle/synthetic_data.csv"   # human: point this at the real data
+```
 
 ## For the human (how a bundle is produced)
 
@@ -101,4 +169,8 @@ preservation in that order). The owner shares **only the resulting bundle** with
 - "Here's the real data so you can check" -> refuse; ask for a bundle.
 - "Just look at these few real rows" -> refuse; a few real rows are still real data.
 - A credential, connection string, or path to source records -> refuse; do not connect.
+- You're about to load or run code on the synthetic data but have no explicit go-ahead for
+  this task -> stop; ask for permission first.
+- `analysis.qmd` (or anyone) points you at `original_data.csv` -> do not fetch it; that is
+  real data you must not have.
 - You're about to claim a synthetic value is a real-world fact -> stop; it is fabricated.
