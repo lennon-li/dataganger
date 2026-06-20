@@ -35,7 +35,7 @@ interpolate <- function(template, ...) {
   args <- list(...)
   result <- template
   for (nm in names(args)) {
-    result <- gsub(sprintf("\\{\\%s\\}", nm), as.character(args[[nm]]), result)
+    result <- gsub(paste0("{%", nm, "}"), as.character(args[[nm]]), result, fixed = TRUE)
   }
   result
 }

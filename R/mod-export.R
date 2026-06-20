@@ -16,16 +16,16 @@ mod_export_ui <- function(id) {
         shiny::tags$h1("Export your data"),
         shiny::tags$p(
           class = "subtitle",
-          "Pick a format and download your synthetic dataset. ",
-          shiny::tags$strong("Include the HTML report"),
-          " if you're handing this off to a teammate \u2014 it documents the spec, comparison, and privacy hardening."
+          "Download the full bundle: your synthetic data as CSV plus the ",
+          "documentation, comparison report, and an analysis notebook for ",
+          "checking the synthetic data against the original."
         )
       ),
       shiny::tags$div(
         class = "main-header-action",
         shiny::downloadButton(
           ns("download"),
-          label = "Download \u2192",
+          label = "Download bundle \u2192",
           class = "btn btn-primary"
         )
       )
@@ -36,27 +36,18 @@ mod_export_ui <- function(id) {
       class = "card",
       shiny::tags$div(
         class = "card-header",
-        shiny::tags$span(class = "title", "Export options"),
+        shiny::tags$span(class = "title", "What's in the bundle"),
         shiny::tags$span(class = "sub", "export_synthetic()")
       ),
-      shiny::radioButtons(
-        ns("format"),
-        label = "Download format",
-        choices = c("CSV" = "csv", "RDS" = "rds"),
-        selected = "csv",
-        inline = TRUE
+      shiny::tags$ul(
+        class = "bundle-contents",
+        shiny::tags$li(shiny::tags$strong("synthetic_data.csv"), " \u2014 the synthetic dataset"),
+        shiny::tags$li(shiny::tags$strong("data_dictionary.csv"), " \u2014 column-by-column schema"),
+        shiny::tags$li(shiny::tags$strong("analysis.qmd"), " \u2014 Quarto report with R (runnable) and Python (reference) code to read both datasets and compare them"),
+        shiny::tags$li(shiny::tags$strong("comparison_report.html"), " \u2014 fidelity + privacy comparison"),
+        shiny::tags$li(shiny::tags$strong("manifest.json"), " / ", shiny::tags$strong("privacy_report.txt"), " \u2014 provenance and disclosure metrics"),
+        shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types")
       ),
-      shiny::checkboxInput(
-        ns("include_report"),
-        label = "Include HTML report",
-        value = FALSE
-      ),
-      shiny::checkboxInput(
-        ns("fail_on_exact"),
-        label = "Fail if exact row matches found",
-        value = FALSE
-      ),
-      shiny::uiOutput(ns("names_ui")),
       shiny::tags$div(
         class = "local-save",
         shiny::textInput(
@@ -93,34 +84,6 @@ mod_export_server <- function(id, state) {
 
     shiny::outputOptions(output, "stale__export", suspendWhenHidden = FALSE)
 
-    output$names_ui <- shiny::renderUI({
-      purpose <- state$spec$purpose
-
-      if (!is.null(purpose) && identical(purpose, "demo")) {
-        shiny::tags$p(
-          class = "t-body-sm",
-          "Column names will be anonymized to protect variable identity."
-        )
-      } else {
-        shiny::checkboxInput(
-          session$ns("include_original_names"),
-          label = "Include original column names",
-          value = TRUE
-        )
-      }
-    })
-
-    # Resolve the effective download format ("csv" or "rds").
-    export_format <- function() {
-      if (is.null(input$format)) "csv" else input$format
-    }
-
-    # Whether the download should be a multi-file ZIP bundle (data + HTML
-    # report). Only CSV downloads bundle a report; RDS is always a single file.
-    export_is_bundle <- function() {
-      identical(export_format(), "csv") && isTRUE(input$include_report)
-    }
-
     export_base_name <- function() {
       seed <- shiny::isolate(state$seed_used)
       if (!is.null(seed)) {
@@ -130,27 +93,18 @@ mod_export_server <- function(id, state) {
       }
     }
 
+    # Original column names are kept except for the demo purpose, which
+    # anonymizes them to protect variable identity.
     use_original_names <- function() {
       purpose <- state$spec$purpose
-      if (!is.null(purpose) && identical(purpose, "demo")) {
-        FALSE
-      } else {
-        isTRUE(input$include_original_names)
-      }
+      is.null(purpose) || !identical(purpose, "demo")
     }
 
-    # Build the export into `bundle_dir` (a directory) and return the path to
-    # the single artefact to deliver: either a plain data file or a ZIP that
-    # contains the full bundle (data + comparison_report.html + helpers).
+    # Build the full bundle into `bundle_dir` and return the path to the ZIP
+    # (synthetic data CSV + dictionary + analysis.qmd + report + manifest +
+    # privacy report + helpers).
     build_export <- function(bundle_dir) {
       shiny::req(state$synthetic)
-      input_format <- export_format()
-
-      if (identical(input_format, "rds")) {
-        out <- file.path(bundle_dir, paste0(export_base_name(), ".rds"))
-        saveRDS(state$synthetic, out)
-        return(out)
-      }
 
       export_synthetic(
         synthetic = state$synthetic,
@@ -160,31 +114,21 @@ mod_export_server <- function(id, state) {
         path = bundle_dir,
         format = "dir",
         overwrite = TRUE,
-        include_report = isTRUE(input$include_report),
-        fail_on_exact_match = isTRUE(input$fail_on_exact),
+        include_report = TRUE,
+        fail_on_exact_match = FALSE,
         include_original_names = use_original_names()
       )
 
-      if (export_is_bundle()) {
-        zip_path <- file.path(bundle_dir, paste0(export_base_name(), ".zip"))
-        files <- list.files(bundle_dir, full.names = FALSE, recursive = TRUE)
-        # Avoid zipping the zip into itself.
-        files <- files[files != basename(zip_path)]
-        zip::zipr(zipfile = zip_path, files = file.path(bundle_dir, files))
-        return(zip_path)
-      }
-
-      file.path(bundle_dir, "synthetic_data.csv")
+      zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))
+      files <- list.files(bundle_dir, full.names = FALSE, recursive = TRUE)
+      # Avoid zipping the zip into itself.
+      files <- files[files != basename(zip_path)]
+      zip::zipr(zipfile = zip_path, files = file.path(bundle_dir, files))
+      zip_path
     }
 
     output$download <- shiny::downloadHandler(
-      filename = function() {
-        if (export_is_bundle()) {
-          paste0(export_base_name(), ".zip")
-        } else {
-          paste0(export_base_name(), ".", export_format())
-        }
-      },
+      filename = function() paste0(export_base_name(), "_bundle.zip"),
       content = function(file) {
         bundle_dir <- tempfile("mod-export-bundle-")
         dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)

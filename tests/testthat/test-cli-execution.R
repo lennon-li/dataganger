@@ -90,6 +90,7 @@ test_that("synthesize command writes standard bundle zip", {
       "comparison_report.html",
       "privacy_report.txt",
       "load_data.R",
+      "analysis.qmd",
       "ai-readme.md",
       "README.md",
       "manifest.json"
