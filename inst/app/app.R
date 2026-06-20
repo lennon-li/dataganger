@@ -86,20 +86,9 @@ sidebar_content <- tags$nav(
         document.querySelectorAll('.purpose-card').forEach(function(c){ c.classList.remove('selected'); });
         el.classList.add('selected');
         Shiny.setInputValue('synthesis_controls-purpose_group', group, {priority: 'event'});
-        var host = document.getElementById('synthesis_controls-purpose_detail_host');
-        var slot = el.querySelector('.pc-detail-slot');
-        if (host && slot) { slot.appendChild(host); }
+        Shiny.setInputValue('synthesis_controls-purpose_chosen', true, {priority: 'event'});
       }
       window.DGsetPurpose = DGsetPurpose;
-      function DGplaceDetailDefault() {
-        var sel = document.querySelector('.purpose-card.selected');
-        var host = document.getElementById('synthesis_controls-purpose_detail_host');
-        if (sel && host) {
-          var slot = sel.querySelector('.pc-detail-slot');
-          if (slot) slot.appendChild(host);
-        }
-      }
-      $(document).on('shiny:connected', function(){ setTimeout(DGplaceDetailDefault, 150); });
 
       // k±1 navigation: only adjacent steps are clickable
       var STEP_ORDER = ['objective','upload','configure','generate','compare','export'];
@@ -149,11 +138,12 @@ sidebar_content <- tags$nav(
     class = "brand",
     tags$img(src = "www/logomark.svg", alt = ""),
     tags$div(
+      class = "wordmark",
       tags$span(
         class = "name",
         "DataGange", tags$span(class = "r", "R")
       ),
-      tags$span(class = "tag", "v0.2 · beta")
+      tags$span(class = "version", "v0.2")
     )
   ),
   tags$div(class = "section-label", "Workflow"),
@@ -170,7 +160,7 @@ sidebar_content <- tags$nav(
     style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
     actionButton(
       "reset_all", "\u21ba Start over",
-      class = "btn btn-sm btn-secondary",
+      class = "btn btn-sm btn-ghost",
       style = "width:100%;"
     )
   )

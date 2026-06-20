@@ -56,7 +56,7 @@ mod_generate_ui <- function(id) {
       class = "btn-row",
       style = "margin-top:16px;",
       shiny::actionButton(ns("try_new_seed"), "Regenerate", class = "btn btn-primary"),
-      shiny::actionLink(ns("adjust_settings"), "\u2190 Adjust settings")
+      shiny::actionButton(ns("adjust_settings"), "\u2190 Adjust settings", class = "btn btn-secondary")
     )
   )
 }
@@ -110,20 +110,36 @@ mod_generate_server <- function(id, state) {
       }
       raw_data <- state$raw_data %||% data.frame()
       n_over <- if (!is.null(roles)) sum(!is.na(roles$user_role) & nzchar(roles$user_role)) else 0L
-      engine <- spec$engine %||% "auto"
+      engine <- spec[["engine", exact = TRUE]] %||% "auto"
       row <- function(label, value) shiny::tags$tr(
         shiny::tags$td(class = "name", label),
         shiny::tags$td(value)
       )
+      dash <- "\u2014"
+      fmt_val <- function(x) {
+        if (is.null(x) || (length(x) == 1L && is.na(x))) return(dash)
+        if (is.logical(x)) return(if (isTRUE(x)) "yes" else "no")
+        as.character(x)
+      }
+      preserve_missingness <- spec[["preserve_missingness", exact = TRUE]]
+      rare_level_min_n     <- spec[["rare_level_min_n", exact = TRUE]]
+      coarsen_dates        <- spec[["coarsen_dates", exact = TRUE]]
+      merge_rare           <- spec[["merge_rare", exact = TRUE]]
+      level                <- spec[["level", exact = TRUE]]
       shiny::tags$table(
         class = "data",
         style = "margin-top:8px;",
         shiny::tags$tbody(
-          row("Objective", spec$purpose %||% "\u2014"),
+          row("Objective", spec$purpose %||% dash),
           row("Engine", engine),
           row("Rows to generate", as.character(spec$n %||% nrow(raw_data))),
           row("Seed", if (!is.null(spec$seed)) as.character(spec$seed) else "random per run"),
-          row("Role overrides", sprintf("%d column(s) changed by you", n_over))
+          row("Role overrides", sprintf("%d column(s) changed by you", n_over)),
+          row("Privacy level", fmt_val(level)),
+          row("Preserve missingness", fmt_val(preserve_missingness)),
+          row("Rare level min n", fmt_val(rare_level_min_n)),
+          row("Coarsen dates", fmt_val(coarsen_dates)),
+          row("Merge rare levels", fmt_val(merge_rare))
         )
       )
     })

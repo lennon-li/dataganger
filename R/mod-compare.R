@@ -15,18 +15,30 @@ mod_compare_ui <- function(id) {
         shiny::tags$span(class = "eyebrow", "Step 06 \u00b7 Compare"),
         shiny::tags$h1("Compare datasets"),
         shiny::tags$div(
-          class = "subtitle",
-          shiny::tags$p("Click any variable on the left to compare its distribution."),
-          shiny::tags$p("Green is your original data; magenta is the synthetic data."),
+          class = "subtitle compare-explainer",
           shiny::tags$p(
-            shiny::tags$strong("\u0394 (delta)"),
-            " is the gap between an original and synthetic statistic \u2014 bigger means more drift."
+            class = "compare-explainer-lead",
+            "Click any variable to compare its distribution. ",
+            shiny::tags$span(class = "tok-real", "Green"),
+            " is your original data; ",
+            shiny::tags$span(class = "tok-synth", "magenta"),
+            " is the synthetic data."
           ),
-          shiny::tags$p(
-            shiny::tags$strong("TVD (total variation distance)"),
-            " summarises how far two category distributions are apart, from 0 (identical) to 1 (no overlap)."
-          ),
-          shiny::tags$p("Investigate large \u0394 or TVD values before sharing the data.")
+          shiny::tags$div(
+            class = "compare-explainer-defs",
+            shiny::tags$p(
+              shiny::tags$strong("\u0394 (delta)"),
+              " is the gap between an original and synthetic statistic \u2014 bigger means more drift."
+            ),
+            shiny::tags$p(
+              shiny::tags$strong("TVD (total variation distance)"),
+              " summarises how far two category distributions are apart, from 0 (identical) to 1 (no overlap)."
+            ),
+            shiny::tags$p(
+              class = "compare-explainer-hint",
+              "Investigate large \u0394 or TVD values before sharing the data."
+            )
+          )
         )
       ),
       shiny::tags$div(
@@ -163,6 +175,7 @@ mod_compare_server <- function(id, state) {
         v_js <- gsub("'",    "\\\\'",    v_js, fixed = TRUE)
         shiny::tags$button(
           class   = paste0("var-tab", if (is_active) " active" else ""),
+          title   = v,
           onclick = sprintf(
             "Shiny.setInputValue('%s', '%s', {priority:'event'})",
             session$ns("var_select"),
@@ -203,7 +216,7 @@ mod_compare_server <- function(id, state) {
         shiny::tags$div(
           class = "var-rail var-tab-nav",
           shiny::tags$div(class = "var-rail-eyebrow", paste0("Variables \u00b7 ", length(vars))),
-          rail_btns
+          shiny::tags$div(class = "var-matrix", rail_btns)
         ),
         var_detail
       )

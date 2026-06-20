@@ -336,6 +336,7 @@ mod_roles_server <- function(id, state) {
             r$recommended_role
           ),
           shiny::tags$td(
+            class = "col-type",
             style = "min-width:140px; padding:4px 8px;",
             make_select(orig_row, r$user_role, r$recommended_role, r$class)
           ),
@@ -364,7 +365,7 @@ mod_roles_server <- function(id, state) {
             shiny::tags$th(style = "width:16%; padding:6px 8px;", "Simulation"),
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
             shiny::tags$th(style = "width:20%; padding:6px 8px;", "recommended_role"),
-            shiny::tags$th(style = "width:24%; padding:6px 8px;", "TYPE"),
+            shiny::tags$th(class = "col-type", style = "width:24%; padding:6px 8px;", "TYPE"),
             shiny::tags$th(style = "width:8%;  padding:6px 8px;", "sensitive")
           )
         ),

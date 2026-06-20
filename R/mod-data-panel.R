@@ -19,25 +19,7 @@ mod_data_panel_ui <- function(id) {
         shiny::tags$span(class = "dp-eyebrow", "Data preview"),
         shiny::uiOutput(ns("dp_name"))
       ),
-      shiny::tags$div(
-        class = "dp-tabs",
-        style = "display:flex; border-bottom: 1px solid var(--border); margin: 0 -14px; padding: 0 14px;",
-        shiny::tags$button(
-          class   = "dp-tab real active",
-          id      = ns("tab_real"),
-          style   = "background:none; border:none; border-bottom: 2px solid var(--real-500); padding:8px 12px; font-family:var(--font-sans); font-size:13px; font-weight:600; color:var(--real-700); cursor:pointer; display:flex; align-items:center; gap:6px;",
-          onclick = sprintf(
-            "Shiny.setInputValue('%s', 'real', {priority:'event'})",
-            ns("active_tab")
-          ),
-          shiny::tags$span(
-            style = "width:8px; height:8px; border-radius:50%; background:var(--real-500); display:inline-block;",
-            class = "dot"
-          ),
-          "Original"
-        ),
-        shiny::uiOutput(ns("synth_tab_btn"))
-      )
+      shiny::uiOutput(ns("dp_tabs"))
     ),
     shiny::uiOutput(ns("dp_body"))
   )
@@ -78,19 +60,39 @@ mod_data_panel_server <- function(id, state) {
       shiny::tags$span(class = "dp-name", nm)
     })
 
-    output$synth_tab_btn <- shiny::renderUI({
+    output$dp_tabs <- shiny::renderUI({
+      # On the compare step the data panel shows a two-column comparison
+      # table (item 11), not the real/synth tabs - suppress them entirely.
+      if (identical(state$active_step, "compare") &&
+          !is.null(state$synthetic) &&
+          !is.null(state$compare_selected_var)) {
+        return(NULL)
+      }
+
       has_synth <- !is.null(state$synthetic)
       tab       <- active_tab()
-      is_active <- tab == "synth"
 
-      dot_color  <- if (has_synth) "var(--synth-500)" else "var(--paper-300)"
-      text_color <- if (is_active) "var(--synth-700)" else if (has_synth) "var(--fg-muted)" else "var(--fg-subtle)"
-      border_b   <- if (is_active) "2px solid var(--synth-500)" else "2px solid transparent"
-      cursor_val <- if (has_synth) "pointer" else "not-allowed"
+      real_active  <- tab != "synth"
+      synth_active <- tab == "synth"
 
-      lbl <- if (!has_synth) "Synthetic \u2014 pending" else "Synthetic"
+      real_btn <- shiny::tags$button(
+        id      = session$ns("tab_real"),
+        class   = paste0("dp-tab real", if (real_active) " active" else ""),
+        onclick = sprintf(
+          "Shiny.setInputValue('%s', 'real', {priority:'event'})",
+          session$ns("active_tab")
+        ),
+        shiny::tags$span(class = "dot"),
+        "Original"
+      )
 
-      onclick_val <- if (has_synth) {
+      synth_lbl <- if (!has_synth) "Synthetic \u2014 pending" else "Synthetic"
+      synth_class <- paste0(
+        "dp-tab synth",
+        if (synth_active && has_synth) " active" else "",
+        if (!has_synth) " disabled" else ""
+      )
+      synth_onclick <- if (has_synth) {
         sprintf(
           "Shiny.setInputValue('%s', 'synth', {priority:'event'})",
           session$ns("active_tab")
@@ -98,20 +100,18 @@ mod_data_panel_server <- function(id, state) {
       } else {
         "void(0)"
       }
-
-      shiny::tags$button(
+      synth_btn <- shiny::tags$button(
         id      = session$ns("tab_synth"),
-        style   = sprintf(
-          "background:none; border:none; border-bottom:%s; padding:8px 12px; font-family:var(--font-sans); font-size:13px; font-weight:600; color:%s; cursor:%s; display:flex; align-items:center; gap:6px; opacity:%s;",
-          border_b, text_color, cursor_val,
-          if (!has_synth) "0.45" else "1"
-        ),
-        onclick = onclick_val,
-        shiny::tags$span(
-          style = sprintf("width:8px; height:8px; border-radius:50%%; background:%s; display:inline-block;", dot_color),
-          class = "dot"
-        ),
-        lbl
+        class   = synth_class,
+        onclick = synth_onclick,
+        shiny::tags$span(class = "dot"),
+        synth_lbl
+      )
+
+      shiny::tags$div(
+        class = "dp-tabs",
+        real_btn,
+        synth_btn
       )
     })
 

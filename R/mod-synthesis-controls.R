@@ -19,7 +19,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
       shiny::tags$div(
         class = "main-header-text",
         shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Objective"),
-        shiny::tags$h1("Set your objective"),
+        shiny::tags$h1("Objective"),
         shiny::tags$p(
           class = "subtitle",
           shiny::tags$strong("Tell us what you'll use the synthetic data for"),
@@ -53,7 +53,8 @@ mod_synthesis_controls_objective_ui <- function(id) {
         shiny::tags$b("Why this comes first"),
         " Your objective shapes every downstream default. The meters on each option show its ",
         shiny::tags$span(style = "font-weight:600", "fidelity \u2194 privacy"),
-        " balance. Pick the closest match; nothing here is locked in."
+        " balance, plus how hard the result is to re-identify back to real individuals. ",
+        "Pick the closest match; nothing here is locked in."
       )
     ),
     shiny::tags$div(
@@ -126,7 +127,7 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, ident, risk 
       class = "pc-meters",
       meter("Fidelity", fid, "var(--ink-700)"),
       meter("Privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
-      meter("IDability", ident, "var(--risk-400)")
+      meter("Anonymity", ident, "var(--risk-400)")
     ),
     shiny::tags$div(class = "pc-detail-slot", `data-detail-slot` = key)
   )
@@ -140,14 +141,14 @@ objective_cards <- function(ns) {
       style = "font-size:12px; color:var(--fg-muted); margin:0 0 16px;",
       shiny::tags$strong("Fidelity:"), " more bars = closer to real data. ",
       shiny::tags$strong("Privacy:"), " more bars = stronger protection against disclosure. ",
-      shiny::tags$strong("IDability:"), " more bars = harder to re-identify individuals."
+      shiny::tags$strong("Anonymity:"), " more bars = harder to re-identify individuals."
     ),
     dg_purpose_card(
       ns, "demo", "demo", "Demo / Teaching",
-      "Share externally, teach with, or use in presentations.", 2, 4, 1, selected = TRUE
+      "Share externally, teach with, or use in presentations.", 2, 4, 1
     ),
     dg_purpose_card(
-      ns, "development", "development", "Development",
+      ns, "development", "development", "Development and prototyping",
       "Build apps, AI tooling, or model pipelines.", 3, 3, 3
     ),
     dg_purpose_card(
@@ -299,6 +300,9 @@ mod_synthesis_controls_server <- function(id, state) {
     })
 
     output$purpose_detail <- shiny::renderUI({
+      if (!isTRUE(input$purpose_chosen)) {
+        return(NULL)
+      }
       purpose <- current_purpose()
       shiny::req(purpose)
 
@@ -328,7 +332,7 @@ mod_synthesis_controls_server <- function(id, state) {
 
       label <- c(
         demo        = "Demo / Teaching",
-        development = "Development",
+        development = "Development and prototyping",
         analytics   = "Internal Analytics"
       )[[purpose]]
 
