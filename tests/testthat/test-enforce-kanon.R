@@ -49,3 +49,28 @@ test_that("enforce_kanon suppresses residual cells that cannot reach k", {
   info <- attr(out, "kanon")
   expect_true(info$suppressed_cells >= 1)
 })
+
+test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
+  set.seed(42)
+  df <- data.frame(
+    patient_id = sprintf("P%04d", 1:200),
+    sex  = sample(c("F", "M"), 200, TRUE),
+    band = sample(c("a", "b", "c"), 200, TRUE),
+    rare = c(rep("common", 198), "uniqueX", "uniqueY"),
+    val  = rnorm(200),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$disclosure_role[roles$variable == "rare"] <- "quasi"
+  spec <- synth_spec(purpose = "demo", k_anon = 5)
+
+  syn <- synthesize_data(df, spec = spec, roles = roles)
+
+  expect_false("patient_id" %in% names(syn))
+  info <- attr(syn, "kanon")
+  expect_false(is.null(info))
+  if (length(info$qi_cols)) {
+    res <- assess_kanonymity(syn, info$qi_cols, k = 5)
+    expect_true(is.na(res$smallest_cell) || res$smallest_cell >= 5)
+  }
+})

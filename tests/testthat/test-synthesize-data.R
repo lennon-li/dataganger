@@ -1,3 +1,5 @@
+pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
+
 # Tests for synthesize_data() - [2.9]-[2.14]
 
 # ---- Schema synthesis ----
@@ -396,19 +398,19 @@ test_that("synthesize_data() marginal mixed types all work", {
 
 test_that("simulation treatment passes through and drops columns", {
   df <- data.frame(
-    id = sprintf("ID%03d", 1:30),
+    group = rep(c("A", "B", "C"), length.out = 30),
     x = 1:30,
     omit = letters[seq_len(30)],
     stringsAsFactors = FALSE
   )
   roles <- detect_roles(df)
-  roles$simulation[roles$variable == "id"] <- "pass_through"
+  roles$simulation[roles$variable == "group"] <- "pass_through"
   roles$simulation[roles$variable == "omit"] <- "drop"
   spec <- synth_spec(purpose = "demo")
 
   syn <- synthesize_data(df, spec, roles = roles)
 
-  expect_identical(syn$id, df$id)
+  expect_identical(syn$group, df$group)
   expect_false("omit" %in% names(syn))
   expect_true("x" %in% names(syn))
 })
@@ -449,10 +451,11 @@ test_that("remove_ids masks ID columns with NA", {
     x  = rep(1:5, 10)
   )
   roles <- detect_roles(df)
+  roles$disclosure_role[roles$variable == "x"] <- "none"
   spec <- synth_spec(purpose = "demo", n = 10)
   spec$remove_ids <- TRUE
   syn <- synthesize_data(df, spec, roles = roles)
-  expect_true(all(is.na(syn$id)))
+  expect_false("id" %in% names(syn))
   expect_false(all(is.na(syn$x)))
 })
 

@@ -60,6 +60,7 @@ synthesize_data <- function(data, spec, roles = NULL,
     class(syn) <- c("dataganger_synthetic", class(syn))
     syn <- apply_name_strategy(syn, spec, data)
     attr(syn, "engine")        <- "synthpop"
+    syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
     return(syn)
   }
 
@@ -104,6 +105,7 @@ synthesize_data <- function(data, spec, roles = NULL,
 
   # [2.13] Apply name_strategy (after spec attr is set so name_map survives)
   syn <- apply_name_strategy(syn, spec, data)
+  syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
   attr(syn, "engine") <- "internal"
 
   syn
