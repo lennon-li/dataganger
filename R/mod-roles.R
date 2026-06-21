@@ -65,6 +65,19 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           style = "margin-left:auto; width:200px; padding:4px 8px; font-size:12px;"
         )
       ),
+      shiny::tags$div(
+        style = "margin:8px 0; display:flex; align-items:center; gap:10px;",
+        shiny::tags$label(
+          style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
+          "Minimum cell size (k)"
+        ),
+        shiny::numericInput(ns("k_anon"), label = NULL, value = 5, min = 2, step = 1,
+                            width = "80px"),
+        shiny::tags$span(
+          style = "font-size:12px; color:var(--fg-subtle);",
+          "No quasi-identifier combination in the synthetic output will appear in fewer than k records."
+        )
+      ),
       shiny::uiOutput(ns("roles_table"))
     )
   )
@@ -203,6 +216,13 @@ mod_roles_server <- function(id, state) {
     ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
                       "date", "free_text", "geography", "drop")
     SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
+    DISCLOSURE_OPTIONS <- c("none", "direct", "quasi", "sensitive")
+    DISCLOSURE_LABELS  <- c(
+      none = "None",
+      direct = "Direct identifier",
+      quasi = "Quasi-identifier",
+      sensitive = "Sensitive"
+    )
 
     # Map human-readable recommended_role text -> a ROLE_OPTIONS value
     rec_to_role <- function(rec) {
@@ -315,6 +335,26 @@ mod_roles_server <- function(id, state) {
         )
       }
 
+      make_disclosure_select <- function(orig_row, current, ns) {
+        current <- if (is.na(current) || !nzchar(current)) "none" else current
+        opts <- lapply(DISCLOSURE_OPTIONS, function(v) {
+          shiny::tags$option(
+            value = v,
+            selected = if (v == current) "selected" else NULL,
+            DISCLOSURE_LABELS[[v]]
+          )
+        })
+        shiny::tags$select(
+          onchange = sprintf(
+            "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
+            ns("disclosure_change"),
+            orig_row
+          ),
+          style = "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%;",
+          opts
+        )
+      }
+
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
@@ -341,17 +381,9 @@ mod_roles_server <- function(id, state) {
             make_select(orig_row, r$user_role, r$recommended_role, r$class)
           ),
           shiny::tags$td(
-            style = "text-align:center; padding:4px 8px;",
-            shiny::tags$input(
-              type     = "checkbox",
-              checked  = if (isTRUE(r$sensitive)) "checked" else NULL,
-              onchange = sprintf(
-                "Shiny.setInputValue('%s', {row: %d, value: this.checked}, {priority:'event'})",
-                session$ns("sensitivity_change"),
-                orig_row
-              ),
-              style = "width:15px; height:15px; cursor:pointer; accent-color:var(--risk-500);"
-            )
+            class = "col-type",
+            style = "min-width:150px; padding:4px 8px;",
+            make_disclosure_select(orig_row, r$disclosure_role, session$ns)
           )
         )
       })
@@ -366,7 +398,7 @@ mod_roles_server <- function(id, state) {
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
             shiny::tags$th(style = "width:20%; padding:6px 8px;", "recommended_role"),
             shiny::tags$th(class = "col-type", style = "width:24%; padding:6px 8px;", "TYPE"),
-            shiny::tags$th(style = "width:8%;  padding:6px 8px;", "sensitive")
+            shiny::tags$th(style = "width:16%; padding:6px 8px;", "DISCLOSURE")
           )
         ),
         shiny::tags$tbody(rows)
@@ -392,15 +424,25 @@ mod_roles_server <- function(id, state) {
       invisible(NULL)
     })
 
-    shiny::observeEvent(input$sensitivity_change, ignoreNULL = TRUE, {
-      change <- input$sensitivity_change
+    shiny::observeEvent(input$disclosure_change, ignoreNULL = TRUE, {
+      change <- input$disclosure_change
       roles  <- roles_local()
       if (is.null(change) || is.null(roles)) return(invisible(NULL))
       orig_row <- as.integer(change$row)
+      val      <- as.character(change$value)
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
-      roles$sensitive[[orig_row]] <- isTRUE(change$value)
+      if (!val %in% DISCLOSURE_OPTIONS) return(invisible(NULL))
+      roles$disclosure_role[[orig_row]] <- val
       roles_local(roles)
       state$roles <- roles
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$k_anon, ignoreNULL = TRUE, {
+      k <- suppressWarnings(as.integer(input$k_anon))
+      if (is.na(k) || k < 2L) return(invisible(NULL))
+      if (!is.null(state$spec)) state$spec$k_anon <- k
+      state$k_anon <- k
       invisible(NULL)
     })
 
