@@ -47,17 +47,6 @@ mod_synthesis_controls_objective_ui <- function(id) {
       )
     ),
     shiny::tags$div(
-      class = "banner info",
-      shiny::tags$span(class = "icon", "i"),
-      shiny::tags$div(
-        shiny::tags$b("Why this comes first"),
-        " Your objective shapes every downstream default. The meters on each option show its ",
-        shiny::tags$span(style = "font-weight:600", "fidelity \u2194 privacy"),
-        " balance, plus how hard the result is to re-identify back to real individuals. ",
-        "Pick the closest match; nothing here is locked in."
-      )
-    ),
-    shiny::tags$div(
       class = "card",
       shiny::tags$div(
         class = "card-header",
@@ -86,7 +75,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
 
 #' @keywords internal
 #' @noRd
-dg_purpose_card <- function(ns, key, group, title, line, fid, priv, ident, risk = FALSE, selected = FALSE) {
+dg_purpose_card <- function(ns, key, group, title, line, fid, priv, anon, risk = FALSE, selected = FALSE) {
   meter <- function(label, n, color) {
     shiny::tags$div(
       class = "pc-meter",
@@ -127,7 +116,7 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, ident, risk 
       class = "pc-meters",
       meter("Fidelity", fid, "var(--ink-700)"),
       meter("Privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
-      meter("Anonymity", ident, "var(--risk-400)")
+      meter("Anonymity", anon, "var(--risk-400)")
     ),
     shiny::tags$div(class = "pc-detail-slot", `data-detail-slot` = key)
   )
@@ -137,15 +126,24 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, ident, risk 
 #' @noRd
 objective_cards <- function(ns) {
   shiny::tagList(
-    shiny::tags$p(
-      style = "font-size:12px; color:var(--fg-muted); margin:0 0 16px;",
-      shiny::tags$strong("Fidelity:"), " more bars = closer to real data. ",
-      shiny::tags$strong("Privacy:"), " more bars = stronger protection against disclosure. ",
-      shiny::tags$strong("Anonymity:"), " more bars = harder to re-identify individuals."
+    shiny::tags$div(
+      class = "meter-legend",
+      shiny::tags$div(
+        shiny::tags$strong("Fidelity"),
+        shiny::tags$span("more bars = closer to the real data")
+      ),
+      shiny::tags$div(
+        shiny::tags$strong("Privacy"),
+        shiny::tags$span("more bars = stronger protection against disclosure")
+      ),
+      shiny::tags$div(
+        shiny::tags$strong("Anonymity"),
+        shiny::tags$span("more bars = harder to re-identify individuals")
+      )
     ),
     dg_purpose_card(
       ns, "demo", "demo", "Demo / Teaching",
-      "Share externally, teach with, or use in presentations.", 2, 4, 1
+      "Share externally, teach with, or use in presentations.", 2, 4, 5
     ),
     dg_purpose_card(
       ns, "development", "development", "Development and prototyping",
@@ -153,7 +151,7 @@ objective_cards <- function(ns) {
     ),
     dg_purpose_card(
       ns, "analytics", "analytics", "Internal Analytics",
-      "Maximum structural detail \u2014 internal use only.", 5, 1, 5, risk = TRUE
+      "Maximum structural detail \u2014 internal use only.", 5, 1, 1, risk = TRUE
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'analytics'",

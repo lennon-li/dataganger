@@ -87,6 +87,10 @@ sidebar_content <- tags$nav(
         el.classList.add('selected');
         Shiny.setInputValue('synthesis_controls-purpose_group', group, {priority: 'event'});
         Shiny.setInputValue('synthesis_controls-purpose_chosen', true, {priority: 'event'});
+        // Move the detail block under the specific selected card.
+        var host = document.getElementById('synthesis_controls-purpose_detail_host');
+        var slot = el.querySelector('.pc-detail-slot');
+        if (host && slot) { slot.appendChild(host); }
       }
       window.DGsetPurpose = DGsetPurpose;
 
