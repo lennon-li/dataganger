@@ -12,7 +12,17 @@ library(bslib)
 
 # Serve www/ assets explicitly so the stylesheets resolve regardless of how
 # the app dir is mounted. Must run before any UI is defined.
-shiny::addResourcePath("www", system.file("app/www", package = "dataganger"))
+www_dir <- system.file("app/www", package = "dataganger")
+shiny::addResourcePath("www", www_dir)
+
+# Cache-bust stylesheets by appending the file's mtime as a query string, so
+# the browser is forced to re-fetch whenever the CSS changes (no manual
+# hard-refresh required).
+css_href <- function(file) {
+  path <- file.path(www_dir, file)
+  ver  <- if (file.exists(path)) as.integer(file.info(path)$mtime) else 0L
+  sprintf("www/%s?v=%d", file, ver)
+}
 
 detect_roles                  <- dataganger::detect_roles
 mod_compare_server            <- dataganger:::mod_compare_server
@@ -111,11 +121,15 @@ sidebar_content <- tags$nav(
       });
 
       // Drag-to-resize between main and data panel
+      var _resizeInited = false;
       function initResizeHandle() {
+        if (_resizeInited) return;
         var handle = document.getElementById('resize-handle');
         var shell  = document.getElementById('app-shell');
         if (!handle || !shell) return;
+        _resizeInited = true;
         var dragging = false;
+        function stopDrag() { dragging = false; document.body.style.cursor = ''; }
         handle.addEventListener('mousedown', function(e) {
           dragging = true;
           document.body.style.cursor = 'col-resize';
@@ -123,18 +137,15 @@ sidebar_content <- tags$nav(
         });
         document.addEventListener('mousemove', function(e) {
           if (!dragging) return;
-          // Stateless: data-panel width = distance from cursor to the shell's
-          // right edge. Always reversible (no drift), so it never gets stuck.
           var rect = shell.getBoundingClientRect();
           var newW = Math.max(240, Math.min(900, rect.right - e.clientX));
           shell.style.gridTemplateColumns = '200px 1fr 5px ' + newW + 'px';
         });
-        document.addEventListener('mouseup', function() {
-          if (dragging) { dragging = false; document.body.style.cursor = ''; }
-        });
+        document.addEventListener('mouseup', stopDrag);
+        // Cancel drag if mouse leaves the browser window
+        document.addEventListener('mouseleave', stopDrag);
       }
       document.addEventListener('DOMContentLoaded', initResizeHandle);
-      // Also init after Shiny connects (for deferred render)
       $(document).on('shiny:connected', initResizeHandle);
     "))
   ),
@@ -219,9 +230,9 @@ configure_ui <- function() {
 ui <- bslib::page(
   theme = dg_theme,
   tags$head(
-    tags$link(rel = "stylesheet", href = "www/colors_and_type.css"),
-    tags$link(rel = "stylesheet", href = "www/shiny-app.css"),
-    tags$link(rel = "stylesheet", href = "www/_alignment.css")
+    tags$link(rel = "stylesheet", href = css_href("colors_and_type.css")),
+    tags$link(rel = "stylesheet", href = css_href("shiny-app.css")),
+    tags$link(rel = "stylesheet", href = css_href("_alignment.css"))
   ),
   tags$div(
     class = "app",

@@ -246,9 +246,9 @@
 .input:focus, .select:focus { outline: none; border-color: var(--synth-500); box-shadow: 0 0 0 3px var(--synth-100); }
 .role-select-wrap.needs-review .selectize-input,
 .role-select-wrap.needs-review select { box-shadow: 0 0 0 2px var(--risk-200); border-radius: 4px; }
-/* TYPE column cue: subtle risk tint so users are prompted to review/change it */
-.col-type { background: var(--risk-50); }
-th.col-type { color: var(--risk-700); }
+/* TYPE column cue: magenta tint draws the eye without being harsh */
+table.data td.col-type { background: var(--synth-50); }
+table.data thead th.col-type { background: var(--synth-50); color: var(--synth-700); }
 .help { font-family: var(--font-sans); font-size: 11px; color: var(--fg-muted); }
 .local-save { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
 .local-save .help { margin-top: 4px; }
@@ -655,20 +655,31 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--paper-50);
+  border: 1px solid var(--paper-300);
   border-radius: 6px;
   cursor: pointer;
   width: 100%;
   text-align: left;
-  transition: background 120ms, border-color 120ms, transform 80ms;
+  /* Raised, tactile look: solid bottom "lip" + soft drop shadow so the
+     tab reads as a physical, clickable button. */
+  box-shadow: 0 1px 0 0 var(--paper-300), 0 2px 4px -1px rgba(17,20,15,0.10);
+  transition: background 120ms, border-color 120ms, box-shadow 120ms, transform 80ms;
 }
-.var-tab:hover { background: var(--paper-200); border-color: var(--paper-300); }
-.var-tab:active { transform: translateX(1px); }
+.var-tab:hover {
+  background: #FFFFFF;
+  border-color: var(--paper-300);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 0 0 var(--paper-300), 0 6px 14px -3px rgba(17,20,15,0.16);
+}
+.var-tab:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 0 var(--paper-300), inset 0 1px 3px rgba(17,20,15,0.12);
+}
 .var-tab.active {
-  background: var(--paper-100);
+  background: #FFFFFF;
   border-color: var(--synth-300);
-  box-shadow: inset 3px 0 0 var(--synth-500);
+  box-shadow: inset 3px 0 0 var(--synth-500), 0 1px 0 0 var(--synth-300), 0 2px 6px -1px rgba(145,32,92,0.18);
 }
 .var-tab .var-name {
   font-family: var(--font-mono);
@@ -794,7 +805,7 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 .pc-meter { display: flex; align-items: center; gap: 7px; }
 .pc-meter-lbl {
   font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--fg-subtle); width: 52px; text-align: right;
+  text-transform: uppercase; color: var(--fg-subtle); min-width: 62px; text-align: right; white-space: nowrap;
 }
 .pc-bars { display: flex; gap: 2px; line-height: 1; }
 .pc-bars .blk { font-size: 11px; }
