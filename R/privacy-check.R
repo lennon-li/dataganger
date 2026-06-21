@@ -121,6 +121,25 @@ privacy_check_pre <- function(original, roles) {
     }
   }
 
+  if (!is.null(disclosure_map)) {
+    qi_cols <- names(disclosure_map)[disclosure_map == "quasi"]
+    qi_cols <- intersect(qi_cols, names(original))
+    if (length(qi_cols) >= 1L) {
+      res <- assess_kanonymity(original, qi_cols, k = 5)
+      if (!isTRUE(res$no_qi) && !is.na(res$smallest_cell) && res$n_below > 0L) {
+        flags[[length(flags) + 1]] <- make_flag(
+          "(quasi-identifiers)",
+          sprintf(
+            "%d record(s) (%.1f%%) in QI combinations smaller than k=5; smallest cell = %d",
+            res$n_below, res$pct_below, res$smallest_cell
+          ),
+          "HIGH",
+          "These combinations are re-identifying; synthesis will coarsen or suppress them"
+        )
+      }
+    }
+  }
+
   if (length(flags) == 0) {
     return(tibble::tibble(
       variable       = character(0),
@@ -195,6 +214,29 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
           sprintf("Rare categories survived synthesis: %s", paste(survived, collapse = ", ")),
           "MEDIUM",
           "Rare categories may be identifying; verify they are safe to release")
+      }
+    }
+  }
+
+  dr <- NULL
+  if (!is.null(roles) && "disclosure_role" %in% names(roles)) {
+    dr <- stats::setNames(roles$disclosure_role, roles$variable)
+  }
+  if (!is.null(dr)) {
+    k_target <- if (!is.null(spec)) spec$k_anon %||% 5 else 5
+    qi_cols <- intersect(names(dr)[dr == "quasi"], names(synthetic))
+    if (length(qi_cols) >= 1L) {
+      res <- assess_kanonymity(synthetic, qi_cols, k = k_target)
+      if (!is.na(res$smallest_cell) && res$smallest_cell < k_target) {
+        flags[[length(flags) + 1]] <- make_flag(
+          "(quasi-identifiers)",
+          sprintf(
+            "Synthetic output has a QI cell of size %d (< k=%d)",
+            res$smallest_cell, k_target
+          ),
+          "HIGH",
+          "k-anonymity enforcement did not reach the target; review enforce_kanon settings"
+        )
       }
     }
   }

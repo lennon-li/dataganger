@@ -50,6 +50,19 @@ test_that("privacy_check_pre reads disclosure_role, not sensitive", {
   expect_true(any(flags$variable == "diagnosis" & flags$flag == "Sensitive target"))
 })
 
+test_that("privacy_check_pre raises a combination cell-size flag", {
+  df <- data.frame(
+    zip = c(rep("A", 8), "B", "C"),
+    sex = c(rep("F", 4), rep("M", 4), "F", "M"),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$disclosure_role[roles$variable %in% c("zip", "sex")] <- "quasi"
+
+  flags <- privacy_check(df, roles = roles, stage = "pre")
+  expect_true(any(grepl("smaller than k|cell size|k-anonymity", flags$flag, ignore.case = TRUE)))
+})
+
 test_that("privacy_check() pre flags date columns", {
   df <- data.frame(d = as.Date("2024-01-01") + 1:10)
   roles <- detect_roles(df)
@@ -96,17 +109,17 @@ test_that("privacy_check() post requires synthetic arg", {
   )
 })
 
-test_that("privacy_check() post flags unmasked ID columns", {
+test_that("privacy_check() post does not flag IDs once output removal runs", {
   df <- data.frame(
     id = 1:50,
     x  = rep(1:5, 10)
   )
   roles <- detect_roles(df)
   spec <- synth_spec(purpose = "demo", n = 20)
-  # Don't set remove_ids, so ID stays
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
-  expect_true(any(grepl("ID", pc$flag) & pc$severity == "HIGH"))
+  expect_false("id" %in% names(syn))
+  expect_false(any(grepl("ID", pc$flag) & pc$severity == "HIGH"))
 })
 
 test_that("privacy_check() post exact-row match check", {
@@ -212,6 +225,7 @@ test_that("privacy_check() computes synthpop disclosure when synthpop is install
     stringsAsFactors = FALSE
   )
   roles <- detect_roles(df)
+  roles$disclosure_role[roles$variable %in% c("city", "group")] <- "none"
   spec <- suppressWarnings(synth_spec(purpose = "development", n = 30, seed = 1L))
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post", spec = spec)
