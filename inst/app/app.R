@@ -87,6 +87,10 @@ sidebar_content <- tags$nav(
         el.classList.add('selected');
         Shiny.setInputValue('synthesis_controls-purpose_group', group, {priority: 'event'});
         Shiny.setInputValue('synthesis_controls-purpose_chosen', true, {priority: 'event'});
+        // Move the detail block under the specific selected card.
+        var host = document.getElementById('synthesis_controls-purpose_detail_host');
+        var slot = el.querySelector('.pc-detail-slot');
+        if (host && slot) { slot.appendChild(host); }
       }
       window.DGsetPurpose = DGsetPurpose;
 
@@ -111,18 +115,18 @@ sidebar_content <- tags$nav(
         var handle = document.getElementById('resize-handle');
         var shell  = document.getElementById('app-shell');
         if (!handle || !shell) return;
-        var dragging = false, startX, startW;
+        var dragging = false;
         handle.addEventListener('mousedown', function(e) {
-          var dp = shell.querySelector('.data-panel');
           dragging = true;
-          startX   = e.clientX;
-          startW   = dp ? dp.offsetWidth : 400;
           document.body.style.cursor = 'col-resize';
           e.preventDefault();
         });
         document.addEventListener('mousemove', function(e) {
           if (!dragging) return;
-          var newW = Math.max(240, Math.min(900, startW + (startX - e.clientX)));
+          // Stateless: data-panel width = distance from cursor to the shell's
+          // right edge. Always reversible (no drift), so it never gets stuck.
+          var rect = shell.getBoundingClientRect();
+          var newW = Math.max(240, Math.min(900, rect.right - e.clientX));
           shell.style.gridTemplateColumns = '200px 1fr 5px ' + newW + 'px';
         });
         document.addEventListener('mouseup', function() {

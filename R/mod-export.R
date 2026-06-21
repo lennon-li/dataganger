@@ -48,21 +48,9 @@ mod_export_ui <- function(id) {
         shiny::tags$li(shiny::tags$strong("manifest.json"), " / ", shiny::tags$strong("privacy_report.txt"), " \u2014 provenance and disclosure metrics"),
         shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types")
       ),
-      shiny::tags$div(
-        class = "local-save",
-        shiny::textInput(
-          ns("output_dir"),
-          label = "Save a copy to folder (local runs only)"
-        ),
-        shiny::actionButton(
-          ns("save_local"),
-          label = "Save to folder",
-          class = "btn btn-sm btn-secondary"
-        ),
-        shiny::tags$p(
-          class = "help",
-          "This only works when the app runs on your own machine."
-        )
+      shiny::tags$p(
+        class = "help",
+        "The bundle downloads to your browser's Downloads folder."
       )
     )
   )
@@ -139,56 +127,5 @@ mod_export_server <- function(id, state) {
         invisible(NULL)
       }
     )
-
-    # Optional local-directory save (only meaningful when the app runs on the
-    # user's own machine, where the server filesystem is the user's filesystem).
-    shiny::observeEvent(input$save_local, {
-      dir <- input$output_dir
-      if (is.null(dir) || !nzchar(trimws(dir))) {
-        shiny::showNotification(
-          "Enter a folder path to save a copy.",
-          type = "warning"
-        )
-        return(invisible(NULL))
-      }
-      dir <- trimws(dir)
-      if (!dir.exists(dir)) {
-        shiny::showNotification(
-          paste0("Folder not found: ", dir),
-          type = "error"
-        )
-        return(invisible(NULL))
-      }
-
-      result <- tryCatch(
-        {
-          bundle_dir <- tempfile("mod-export-local-")
-          dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
-          on.exit(unlink(bundle_dir, recursive = TRUE), add = TRUE)
-
-          artefact <- build_export(bundle_dir)
-          dest <- file.path(dir, basename(artefact))
-          ok <- file.copy(from = artefact, to = dest, overwrite = TRUE)
-          if (!isTRUE(ok)) {
-            stop("could not write to the selected folder")
-          }
-          dest
-        },
-        error = function(e) e
-      )
-
-      if (inherits(result, "error")) {
-        shiny::showNotification(
-          paste0("Could not save to folder: ", conditionMessage(result)),
-          type = "error"
-        )
-      } else {
-        shiny::showNotification(
-          paste0("Saved a copy to ", result),
-          type = "message"
-        )
-      }
-      invisible(NULL)
-    })
   })
 }

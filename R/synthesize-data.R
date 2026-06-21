@@ -52,6 +52,7 @@ synthesize_data <- function(data, spec, roles = NULL,
   if (engine == "synthpop") {
     syn <- synthesize_synthpop(data, spec, roles = roles)
     syn <- apply_simulation_treatment(syn, data, roles)
+    syn <- match_decimal_precision(syn, data)
     attr(syn, "spec")          <- spec
     attr(syn, "original_dims") <- list(nrow = nrow(data), ncol = ncol(data))
     attr(syn, "seed_used")     <- spec$seed
@@ -92,6 +93,7 @@ synthesize_data <- function(data, spec, roles = NULL,
   }
 
   syn <- apply_simulation_treatment(syn, data, roles)
+  syn <- match_decimal_precision(syn, data)
 
   # Build S3 object
   attr(syn, "spec")          <- spec
@@ -178,4 +180,38 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
   }
 
   syn
+}
+
+# ===========================================================================
+# Decimal-precision matching
+# ===========================================================================
+
+# Round each synthetic numeric column to the same number of decimal places as
+# the matching original column, so synthetic values read at the original's
+# granularity (e.g. 27.7 -> 23.6, not 23.56576648668623). Integer columns stay
+# integer. Columns are still matched by name here (before name_strategy renames).
+match_decimal_precision <- function(syn, original) {
+  common <- intersect(names(syn), names(original))
+  for (col in common) {
+    o <- original[[col]]
+    s <- syn[[col]]
+    if (!is.numeric(s) || !is.numeric(o)) next
+    # Round to the original's decimal count; integer-valued columns -> 0
+    # decimals (whole numbers), keeping the numeric type the engine produced.
+    syn[[col]] <- round(s, decimal_places(o))
+  }
+  syn
+}
+
+# Max number of decimal places used by the finite values in `x` (capped at 10,
+# estimated from a sample for large vectors).
+decimal_places <- function(x) {
+  x <- x[is.finite(x)]
+  if (length(x) == 0L) return(0L)
+  if (length(x) > 1000L) x <- sample(x, 1000L)
+  d <- vapply(x, function(v) {
+    s <- sub("0+$", "", sprintf("%.10f", v))
+    if (grepl(".", s, fixed = TRUE)) nchar(sub("^.*\\.", "", s)) else 0L
+  }, integer(1))
+  min(max(d), 10L)
 }
