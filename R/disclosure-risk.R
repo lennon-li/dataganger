@@ -53,3 +53,38 @@ assess_kanonymity <- function(data, qi_cols, k = 5) {
     worst_cells = worst
   )
 }
+
+#' Heuristic: does this data frame look pre-aggregated (a table of counts)?
+#'
+#' Disclosure control assumes individual-level microdata. A positive result
+#' should drive a non-blocking warning, not a separate policy.
+#'
+#' @param data A data frame.
+#' @return A list with `aggregated` (logical) and `reason` (character).
+#' @export
+looks_aggregated <- function(data) {
+  nm <- tolower(names(data))
+  count_cols <- names(data)[nm %in% c("n", "count", "freq", "frequency", "total")]
+  has_count <- length(count_cols) > 0L &&
+    any(vapply(data[count_cols], function(x) {
+      is.numeric(x) && all(x >= 0, na.rm = TRUE) && all(x == round(x), na.rm = TRUE)
+    }, logical(1)))
+
+  dim_cols <- setdiff(names(data), count_cols)
+  few_rows <- nrow(data) > 0L && nrow(data) <= 1000L
+  unique_dims <- length(dim_cols) > 0L &&
+    !any(duplicated(data[dim_cols])) &&
+    nrow(data) > 0L
+
+  aggregated <- has_count && few_rows && unique_dims
+  reason <- if (aggregated) {
+    sprintf(
+      "count column(s) %s with unique dimension rows",
+      paste(count_cols, collapse = ", ")
+    )
+  } else {
+    "no count column / looks like individual records"
+  }
+
+  list(aggregated = aggregated, reason = reason)
+}

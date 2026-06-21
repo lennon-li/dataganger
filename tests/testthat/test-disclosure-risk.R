@@ -37,3 +37,18 @@ test_that("assess_kanonymity counts NA as its own combination level", {
   res <- assess_kanonymity(df, qi_cols = "zip", k = 5)
   expect_equal(res$n_below, 4L)
 })
+
+test_that("looks_aggregated flags count-style tables and clears plain microdata", {
+  agg <- data.frame(
+    region = c("N", "S", "E", "W"),
+    age_band = c("0-18", "19-65", "0-18", "19-65"),
+    n = c(120L, 340L, 88L, 210L),
+    stringsAsFactors = FALSE
+  )
+  expect_true(looks_aggregated(agg)$aggregated)
+
+  micro <- data.frame(
+    id = 1:100, age = sample(20:80, 100, TRUE), x = rnorm(100)
+  )
+  expect_false(looks_aggregated(micro)$aggregated)
+})
