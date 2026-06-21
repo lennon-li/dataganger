@@ -18,7 +18,8 @@
 #'     \item{user_role}{User-supplied override (initially `NA`).}
 #'     \item{simulation}{How the column is treated during synthesis.}
 #'     \item{reason}{Justification for the recommended role.}
-#'     \item{sensitive}{Whether the column may contain sensitive data.}
+#'     \item{disclosure_role}{Disclosure role: "none", "direct", "quasi", or "sensitive".}
+#'     \item{disclosure_reason}{Justification for the auto-assigned disclosure role.}
 #'   }
 #' @export
 #'
@@ -88,12 +89,12 @@ detect_single_role <- function(x, name, n_rows) {
 
   # Test 1: haven_labelled
   if (r_class == "haven_labelled") {
-    return(make_role_row(name, r_class, "label_check", "class is haven_labelled", FALSE))
+    return(make_role_row(name, r_class, "label_check", "class is haven_labelled", "quasi"))
   }
 
   # Test 2: Date or POSIXct
   if (r_class %in% c("Date", "POSIXct")) {
-    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", TRUE))
+    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", "quasi"))
   }
 
   # Test 3: free text
@@ -103,20 +104,20 @@ detect_single_role <- function(x, name, n_rows) {
       r_class,
       "free text",
       "median string length > 20 or median word count >= 5",
-      TRUE
+      "direct"
     ))
   }
 
   # Test 4: geography column name pattern
   geo_pattern <- "(?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)"
   if (grepl(geo_pattern, name, perl = TRUE)) {
-    return(make_role_row(name, r_class, "geography", paste0("name matches geography pattern: ", geo_pattern), TRUE))
+    return(make_role_row(name, r_class, "geography", paste0("name matches geography pattern: ", geo_pattern), "quasi"))
   }
 
   # Test 5: name matches ID patterns
   id_pattern <- "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
   if (grepl(id_pattern, name, perl = TRUE)) {
-    return(make_role_row(name, r_class, "ID candidate", paste0("name matches ID pattern: ", id_pattern), TRUE))
+    return(make_role_row(name, r_class, "ID candidate", paste0("name matches ID pattern: ", id_pattern), "direct"))
   }
 
   # Test 6: high cardinality → ID candidate
@@ -133,21 +134,21 @@ detect_single_role <- function(x, name, n_rows) {
     length(x_obs) > 0 && stats::median(nchar(x_obs), na.rm = TRUE) > 20
   }
   if (!is_long_char && !is.numeric(x) && distinct_ratio >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
-    return(make_role_row(name, r_class, "ID candidate", "n_distinct/nrow >= 0.95", TRUE))
+    return(make_role_row(name, r_class, "ID candidate", "n_distinct/nrow >= 0.95", "direct"))
   }
 
   # Test 7: low cardinality → categorical candidate
   if (distinct_ratio < 0.05 || n_distinct <= 20) {
-    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", FALSE))
+    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", "quasi"))
   }
 
   # Test 8: distinctive numeric → numeric (user classifies via UI)
   if (is.numeric(x)) {
-    return(make_role_row(name, r_class, "numeric", "distinctive numeric; classify via UI", FALSE))
+    return(make_role_row(name, r_class, "numeric", "distinctive numeric; classify via UI", "none"))
   }
 
   # Default
-  make_role_row(name, r_class, "unknown", "no rule matched", FALSE)
+  make_role_row(name, r_class, "unknown", "no rule matched", "none")
 }
 
 is_free_text_candidate <- function(x) {
@@ -168,7 +169,7 @@ is_free_text_candidate <- function(x) {
   isTRUE(median_nchar > 20 || median_word_count >= 5)
 }
 
-make_role_row <- function(name, r_class, role, reason, sensitive) {
+make_role_row <- function(name, r_class, role, reason, disclosure_role) {
   tibble::tibble(
     variable         = name,
     class            = r_class,
@@ -176,7 +177,17 @@ make_role_row <- function(name, r_class, role, reason, sensitive) {
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = reason,
-    sensitive        = sensitive
+    disclosure_role = disclosure_role,
+    disclosure_reason = disclosure_reason_for(disclosure_role, role)
+  )
+}
+
+disclosure_reason_for <- function(disclosure_role, role) {
+  switch(disclosure_role,
+    direct = "auto: identifies a person by itself; removed from output",
+    quasi = "auto: identifying in combination; covered by the k-anonymity guarantee",
+    none = "auto: not identifying alone or in combination",
+    "auto"
   )
 }
 
@@ -206,8 +217,8 @@ print.dataganger_roles <- function(x, ...) {
 
     cli::cli_h3(header)
     cli::cli_li("Reason: {r$reason}")
-    if (r$sensitive) {
-      cli::cli_li("{.strong Sensitive}: TRUE")
+    if (!is.na(r$disclosure_role) && r$disclosure_role != "none") {
+      cli::cli_li("{.strong Disclosure}: {r$disclosure_role}")
     }
   }
 

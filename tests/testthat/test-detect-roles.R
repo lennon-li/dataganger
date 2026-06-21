@@ -1,10 +1,44 @@
+pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
+
 test_that("detect_roles() returns correct S3 class and columns", {
   df <- data.frame(x = 1:5, y = letters[1:5])
   r <- detect_roles(df)
   expect_s3_class(r, "dataganger_roles")
-  expect_named(r, c("variable", "class", "recommended_role", "user_role", "simulation", "reason", "sensitive"))
+  expect_named(
+    r,
+    c(
+      "variable", "class", "recommended_role", "user_role", "simulation",
+      "reason", "disclosure_role", "disclosure_reason"
+    )
+  )
   expect_equal(r$variable, c("x", "y"))
   expect_equal(r$simulation, c("synthesize", "synthesize"))
+})
+
+test_that("detect_roles assigns disclosure_role per the auto-fill mapping", {
+  set.seed(123)
+  df <- data.frame(
+    patient_id = sprintf("P%04d", 1:50),
+    zip = rep(c("M5V", "M4C"), 25),
+    visit_date = as.Date("2020-01-01") + 0:49,
+    sex = rep(c("F", "M"), 25),
+    lab_value = rnorm(50),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+
+  expect_true("disclosure_role" %in% names(roles))
+  expect_true("disclosure_reason" %in% names(roles))
+  expect_false("sensitive" %in% names(roles))
+
+  dr <- stats::setNames(roles$disclosure_role, roles$variable)
+  expect_equal(dr[["patient_id"]], "direct")
+  expect_equal(dr[["zip"]], "quasi")
+  expect_equal(dr[["visit_date"]], "quasi")
+  expect_equal(dr[["sex"]], "quasi")
+  expect_equal(dr[["lab_value"]], "none")
+
+  expect_false(any(roles$disclosure_role == "sensitive"))
 })
 
 test_that("detect_roles() detects ID candidate from high cardinality", {
@@ -166,7 +200,7 @@ test_that("detect_roles() labels a distinctive numeric column as numeric", {
   expect_equal(r$recommended_role[1], "numeric")
 })
 
-test_that("detect_roles() marks ID, date, geography, free text as sensitive", {
+test_that("detect_roles() maps identifying columns to disclosure roles", {
   df <- data.frame(
     record_id  = rep(1:3, length.out = 50),
     visit_date = as.Date("2024-01-01") + 1:50,
@@ -174,10 +208,9 @@ test_that("detect_roles() marks ID, date, geography, free text as sensitive", {
     stringsAsFactors = FALSE
   )
   r <- detect_roles(df)
-  expect_true(r$sensitive[r$variable == "record_id"])
-  expect_true(r$sensitive[r$variable == "visit_date"])
-  # city_name with moderate cardinality → geography → sensitive
-  expect_true(r$sensitive[r$variable == "city_name"])
+  expect_equal(r$disclosure_role[r$variable == "record_id"], "direct")
+  expect_equal(r$disclosure_role[r$variable == "visit_date"], "quasi")
+  expect_equal(r$disclosure_role[r$variable == "city_name"], "quasi")
 })
 
 test_that("detect_roles() user_role is initially NA", {
