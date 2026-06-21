@@ -1,3 +1,5 @@
+pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
+
 # Tests for synth_spec() — [2.1]-[2.4]
 
 test_that("synth_spec() returns dataganger_spec for each valid purpose", {
@@ -134,4 +136,14 @@ test_that("synth_spec() accepts all 3 purposes without extra args", {
     expect_no_error(synth_spec(purpose = p))
   }
   expect_no_error(synth_spec(purpose = "analytics", acknowledge_risk = TRUE))
+})
+
+test_that("synth_spec carries k_anon with a default of 5 and validates it", {
+  spec <- synth_spec(purpose = "demo")
+  expect_equal(spec$k_anon, 5)
+
+  spec2 <- synth_spec(purpose = "demo", k_anon = 10)
+  expect_equal(spec2$k_anon, 10)
+
+  expect_error(synth_spec(purpose = "demo", k_anon = 1), "k_anon")
 })

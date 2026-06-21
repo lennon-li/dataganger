@@ -81,6 +81,8 @@ synth_spec <- function(purpose,
     preset[[nm]] <- dots[[nm]]
   }
 
+  preset$k_anon <- preset$k_anon %||% 5
+
   # --- Validation ---
   validate_spec(preset, purpose, acknowledge_risk, roles)
 
@@ -114,6 +116,7 @@ preset_table <- function(purpose) {
       geography_strategy  = "coarsen",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
+      k_anon              = 5,
       preserve_missingness = "approx",
       seed                = NULL
     ),
@@ -127,6 +130,7 @@ preset_table <- function(purpose) {
       geography_strategy  = "coarsen",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
+      k_anon              = 5,
       preserve_missingness = "approx",
       seed                = NULL
     ),
@@ -140,6 +144,7 @@ preset_table <- function(purpose) {
       geography_strategy  = "preserve",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
+      k_anon              = 5,
       preserve_missingness = "approx",
       seed                = NULL
     ),
@@ -160,6 +165,11 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
   # rare_level_min_n must be > 1
   if (!is.null(spec$rare_level_min_n) && spec$rare_level_min_n <= 1) {
     cli::cli_abort("{.arg rare_level_min_n} must be > 1, got {spec$rare_level_min_n}")
+  }
+
+  # k_anon must be an integer-ish value >= 2
+  if (!is.null(spec$k_anon) && (!is.numeric(spec$k_anon) || spec$k_anon < 2)) {
+    cli::cli_abort("{.arg k_anon} must be a number >= 2, got {spec$k_anon}")
   }
 
   # analytics requires acknowledge_risk
@@ -301,6 +311,7 @@ print.dataganger_spec <- function(x, ...) {
   cli::cli_li("Name strategy: {.val {x$name_strategy}}")
   cli::cli_li("Coarsen dates: {x$coarsen_dates}")
   cli::cli_li("Merge rare levels: {x$merge_rare} (min_n = {x$rare_level_min_n})")
+  cli::cli_li("Minimum cell size (k-anonymity): {x$k_anon}")
   cli::cli_li("Free text strategy: {.val {x$free_text_strategy}}")
   cli::cli_li("Geography strategy: {.val {x$geography_strategy}}")
   cli::cli_li("Preserve correlations: {.val {x$preserve_correlations}}")
