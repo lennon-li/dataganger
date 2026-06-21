@@ -22,7 +22,8 @@ An S3 object of class \code{dataganger_roles}, a tibble with columns:
 \item{user_role}{User-supplied override (initially \code{NA}).}
 \item{simulation}{How the column is treated during synthesis.}
 \item{reason}{Justification for the recommended role.}
-\item{sensitive}{Whether the column may contain sensitive data.}
+\item{disclosure_role}{Disclosure role: "none", "direct", "quasi", or "sensitive".}
+\item{disclosure_reason}{Justification for the auto-assigned disclosure role.}
 }
 }
 \description{

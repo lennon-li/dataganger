@@ -1,3 +1,5 @@
+pkgload::load_all(".", quiet = TRUE, export_all = TRUE)
+
 test_that("bucket_nrows() returns correct bands", {
   expect_equal(bucket_nrows(0L),     "<100")
   expect_equal(bucket_nrows(50L),    "<100")
@@ -20,7 +22,7 @@ test_that("build_diagnostic_view() returns correct structure", {
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = c("name", "no match", "long text", "geo pattern"),
-    sensitive        = c(TRUE, FALSE, TRUE, TRUE)
+    disclosure_role  = c("direct", "none", "direct", "quasi")
   )
   class(roles) <- c("dataganger_roles", class(roles))
 
@@ -45,9 +47,9 @@ test_that("build_diagnostic_view() returns correct structure", {
   expect_length(result$columns, 4L)
   expect_equal(result$columns[[1]]$name,      "patient_id")
   expect_equal(result$columns[[1]]$role,      "ID candidate")
-  expect_true( result$columns[[1]]$sensitive)
+  expect_equal(result$columns[[1]]$disclosure_role, "direct")
   expect_equal(result$columns[[1]]$treatment, "synthesized")
-  expect_false(result$columns[[2]]$sensitive)
+  expect_equal(result$columns[[2]]$disclosure_role, "none")
   expect_equal(result$columns[[3]]$treatment, "free_text_dropped")
   expect_true(result$blocked$raw_rows)
   expect_true(result$blocked$free_text_examples)
@@ -63,7 +65,7 @@ test_that("build_diagnostic_view() blocked$free_text_examples is FALSE when no f
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = c("name", "no match"),
-    sensitive        = c(TRUE, FALSE)
+    disclosure_role  = c("direct", "none")
   )
   class(roles) <- c("dataganger_roles", class(roles))
 
@@ -87,7 +89,7 @@ test_that("build_diagnostic_view() blocked$ids_synthesized is FALSE when no IDs"
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = c("low cardinality", "no match"),
-    sensitive        = c(FALSE, FALSE)
+    disclosure_role  = c("none", "none")
   )
   class(roles) <- c("dataganger_roles", class(roles))
 

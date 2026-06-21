@@ -1,3 +1,5 @@
+pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
+
 test_that("export_diagnostic_package() writes valid JSON to path", {
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "diag.json")
@@ -41,7 +43,7 @@ test_that("export_diagnostic_package() column fields are correct", {
 
   expect_equal(id_col$name,           "patient_id")
   expect_equal(id_col$role,           "ID candidate")
-  expect_true( isTRUE(id_col$sensitive))
+  expect_equal(id_col$disclosure_role, "direct")
   expect_false(isTRUE(id_col$exposed))
   expect_equal(id_col$exposure_level, "blocked")
 
