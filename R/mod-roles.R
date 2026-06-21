@@ -78,7 +78,8 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           "No quasi-identifier combination in the synthetic output will appear in fewer than k records."
         )
       ),
-      shiny::uiOutput(ns("roles_table"))
+      shiny::uiOutput(ns("roles_table")),
+      shiny::uiOutput(ns("kanon_readout"))
     )
   )
 }
@@ -402,6 +403,67 @@ mod_roles_server <- function(id, state) {
           )
         ),
         shiny::tags$tbody(rows)
+      )
+    })
+
+    output$kanon_readout <- shiny::renderUI({
+      roles <- roles_local()
+      data  <- state$raw_data
+      if (is.null(roles) || is.null(data) || !"disclosure_role" %in% names(roles)) {
+        return(NULL)
+      }
+      k <- state$k_anon %||% 5
+      qi <- intersect(roles$variable[roles$disclosure_role == "quasi"], names(data))
+      direct <- intersect(roles$variable[roles$disclosure_role == "direct"], names(data))
+
+      if (length(qi) == 0L) {
+        return(shiny::tags$div(
+          class = "card",
+          style = "margin-top:12px;",
+          shiny::tags$strong("No quasi-identifiers selected."),
+          " Mark the columns that could identify someone in combination."
+        ))
+      }
+      res <- assess_kanonymity(data, qi, k = k)
+      safe <- is.na(res$smallest_cell) || res$n_below == 0L
+
+      worst_lines <- if (nrow(res$worst_cells) > 0L) {
+        apply(utils::head(res$worst_cells, 3L), 1L, function(row) {
+          vals <- paste(row[qi], collapse = " \u00b7 ")
+          sprintf("%s \u2192 %s record(s)", vals, row[["n"]])
+        })
+      } else character(0)
+
+      shiny::tags$div(
+        class = "card",
+        style = "margin-top:12px;",
+        shiny::tags$div(
+          style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
+          sprintf("QI set: %s   k = %d", paste(qi, collapse = " \u00b7 "), k)
+        ),
+        if (safe) {
+          shiny::tags$div(
+            style = "color:var(--real-700);",
+            "\u2713 No record sits in an unsafe combination at this k."
+          )
+        } else {
+          shiny::tagList(
+            shiny::tags$div(
+              style = "color:var(--synth-700); font-weight:600;",
+              sprintf(
+                "\u26a0 Smallest cell: %d record(s). %d of %d records (%.1f%%) in combinations smaller than k.",
+                res$smallest_cell, res$n_below, nrow(data), res$pct_below
+              )
+            ),
+            shiny::tags$ul(lapply(worst_lines, shiny::tags$li))
+          )
+        },
+        if (length(direct)) {
+          shiny::tags$div(
+            style = "font-size:12px; color:var(--fg-muted); margin-top:4px;",
+            sprintf("Direct identifiers removed from output: %s", paste(direct, collapse = ", "))
+          )
+        }
       )
     })
 
