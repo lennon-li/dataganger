@@ -61,20 +61,20 @@ privacy_check_pre <- function(original, roles) {
 
   # Build role lookup from roles object if available
   role_map <- NULL
-  sensitive_map <- NULL
+  disclosure_map <- NULL
   if (!is.null(roles) && "variable" %in% names(roles)) {
     if ("recommended_role" %in% names(roles)) {
       role_map <- stats::setNames(roles$recommended_role, roles$variable)
     }
-    if ("sensitive" %in% names(roles)) {
-      sensitive_map <- stats::setNames(roles$sensitive, roles$variable)
+    if ("disclosure_role" %in% names(roles)) {
+      disclosure_map <- stats::setNames(roles$disclosure_role, roles$variable)
     }
   }
 
   for (nm in names(original)) {
     x <- original[[nm]]
     role <- role_map[[nm]] %||% "unknown"
-    sensitive <- isTRUE(sensitive_map[[nm]])
+    disclosure <- disclosure_map[[nm]] %||% "none"
 
     # ID columns → HIGH
     if (role == "ID candidate" || grepl("(?i)^id$|_id$|^subject|^patient|^record|^case_no", nm, perl = TRUE)) {
@@ -83,10 +83,17 @@ privacy_check_pre <- function(original, roles) {
       next
     }
 
-    # Sensitive columns → MEDIUM
-    if (sensitive && role != "ID candidate") {
-      flags[[length(flags) + 1]] <- make_flag(nm, "Sensitive column detected", "MEDIUM",
-        "Review whether this column should be coarsened or excluded")
+    # Direct identifier -> HIGH
+    if (identical(disclosure, "direct")) {
+      flags[[length(flags) + 1]] <- make_flag(nm, "Direct identifier", "HIGH",
+        "Direct identifiers are removed from synthetic output")
+      next
+    }
+
+    # Sensitive target -> MEDIUM (informational; not yet enforced)
+    if (identical(disclosure, "sensitive")) {
+      flags[[length(flags) + 1]] <- make_flag(nm, "Sensitive target", "MEDIUM",
+        "Kept for analysis; attribute-disclosure protection is not yet applied")
     }
 
     # Free-text detection → MEDIUM
@@ -339,20 +346,16 @@ synthpop_disclosure_cols <- function(roles) {
     rep(NA_character_, nrow(roles))
   }
 
-  sensitive <- if ("sensitive" %in% names(roles)) {
-    isTRUE_vec(roles$sensitive)
+  disclosure <- if ("disclosure_role" %in% names(roles)) {
+    roles$disclosure_role
   } else {
-    rep(FALSE, nrow(roles))
+    rep("none", nrow(roles))
   }
 
   roles$variable[
     role %in% c("ID candidate", "date", "geography", "categorical candidate", "label_check") |
-      sensitive
+      disclosure %in% c("quasi", "direct", "sensitive")
   ]
-}
-
-isTRUE_vec <- function(x) {
-  vapply(x, isTRUE, logical(1))
 }
 
 synthpop_disclosure_flags <- function(disclosure) {

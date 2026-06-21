@@ -118,10 +118,10 @@ build_diagnostic_view <- function(roles, dictionary, synthetic, purpose) {
     idx <- match(var_name, dictionary$synthetic_variable)
     treatment <- if (!is.na(idx)) dictionary$treatment[[idx]] else "synthesized"
     list(
-      name      = var_name,
-      role      = roles$recommended_role[i],
-      sensitive = isTRUE(roles$sensitive[i]),
-      treatment = treatment
+      name            = var_name,
+      role            = roles$recommended_role[i],
+      disclosure_role = roles$disclosure_role[i] %||% "none",
+      treatment       = treatment
     )
   })
 

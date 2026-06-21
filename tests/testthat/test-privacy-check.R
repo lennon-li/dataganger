@@ -1,3 +1,5 @@
+pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
+
 # Tests for privacy_check() — [3.6]-[3.8]
 
 # ---- Pre-stage ----
@@ -34,6 +36,20 @@ test_that("privacy_check() pre flags sensitive with detected roles", {
   expect_true(any(pc$severity %in% c("LOW", "MEDIUM")))
 })
 
+test_that("privacy_check_pre reads disclosure_role, not sensitive", {
+  df <- data.frame(
+    patient_id = sprintf("P%04d", 1:50),
+    diagnosis  = rep(c("A", "B"), 25),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$disclosure_role[roles$variable == "diagnosis"] <- "sensitive"
+
+  expect_no_error(flags <- privacy_check(df, roles = roles, stage = "pre"))
+  expect_true(any(flags$variable == "patient_id" & flags$severity == "HIGH"))
+  expect_true(any(flags$variable == "diagnosis" & flags$flag == "Sensitive target"))
+})
+
 test_that("privacy_check() pre flags date columns", {
   df <- data.frame(d = as.Date("2024-01-01") + 1:10)
   roles <- detect_roles(df)
@@ -56,6 +72,7 @@ test_that("privacy_check() pre flags free-text columns", {
   )
   df <- data.frame(notes = long_strings, x = 1:60)
   roles <- detect_roles(df)
+  roles$disclosure_role[roles$variable == "notes"] <- "none"
   pc <- privacy_check(df, roles = roles, stage = "pre")
   expect_true(any(grepl("Free.text", pc$flag)))
 })

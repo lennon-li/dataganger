@@ -54,7 +54,7 @@ export_diagnostic_package <- function(data, path, roles = NULL,
       name           = roles$variable[i],
       type           = roles$class[i],
       role           = role,
-      sensitive      = isTRUE(roles$sensitive[i]),
+      disclosure_role = roles$disclosure_role[i] %||% "none",
       exposed        = level != "blocked",
       exposure_level = level
     )
