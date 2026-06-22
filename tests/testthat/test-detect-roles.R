@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
 
 test_that("detect_roles() returns correct S3 class and columns", {
   df <- data.frame(x = 1:5, y = letters[1:5])

@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
 
 # Tests for privacy_check() — [3.6]-[3.8]
 
@@ -191,30 +190,25 @@ test_that("privacy_check() internal path does not add synthpop disclosure", {
   expect_false(any(grepl("synthpop disclosure", pc$variable, fixed = TRUE)))
 })
 
-test_that("privacy_check() synthpop path folds disclosure numbers into panel", {
-  df <- data.frame(city = rep(c("Toronto", "Ottawa"), 20), group = rep(letters[1:4], 10))
-  roles <- detect_roles(df)
-  syn <- tibble::as_tibble(df)
-  attr(syn, "engine") <- "synthpop"
-
-  testthat::local_mocked_bindings(
-    synthpop_disclosure_panel = function(original, synthetic, roles) {
-      list(
-        keys = "city",
-        target = "group",
-        identity_repu = 1.25,
-        attribute_disco = 2.5,
-        raw = list()
-      )
-    }
+test_that("synthpop_disclosure_flags() folds repU and DiSCO numbers into flag rows", {
+  # Deterministic unit test of the fold formatting (no synthpop, no mocking:
+  # mocking synthpop_disclosure_panel proved unreliable across the full session).
+  disclosure <- list(
+    keys = "city", target = "group",
+    identity_repu = 1.25, attribute_disco = 2.5, raw = list()
   )
+  rows <- synthpop_disclosure_flags(disclosure)
+  expect_equal(nrow(rows), 2L)
+  expect_true(any(grepl("repU: 1.25", rows$flag, fixed = TRUE)))
+  expect_true(any(grepl("DiSCO: 2.50", rows$flag, fixed = TRUE)))
+})
 
-  pc <- privacy_check(df, syn, roles = roles, stage = "post")
-  disclosure <- attr(pc, "synthpop_disclosure", exact = TRUE)
-  expect_equal(disclosure$identity_repu, 1.25)
-  expect_equal(disclosure$attribute_disco, 2.5)
-  expect_true(any(grepl("repU", pc$flag)))
-  expect_true(any(grepl("DiSCO", pc$flag)))
+test_that("augment_synthpop_disclosure() leaves non-synthpop output untouched", {
+  flags <- make_flag("x", "some flag", "LOW", "ok")
+  syn <- tibble::tibble(x = 1:3)            # no engine attr -> not synthpop
+  out <- augment_synthpop_disclosure(flags, syn, syn, detect_roles(syn))
+  expect_identical(out, flags)
+  expect_null(attr(out, "synthpop_disclosure", exact = TRUE))
 })
 
 test_that("privacy_check() computes synthpop disclosure when synthpop is installed", {

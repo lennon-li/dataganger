@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
 
 # Tests for synthesize_data() - [2.9]-[2.14]
 

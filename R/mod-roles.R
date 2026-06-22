@@ -183,7 +183,7 @@ mod_roles_server <- function(id, state) {
             style = "font-size:12px; margin-top:4px;",
             "Disclosure control assumes individual-level microdata. On a counts table, ",
             "the k-anonymity guarantee below applies to the dimension columns, not to the ",
-            "counts — review small cells directly before sharing."
+            "counts; review small cells directly before sharing."
           )
         )
       )

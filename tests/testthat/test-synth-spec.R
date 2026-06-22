@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
 
 # Tests for synth_spec() — [2.1]-[2.4]
 

@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = TRUE)
 
 test_that("assess_kanonymity counts records in cells smaller than k", {
   df <- data.frame(

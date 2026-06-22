@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
 
 test_that("export_diagnostic_package() writes valid JSON to path", {
   tmp <- withr::local_tempdir()

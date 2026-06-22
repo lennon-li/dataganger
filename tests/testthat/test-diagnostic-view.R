@@ -1,4 +1,3 @@
-pkgload::load_all(".", quiet = TRUE, export_all = TRUE)
 
 test_that("bucket_nrows() returns correct bands", {
   expect_equal(bucket_nrows(0L),     "<100")
