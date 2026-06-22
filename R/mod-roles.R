@@ -44,6 +44,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
       shiny::tags$span(class = "icon", "i"),
       shiny::uiOutput(ns("roles_banner_text"))
     ),
+    shiny::uiOutput(ns("agg_warning")),
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
@@ -158,6 +159,33 @@ mod_roles_server <- function(id, state) {
       shiny::tags$div(
         shiny::tags$b("Auto-detected. Edit anything that's wrong."),
         if (changed > 0L) sprintf(" \u00b7 %d manually adjusted.", changed)
+      )
+    })
+
+    output$agg_warning <- shiny::renderUI({
+      data <- state$raw_data
+      if (is.null(data) || !is.data.frame(data) || nrow(data) == 0L) {
+        return(NULL)
+      }
+      agg <- looks_aggregated(data)
+      if (!isTRUE(agg$aggregated)) {
+        return(NULL)
+      }
+      shiny::tags$div(
+        class = "banner risk",
+        shiny::tags$span(class = "icon", "!"),
+        shiny::tags$div(
+          shiny::tags$b("This looks like aggregated data, not individual records."),
+          shiny::tags$span(
+            sprintf(" (%s)", agg$reason)
+          ),
+          shiny::tags$div(
+            style = "font-size:12px; margin-top:4px;",
+            "Disclosure control assumes individual-level microdata. On a counts table, ",
+            "the k-anonymity guarantee below applies to the dimension columns, not to the ",
+            "counts — review small cells directly before sharing."
+          )
+        )
       )
     })
 

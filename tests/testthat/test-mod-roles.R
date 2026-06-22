@@ -220,3 +220,46 @@ test_that("roles table labels the override column TYPE", {
     expect_false(grepl(">user_role<", html))
   })
 })
+
+
+test_that("agg_warning banner shows for aggregated count tables", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  agg <- data.frame(
+    region = rep(c("North", "South", "East", "West"), each = 2L),
+    sex    = rep(c("F", "M"), times = 4L),
+    n      = c(12L, 9L, 7L, 4L, 15L, 11L, 6L, 3L),
+    stringsAsFactors = FALSE
+  )
+  csv_path <- roles_upload_fixture_path(agg, "roles-aggregated.csv")
+
+  shiny::testServer(roles_host_server, {
+    session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
+    session$flushReact()
+    session$flushReact()
+
+    html <- paste(as.character(output$`roles-agg_warning`), collapse = "\n")
+    expect_match(html, "aggregated data")
+  })
+})
+
+test_that("agg_warning banner stays empty for individual-level microdata", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  example_health_survey <- roles_load_example_data("example_health_survey")
+  csv_path <- roles_upload_fixture_path(
+    example_health_survey,
+    "roles-microdata.csv"
+  )
+
+  shiny::testServer(roles_host_server, {
+    session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
+    session$flushReact()
+    session$flushReact()
+
+    html <- paste(as.character(output$`roles-agg_warning`), collapse = "\n")
+    expect_false(grepl("aggregated data", html))
+  })
+})
