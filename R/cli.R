@@ -215,7 +215,8 @@ cli_read_spec_yaml <- function(path) {
   allowed <- c(
     "level", "n", "name_strategy", "seed", "preserve_correlations",
     "coarsen_dates", "merge_rare", "free_text_strategy",
-    "geography_strategy", "rare_level_min_n", "preserve_missingness"
+    "geography_strategy", "rare_level_min_n", "preserve_missingness",
+    "k_anon"
   )
   override <- raw[intersect(names(raw), allowed)]
   do.call(synth_spec, c(list(purpose = raw$purpose), override))
@@ -247,7 +248,8 @@ cli_cmd_synthesize <- function(args) {
     free_text_strategy = spec$free_text_strategy,
     geography_strategy = spec$geography_strategy,
     rare_level_min_n = spec$rare_level_min_n,
-    preserve_missingness = spec$preserve_missingness
+    preserve_missingness = spec$preserve_missingness,
+    k_anon = spec$k_anon
   )
   engine    <- parsed$options[["engine"]]
   synthetic <- synthesize_data(data, hardened_spec, roles = roles, engine = engine)

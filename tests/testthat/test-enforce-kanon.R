@@ -50,6 +50,30 @@ test_that("enforce_kanon suppresses residual cells that cannot reach k", {
   expect_true(info$suppressed_cells >= 1)
 })
 
+test_that("enforce_kanon NA bucket is padded to k when initial suppression creates a small bucket", {
+  # Regression: when only a few rows are blanked they collapse into a single
+  # NA bucket that itself violates k. The fix absorbs more rows until NA >= k.
+  set.seed(7)
+  syn <- data.frame(
+    sex  = sample(c("F", "M"), 120, replace = TRUE),
+    city = sample(c("Toronto", "Montreal"), 120, replace = TRUE),
+    rare = c(rep("common", 118), "uniqA", "uniqB"),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("sex", "city", "rare"),
+    disclosure_role = c("quasi", "quasi", "quasi"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 8)
+  info <- attr(out, "kanon")
+  expect_false(is.null(info))
+  res <- assess_kanonymity(out, info$qi_cols, k = 8)
+  # Every non-NA cell AND the NA bucket must be >= 8
+  expect_true(is.na(res$smallest_cell) || res$smallest_cell >= 8,
+    info = sprintf("smallest_cell = %s", res$smallest_cell))
+})
+
 test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
   set.seed(42)
   df <- data.frame(

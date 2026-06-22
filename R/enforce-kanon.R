@@ -61,6 +61,22 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L) {
     }
   }
 
+  # The NA bucket created by blanking may itself be smaller than k.
+  # Absorb rows from the smallest remaining non-NA cell until the bucket reaches k.
+  repeat {
+    na_rows <- rowSums(is.na(synthetic[qi_cols])) == length(qi_cols)
+    na_count <- sum(na_rows)
+    if (na_count == 0L || na_count >= k) break
+    non_na <- which(!na_rows)
+    if (!length(non_na)) break
+    key_non_na <- kanon_key(synthetic[non_na, , drop = FALSE], qi_cols)
+    counts_non_na <- table(key_non_na)
+    smallest_key <- names(which.min(counts_non_na))
+    to_blank <- non_na[key_non_na == smallest_key]
+    for (col in qi_cols) synthetic[[col]][to_blank] <- NA
+    suppressed <- suppressed + 1L
+  }
+
   final <- assess_kanonymity(synthetic, qi_cols, k)
   attr(synthetic, "kanon") <- list(
     qi_cols = qi_cols,
