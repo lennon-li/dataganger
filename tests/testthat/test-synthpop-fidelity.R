@@ -2,7 +2,7 @@
 # preserved, no silent drops, graceful fallback), not just the wiring.
 
 test_that("synthpop preserves a correlation that the internal engine destroys", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   set.seed(1)
   n <- 400
   x <- rnorm(n)
@@ -29,7 +29,7 @@ test_that("synthpop preserves a correlation that the internal engine destroys", 
 })
 
 test_that("distinctive numeric survives synthpop; only the ID-named column drops", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   set.seed(2)
   df <- data.frame(
     patient_label = paste0("P", 1:200),    # name + cardinality -> ID candidate -> dropped
@@ -50,7 +50,7 @@ test_that("distinctive numeric survives synthpop; only the ID-named column drops
 })
 
 test_that("density smoothing keeps continuous values within a sane envelope", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   set.seed(3)
   df <- data.frame(pct = runif(300, 0, 100), age = round(rnorm(300, 40, 10)))
   roles <- detect_roles(df)

@@ -31,7 +31,7 @@ test_that("spec_to_synthpop_args() omits smoothing for pure-integer data", {
 })
 
 test_that("synthesize_synthpop() returns a tibble with same columns", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df   <- data.frame(x = 1:20, y = letters[rep(1:4, 5)], stringsAsFactors = FALSE)
   spec <- synth_spec(purpose = "demo", seed = 1L)
   syn  <- synthesize_synthpop(df, spec)
@@ -40,7 +40,7 @@ test_that("synthesize_synthpop() returns a tibble with same columns", {
 })
 
 test_that("synthesize_synthpop() respects n rows via spec$n", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df   <- data.frame(x = 1:30, y = rnorm(30))
   spec <- synth_spec(purpose = "demo", n = 10L, seed = 1L)
   syn  <- synthesize_synthpop(df, spec)
@@ -48,7 +48,7 @@ test_that("synthesize_synthpop() respects n rows via spec$n", {
 })
 
 test_that("synthesize_synthpop() excludes ID candidate columns", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df <- data.frame(
     record_id = paste0("ID-", 1:25),
     score     = rep(1:5, each = 5),
@@ -64,7 +64,7 @@ test_that("synthesize_synthpop() excludes ID candidate columns", {
 })
 
 test_that("synthesize_synthpop() seed produces reproducible output", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df   <- data.frame(x = rnorm(20), y = rnorm(20))
   spec <- synth_spec(purpose = "demo", seed = 42L)
   syn1 <- synthesize_synthpop(df, spec)
@@ -73,7 +73,7 @@ test_that("synthesize_synthpop() seed produces reproducible output", {
 })
 
 test_that("synthesize_synthpop() aborts when all columns are excluded", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df    <- data.frame(id = paste0("X-", 1:25), stringsAsFactors = FALSE)
   roles <- detect_roles(df)
   spec  <- synth_spec(purpose = "demo")

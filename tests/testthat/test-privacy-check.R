@@ -218,7 +218,7 @@ test_that("privacy_check() synthpop path folds disclosure numbers into panel", {
 })
 
 test_that("privacy_check() computes synthpop disclosure when synthpop is installed", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df <- data.frame(
     city = rep(c("Toronto", "Ottawa", "Montreal", "Calgary"), each = 10),
     group = rep(letters[1:5], length.out = 40),

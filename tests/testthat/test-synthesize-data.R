@@ -153,7 +153,7 @@ test_that("synthesize_data() accepts engine = 'marginal' as alias for internal",
 })
 
 test_that("synthesize_data() derives synthpop when installed", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   df <- data.frame(
     x = rnorm(30),
     y = rep(letters[1:3], length.out = 30),
@@ -186,12 +186,17 @@ test_that("synthesize_data() routes objectives to expected engines", {
   model <- suppressWarnings(synth_spec(purpose = "development", seed = 1L))
   hifi <- synth_spec(purpose = "analytics", seed = 1L, acknowledge_risk = TRUE)
 
-  if (requireNamespace("synthpop", quietly = TRUE)) {
-    expect_equal(attr(synthesize_data(df, model), "engine"), "synthpop")
-    expect_equal(attr(synthesize_data(df, hifi), "engine"), "synthpop")
-  } else {
+  if (!requireNamespace("synthpop", quietly = TRUE)) {
+    # synthpop truly unavailable: derived synthpop warns and falls back
     expect_warning(expect_equal(attr(synthesize_data(df, model), "engine"), "internal"), "synthpop")
     expect_warning(expect_equal(attr(synthesize_data(df, hifi), "engine"), "internal"), "synthpop")
+  } else if (isTRUE(getOption("dataganger.disable_synthpop", FALSE))) {
+    # synthpop installed but disabled via option: silent route to internal
+    expect_equal(attr(synthesize_data(df, model), "engine"), "internal")
+    expect_equal(attr(synthesize_data(df, hifi), "engine"), "internal")
+  } else {
+    expect_equal(attr(synthesize_data(df, model), "engine"), "synthpop")
+    expect_equal(attr(synthesize_data(df, hifi), "engine"), "synthpop")
   }
 })
 

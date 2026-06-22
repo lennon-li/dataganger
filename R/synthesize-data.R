@@ -16,6 +16,15 @@
 #'
 #' @return An S3 object of class `dataganger_synthetic`, a tibble with
 #'   attributes `spec`, `original_dims`, `seed_used`, and `generated_at`.
+#'
+#' @section Disabling synthpop:
+#' Set `options(dataganger.disable_synthpop = TRUE)` to steer
+#' auto-derived synthesis onto the internal engine even when synthpop is
+#' installed. This is intended for environments where a synthpop synthesis
+#' is undesirable or can hang unattended (for example continuous
+#' integration). An explicit `engine = "synthpop"` request is still
+#' honoured; only objective-derived routing is affected.
+#'
 #' @export
 #'
 #' @examples
@@ -38,6 +47,16 @@ synthesize_data <- function(data, spec, roles = NULL,
   engine <- explicit %||% engine_from_correlations(spec)
   engine <- match.arg(engine, c("internal", "marginal", "synthpop"))
   if (engine == "marginal") engine <- "internal"
+
+  # Safety valve: steer auto-derived synthpop onto the internal engine when
+  # synthpop is intentionally disabled (e.g. unattended CI, where a synthpop
+  # synthesis can hang). Only affects objective-derived routing; an explicit
+  # engine = "synthpop" request is still honoured. Scoped to the case where
+  # synthpop *is* available so the unavailable-fallback path below is unchanged.
+  if (engine == "synthpop" && is.null(explicit) && synthpop_available() &&
+      isTRUE(getOption("dataganger.disable_synthpop", FALSE))) {
+    engine <- "internal"
+  }
 
   if (engine == "synthpop" && is.null(explicit) && !synthpop_available()) {
     cli::cli_warn(

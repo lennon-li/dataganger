@@ -1,3 +1,16 @@
+# dataganger 0.2.2
+
+* The Column Roles step now shows a non-blocking notice when the uploaded data
+  looks like an aggregated counts table rather than individual records, since
+  disclosure control assumes individual-level microdata.
+
+* New option `dataganger.disable_synthpop`: set
+  `options(dataganger.disable_synthpop = TRUE)` to steer objective-derived
+  synthesis onto the internal engine even when synthpop is installed. Intended
+  for environments where a synthpop synthesis is undesirable or can hang
+  unattended (for example continuous integration). An explicit
+  `engine = "synthpop"` request is still honoured.
+
 # dataganger 0.2.1
 
 * Shiny app interface refinements: the Objective step shows each purpose's

@@ -29,6 +29,16 @@ and engine. The internal engine supports schema-only (Level 1) and
 marginal (Level 2) synthesis. The optional synthpop engine is used for
 objectives that request moderate or high relationship preservation.
 }
+\section{Disabling synthpop}{
+
+Set \code{options(dataganger.disable_synthpop = TRUE)} to steer
+auto-derived synthesis onto the internal engine even when synthpop is
+installed. This is intended for environments where a synthpop synthesis
+is undesirable or can hang unattended (for example continuous
+integration). An explicit \code{engine = "synthpop"} request is still
+honoured; only objective-derived routing is affected.
+}
+
 \examples{
 dat <- data.frame(x = 1:5, y = letters[1:5])
 spec <- synth_spec(purpose = "demo")

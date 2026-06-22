@@ -208,7 +208,7 @@ test_that("synthesize --engine internal works (explicit flag)", {
 })
 
 test_that("synthesize routes development to synthpop and records provenance (no --engine)", {
-  skip_if_not_installed("synthpop")
+  skip_if_no_synthpop()
   tmp       <- withr::local_tempdir()
   data_path <- file.path(tmp, "data.csv")
   spec_path <- file.path(tmp, "spec.yaml")
