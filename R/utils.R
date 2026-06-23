@@ -23,7 +23,7 @@ dg_log <- function(...) {
 # "<label> done: N.NNs" line after it returns. The before-line is the point:
 # if `expr` hangs, the console shows which phase was entered and never left.
 dg_timeit <- function(label, expr) {
-  dg_log(label, " …")
+  dg_log(label, " ...")
   start <- proc.time()[["elapsed"]]
   res <- force(expr)
   dg_log(sprintf("%s done: %.2fs", label, proc.time()[["elapsed"]] - start))
