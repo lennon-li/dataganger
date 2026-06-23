@@ -28,7 +28,9 @@ test_that("start_synthesis_process runs the pipeline in a background process", {
   )
 
   spec <- synth_spec(purpose = "development", seed = 1)
-  handle <- start_synthesis_process(data.frame(x = 1:50), spec)
+  # Need >=2 columns: purpose="development" auto-routes to synthpop, which
+  # rejects single-column input ("Data should contain at least two columns").
+  handle <- start_synthesis_process(data.frame(x = 1:50, y = rnorm(50)), spec)
   on.exit(if (handle$is_alive()) handle$kill(), add = TRUE)
 
   handle$wait() # block until the subprocess finishes
