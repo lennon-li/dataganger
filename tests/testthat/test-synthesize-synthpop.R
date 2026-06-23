@@ -79,3 +79,21 @@ test_that("synthesize_synthpop() aborts when all columns are excluded", {
   spec  <- synth_spec(purpose = "demo")
   expect_error(synthesize_synthpop(df, spec, roles = roles), "No synthesizable columns")
 })
+
+test_that("synthesize_data() derives roles for synthpop so high-cardinality IDs don't stall it", {
+  # Regression: with roles = NULL, an ID / free-text column was passed to
+  # synthpop, whose sequential CART grinds forever on a high-cardinality
+  # categorical. synthesize_data() must derive roles and exclude such columns.
+  skip_if_no_synthpop()
+  df <- data.frame(
+    rec_id = sprintf("R%04d", 1:60),   # 60 unique -> ID candidate, would stall CART
+    age    = round(rnorm(60, 50, 10)),
+    grp    = factor(sample(c("a", "b", "c"), 60, TRUE)),
+    stringsAsFactors = FALSE
+  )
+  spec <- suppressWarnings(synth_spec("development", seed = 1L))
+  syn <- synthesize_data(df, spec)          # no roles passed
+  expect_equal(attr(syn, "engine"), "synthpop")
+  expect_s3_class(syn, "dataganger_synthetic")
+  expect_equal(nrow(syn), 60L)
+})

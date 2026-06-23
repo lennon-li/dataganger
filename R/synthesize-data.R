@@ -69,6 +69,10 @@ synthesize_data <- function(data, spec, roles = NULL,
   original_dims <- list(nrow = nrow(data), ncol = ncol(data))
 
   if (engine == "synthpop") {
+    # Without roles, ID and free-text columns are not excluded from synthpop.
+    # synthpop's sequential CART grinds to a halt on a high-cardinality column
+    # (e.g. a 200-unique-value identifier), so derive roles when none are given.
+    roles <- roles %||% detect_roles(data)
     syn <- synthesize_synthpop(data, spec, roles = roles)
     syn <- apply_simulation_treatment(syn, data, roles)
     syn <- match_decimal_precision(syn, data)
