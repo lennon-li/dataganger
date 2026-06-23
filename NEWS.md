@@ -1,3 +1,41 @@
+# dataganger 0.3.0
+
+* Cancellable background synthesis: the Shiny Generation step now runs the
+  synthesize -> compare -> privacy pipeline in a background process (via
+  `callr`), so the app stays responsive and a Cancel button can stop a long or
+  stuck run. Falls back to synchronous in-process generation when `callr` is
+  unavailable or the package is dev-loaded. The `dataganger.synthesis_async`
+  option forces the deterministic synchronous path for tests and CI.
+
+* Coverage-based row-count suggestion: `profile_data()` now carries
+  cross-column coverage (distinct joint combinations of categorical columns
+  plus the largest per-column level count), and the new `suggest_min_rows()`
+  function turns that into a sufficient synthetic row count - capped at 5000,
+  floored at the largest level count, and never above the original. The
+  Configuration row-count slider pre-fills with the suggestion, shows an
+  inline hint, and warns when set below the coverage floor. The Upload step
+  shows a coverage-summary card.
+
+* Diagnostics for long-running synthesis: `dg_log` / `dg_timeit` emit
+  per-phase progress to the R console when `options(dataganger.verbose =
+  TRUE)`, and `check_cancel()` polls `options(dataganger.cancel)` at column
+  boundaries for cooperative cancellation. `.onAttach()` prints a startup
+  hint with the package version and how to launch the app and CLI.
+
+* Free-text detection now head-samples to 1000 rows, bounding a hot path
+  that could slow the transition into Configure on wide or long-string data.
+
+* `synthesize_marginal()` trusts the detected role instead of recomputing the
+  free-text heuristic, removing a redundant pass over character columns.
+
+* The Comparison step no longer shows a stale full table on first transition:
+  the first comparable variable renders correctly without needing a click.
+
+* The Configuration step shows inline help for each disclosure role (None,
+  Direct identifier, Quasi-identifier, Sensitive) with a short example.
+
+* `callr` and `pkgload` added to `Suggests`.
+
 # dataganger 0.2.2
 
 * The Column Roles step now shows a non-blocking notice when the uploaded data
