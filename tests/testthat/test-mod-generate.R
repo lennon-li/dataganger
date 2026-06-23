@@ -1,3 +1,8 @@
+# Generation runs in a callr subprocess in production; force the synchronous
+# in-process path here so mocked bindings apply and testServer can observe the
+# result without driving an async poll loop. Reset after this file.
+withr::local_options(dataganger.synthesis_async = FALSE, .local_envir = testthat::teardown_env())
+
 generate_test_state <- function(data = NULL, spec = NULL) {
   shiny::reactiveValues(
     raw_data = data,

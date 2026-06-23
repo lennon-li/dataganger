@@ -57,8 +57,12 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       next
     }
 
-    # Free text handling
-    if (role == "free text" || is_free_text_candidate(x)) {
+    # Free text handling. Trust the detected role when we have one — detect_roles
+    # already ran is_free_text_candidate (its free-text test precedes every other
+    # role), so a column carrying any concrete role was already found not to be
+    # free text. Only probe directly when the role is unknown, to avoid
+    # recomputing the free-text heuristic on every non-free-text column.
+    if (role == "free text" || (role == "unknown" && is_free_text_candidate(x))) {
       cols[[i]] <- synth_free_text(x, n, strategy = free_text_s)
       next
     }

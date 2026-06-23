@@ -121,8 +121,22 @@ mod_compare_server <- function(id, state) {
       selected_var(input$var_select)
     })
 
+    # Effective selected variable, derived synchronously from comparable_vars()
+    # rather than relying on the observe above having fired. On first transition
+    # into Compare the observe can run *after* the renderers paint, leaving
+    # selected_var() NULL/stale and the first variable showing the wrong (full)
+    # table until the user clicks another tab. Falling back to the first
+    # comparable variable here removes that race.
+    current_var <- shiny::reactive({
+      vars <- comparable_vars()
+      shiny::req(length(vars) > 0L)
+      sel <- selected_var()
+      if (!is.null(sel) && sel %in% vars) sel else vars[[1L]]
+    })
+
     shiny::observe({
-      state$compare_selected_var <- selected_var()
+      vars <- comparable_vars()
+      state$compare_selected_var <- if (length(vars) > 0L) current_var() else selected_var()
     })
 
     shiny::observeEvent(input$go_export, ignoreNULL = TRUE, {
@@ -142,7 +156,7 @@ mod_compare_server <- function(id, state) {
 
       vars    <- comparable_vars()
       roles   <- state$roles
-      current <- selected_var()
+      current <- if (length(vars) > 0L) current_var() else NULL
 
       if (length(vars) == 0L) {
         return(shiny::tags$div(
@@ -223,8 +237,8 @@ mod_compare_server <- function(id, state) {
     })
 
     output$var_plot <- plotly::renderPlotly({
-      shiny::req(state$raw_data, state$synthetic, selected_var())
-      var   <- selected_var()
+      shiny::req(state$raw_data, state$synthetic, current_var())
+      var   <- current_var()
       roles <- state$roles
       orig  <- state$raw_data
       synth <- state$synthetic
@@ -393,8 +407,8 @@ mod_compare_server <- function(id, state) {
     })
 
     output$var_stats <- shiny::renderUI({
-      shiny::req(state$raw_data, state$synthetic, selected_var())
-      var   <- selected_var()
+      shiny::req(state$raw_data, state$synthetic, current_var())
+      var   <- current_var()
       roles <- state$roles
       orig  <- state$raw_data
       synth <- state$synthetic

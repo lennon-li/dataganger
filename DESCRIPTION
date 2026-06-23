@@ -1,6 +1,6 @@
 Package: dataganger
 Title: Synthetic Data Doubles for Safer Prototyping
-Version: 0.2.2
+Version: 0.3.0
 Authors@R: person("Lennon", "Li",
                   email = "yeli@biostats.ai",
                   role = c("aut", "cre"))
@@ -38,6 +38,7 @@ Imports:
     zip
 Suggests:
     bslib,
+    callr,
     DT,
     ggplot2,
     knitr,

@@ -33,6 +33,7 @@ mod_generate_ui <- function(id) {
       )
     ),
     stale_banner_ui("synthesis", ns = ns),
+    shiny::uiOutput(ns("gen_status")),
     shiny::div(
       class = "card",
       shiny::tags$div(
@@ -84,7 +85,13 @@ mod_generate_server <- function(id, state) {
     })
 
     output$header_cta <- shiny::renderUI({
-      if (!is.null(state$synthetic)) {
+      if (isTRUE(generating())) {
+        shiny::actionButton(
+          session$ns("cancel"),
+          "Cancel generation",
+          class = "btn btn-danger"
+        )
+      } else if (!is.null(state$synthetic)) {
         shiny::actionButton(
           session$ns("go_compare"),
           "Continue to Compare \u2192",
@@ -144,7 +151,11 @@ mod_generate_server <- function(id, state) {
       )
     })
 
-    last_duration <- shiny::reactiveVal(NULL)
+    last_duration   <- shiny::reactiveVal(NULL)
+    generating      <- shiny::reactiveVal(FALSE)
+    proc            <- shiny::reactiveVal(NULL)   # callr background process
+    run_started_at  <- shiny::reactiveVal(NULL)
+    run_seed        <- shiny::reactiveVal(NULL)
 
     output$stale__synthesis <- shiny::renderText({
       if (isTRUE(state$stale$synthesis)) {
@@ -174,43 +185,34 @@ mod_generate_server <- function(id, state) {
       )
     })
 
-    run_synthesis <- function(seed) {
-      spec_with_seed <- state$spec
-      spec_with_seed$seed <- seed
+    # Commit a finished pipeline result into app state.
+    finalize_result <- function(result) {
+      last_duration(as.numeric(difftime(Sys.time(), run_started_at() %||% Sys.time(), units = "secs")))
+      state$seed_used <- run_seed()
+      state$synthetic <- result$synthetic
+      state$comparison <- result$comparison
+      state$privacy <- result$privacy
+      state$stale$synthesis <- FALSE
+      state$stale$comparison <- FALSE
+      state$stale$export <- FALSE
+      invisible(NULL)
+    }
 
-      started_at <- Sys.time()
+    # Synchronous fallback used when callr is unavailable. No cancel button,
+    # but identical results \u2014 the app stays usable without the optional dep.
+    run_synthesis_sync <- function(spec_with_seed) {
       result <- tryCatch(
         shiny::withProgress(message = "Synthesizing\u2026", value = 0.05, {
-          # Show motion + a phase label BEFORE the slow modelling call, so a
-          # long synthpop run reads as busy rather than hung.
           shiny::setProgress(
             value  = 0.05,
             detail = "Modelling columns \u2014 this can take a moment on larger data"
           )
-          synthetic <- synthesize_data(state$raw_data, spec_with_seed, roles = state$roles)
-          shiny::setProgress(value = 0.5, detail = "Comparing distributions\u2026")
-
-          comparison <- compare_synthetic(
-            state$raw_data,
-            synthetic,
-            roles = state$roles
-          )
-          shiny::setProgress(value = 0.75, detail = "Checking privacy\u2026")
-
-          privacy <- privacy_check(
-            state$raw_data,
-            synthetic,
-            roles = state$roles,
-            stage = "post",
-            spec = spec_with_seed
+          out <- dg_timeit(
+            "generate: pipeline",
+            run_synthesis_pipeline(state$raw_data, spec_with_seed, roles = state$roles)
           )
           shiny::setProgress(value = 1.0, detail = "Finalising\u2026")
-
-          list(
-            synthetic = synthetic,
-            comparison = comparison,
-            privacy = privacy
-          )
+          out
         }),
         error = function(e) {
           generate_notification(
@@ -221,22 +223,122 @@ mod_generate_server <- function(id, state) {
           NULL
         }
       )
-
-      if (is.null(result)) {
-        return(invisible(NULL))
-      }
-
-      last_duration(as.numeric(difftime(Sys.time(), started_at, units = "secs")))
-      state$seed_used <- seed
-      state$synthetic <- result$synthetic
-      state$comparison <- result$comparison
-      state$privacy <- result$privacy
-      state$stale$synthesis <- FALSE
-      state$stale$comparison <- FALSE
-      state$stale$export <- FALSE
-
+      generating(FALSE)
+      if (!is.null(result)) finalize_result(result)
       invisible(NULL)
     }
+
+    # Start a run. Prefers the cancellable background process; falls back to a
+    # synchronous run when callr is not installed.
+    run_synthesis <- function(seed) {
+      spec_with_seed <- state$spec
+      spec_with_seed$seed <- seed
+      run_started_at(Sys.time())
+      run_seed(seed)
+      dg_log(sprintf(
+        "generate: starting on %d row(s) x %d column(s), engine=%s",
+        nrow(state$raw_data), ncol(state$raw_data),
+        spec_with_seed[["engine", exact = TRUE]] %||% "auto"
+      ))
+
+      # Background generation needs callr and an installed package (the
+      # subprocess can't load a devtools::load_all'd dataganger). The
+      # `dataganger.synthesis_async` option also lets tests (and CI) force the
+      # deterministic synchronous path, where mocked bindings apply and no
+      # subprocess is spawned.
+      use_async <- isTRUE(getOption("dataganger.synthesis_async", TRUE)) &&
+        rlang::is_installed("callr") &&
+        !synthesis_dev_loaded()
+      if (!use_async) {
+        generating(TRUE)
+        return(run_synthesis_sync(spec_with_seed))
+      }
+
+      handle <- tryCatch(
+        start_synthesis_process(state$raw_data, spec_with_seed, state$roles),
+        error = function(e) {
+          generate_notification(
+            paste("Could not start background synthesis:", conditionMessage(e)),
+            type = "error", duration = NULL
+          )
+          NULL
+        }
+      )
+      if (is.null(handle)) {
+        return(invisible(NULL))
+      }
+      proc(handle)
+      generating(TRUE)
+      invisible(NULL)
+    }
+
+    # Poll the background process; collect its result or surface its error.
+    shiny::observe({
+      handle <- proc()
+      if (is.null(handle)) {
+        return()
+      }
+      shiny::invalidateLater(300, session)
+      if (handle$is_alive()) {
+        return()
+      }
+      # Process finished \u2014 collect exactly once.
+      proc(NULL)
+      generating(FALSE)
+      result <- tryCatch(handle$get_result(), error = function(e) {
+        generate_notification(
+          paste("Synthesis failed:", conditionMessage(e)),
+          type = "error", duration = NULL
+        )
+        NULL
+      })
+      if (!is.null(result)) {
+        dg_log(sprintf("generate: done in %.2fs",
+                       as.numeric(difftime(Sys.time(), run_started_at() %||% Sys.time(), units = "secs"))))
+        finalize_result(result)
+      }
+    })
+
+    # Cancel: kill the background process and return to a usable state.
+    shiny::observeEvent(input$cancel, ignoreNULL = TRUE, {
+      handle <- proc()
+      if (!is.null(handle) && handle$is_alive()) {
+        handle$kill()
+        dg_log("generate: cancelled by user")
+      }
+      proc(NULL)
+      generating(FALSE)
+      generate_notification("Generation cancelled.", type = "message")
+    })
+
+    # Don't leave an orphaned process if the session ends mid-run.
+    session$onSessionEnded(function() {
+      handle <- shiny::isolate(proc())
+      if (!is.null(handle) && handle$is_alive()) {
+        handle$kill()
+      }
+    })
+
+    output$gen_status <- shiny::renderUI({
+      if (!isTRUE(generating())) {
+        return(NULL)
+      }
+      shiny::tags$div(
+        class = "card gen-status",
+        shiny::tags$div(
+          class = "gen-status-row",
+          shiny::tags$span(class = "spinner"),
+          shiny::tags$div(
+            shiny::tags$b("Synthesizing in the background\u2026"),
+            shiny::tags$div(
+              style = "font-size:12px; color:var(--fg-muted); margin-top:2px;",
+              "The app stays responsive. Use Cancel above to stop a long run."
+            )
+          )
+        )
+      )
+    })
+    shiny::outputOptions(output, "gen_status", suspendWhenHidden = FALSE)
 
     output$result_stats <- shiny::renderUI({
       shiny::req(state$synthetic)
@@ -253,15 +355,26 @@ mod_generate_server <- function(id, state) {
       }
 
       shiny::tags$div(
-        class = "stats",
-        stat_cell("ROWS", as.character(nrow(state$synthetic))),
-        stat_cell("COLS", as.character(ncol(state$synthetic))),
-        stat_cell("SEED", seed_label),
-        stat_cell("DURATION", dur_label)
+        class = "result-stats-block",
+        shiny::tags$div(
+          class = "result-ready",
+          shiny::tags$span(class = "result-ready-dot", "\u2713"),
+          "Synthetic data generated"
+        ),
+        shiny::tags$div(
+          class = "stats populated",
+          stat_cell("ROWS", as.character(nrow(state$synthetic))),
+          stat_cell("COLS", as.character(ncol(state$synthetic))),
+          stat_cell("SEED", seed_label),
+          stat_cell("DURATION", dur_label)
+        )
       )
     })
 
     shiny::observeEvent(input$generate, ignoreNULL = TRUE, {
+      if (isTRUE(generating())) {
+        return(invisible(NULL))
+      }
       if (is.null(state$raw_data) || is.null(state$spec)) {
         generate_notification("No data or spec available.", type = "warning")
         return(invisible(NULL))
@@ -272,6 +385,9 @@ mod_generate_server <- function(id, state) {
     })
 
     shiny::observeEvent(input$try_new_seed, ignoreNULL = TRUE, {
+      if (isTRUE(generating())) {
+        return(invisible(NULL))
+      }
       if (is.null(state$raw_data) || is.null(state$spec)) {
         generate_notification("No data or spec available.", type = "warning")
         return(invisible(NULL))

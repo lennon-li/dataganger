@@ -43,10 +43,46 @@ profile_data <- function(data) {
     profile = profile,
     n_rows = n_rows,
     n_cols = n_cols,
+    coverage = profile_coverage(data, profile),
     generated_at = Sys.time()
   )
   class(out) <- "dataganger_profile"
   out
+}
+
+# ---------------------------------------------------------------------------
+# Cross-column coverage (powers suggest_min_rows())
+# ---------------------------------------------------------------------------
+
+# Count the distinct joint combinations observed across the low-cardinality
+# ("combinable") columns, plus the largest single-column distinct count. These
+# drive how many synthetic rows are needed to represent every observed
+# combination and every level. Combinable columns are those with between 2 and
+# `max_levels` distinct values, which excludes identifiers, free text, and
+# continuous measures while capturing categoricals and low-cardinality codes.
+profile_coverage <- function(data, col_profile, max_levels = 50L) {
+  nd <- col_profile$n_distinct
+  names(nd) <- col_profile$variable
+  combinable <- col_profile$variable[!is.na(nd) & nd >= 2 & nd <= max_levels]
+  combinable <- intersect(combinable, names(data))
+
+  if (length(combinable) == 0L) {
+    return(list(
+      combination_count = NA_integer_,
+      max_distinct      = if (length(nd) && any(!is.na(nd))) max(nd, na.rm = TRUE) else NA_integer_,
+      columns           = character(0),
+      max_levels        = max_levels
+    ))
+  }
+
+  combos <- nrow(unique(as.data.frame(data)[, combinable, drop = FALSE]))
+
+  list(
+    combination_count = as.integer(combos),
+    max_distinct      = as.integer(max(nd[combinable], na.rm = TRUE)),
+    columns           = combinable,
+    max_levels        = max_levels
+  )
 }
 
 # ---------------------------------------------------------------------------

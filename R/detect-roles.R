@@ -162,6 +162,15 @@ is_free_text_candidate <- function(x) {
     return(FALSE)
   }
 
+  # Free-text detection is a heuristic; the per-row strsplit below is the hot
+  # path on long character columns at the Configure transition. A fixed,
+  # deterministic head-sample is plenty for a median statistic and keeps this
+  # bounded in the number of rows. Deterministic (not random) so role detection
+  # stays reproducible and never touches the user's RNG stream.
+  if (length(x_obs) > 1000L) {
+    x_obs <- x_obs[seq_len(1000L)]
+  }
+
   median_nchar <- stats::median(nchar(x_obs), na.rm = TRUE)
   word_counts <- vapply(strsplit(x_obs, "\\s+"), length, integer(1))
   median_word_count <- stats::median(word_counts, na.rm = TRUE)

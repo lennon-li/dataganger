@@ -79,8 +79,58 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           "No quasi-identifier combination in the synthetic output will appear in fewer than k records."
         )
       ),
+      disclosure_help_ui(),
       shiny::uiOutput(ns("roles_table")),
       shiny::uiOutput(ns("kanon_readout"))
+    )
+  )
+}
+
+#' Inline definitions for the four disclosure roles
+#'
+#' Mirrors the non-blocking explainer pattern used elsewhere on the Configure
+#' step so a user can see what None / Direct / Quasi / Sensitive mean (with an
+#' example) without leaving the page.
+#'
+#' @keywords internal
+#' @noRd
+disclosure_help_ui <- function() {
+  role_def <- function(label, def, example) {
+    shiny::tags$p(
+      shiny::tags$strong(label),
+      paste0(" \u2014 ", def, " "),
+      shiny::tags$span(
+        style = "color:var(--fg-muted);",
+        paste0("(e.g. ", example, ")")
+      )
+    )
+  }
+  shiny::tags$details(
+    class = "disclosure-help",
+    style = "margin:4px 0 12px;",
+    shiny::tags$summary("What do the disclosure roles mean?"),
+    shiny::tags$div(
+      class = "engine-help",
+      role_def(
+        "None",
+        "no special disclosure handling.",
+        "a treatment group label, a yes/no outcome"
+      ),
+      role_def(
+        "Direct identifier",
+        "uniquely identifies a person on its own; removed from the output.",
+        "name, email, SSN, medical record number"
+      ),
+      role_def(
+        "Quasi-identifier",
+        "identifies a person in combination with others; covered by the k-anonymity guarantee.",
+        "age + zip + gender"
+      ),
+      role_def(
+        "Sensitive",
+        "carries risk if linked to a known person.",
+        "diagnosis, income, HIV status"
+      )
     )
   )
 }

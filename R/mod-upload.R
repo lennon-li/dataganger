@@ -84,6 +84,7 @@ mod_upload_ui <- function(id) {
         )
       )
     ),
+    shiny::uiOutput(ns("coverage_summary")),
     shiny::tags$details(
       shiny::tags$summary("Profile summary"),
       profile_ui(ns("profile"))
@@ -157,7 +158,7 @@ mod_upload_server <- function(id, state) {
       state$raw_data <- raw_data
 
       session$onFlushed(function() {
-        state$profile <- profile_data(raw_data)
+        state$profile <- dg_timeit("upload: profile_data", profile_data(raw_data))
       }, once = TRUE)
     })
 
@@ -170,8 +171,38 @@ mod_upload_server <- function(id, state) {
       state$filename <- paste0(input$sample_dataset, "_sample (built-in)")
 
       session$onFlushed(function() {
-        state$profile <- profile_data(loaded)
+        state$profile <- dg_timeit("upload: profile_data", profile_data(loaded))
       }, once = TRUE)
+    })
+
+    output$coverage_summary <- shiny::renderUI({
+      shiny::req(state$profile)
+      prof <- state$profile
+      cov  <- prof$coverage
+      n_cont <- sum(prof$profile$type %in% "numeric")
+      combo_txt <- if (!is.null(cov) && !is.na(cov$combination_count)) {
+        sprintf("%s category-combination cell(s)",
+                format(cov$combination_count, big.mark = ","))
+      } else {
+        "no category combinations"
+      }
+      shiny::tags$div(
+        class = "card",
+        shiny::tags$div(
+          class = "card-header",
+          shiny::tags$span(class = "title", "Coverage summary"),
+          shiny::tags$span(class = "sub", "drives the suggested row count")
+        ),
+        shiny::tags$p(
+          style = "margin:0; font-family:var(--font-sans); font-size:13px;",
+          sprintf(
+            "%s rows \u00b7 %s \u00b7 %s continuous column(s).",
+            format(prof$n_rows, big.mark = ","),
+            combo_txt,
+            n_cont
+          )
+        )
+      )
     })
 
     output$header_cta <- shiny::renderUI({

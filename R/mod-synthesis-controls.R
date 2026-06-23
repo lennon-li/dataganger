@@ -289,8 +289,21 @@ mod_synthesis_controls_server <- function(id, state) {
       preset_table(purpose)
     })
 
+    # Coverage-based row-count suggestion (Feature 8). Pre-fills the row slider
+    # with the minimum number of rows that still covers every observed category
+    # combination, rather than blindly matching a large original row count.
+    suggested_rows <- shiny::reactive({
+      if (is.null(state$profile)) {
+        return(NULL)
+      }
+      suggest_min_rows(state$profile, state$roles)
+    })
+
     default_n <- shiny::reactive({
-      if (!is.null(state$raw_data)) {
+      s <- suggested_rows()
+      if (!is.null(s) && !is.na(s$n)) {
+        s$n
+      } else if (!is.null(state$raw_data)) {
         nrow(state$raw_data)
       } else {
         100L
@@ -402,8 +415,9 @@ mod_synthesis_controls_server <- function(id, state) {
           inputId = session$ns("rows_n"),
           label = "Row count (n)",
           value = current_n,
-          min = 100
+          min = 1
         ),
+        shiny::uiOutput(session$ns("rows_hint")),
         shiny::selectInput(
           inputId = session$ns("name_strategy"),
           label = "name_strategy",
@@ -456,6 +470,46 @@ mod_synthesis_controls_server <- function(id, state) {
       }
     })
 
+    output$rows_hint <- shiny::renderUI({
+      s <- suggested_rows()
+      if (is.null(s)) {
+        return(NULL)
+      }
+      hint <- if (!is.na(s$combination_count)) {
+        sprintf(
+          "Suggested: %s rows (covers all %s observed category combinations). Original: %s rows.",
+          format(s$n, big.mark = ","),
+          format(s$combination_count, big.mark = ","),
+          format(s$original_n, big.mark = ",")
+        )
+      } else {
+        sprintf(
+          "Suggested: %s rows. Original: %s rows.",
+          format(s$n, big.mark = ","), format(s$original_n, big.mark = ",")
+        )
+      }
+      below <- !is.null(input$rows_n) && !is.na(input$rows_n) &&
+        !is.na(s$n) && input$rows_n < s$n
+      shiny::tagList(
+        shiny::tags$p(
+          class = "text-muted",
+          style = "margin-top:-8px; margin-bottom:12px; font-size:12px;",
+          hint
+        ),
+        if (below) {
+          shiny::tags$div(
+            class = "banner risk",
+            style = "margin-bottom:12px;",
+            shiny::tags$span(class = "icon", "!"),
+            shiny::tags$div(
+              shiny::tags$b("Below coverage floor."),
+              " Some category combinations may not appear in the synthetic data."
+            )
+          )
+        }
+      )
+    })
+
     current_spec <- shiny::reactive({
       purpose <- current_purpose()
       shiny::req(purpose)
@@ -473,9 +527,12 @@ mod_synthesis_controls_server <- function(id, state) {
         preset$geography_strategy
       }
 
+      # Always honour the row-count input. It pre-fills to the coverage-based
+      # suggestion (Feature 8), which is often below the original row count, so
+      # we cannot treat "equals the default" as "leave n unset" — that would
+      # silently fall back to the full original size.
       n_arg <- NULL
-      if (!is.null(current_rows_n) && !is.na(current_rows_n) &&
-          !identical(as.integer(current_rows_n), as.integer(default_n()))) {
+      if (!is.null(current_rows_n) && !is.na(current_rows_n)) {
         n_arg <- as.integer(current_rows_n)
       }
 

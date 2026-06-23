@@ -2,7 +2,7 @@ test_that("profile_data() returns correct S3 class", {
   df <- data.frame(x = 1:5, y = letters[1:5])
   p <- profile_data(df)
   expect_s3_class(p, "dataganger_profile")
-  expect_named(p, c("profile", "n_rows", "n_cols", "generated_at"))
+  expect_named(p, c("profile", "n_rows", "n_cols", "coverage", "generated_at"))
   expect_equal(p$n_rows, 5)
   expect_equal(p$n_cols, 2)
 })

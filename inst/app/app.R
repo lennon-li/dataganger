@@ -25,6 +25,7 @@ css_href <- function(file) {
 }
 
 detect_roles                  <- dataganger::detect_roles
+dg_timeit                     <- dataganger:::dg_timeit
 mod_compare_server            <- dataganger:::mod_compare_server
 mod_compare_ui                <- dataganger:::mod_compare_ui
 mod_export_server             <- dataganger:::mod_export_server
@@ -158,7 +159,7 @@ sidebar_content <- tags$nav(
         class = "name",
         "DataGange", tags$span(class = "r", "R")
       ),
-      tags$span(class = "version", "v0.2")
+      tags$span(class = "version", "v0.3")
     )
   ),
   tags$div(class = "section-label", "Workflow"),
@@ -334,7 +335,10 @@ server <- function(input, output, session) {
   observe({
     req(state$raw_data, state$profile)
     if (is.null(state$roles)) {
-      state$roles <- detect_roles(state$raw_data, profile = state$profile)
+      state$roles <- dg_timeit(
+        "configure: detect_roles",
+        detect_roles(state$raw_data, profile = state$profile)
+      )
     }
   })
 
