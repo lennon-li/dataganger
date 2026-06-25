@@ -292,11 +292,13 @@ mod_synthesis_controls_server <- function(id, state) {
     # Coverage-based row-count suggestion (Feature 8). Pre-fills the row slider
     # with the minimum number of rows that still covers every observed category
     # combination, rather than blindly matching a large original row count.
+    # Passes raw data + current roles so the suggestion re-fires when the user
+    # changes a role on the Configure page (P3 UX polish).
     suggested_rows <- shiny::reactive({
       if (is.null(state$profile)) {
         return(NULL)
       }
-      suggest_min_rows(state$profile, state$roles)
+      suggest_min_rows(state$profile, state$roles, data = state$raw_data)
     })
 
     default_n <- shiny::reactive({
@@ -372,6 +374,13 @@ mod_synthesis_controls_server <- function(id, state) {
       current_n <- default_n()
 
       shiny::tagList(
+        shiny::numericInput(
+          inputId = session$ns("rows_n"),
+          label = "Row count (n)",
+          value = current_n,
+          min = 1
+        ),
+        shiny::uiOutput(session$ns("rows_hint")),
         shiny::selectInput(
           inputId = session$ns("engine"),
           label = "Engine",
@@ -411,13 +420,6 @@ mod_synthesis_controls_server <- function(id, state) {
           label = "Seed",
           value = preset$seed %||% NA
         ),
-        shiny::numericInput(
-          inputId = session$ns("rows_n"),
-          label = "Row count (n)",
-          value = current_n,
-          min = 1
-        ),
-        shiny::uiOutput(session$ns("rows_hint")),
         shiny::selectInput(
           inputId = session$ns("name_strategy"),
           label = "name_strategy",

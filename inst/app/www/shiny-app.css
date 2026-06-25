@@ -130,6 +130,24 @@
 .main-header .subtitle p { margin: 0 0 4px; }
 .main-header .subtitle b { color: var(--ink-900); font-weight: 600; }
 
+/* Scroll cue under the Configure title — quietly points to the settings and
+   data summary that sit below the fold. */
+.main-header .subtitle.scroll-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+}
+.main-header .subtitle.scroll-hint .scroll-hint-glyph {
+  display: inline-block;
+  font-weight: 700;
+  animation: dg-bob 1.6s ease-in-out infinite;
+}
+@keyframes dg-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+
 /* Compare explainer: tinted card with accent rule, coloured data tokens */
 .main-header .subtitle.compare-explainer {
   max-width: 72ch;
@@ -566,6 +584,111 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 }
 .data-panel .dataTables_paginate { padding-top: 8px; font-size: 12px; }
 .data-panel .dataTables_paginate .paginate_button { padding: 2px 8px; }
+
+/* Upload / refresh busy state.
+   While the preview re-renders (new upload, real<->synth swap) Shiny tags the
+   output with `.recalculating` and fades it to ~30% opacity. On the wide data
+   table that bare fade reads as a broken/error flash. Replace it with a calm
+   dimmed veil + centered spinner, and hold a min-height so the panel doesn't
+   collapse and jump while the new table mounts. */
+.data-panel > .shiny-html-output {
+  position: relative;
+  min-height: 180px;
+}
+.data-panel > .shiny-html-output.recalculating {
+  opacity: 1 !important;
+}
+.data-panel > .shiny-html-output.recalculating::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: var(--paper-50);
+  opacity: 0.7;
+  animation: dg-veil 1s ease-in-out infinite;
+}
+.data-panel > .shiny-html-output.recalculating::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  z-index: 9;
+  border-radius: 50%;
+  border: 3px solid var(--paper-300);
+  border-top-color: var(--accent);
+  animation: dg-spin 0.7s linear infinite;
+}
+@keyframes dg-veil { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.78; } }
+
+/* Configure page: Column Summary collapsed by default so the page reads as
+   Roles -> Settings, with the (heavy) distribution/percentile tables one click
+   away. Native <details>/<summary> — no JS. */
+.configure-summary-disclosure > summary.disclosure-summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  user-select: none;
+}
+.configure-summary-disclosure > summary::-webkit-details-marker { display: none; }
+.configure-summary-disclosure > summary.disclosure-summary::before {
+  content: "\25B8";
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.configure-summary-disclosure[open] > summary.disclosure-summary::before {
+  transform: rotate(90deg);
+}
+.configure-summary-disclosure .disclosure-hint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.configure-summary-disclosure .disclosure-body { margin-top: 12px; }
+
+/* Configure page: the Column Roles table and Column Summary are built row-by-row
+   in renderUI and can take a moment to paint on wide files. Show the same calm
+   veil + spinner while they compute, instead of an empty/blank gap. */
+#roles-roles_table.recalculating,
+#configure_summary_stats.recalculating {
+  position: relative;
+  min-height: 200px;
+  opacity: 1 !important;
+}
+#roles-roles_table.recalculating::before,
+#configure_summary_stats.recalculating::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: var(--paper-50);
+  opacity: 0.7;
+  animation: dg-veil 1s ease-in-out infinite;
+}
+#roles-roles_table.recalculating::after,
+#configure_summary_stats.recalculating::after {
+  content: "";
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  z-index: 9;
+  border-radius: 50%;
+  border: 3px solid var(--paper-300);
+  border-top-color: var(--accent);
+  animation: dg-spin 0.7s linear infinite;
+}
 
 /* Empty state (before any data loaded) */
 .data-panel .dp-empty {

@@ -21,10 +21,13 @@
 #' by the synthesis engine); they do not raise the suggested count.
 #'
 #' @param profile A `dataganger_profile` from [profile_data()].
-#' @param roles Optional; a `dataganger_roles` object. Accepted for API
-#'   stability and future refinement (e.g. narrowing to quasi-identifier
-#'   columns). The coverage count is computed at profile time over all
-#'   low-cardinality columns, a safe superset of the quasi + categorical set.
+#' @param roles Optional; a `dataganger_roles` object. When provided together
+#'   with `data`, the coverage computation is filtered to only the columns whose
+#'   effective role is synthesizable (excludes ID candidates, free text, and
+#'   user-excluded columns).
+#' @param data Optional; the original data frame. When provided alongside
+#'   `roles`, coverage is recomputed on the filtered column subset so that the
+#'   suggestion reacts to role changes on the Configure page.
 #' @param k Reserved for a future k-anonymity-style cell-size floor; unused by
 #'   the current coverage rule.
 #' @param threshold Row count at or above which a reduction is suggested.
@@ -45,14 +48,38 @@
 #' @examples
 #' p <- profile_data(datasets::iris)
 #' suggest_min_rows(p)
-suggest_min_rows <- function(profile, roles = NULL, k = 5L,
+suggest_min_rows <- function(profile, roles = NULL, data = NULL, k = 5L,
                              threshold = 1000L, cap = 5000L) {
   if (!inherits(profile, "dataganger_profile")) {
     cli::cli_abort("{.arg profile} must be a {.cls dataganger_profile} object")
   }
 
   n_orig <- profile$n_rows %||% NA_integer_
-  cov    <- profile$coverage
+
+  # When roles + raw data are provided, recompute coverage using only the
+  # columns that roles say should be synthesized (excludes ID candidates,
+  # free text, and user-excluded columns). This makes the suggestion react to
+  # role changes on the Configure page (P3 UX polish).
+  cov <- if (!is.null(roles) && !is.null(data) &&
+              "recommended_role" %in% names(roles) &&
+              "variable" %in% names(roles)) {
+    eff_role <- ifelse(
+      !is.na(roles$user_role) & nzchar(roles$user_role),
+      roles$user_role, roles$recommended_role
+    )
+    excl_roles <- c("ID candidate", "free text", "none", "unknown")
+    keep <- roles$variable[!eff_role %in% excl_roles]
+    keep <- intersect(keep, names(data))
+    if (length(keep) == 0L) {
+      list(combination_count = NA_integer_, max_distinct = NA_integer_,
+           columns = character(0), max_levels = 50L)
+    } else {
+      profile_coverage(data[, keep, drop = FALSE],
+                       profile$profile[profile$profile$variable %in% keep, ])
+    }
+  } else {
+    profile$coverage
+  }
 
   build <- function(n, rationale, combos = NA_integer_, floor_n = NA_integer_,
                     capped = FALSE) {

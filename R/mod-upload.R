@@ -84,6 +84,7 @@ mod_upload_ui <- function(id) {
         )
       )
     ),
+    shiny::uiOutput(ns("upload_busy")),
     shiny::uiOutput(ns("coverage_summary")),
     shiny::tags$details(
       shiny::tags$summary("Profile summary"),
@@ -156,9 +157,13 @@ mod_upload_server <- function(id, state) {
       }
 
       state$raw_data <- raw_data
+      state$filename <- file_info$name
 
       session$onFlushed(function() {
-        state$profile <- dg_timeit("upload: profile_data", profile_data(raw_data))
+        shiny::withProgress(message = "Profiling data\u2026", value = 0.4, {
+          state$profile <- dg_timeit("upload: profile_data", profile_data(raw_data))
+          shiny::setProgress(value = 1.0, detail = "Done")
+        })
       }, once = TRUE)
     })
 
@@ -171,9 +176,29 @@ mod_upload_server <- function(id, state) {
       state$filename <- paste0(input$sample_dataset, "_sample (built-in)")
 
       session$onFlushed(function() {
-        state$profile <- dg_timeit("upload: profile_data", profile_data(loaded))
+        shiny::withProgress(message = "Profiling data\u2026", value = 0.4, {
+          state$profile <- dg_timeit("upload: profile_data", profile_data(loaded))
+          shiny::setProgress(value = 1.0, detail = "Done")
+        })
       }, once = TRUE)
     })
+
+    output$upload_busy <- shiny::renderUI({
+      if (is.null(state$raw_data)) return(NULL)
+      if (!is.null(state$profile) && !is.null(state$roles)) return(NULL)
+      phase <- if (is.null(state$profile))
+        "Profiling data\u2026" else "Detecting column roles\u2026"
+      shiny::tags$div(
+        class = "banner info",
+        style = "margin-top:12px;",
+        shiny::tags$span(class = "icon", "\u23f3"),
+        shiny::tags$div(
+          shiny::tags$b(phase),
+          " will advance automatically \u2014 this may take a moment on large files."
+        )
+      )
+    })
+    shiny::outputOptions(output, "upload_busy", suspendWhenHidden = FALSE)
 
     output$coverage_summary <- shiny::renderUI({
       shiny::req(state$profile)

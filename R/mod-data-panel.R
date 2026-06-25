@@ -198,6 +198,22 @@ mod_data_panel_server <- function(id, state) {
         state$raw_data
       }
 
+      # Coerce ID-candidate columns to character so they render as strings
+      # ("1078541") rather than comma-formatted numbers ("1,078,541.00").
+      roles <- state$roles
+      if (!is.null(roles) && "recommended_role" %in% names(roles)) {
+        eff_role <- ifelse(
+          !is.na(roles$user_role) & nzchar(roles$user_role),
+          roles$user_role, roles$recommended_role
+        )
+        id_cols <- roles$variable[eff_role == "ID candidate"]
+        for (id_col in intersect(id_cols, names(df))) {
+          if (is.numeric(df[[id_col]])) {
+            df[[id_col]] <- as.character(df[[id_col]])
+          }
+        }
+      }
+
       dt <- DT::datatable(
         df,
         options  = list(
@@ -205,16 +221,32 @@ mod_data_panel_server <- function(id, state) {
           ordering   = FALSE,
           scrollX    = TRUE,
           pageLength = 24L,
-          lengthChange = FALSE
+          lengthChange = FALSE,
+          # Blank DT's transient "Processing.../No data available" strings so the
+          # busy-state spinner (CSS) is the only thing shown mid-refresh, rather
+          # than flashing error-looking placeholder text.
+          language   = list(processing = "", emptyTable = "", zeroRecords = "")
         ),
         rownames  = FALSE,
         class     = "compact",
         selection = "none"
       )
 
-      # Format columns based on original data types (so synth integers display as integers)
+      # Format columns based on original data types (so synth integers display as integers).
+      # Skip ID-candidate columns — they've been coerced to character above and
+      # DT::formatRound would parseFloat() them back into "1,078,541.00".
+      id_col_set <- if (!is.null(roles) && "recommended_role" %in% names(roles)) {
+        eff_role2 <- ifelse(
+          !is.na(roles$user_role) & nzchar(roles$user_role),
+          roles$user_role, roles$recommended_role
+        )
+        roles$variable[eff_role2 == "ID candidate"]
+      } else {
+        character(0)
+      }
       orig_df <- state$raw_data
       for (col_name in intersect(names(df), names(orig_df))) {
+        if (col_name %in% id_col_set) next
         orig_col <- orig_df[[col_name]]
         if (is.integer(orig_col)) {
           dt <- DT::formatRound(dt, columns = col_name, digits = 0)
