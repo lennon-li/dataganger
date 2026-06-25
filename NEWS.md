@@ -1,3 +1,45 @@
+# dataganger 0.3.1
+
+* **Bug fix — CUSUM hang (Bug 5)**: Synthesis no longer hangs on datasets with
+  character-stored date columns (e.g. "Jun 8, 2019") or other high-cardinality
+  character columns. The root cause was two-fold: (1) character date strings were
+  classified "unknown" and passed to synthpop as a 2000+-level factor, causing
+  CART to enumerate billions of split candidates; (2) even moderate-cardinality
+  character columns (>20 distinct values) used as CART *predictors* trigger the
+  same 2^(k-1) blowup at k=34. Fix: `detect_roles()` now detects date strings
+  (ISO, "Mon DD YYYY", MM/DD/YY) via regex and classifies them as "date"; and a
+  new `synthpop_bridge_cols()` function excludes any character column with >20
+  distinct values from synthpop's CART, synthesizes it independently via the
+  marginal engine, and stitches it back into the output in the original column
+  order. Generation on the CUSUM test file (41 k rows, 14 columns) now completes
+  in under 10 seconds at both 50-row and 5000-row target sizes.
+
+* **P1 — Configure busy indicator**: the Upload page now shows a "Profiling
+  data…" / "Detecting column roles…" progress bar while the app analyses the
+  uploaded file, so users know the app is working rather than frozen.
+
+* **P2 — Row count first**: the Row count (n) input is now the first item in
+  the Configure advanced-settings panel.
+
+* **P3 — Role-reactive row suggestion**: `suggest_min_rows()` gains a `data`
+  parameter; when called with `data` and `roles`, it recomputes the coverage
+  estimate over only the columns that are still being synthesized. Dropping an
+  ID or excluded column now immediately lowers the suggested row count on the
+  Configure page.
+
+* **P4 — Case IDs render as character**: columns detected as ID candidates are
+  coerced to character in the data-panel preview, so a numeric case ID displays
+  as "1078541" instead of "1,078,541.00".
+
+* **P5 — Column summary stats**: the Configure page now shows a per-column
+  summary section below the synthesis settings. Continuous columns get a
+  min / Q1 / median / Q3 / max / mean / SD table; categorical columns get a
+  top-5 frequency table with counts and percentages.
+
+* **P6 — Generation progress bar + timer**: while synthesis is running, the
+  Generation page displays a `MM:SS` elapsed-time counter and an animated
+  progress bar. Both update every second.
+
 # dataganger 0.3.0
 
 * Cancellable background synthesis: the Shiny Generation step now runs the

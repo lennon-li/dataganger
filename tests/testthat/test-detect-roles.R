@@ -245,3 +245,33 @@ test_that("detect_roles() does not classify long character values as ID even at 
 test_that("detect_roles() rejects non-data-frame", {
   expect_error(detect_roles("not a df"), "must be a data frame")
 })
+
+# Regression: Bug 5 — character-stored dates were classified "unknown" and fed
+# to synthpop as high-cardinality factors, hanging CART.
+test_that("detect_roles() classifies ISO date strings as 'date'", {
+  df <- data.frame(
+    event_date = format(as.Date("2020-01-01") + 1:50, "%Y-%m-%d"),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[r$variable == "event_date"], "date")
+})
+
+test_that("detect_roles() classifies 'Month DD, YYYY' date strings as 'date'", {
+  df <- data.frame(
+    report_date = format(as.Date("2019-06-01") + 1:50, "%b %e, %Y"),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[r$variable == "report_date"], "date")
+})
+
+test_that("detect_roles() does not classify non-date strings as 'date'", {
+  df <- data.frame(
+    code = sprintf("CASE-%04d", 1:50),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_false(r$recommended_role[1] == "date",
+               label = "arbitrary code strings should not be classified as date")
+})

@@ -156,6 +156,7 @@ mod_generate_server <- function(id, state) {
     proc            <- shiny::reactiveVal(NULL)   # callr background process
     run_started_at  <- shiny::reactiveVal(NULL)
     run_seed        <- shiny::reactiveVal(NULL)
+    elapsed_secs    <- shiny::reactiveVal(NULL)   # live timer during generation
 
     output$stale__synthesis <- shiny::renderText({
       if (isTRUE(state$stale$synthesis)) {
@@ -319,19 +320,51 @@ mod_generate_server <- function(id, state) {
       }
     })
 
+    # Live elapsed-time ticker while generation is running.
+    shiny::observe({
+      if (!isTRUE(generating())) return()
+      shiny::invalidateLater(1000, session)
+      started <- run_started_at()
+      if (!is.null(started)) {
+        elapsed_secs(as.integer(difftime(Sys.time(), started, units = "secs")))
+      }
+    })
+
     output$gen_status <- shiny::renderUI({
       if (!isTRUE(generating())) {
         return(NULL)
       }
+      secs  <- elapsed_secs() %||% 0L
+      timer <- sprintf("%02d:%02d", secs %/% 60L, secs %% 60L)
+      # Fake-deterministic bar: advances 0\u219290 % over 60 s to give the user
+      # a sense of progress; jumps to 100% on completion (handled by hiding).
+      pct <- min(90L, as.integer(secs * 90L / 60L))
       shiny::tags$div(
         class = "card gen-status",
         shiny::tags$div(
           class = "gen-status-row",
           shiny::tags$span(class = "spinner"),
           shiny::tags$div(
-            shiny::tags$b("Synthesizing in the background\u2026"),
+            style = "flex:1;",
             shiny::tags$div(
-              style = "font-size:12px; color:var(--fg-muted); margin-top:2px;",
+              style = "display:flex; align-items:center; justify-content:space-between;",
+              shiny::tags$b("Synthesizing\u2026"),
+              shiny::tags$span(
+                style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
+                timer
+              )
+            ),
+            shiny::tags$div(
+              style = "margin-top:6px; height:4px; background:var(--paper-200); border-radius:2px; overflow:hidden;",
+              shiny::tags$div(
+                style = sprintf(
+                  "height:100%%; width:%d%%; background:var(--synth-600); border-radius:2px; transition:width 0.9s ease;",
+                  pct
+                )
+              )
+            ),
+            shiny::tags$div(
+              style = "font-size:12px; color:var(--fg-muted); margin-top:4px;",
               "The app stays responsive. Use Cancel above to stop a long run."
             )
           )

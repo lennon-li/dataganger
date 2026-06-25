@@ -4,15 +4,26 @@
 \alias{suggest_min_rows}
 \title{Suggest a sufficient synthetic row count}
 \usage{
-suggest_min_rows(profile, roles = NULL, k = 5L, threshold = 1000L, cap = 5000L)
+suggest_min_rows(
+  profile,
+  roles = NULL,
+  data = NULL,
+  k = 5L,
+  threshold = 1000L,
+  cap = 5000L
+)
 }
 \arguments{
 \item{profile}{A \code{dataganger_profile} from \code{\link[=profile_data]{profile_data()}}.}
 
-\item{roles}{Optional; a \code{dataganger_roles} object. Accepted for API
-stability and future refinement (e.g. narrowing to quasi-identifier
-columns). The coverage count is computed at profile time over all
-low-cardinality columns, a safe superset of the quasi + categorical set.}
+\item{roles}{Optional; a \code{dataganger_roles} object. When provided together
+with \code{data}, the coverage computation is filtered to only the columns whose
+effective role is synthesizable (excludes ID candidates, free text, and
+user-excluded columns).}
+
+\item{data}{Optional; the original data frame. When provided alongside
+\code{roles}, coverage is recomputed on the filtered column subset so that the
+suggestion reacts to role changes on the Configure page.}
 
 \item{k}{Reserved for a future k-anonymity-style cell-size floor; unused by
 the current coverage rule.}

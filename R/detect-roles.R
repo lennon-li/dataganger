@@ -97,6 +97,30 @@ detect_single_role <- function(x, name, n_rows) {
     return(make_role_row(name, r_class, "date", "class is Date or POSIXct", "quasi"))
   }
 
+  # Test 2b: character column storing dates as formatted strings.
+  # Catches date strings that are not native Date/POSIXct (e.g. "Jun 8, 2019",
+  # "2020-01-15", "01/08/2020"). Checked before free-text so short date strings
+  # are not misclassified as free text by the word-count heuristic.
+  if (r_class == "character") {
+    x_sample <- x[!is.na(x) & nzchar(trimws(x))]
+    if (length(x_sample) > 200L) x_sample <- x_sample[seq_len(200L)]
+    if (length(x_sample) >= 5L) {
+      date_rx <- paste0(
+        "^(\\d{4}-\\d{2}-\\d{2}",                   # ISO: 2020-01-15
+        "|[A-Z][a-z]{2}\\s+\\d{1,2},?\\s*\\d{4}",   # "Jun 8, 2019" / "Jun 8 2019"
+        "|\\d{1,2}/\\d{1,2}/\\d{2,4}",              # MM/DD/YY or MM/DD/YYYY
+        "|\\d{4}/\\d{2}/\\d{2})"                    # YYYY/MM/DD
+      )
+      if (mean(grepl(date_rx, trimws(x_sample))) >= 0.9) {
+        return(make_role_row(
+          name, r_class, "date",
+          "character values match a common date string format",
+          "quasi"
+        ))
+      }
+    }
+  }
+
   # Test 3: free text
   if (is_free_text_candidate(x)) {
     return(make_role_row(
@@ -216,8 +240,12 @@ print.dataganger_roles <- function(x, ...) {
 
   for (i in seq_len(nrow(x))) {
     r <- x[i, ]
-    role <- if (!is.na(r$user_role)) r$user_role else r$recommended_role
-    override <- !is.na(r$user_role)
+    # Use [[]] for scalar extraction from a single-row tibble to avoid
+    # length-0 returns on NA columns that can trip if() in older tibble versions.
+    user_role_val <- r[["user_role"]]
+    role <- if (!is.na(user_role_val) && nzchar(user_role_val))
+      user_role_val else r[["recommended_role"]]
+    override <- !is.na(user_role_val) && nzchar(user_role_val)
 
     header <- sprintf("%s (%s) -> %s", r$variable, r$class, role)
     if (override) {

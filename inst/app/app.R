@@ -159,7 +159,7 @@ sidebar_content <- tags$nav(
         class = "name",
         "DataGange", tags$span(class = "r", "R")
       ),
-      tags$span(class = "version", "v0.3")
+      tags$span(class = "version", "v0.3.1")
     )
   ),
   tags$div(class = "section-label", "Workflow"),
@@ -224,6 +224,16 @@ configure_ui <- function() {
         "Synthesis Settings"
       ),
       mod_synthesis_controls_spec_ui("synthesis_controls", embedded = TRUE)
+    ),
+    shiny::tags$section(
+      class = "configure-section",
+      style = "margin-top:24px;",
+      shiny::tags$div(
+        class = "section-label",
+        style = "margin:0 0 8px;",
+        "Column Summary"
+      ),
+      shiny::uiOutput("configure_summary_stats")
     )
   )
 }
@@ -335,10 +345,13 @@ server <- function(input, output, session) {
   observe({
     req(state$raw_data, state$profile)
     if (is.null(state$roles)) {
-      state$roles <- dg_timeit(
-        "configure: detect_roles",
-        detect_roles(state$raw_data, profile = state$profile)
-      )
+      shiny::withProgress(message = "Detecting column roles…", value = 0.5, {
+        state$roles <- dg_timeit(
+          "configure: detect_roles",
+          detect_roles(state$raw_data, profile = state$profile)
+        )
+        shiny::setProgress(value = 1.0)
+      })
     }
   })
 
@@ -390,6 +403,95 @@ server <- function(input, output, session) {
 
   observeEvent(state$comparison, ignoreNULL = TRUE, {
     session$sendCustomMessage("setDoneStep", "compare")
+  })
+
+  # P5: summary stats at bottom of Configure page
+  output$configure_summary_stats <- shiny::renderUI({
+    shiny::req(state$profile, state$raw_data)
+    prof <- state$profile$profile
+    if (is.null(prof) || nrow(prof) == 0L) return(NULL)
+
+    cat_types  <- c("character", "factor")
+    num_types  <- c("numeric", "integer")
+
+    cat_cols  <- prof$variable[prof$type %in% cat_types]
+    num_cols  <- prof$variable[prof$type %in% num_types]
+
+    # Numeric summary table
+    num_section <- if (length(num_cols) > 0L) {
+      num_rows <- lapply(num_cols, function(cn) {
+        r <- prof[prof$variable == cn, ]
+        fmt <- function(x) if (!is.null(x) && !is.na(x)) sprintf("%.2f", as.numeric(x)) else "—"
+        shiny::tags$tr(
+          shiny::tags$td(cn),
+          shiny::tags$td(fmt(r$min)),
+          shiny::tags$td(fmt(r$q25)),
+          shiny::tags$td(fmt(r$median)),
+          shiny::tags$td(fmt(r$q75)),
+          shiny::tags$td(fmt(r$max)),
+          shiny::tags$td(fmt(r$mean)),
+          shiny::tags$td(fmt(r$sd))
+        )
+      })
+      shiny::tagList(
+        shiny::tags$p(
+          style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); margin:0 0 6px;",
+          shiny::tags$strong("Continuous columns")
+        ),
+        shiny::tags$table(
+          class = "data",
+          style = "font-size:12px; width:100%;",
+          shiny::tags$thead(shiny::tags$tr(
+            shiny::tags$th("Column"),
+            shiny::tags$th("Min"), shiny::tags$th("Q1"), shiny::tags$th("Median"),
+            shiny::tags$th("Q3"), shiny::tags$th("Max"),
+            shiny::tags$th("Mean"), shiny::tags$th("SD")
+          )),
+          shiny::tags$tbody(num_rows)
+        )
+      )
+    }
+
+    # Categorical frequency tables (top-5)
+    cat_section <- if (length(cat_cols) > 0L) {
+      cat_tables <- lapply(cat_cols, function(cn) {
+        x   <- state$raw_data[[cn]]
+        tbl <- sort(table(x, useNA = "no"), decreasing = TRUE)
+        top <- head(tbl, 5L)
+        rows <- mapply(function(val, cnt) {
+          pct <- sprintf("%.1f%%", 100 * cnt / sum(tbl))
+          shiny::tags$tr(
+            shiny::tags$td(val),
+            shiny::tags$td(as.character(cnt)),
+            shiny::tags$td(pct)
+          )
+        }, names(top), as.integer(top), SIMPLIFY = FALSE)
+        shiny::tags$div(
+          style = "margin-bottom:12px;",
+          shiny::tags$p(
+            style = "font-family:var(--font-sans); font-size:12px; font-weight:600; margin:0 0 4px;",
+            cn
+          ),
+          shiny::tags$table(
+            class = "data",
+            style = "font-size:12px;",
+            shiny::tags$thead(shiny::tags$tr(
+              shiny::tags$th("Value"), shiny::tags$th("Count"), shiny::tags$th("%")
+            )),
+            shiny::tags$tbody(rows)
+          )
+        )
+      })
+      shiny::tagList(
+        shiny::tags$p(
+          style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); margin:12px 0 6px;",
+          shiny::tags$strong("Categorical columns"), " (top 5 values)"
+        ),
+        cat_tables
+      )
+    }
+
+    shiny::tagList(num_section, cat_section)
   })
 
   # Re-broadcast step state when max_step_reached changes (synthetic data arrives, etc.)

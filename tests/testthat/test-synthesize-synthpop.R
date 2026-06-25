@@ -80,6 +80,68 @@ test_that("synthesize_synthpop() aborts when all columns are excluded", {
   expect_error(synthesize_synthpop(df, spec, roles = roles), "No synthesizable columns")
 })
 
+test_that("synthpop_bridge_cols() identifies high-cardinality char columns", {
+  df <- data.frame(
+    date_str = format(as.Date("2020-01-01") + 1:50, "%b %e, %Y"), # date role
+    big_cat  = sprintf("cat_%03d", rep(1:30, length.out = 50)),     # 30 distinct > 20
+    small_cat = rep(letters[1:5], each = 10),                        # 5 distinct, OK
+    score     = rnorm(50),
+    stringsAsFactors = FALSE
+  )
+  roles  <- detect_roles(df)
+  bridge <- synthpop_bridge_cols(roles, df)
+  expect_true("date_str"  %in% bridge)
+  expect_true("big_cat"   %in% bridge)
+  expect_false("small_cat" %in% bridge)
+  expect_false("score"     %in% bridge)
+})
+
+test_that("synthesize_synthpop() stitches bridge columns back into original order", {
+  skip_if_no_synthpop()
+  df <- data.frame(
+    id      = paste0("ID-", 1:25),                            # excluded (ID)
+    d_str   = format(as.Date("2020-01-01") + 1:25, "%Y-%m-%d"), # bridge
+    score   = rep(1:5, each = 5),
+    group   = rep(letters[1:5], each = 5),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec  <- synth_spec(purpose = "demo", n = 10L, seed = 1L)
+  syn   <- synthesize_synthpop(df, spec, roles = roles)
+  # id excluded, d_str (date bridge) stitched back, score + group in synthpop
+  expect_false("id"    %in% names(syn))
+  expect_true( "d_str" %in% names(syn))
+  expect_true( "score" %in% names(syn))
+  expect_true( "group" %in% names(syn))
+  # column order mirrors original (minus excluded id)
+  expect_equal(names(syn), c("d_str", "score", "group"))
+})
+
+# Regression: Bug 5 — CUSUM-shaped data (char-stored date + high-cardinality
+# char predictor) used to hang synthpop's CART. Verify completion < 30 s.
+test_that("synthesize_data() with high-cardinality char date column completes without hang", {
+  skip_if_no_synthpop()
+  set.seed(42)
+  n <- 500L
+  df <- data.frame(
+    case_id   = sprintf("CASE-%05d", 1:n),         # ID → excluded
+    date_str  = format(seq.Date(as.Date("2019-01-01"), by = "day",
+                                length.out = n), "%b %e, %Y"),  # date bridge
+    month     = rep(month.abb, length.out = n),    # 12 distinct char
+    region    = rep(LETTERS[1:6], length.out = n), # 6 distinct char
+    count     = sample(1:10, n, replace = TRUE),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec  <- suppressWarnings(synth_spec("development", n = 50L, seed = 1L))
+  t0    <- proc.time()[["elapsed"]]
+  syn   <- synthesize_data(df, spec, roles = roles)
+  elapsed <- proc.time()[["elapsed"]] - t0
+  expect_lt(elapsed, 30, label = "synthesis should complete in under 30 seconds")
+  expect_s3_class(syn, "dataganger_synthetic")
+  expect_equal(nrow(syn), 50L)
+})
+
 test_that("synthesize_data() derives roles for synthpop so high-cardinality IDs don't stall it", {
   # Regression: with roles = NULL, an ID / free-text column was passed to
   # synthpop, whose sequential CART grinds forever on a high-cardinality

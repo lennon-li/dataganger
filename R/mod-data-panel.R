@@ -198,6 +198,22 @@ mod_data_panel_server <- function(id, state) {
         state$raw_data
       }
 
+      # Coerce ID-candidate columns to character so they render as strings
+      # ("1078541") rather than comma-formatted numbers ("1,078,541.00").
+      roles <- state$roles
+      if (!is.null(roles) && "recommended_role" %in% names(roles)) {
+        eff_role <- ifelse(
+          !is.na(roles$user_role) & nzchar(roles$user_role),
+          roles$user_role, roles$recommended_role
+        )
+        id_cols <- roles$variable[eff_role == "ID candidate"]
+        for (id_col in intersect(id_cols, names(df))) {
+          if (is.numeric(df[[id_col]])) {
+            df[[id_col]] <- as.character(df[[id_col]])
+          }
+        }
+      }
+
       dt <- DT::datatable(
         df,
         options  = list(
