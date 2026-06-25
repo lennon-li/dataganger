@@ -468,10 +468,14 @@ mod_compare_server <- function(id, state) {
           }
           min_val <- min(non_missing, na.rm = TRUE)
           max_val <- max(non_missing, na.rm = TRUE)
+          span_str <- tryCatch(
+            as.character(as.integer(difftime(max_val, min_val, units = "days"))),
+            error = function(e) "\u2014"
+          )
           list(
             min = as.character(min_val),
             max = as.character(max_val),
-            span = as.character(as.integer(difftime(max_val, min_val, units = "days"))),
+            span = span_str,
             missing = fmt_pct(missing_prop)
           )
         }

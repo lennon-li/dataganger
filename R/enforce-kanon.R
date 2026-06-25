@@ -113,6 +113,20 @@ coarsen_qi_step <- function(x, step) {
     if (is_geography_like(chr)) {
       return(coarsen_geography(chr, level = step))
     }
+    # ISO date strings (YYYY-MM-DD) — coarsen as Date to avoid 366-level
+    # merge_rarest_level loop that leaves every row unique after 6 steps.
+    chr_nna <- chr[!is.na(chr) & nzchar(trimws(chr))]
+    if (length(chr_nna) > 0L &&
+        mean(grepl("^\\d{4}-\\d{2}-\\d{2}$", trimws(chr_nna))) >= 0.9) {
+      dates <- suppressWarnings(as.Date(chr, format = "%Y-%m-%d"))
+      if (sum(!is.na(dates)) > 0L) {
+        return(switch(min(step, 3L),
+          coarsen_to_month(dates),
+          coarsen_to_quarter(dates),
+          coarsen_to_year(dates)
+        ))
+      }
+    }
     return(merge_rarest_level(chr))
   }
   if (is.numeric(x)) {
