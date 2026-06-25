@@ -195,6 +195,11 @@ configure_ui <- function() {
           "Review column roles, then adjust synthesis settings only if needed. ",
           shiny::tags$strong("Defaults are safe"),
           " for the objective you selected."
+        ),
+        shiny::tags$p(
+          class = "subtitle scroll-hint",
+          shiny::tags$span(class = "scroll-hint-glyph", "\u2193"),
+          " Scroll down for advanced settings and the data summary."
         )
       ),
       shiny::tags$div(

@@ -208,17 +208,6 @@ mod_compare_server <- function(id, state) {
           shiny::tags$span(
             style = "font-family:var(--font-mono); font-size:11px; padding:2px 8px; background:var(--paper-200); border-radius:2px; color:var(--fg-muted);",
             if (!is.null(current) && current %in% names(kind_map)) kind_map[[current]] else "numeric"
-          ),
-          shiny::tags$div(
-            class = "var-legend",
-            shiny::tags$span(
-              shiny::tags$span(class = "dot", style = "background:var(--real-500);"),
-              "Original"
-            ),
-            shiny::tags$span(
-              shiny::tags$span(class = "dot", style = "background:var(--synth-500);"),
-              "Synthetic"
-            )
           )
         ),
         plotly::plotlyOutput(session$ns("var_plot"), height = "360px"),
@@ -268,10 +257,19 @@ mod_compare_server <- function(id, state) {
       plotly_common <- function(p) {
         plotly::layout(
           p,
-          legend = list(orientation = "h", x = 0, y = -0.15),
+          showlegend = TRUE,
+          legend = list(
+            orientation = "v",
+            x = 1, y = 1,
+            xanchor = "right", yanchor = "top",
+            bgcolor = "rgba(251,250,246,0.72)",
+            bordercolor = "rgba(0,0,0,0.08)",
+            borderwidth = 1,
+            font = list(size = 11)
+          ),
           paper_bgcolor = "rgba(0,0,0,0)",
           plot_bgcolor = "rgba(0,0,0,0)",
-          margin = list(l = 48, r = 16, t = 36, b = 48)
+          margin = list(l = 48, r = 16, t = 36, b = 36)
         )
       }
 
