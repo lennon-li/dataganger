@@ -233,12 +233,21 @@ configure_ui <- function() {
     shiny::tags$section(
       class = "configure-section",
       style = "margin-top:24px;",
-      shiny::tags$div(
-        class = "section-label",
-        style = "margin:0 0 8px;",
-        "Column Summary"
-      ),
-      shiny::uiOutput("configure_summary_stats")
+      shiny::tags$details(
+        class = "configure-summary-disclosure",
+        shiny::tags$summary(
+          class = "section-label disclosure-summary",
+          "Column summary",
+          shiny::tags$span(
+            class = "disclosure-hint",
+            "distributions \u00b7 percentiles"
+          )
+        ),
+        shiny::tags$div(
+          class = "disclosure-body",
+          shiny::uiOutput("configure_summary_stats")
+        )
+      )
     )
   )
 }

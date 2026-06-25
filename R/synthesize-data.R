@@ -189,7 +189,7 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
   if (length(pass_cols) > 0L && nrow(syn) != nrow(original)) {
     cli::cli_warn(c(
       "Pass-through columns {.val {pass_cols}} require the same row count as the original data.",
-      "i" = "Row count changed ({nrow(original)} → {nrow(syn)}); synthesizing those columns instead.",
+      "i" = "Row count changed ({nrow(original)} \u2192 {nrow(syn)}); synthesizing those columns instead.",
       "i" = "Set row count back to {nrow(original)} to use pass-through."
     ))
     pass_cols <- character(0)

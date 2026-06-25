@@ -4,7 +4,7 @@
 \alias{enforce_kanon}
 \title{Enforce k-anonymity on a synthetic dataset (output guarantee)}
 \usage{
-enforce_kanon(synthetic, roles, k = 5, max_steps = 6L)
+enforce_kanon(synthetic, roles, k = 5, max_steps = 6L, max_suppress_frac = 0.2)
 }
 \arguments{
 \item{synthetic}{A synthetic data frame.}
@@ -14,11 +14,18 @@ enforce_kanon(synthetic, roles, k = 5, max_steps = 6L)
 \item{k}{Minimum cell size (default 5).}
 
 \item{max_steps}{Maximum coarsening iterations (default 6).}
+
+\item{max_suppress_frac}{Feasibility backstop. If satisfying \code{k} over the
+quasi-identifier set would require blanking more than this fraction of
+rows, k-anonymity is treated as infeasible for the chosen QI set: the
+coarsening/suppression is \emph{not} applied (it would destroy the dataset),
+the synthetic output is returned populated, and a warning advises
+narrowing the quasi-identifiers or lowering \code{k}. Default 0.2.}
 }
 \value{
 The shaped \code{synthetic} data frame, with an attribute \code{kanon}
 recording the achieved state (\code{smallest_cell}, \code{suppressed_cells},
-\code{qi_cols}, \code{k}).
+\code{qi_cols}, \code{k}, \code{infeasible}).
 }
 \description{
 Shapes the synthetic output so that no quasi-identifier combination appears

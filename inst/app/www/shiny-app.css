@@ -623,6 +623,38 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 }
 @keyframes dg-veil { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.78; } }
 
+/* Configure page: Column Summary collapsed by default so the page reads as
+   Roles -> Settings, with the (heavy) distribution/percentile tables one click
+   away. Native <details>/<summary> — no JS. */
+.configure-summary-disclosure > summary.disclosure-summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  user-select: none;
+}
+.configure-summary-disclosure > summary::-webkit-details-marker { display: none; }
+.configure-summary-disclosure > summary.disclosure-summary::before {
+  content: "\25B8";
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.configure-summary-disclosure[open] > summary.disclosure-summary::before {
+  transform: rotate(90deg);
+}
+.configure-summary-disclosure .disclosure-hint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.configure-summary-disclosure .disclosure-body { margin-top: 12px; }
+
 /* Configure page: the Column Roles table and Column Summary are built row-by-row
    in renderUI and can take a moment to paint on wide files. Show the same calm
    veil + spinner while they compute, instead of an empty/blank gap. */
