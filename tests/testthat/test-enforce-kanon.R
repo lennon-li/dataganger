@@ -98,6 +98,38 @@ test_that("enforce_kanon NA bucket is padded to k when initial suppression creat
     info = sprintf("smallest_cell = %s", res$smallest_cell))
 })
 
+test_that("enforce_kanon ignores NA (unselected) disclosure roles safely", {
+  syn <- data.frame(
+    g = rep(c("a", "b"), 50),
+    m = rnorm(100),
+    stringsAsFactors = FALSE
+  )
+  roles <- tibble::tibble(
+    variable = c("g", "m"),
+    disclosure_role = c(NA_character_, NA_character_)
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_equal(nrow(out), 100L)
+  expect_false(anyNA(out$g))
+  expect_identical(attr(out, "kanon")$qi_cols, character(0))
+})
+
+test_that("enforce_kanon handles a mix of NA and explicit roles", {
+  syn <- data.frame(
+    id = sprintf("P%03d", 1:100),
+    zip = rep(c("A", "B", "C", "D"), 25),
+    other = rep("x", 100),
+    stringsAsFactors = FALSE
+  )
+  roles <- tibble::tibble(
+    variable = c("id", "zip", "other"),
+    disclosure_role = c("direct", "quasi", NA_character_)
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_false("id" %in% names(out))      # direct dropped
+  expect_true(all(c("zip", "other") %in% names(out)))
+})
+
 test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
   set.seed(42)
   df <- data.frame(

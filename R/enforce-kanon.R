@@ -32,13 +32,13 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
 
   dr <- stats::setNames(roles$disclosure_role, roles$variable)
 
-  direct <- names(dr)[dr == "direct"]
+  direct <- names(dr)[dr %in% "direct"]  # %in% is NA-safe; == returns NA for unselected roles
   drop_cols <- intersect(direct, names(synthetic))
   if (length(drop_cols)) {
     synthetic <- synthetic[, !names(synthetic) %in% drop_cols, drop = FALSE]
   }
 
-  qi_cols <- intersect(names(dr)[dr == "quasi"], names(synthetic))
+  qi_cols <- intersect(names(dr)[dr %in% "quasi"], names(synthetic))  # %in% is NA-safe
   if (length(qi_cols) == 0L) {
     attr(synthetic, "kanon") <- list(
       qi_cols = qi_cols, k = k, smallest_cell = NA_integer_,
