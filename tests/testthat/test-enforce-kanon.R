@@ -37,16 +37,41 @@ test_that("enforce_kanon leaves output with no QI cell smaller than k", {
 })
 
 test_that("enforce_kanon suppresses residual cells that cannot reach k", {
+  # A small residual that stays under k (here 1 unique value out of 20) is
+  # suppressed; the bulk of the data survives, so the feasibility backstop
+  # does not trip.
+  syn <- data.frame(
+    code = c(rep("common", 19), "uniqueX"), stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = "code", disclosure_role = "quasi", stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  info <- attr(out, "kanon")
+  expect_false(isTRUE(info$infeasible))
+  expect_true(info$suppressed_cells >= 1)
+  res <- assess_kanonymity(out, info$qi_cols, k = 5)
+  expect_true(is.na(res$smallest_cell) || res$smallest_cell >= 5)
+})
+
+test_that("enforce_kanon backs off (no suppression) when k is infeasible", {
+  # 10 all-unique codes cannot reach k = 5; suppressing them would blank the
+  # whole column. The feasibility backstop keeps the data and flags infeasible.
   syn <- data.frame(
     code = sprintf("X%02d", 1:10), stringsAsFactors = FALSE
   )
   roles <- data.frame(
     variable = "code", disclosure_role = "quasi", stringsAsFactors = FALSE
   )
-  out <- enforce_kanon(syn, roles = roles, k = 5)
-  expect_true(all(is.na(out$code)))
+  expect_warning(
+    out <- enforce_kanon(syn, roles = roles, k = 5),
+    "infeasible"
+  )
   info <- attr(out, "kanon")
-  expect_true(info$suppressed_cells >= 1)
+  expect_true(isTRUE(info$infeasible))
+  expect_equal(info$suppressed_cells, 0L)
+  expect_false(any(is.na(out$code)))
+  expect_setequal(out$code, syn$code)
 })
 
 test_that("enforce_kanon NA bucket is padded to k when initial suppression creates a small bucket", {

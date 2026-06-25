@@ -221,7 +221,11 @@ mod_data_panel_server <- function(id, state) {
           ordering   = FALSE,
           scrollX    = TRUE,
           pageLength = 24L,
-          lengthChange = FALSE
+          lengthChange = FALSE,
+          # Blank DT's transient "Processing.../No data available" strings so the
+          # busy-state spinner (CSS) is the only thing shown mid-refresh, rather
+          # than flashing error-looking placeholder text.
+          language   = list(processing = "", emptyTable = "", zeroRecords = "")
         ),
         rownames  = FALSE,
         class     = "compact",

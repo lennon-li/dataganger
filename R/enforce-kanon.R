@@ -9,12 +9,19 @@
 #' @param roles A roles object/data frame with `variable` + `disclosure_role`.
 #' @param k Minimum cell size (default 5).
 #' @param max_steps Maximum coarsening iterations (default 6).
+#' @param max_suppress_frac Feasibility backstop. If satisfying `k` over the
+#'   quasi-identifier set would require blanking more than this fraction of
+#'   rows, k-anonymity is treated as infeasible for the chosen QI set: the
+#'   coarsening/suppression is *not* applied (it would destroy the dataset),
+#'   the synthetic output is returned populated, and a warning advises
+#'   narrowing the quasi-identifiers or lowering `k`. Default 0.2.
 #'
 #' @return The shaped `synthetic` data frame, with an attribute `kanon`
 #'   recording the achieved state (`smallest_cell`, `suppressed_cells`,
-#'   `qi_cols`, `k`).
+#'   `qi_cols`, `k`, `infeasible`).
 #' @export
-enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L) {
+enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
+                          max_suppress_frac = 0.2) {
   if (is.null(roles) || !"disclosure_role" %in% names(roles)) {
     attr(synthetic, "kanon") <- list(
       qi_cols = character(0), k = k, smallest_cell = NA_integer_,
@@ -34,11 +41,15 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L) {
   qi_cols <- intersect(names(dr)[dr == "quasi"], names(synthetic))
   if (length(qi_cols) == 0L) {
     attr(synthetic, "kanon") <- list(
-      qi_cols = qi_cols, k = k, smallest_cell = NA_integer_, suppressed_cells = 0L
+      qi_cols = qi_cols, k = k, smallest_cell = NA_integer_,
+      suppressed_cells = 0L, infeasible = FALSE
     )
     return(synthetic)
   }
 
+  # Coarsen on a working copy so the populated original can be restored if the
+  # k-anonymity target turns out to be infeasible for this QI set.
+  base <- synthetic
   for (step in seq_len(max_steps)) {
     res <- assess_kanonymity(synthetic, qi_cols, k)
     if (is.na(res$smallest_cell) || res$smallest_cell >= k) {
@@ -49,8 +60,38 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L) {
     }
   }
 
-  suppressed <- 0L
+  # Feasibility backstop. If reaching k would blank more than `max_suppress_frac`
+  # of rows, the QI set is too wide to anonymise without destroying the data
+  # (e.g. 9 quasi-identifiers over a few hundred rows). Rather than ship a
+  # mostly-NA dataset, back off entirely: return the populated (uncoarsened)
+  # synthetic and tell the user how to make enforcement feasible.
   res <- assess_kanonymity(synthetic, qi_cols, k)
+  n_rows <- nrow(synthetic)
+  would_suppress <- if (!is.na(res$smallest_cell) && res$smallest_cell < k) {
+    key <- kanon_key(synthetic, qi_cols)
+    counts <- table(key)
+    sum(as.integer(counts[key]) < k)
+  } else {
+    0L
+  }
+  if (n_rows > 0L && would_suppress / n_rows > max_suppress_frac) {
+    cli::cli_warn(c(
+      "k-anonymity (k = {k}) is infeasible over {length(qi_cols)} \\
+       quasi-identifier{?s} without blanking most of the data; \\
+       enforcement was skipped to preserve the synthetic output.",
+      "i" = "Reaching k would suppress {would_suppress}/{n_rows} rows \\
+             ({round(100 * would_suppress / n_rows)}%).",
+      "i" = "Narrow the quasi-identifiers (mark measures/counts as \\
+             {.val none}) or lower k, then re-synthesise."
+    ))
+    attr(base, "kanon") <- list(
+      qi_cols = qi_cols, k = k, smallest_cell = res$smallest_cell,
+      suppressed_cells = 0L, infeasible = TRUE
+    )
+    return(base)
+  }
+
+  suppressed <- 0L
   if (!is.na(res$smallest_cell) && res$smallest_cell < k) {
     key <- kanon_key(synthetic, qi_cols)
     counts <- table(key)
@@ -82,7 +123,8 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L) {
     qi_cols = qi_cols,
     k = k,
     smallest_cell = final$smallest_cell,
-    suppressed_cells = suppressed
+    suppressed_cells = suppressed,
+    infeasible = FALSE
   )
   synthetic
 }
