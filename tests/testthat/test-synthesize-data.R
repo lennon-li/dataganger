@@ -419,16 +419,19 @@ test_that("simulation treatment passes through and drops columns", {
   expect_true("x" %in% names(syn))
 })
 
-test_that("pass-through treatment requires original row count", {
-  df <- data.frame(id = sprintf("ID%03d", 1:30), x = 1:30)
+test_that("pass-through treatment falls back gracefully when row count differs", {
+  df <- data.frame(grp = rep(c("a", "b", "c"), 10L), x = 1:30)
   roles <- detect_roles(df)
-  roles$simulation[roles$variable == "id"] <- "pass_through"
+  roles$simulation[roles$variable == "grp"] <- "pass_through"
   spec <- synth_spec(purpose = "demo", n = 10)
 
-  expect_error(
-    synthesize_data(df, spec, roles = roles),
-    "Cannot pass through original columns"
+  # Should warn but NOT abort; synthesis completes at the requested row count.
+  expect_warning(
+    syn <- synthesize_data(df, spec, roles = roles),
+    "Pass-through columns"
   )
+  expect_equal(nrow(syn), 10L)
+  expect_true("x" %in% names(syn))
 })
 
 test_that("name_strategy maps only output columns after drop treatment", {

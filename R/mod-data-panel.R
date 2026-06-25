@@ -228,9 +228,21 @@ mod_data_panel_server <- function(id, state) {
         selection = "none"
       )
 
-      # Format columns based on original data types (so synth integers display as integers)
+      # Format columns based on original data types (so synth integers display as integers).
+      # Skip ID-candidate columns — they've been coerced to character above and
+      # DT::formatRound would parseFloat() them back into "1,078,541.00".
+      id_col_set <- if (!is.null(roles) && "recommended_role" %in% names(roles)) {
+        eff_role2 <- ifelse(
+          !is.na(roles$user_role) & nzchar(roles$user_role),
+          roles$user_role, roles$recommended_role
+        )
+        roles$variable[eff_role2 == "ID candidate"]
+      } else {
+        character(0)
+      }
       orig_df <- state$raw_data
       for (col_name in intersect(names(df), names(orig_df))) {
+        if (col_name %in% id_col_set) next
         orig_col <- orig_df[[col_name]]
         if (is.integer(orig_col)) {
           dt <- DT::formatRound(dt, columns = col_name, digits = 0)

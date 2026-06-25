@@ -187,11 +187,12 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
   drop_cols <- intersect(names(treatment)[treatment == "drop"], names(syn))
 
   if (length(pass_cols) > 0L && nrow(syn) != nrow(original)) {
-    cli::cli_abort(c(
-      "Cannot pass through original columns when synthetic row count differs from the original.",
-      "i" = "Pass-through columns require {.code nrow(synthetic) == nrow(original)}.",
-      "i" = "Use {.val Synthesise} or {.val Drop}, or set row count back to the original size."
+    cli::cli_warn(c(
+      "Pass-through columns {.val {pass_cols}} require the same row count as the original data.",
+      "i" = "Row count changed ({nrow(original)} → {nrow(syn)}); synthesizing those columns instead.",
+      "i" = "Set row count back to {nrow(original)} to use pass-through."
     ))
+    pass_cols <- character(0)
   }
 
   for (col in pass_cols) {

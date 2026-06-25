@@ -417,66 +417,100 @@ server <- function(input, output, session) {
     cat_cols  <- prof$variable[prof$type %in% cat_types]
     num_cols  <- prof$variable[prof$type %in% num_types]
 
-    # Numeric summary table
+    th_style   <- "padding:5px 8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;"
+    td_style   <- "padding:4px 8px; font-size:12px; font-family:var(--font-mono);"
+    td0_style  <- "padding:4px 8px; font-size:12px; font-weight:600;"
+
+    # Numeric summary table — cool teal header
     num_section <- if (length(num_cols) > 0L) {
-      num_rows <- lapply(num_cols, function(cn) {
-        r <- prof[prof$variable == cn, ]
-        fmt <- function(x) if (!is.null(x) && !is.na(x)) sprintf("%.2f", as.numeric(x)) else "—"
+      num_th <- paste0(th_style, " background:#1a6b6b; color:#e8f5f5;")
+      num_rows <- lapply(seq_along(num_cols), function(i) {
+        cn  <- num_cols[[i]]
+        r   <- prof[prof$variable == cn, ]
+        fmt <- function(x) if (!is.null(x) && length(x) == 1L && !is.na(x)) sprintf("%.2f", as.numeric(x)) else "—"
+        row_bg <- if (i %% 2 == 0) "background:#f0f7f7;" else "background:#ffffff;"
         shiny::tags$tr(
-          shiny::tags$td(cn),
-          shiny::tags$td(fmt(r$min)),
-          shiny::tags$td(fmt(r$q25)),
-          shiny::tags$td(fmt(r$median)),
-          shiny::tags$td(fmt(r$q75)),
-          shiny::tags$td(fmt(r$max)),
-          shiny::tags$td(fmt(r$mean)),
-          shiny::tags$td(fmt(r$sd))
+          style = row_bg,
+          shiny::tags$td(style = paste0(td0_style, " color:#1a6b6b;"), cn),
+          shiny::tags$td(style = td_style, fmt(r$min)),
+          shiny::tags$td(style = td_style, fmt(r$q25)),
+          shiny::tags$td(style = paste0(td_style, " font-weight:700;"), fmt(r$median)),
+          shiny::tags$td(style = td_style, fmt(r$q75)),
+          shiny::tags$td(style = td_style, fmt(r$max)),
+          shiny::tags$td(style = td_style, fmt(r$mean)),
+          shiny::tags$td(style = td_style, fmt(r$sd))
         )
       })
       shiny::tagList(
         shiny::tags$p(
-          style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); margin:0 0 6px;",
-          shiny::tags$strong("Continuous columns")
+          style = "font-family:var(--font-sans); font-size:12px; color:#1a6b6b; font-weight:700; margin:0 0 6px; text-transform:uppercase; letter-spacing:.05em;",
+          "■ Continuous columns"
         ),
-        shiny::tags$table(
-          class = "data",
-          style = "font-size:12px; width:100%;",
-          shiny::tags$thead(shiny::tags$tr(
-            shiny::tags$th("Column"),
-            shiny::tags$th("Min"), shiny::tags$th("Q1"), shiny::tags$th("Median"),
-            shiny::tags$th("Q3"), shiny::tags$th("Max"),
-            shiny::tags$th("Mean"), shiny::tags$th("SD")
-          )),
-          shiny::tags$tbody(num_rows)
+        shiny::tags$div(
+          style = "overflow-x:auto; border:1px solid #b2d8d8; border-radius:4px;",
+          shiny::tags$table(
+            style = "border-collapse:collapse; width:100%; font-size:12px;",
+            shiny::tags$thead(shiny::tags$tr(
+              shiny::tags$th(style = num_th, "Column"),
+              shiny::tags$th(style = num_th, "Min"),
+              shiny::tags$th(style = num_th, "Q1"),
+              shiny::tags$th(style = paste0(num_th, " background:#0f4d4d;"), "Median"),
+              shiny::tags$th(style = num_th, "Q3"),
+              shiny::tags$th(style = num_th, "Max"),
+              shiny::tags$th(style = num_th, "Mean"),
+              shiny::tags$th(style = num_th, "SD")
+            )),
+            shiny::tags$tbody(num_rows)
+          )
         )
       )
     }
 
-    # Categorical frequency tables (top-5)
+    # Categorical frequency tables — warm amber, one card per column
     cat_section <- if (length(cat_cols) > 0L) {
+      cat_th <- paste0(th_style, " background:#7a4419; color:#fff3e0;")
       cat_tables <- lapply(cat_cols, function(cn) {
         x   <- state$raw_data[[cn]]
         tbl <- sort(table(x, useNA = "no"), decreasing = TRUE)
         top <- head(tbl, 5L)
-        rows <- mapply(function(val, cnt) {
-          pct <- sprintf("%.1f%%", 100 * cnt / sum(tbl))
+        total <- sum(tbl)
+        rows <- mapply(function(val, cnt, i) {
+          pct    <- 100 * cnt / total
+          bar_w  <- round(pct)
+          row_bg <- if (i %% 2 == 0) "background:#fdf6ee;" else "background:#ffffff;"
           shiny::tags$tr(
-            shiny::tags$td(val),
-            shiny::tags$td(as.character(cnt)),
-            shiny::tags$td(pct)
+            style = row_bg,
+            shiny::tags$td(style = paste0(td0_style, " color:#7a4419; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"), val),
+            shiny::tags$td(style = td_style, format(cnt, big.mark = ",")),
+            shiny::tags$td(
+              style = "padding:4px 8px; min-width:100px;",
+              shiny::tags$div(
+                style = "display:flex; align-items:center; gap:6px;",
+                shiny::tags$div(
+                  style = sprintf("height:8px; width:%dpx; background:#c97b38; border-radius:3px; flex-shrink:0;", max(2L, bar_w)),
+                ),
+                shiny::tags$span(style = "font-size:11px; font-family:var(--font-mono); color:var(--fg-muted);",
+                                 sprintf("%.1f%%", pct))
+              )
+            )
           )
-        }, names(top), as.integer(top), SIMPLIFY = FALSE)
+        }, names(top), as.integer(top), seq_along(top), SIMPLIFY = FALSE)
         shiny::tags$div(
-          style = "margin-bottom:12px;",
-          shiny::tags$p(
-            style = "font-family:var(--font-sans); font-size:12px; font-weight:600; margin:0 0 4px;",
-            cn
+          style = "margin-bottom:14px; border:1px solid #e8c9a0; border-radius:4px; overflow:hidden;",
+          shiny::tags$div(
+            style = paste0(cat_th, " padding:6px 8px; font-size:12px; font-weight:700;"),
+            cn,
+            shiny::tags$span(
+              style = "font-weight:400; margin-left:8px; opacity:.8;",
+              sprintf("(%s distinct)", format(length(unique(x[!is.na(x)])), big.mark = ","))
+            )
           ),
           shiny::tags$table(
-            class = "data",
-            style = "font-size:12px;",
+            style = "border-collapse:collapse; width:100%;",
             shiny::tags$thead(shiny::tags$tr(
-              shiny::tags$th("Value"), shiny::tags$th("Count"), shiny::tags$th("%")
+              shiny::tags$th(style = paste0(th_style, " background:#a05a2c; color:#fff3e0;"), "Value"),
+              shiny::tags$th(style = paste0(th_style, " background:#a05a2c; color:#fff3e0;"), "Count"),
+              shiny::tags$th(style = paste0(th_style, " background:#a05a2c; color:#fff3e0;"), "Distribution")
             )),
             shiny::tags$tbody(rows)
           )
@@ -484,8 +518,8 @@ server <- function(input, output, session) {
       })
       shiny::tagList(
         shiny::tags$p(
-          style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); margin:12px 0 6px;",
-          shiny::tags$strong("Categorical columns"), " (top 5 values)"
+          style = "font-family:var(--font-sans); font-size:12px; color:#7a4419; font-weight:700; margin:16px 0 8px; text-transform:uppercase; letter-spacing:.05em;",
+          "■ Categorical columns (top 5 values)"
         ),
         cat_tables
       )
