@@ -111,3 +111,38 @@ test_that("purpose card meters use unified Title-Case labels incl. Anonymity", {
   expect_match(html, "Anonymity")
   expect_false(grepl("identifiability", html, ignore.case = FALSE))
 })
+
+test_that("Configure confirm is blocked until every column has a disclosure role", {
+  testthat::skip_if_not_installed("shiny")
+
+  shiny::testServer(synth_controls_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`controls-purpose_group` = "development")
+    session$flushReact()
+
+    # Build a proper dataganger_roles object; force all disclosure_roles to NA
+    df    <- data.frame(age = 1:5, city = letters[1:5])
+    roles <- detect_roles(df)
+    roles$disclosure_role <- NA_character_
+
+    state$roles <- roles
+    session$flushReact()
+
+    session$setInputs(`controls-confirm` = 1L)
+    session$flushReact()
+
+    # Gate must block: spec_confirmed must stay at 0
+    expect_equal(state$spec_confirmed %||% 0L, 0L)
+
+    # Fix all disclosure roles and confirm again -> must advance
+    roles$disclosure_role <- "none"
+    state$roles <- roles
+    session$flushReact()
+
+    session$setInputs(`controls-confirm` = 2L)
+    session$flushReact()
+
+    expect_true((state$spec_confirmed %||% 0L) >= 1L)
+  })
+})

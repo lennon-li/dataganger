@@ -588,6 +588,23 @@ mod_synthesis_controls_server <- function(id, state) {
       spec <- current_spec()
       shiny::req(spec)
 
+      # Hard disclosure gate: every column must carry an explicit disclosure
+      # role before synthesis. Unselected (NA/empty) blocks advancement.
+      roles <- state$roles
+      if (!is.null(roles) && "disclosure_role" %in% names(roles)) {
+        unset <- is.na(roles$disclosure_role) | !nzchar(roles$disclosure_role)
+        if (any(unset)) {
+          shiny::showNotification(
+            sprintf(
+              "%d column%s still need a disclosure role. Set every column before generating.",
+              sum(unset), if (sum(unset) == 1L) "" else "s"
+            ),
+            type = "warning", duration = 6
+          )
+          return(invisible(NULL))
+        }
+      }
+
       if (identical(current_purpose(), "analytics")) {
         shiny::req(isTRUE(input$acknowledge_risk))
       }

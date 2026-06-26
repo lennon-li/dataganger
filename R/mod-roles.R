@@ -81,7 +81,8 @@ mod_roles_ui <- function(id, embedded = FALSE) {
       ),
       disclosure_help_ui(),
       shiny::uiOutput(ns("roles_table")),
-      shiny::uiOutput(ns("kanon_readout"))
+      shiny::uiOutput(ns("kanon_readout")),
+      shiny::uiOutput(ns("disclosure_gate"))
     )
   )
 }
@@ -415,11 +416,16 @@ mod_roles_server <- function(id, state) {
       }
 
       make_disclosure_select <- function(orig_row, current, ns) {
-        current <- if (is.na(current) || !nzchar(current)) "none" else current
+        is_unset <- is.na(current) || !nzchar(current)
+        placeholder <- shiny::tags$option(
+          value = "", disabled = "disabled",
+          selected = if (is_unset) "selected" else NULL,
+          "Select role\u2026"
+        )
         opts <- lapply(DISCLOSURE_OPTIONS, function(v) {
           shiny::tags$option(
             value = v,
-            selected = if (v == current) "selected" else NULL,
+            selected = if (!is_unset && v == current) "selected" else NULL,
             DISCLOSURE_LABELS[[v]]
           )
         })
@@ -429,8 +435,11 @@ mod_roles_server <- function(id, state) {
             ns("disclosure_change"),
             orig_row
           ),
-          style = "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%;",
-          opts
+          style = sprintf(
+            "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s",
+            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else ""
+          ),
+          c(list(placeholder), opts)
         )
       }
 
@@ -543,6 +552,27 @@ mod_roles_server <- function(id, state) {
           )
         }
       )
+    })
+
+    output$disclosure_gate <- shiny::renderUI({
+      roles <- roles_local()
+      if (is.null(roles) || !"disclosure_role" %in% names(roles)) return(NULL)
+      unset <- sum(is.na(roles$disclosure_role) | !nzchar(roles$disclosure_role))
+      if (unset == 0L) {
+        shiny::tags$div(
+          class = "banner", style = "margin-top:12px; color:var(--real-700);",
+          "\u2713 All columns have a disclosure role. Ready to continue."
+        )
+      } else {
+        shiny::tags$div(
+          class = "banner risk", style = "margin-top:12px;",
+          shiny::tags$span(class = "icon", "!"),
+          sprintf(
+            "%d column%s still need a disclosure role before you can generate.",
+            unset, if (unset == 1L) "" else "s"
+          )
+        )
+      }
     })
 
     shiny::observeEvent(input$role_change, ignoreNULL = TRUE, {
