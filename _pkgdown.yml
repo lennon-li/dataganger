@@ -1,0 +1,97 @@
+url: https://lennon-li.github.io/dataganger/
+
+template:
+  bootstrap: 5
+
+home:
+  title: DataGangeR — Synthetic Data Doubles for Safer Prototyping
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/lennon-li/dataganger
+      aria-label: GitHub
+
+reference:
+  - title: "Data Input and Profiling"
+    desc: >
+      Read data from files and compute a statistical profile. These functions
+      are the first step in the DataGangeR workflow.
+    contents:
+      - read_input
+      - profile_data
+      - looks_aggregated
+
+  - title: "Column Role Detection"
+    desc: >
+      Detect and assign disclosure roles (direct identifier, quasi-identifier,
+      sensitive, none) and synthesis roles. Used on the Configure page and in
+      the CLI `disclosure_roles:` spec.
+    contents:
+      - detect_roles
+      - suggest_min_rows
+
+  - title: "Synthesis Specification"
+    desc: >
+      Define how the synthetic data should be generated — purpose, fidelity,
+      row count, engine, seed, and disclosure settings.
+    contents:
+      - synth_spec
+
+  - title: "Synthesis"
+    desc: Synthesize a dataset from a real data frame.
+    contents:
+      - synthesize_data
+
+  - title: "Comparison"
+    desc: >
+      Compare a synthetic dataset against its original to assess fidelity.
+    contents:
+      - compare_synthetic
+      - plot_comparison
+
+  - title: "Disclosure and Privacy"
+    desc: >
+      Assess and enforce k-anonymity and other disclosure-risk properties.
+      Synthetic outputs reduce direct disclosure risk but do not provide a
+      formal privacy guarantee.
+    contents:
+      - privacy_check
+      - assess_kanonymity
+      - enforce_kanon
+
+  - title: "Export and Bundles"
+    desc: >
+      Export synthetic data and create agent bundles for sharing with
+      collaborators or AI programming tools.
+    contents:
+      - export_synthetic
+      - export_diagnostic_package
+      - make_agent_bundle
+      - check_code_readiness
+
+  - title: "CLI"
+    desc: Command-line interface entry point.
+    contents:
+      - dataganger_cli
+
+  - title: "Shiny App"
+    desc: Launch the interactive DataGangeR Shiny application.
+    contents:
+      - run_app
+
+  - title: "Example Datasets"
+    desc: >
+      Small synthetic datasets included in the package for use in examples,
+      tests, and learning the workflow without real data.
+    contents:
+      - example_health_survey
+      - example_admin_claims
+      - example_registry
+      - individual_sample
+      - temporal_sample
+      - geographic_sample

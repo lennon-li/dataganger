@@ -39,8 +39,11 @@ run_synthesis_pipeline <- function(data, spec, roles = NULL) {
 #' @keywords internal
 #' @noRd
 synthesis_dev_loaded <- function() {
-  requireNamespace("pkgload", quietly = TRUE) &&
-    pkgload::is_dev_package("dataganger")
+  # pkgload sets .__DEVTOOLS__ in the namespace when a package is dev-loaded via
+  # load_all(). Check for it directly so we have no runtime dependency on pkgload.
+  ns <- tryCatch(getNamespace("dataganger"), error = function(e) NULL)
+  if (is.null(ns)) return(FALSE)
+  exists(".__DEVTOOLS__", envir = ns, inherits = FALSE)
 }
 
 #' Launch the synthesis pipeline in a background process
