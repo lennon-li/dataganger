@@ -14,7 +14,7 @@ test_that("detect_roles() returns correct S3 class and columns", {
   expect_equal(r$simulation, c("synthesize", "synthesize"))
 })
 
-test_that("detect_roles assigns disclosure_role per the auto-fill mapping", {
+test_that("detect_roles assigns disclosure_role per the conservative policy", {
   set.seed(123)
   df <- data.frame(
     patient_id = sprintf("P%04d", 1:50),
@@ -25,19 +25,14 @@ test_that("detect_roles assigns disclosure_role per the auto-fill mapping", {
     stringsAsFactors = FALSE
   )
   roles <- detect_roles(df)
-
   expect_true("disclosure_role" %in% names(roles))
   expect_true("disclosure_reason" %in% names(roles))
-  expect_false("sensitive" %in% names(roles))
-
   dr <- stats::setNames(roles$disclosure_role, roles$variable)
   expect_equal(dr[["patient_id"]], "direct")
-  expect_equal(dr[["zip"]], "quasi")
-  expect_equal(dr[["visit_date"]], "quasi")
-  expect_equal(dr[["sex"]], "quasi")
-  expect_equal(dr[["lab_value"]], "none")
-
-  expect_false(any(roles$disclosure_role == "sensitive"))
+  expect_true(is.na(dr[["zip"]]))
+  expect_true(is.na(dr[["visit_date"]]))
+  expect_true(is.na(dr[["sex"]]))
+  expect_true(is.na(dr[["lab_value"]]))
 })
 
 test_that("detect_roles() detects ID candidate from high cardinality", {
@@ -199,7 +194,7 @@ test_that("detect_roles() labels a distinctive numeric column as numeric", {
   expect_equal(r$recommended_role[1], "numeric")
 })
 
-test_that("detect_roles() maps identifying columns to disclosure roles", {
+test_that("detect_roles maps confident identifiers to direct, leaves rest unselected", {
   df <- data.frame(
     record_id  = rep(1:3, length.out = 50),
     visit_date = as.Date("2024-01-01") + 1:50,
@@ -208,8 +203,8 @@ test_that("detect_roles() maps identifying columns to disclosure roles", {
   )
   r <- detect_roles(df)
   expect_equal(r$disclosure_role[r$variable == "record_id"], "direct")
-  expect_equal(r$disclosure_role[r$variable == "visit_date"], "quasi")
-  expect_equal(r$disclosure_role[r$variable == "city_name"], "quasi")
+  expect_true(is.na(r$disclosure_role[r$variable == "visit_date"]))
+  expect_true(is.na(r$disclosure_role[r$variable == "city_name"]))
 })
 
 test_that("detect_roles() user_role is initially NA", {
@@ -274,4 +269,60 @@ test_that("detect_roles() does not classify non-date strings as 'date'", {
   r <- detect_roles(df)
   expect_false(r$recommended_role[1] == "date",
                label = "arbitrary code strings should not be classified as date")
+})
+
+test_that("detect_roles leaves uncertain columns unselected (NA disclosure_role)", {
+  set.seed(1)
+  df <- data.frame(
+    patient_id = sprintf("P%04d", 1:50),
+    zip        = rep(c("M5V", "M4C"), 25),
+    visit_date = as.Date("2020-01-01") + 0:49,
+    sex        = rep(c("F", "M"), 25),
+    case_count = sample(1:9, 50, TRUE),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  dr <- stats::setNames(r$disclosure_role, r$variable)
+  expect_equal(dr[["patient_id"]], "direct")
+  expect_true(is.na(dr[["zip"]]))
+  expect_true(is.na(dr[["visit_date"]]))
+  expect_true(is.na(dr[["sex"]]))
+  expect_true(is.na(dr[["case_count"]]))
+})
+
+test_that("detect_roles auto-assigns sensitive for known-sensitive names", {
+  df <- data.frame(
+    diagnosis = rep(c("flu", "cold"), 25),
+    race      = rep(c("a", "b"), 25),
+    income    = rnorm(50),
+    treatment = rep(c("x", "y"), 25),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  dr <- stats::setNames(r$disclosure_role, r$variable)
+  expect_equal(dr[["diagnosis"]], "sensitive")
+  expect_equal(dr[["race"]], "sensitive")
+  expect_equal(dr[["income"]], "sensitive")
+  expect_true(is.na(dr[["treatment"]]))
+})
+
+test_that("detect_roles sensitive-name heuristic rejects near-miss false positives", {
+  df <- data.frame(
+    trace_element      = rnorm(50),
+    sewage_volume      = rnorm(50),
+    unconditional_prob = rnorm(50),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  dr <- stats::setNames(r$disclosure_role, r$variable)
+  expect_true(is.na(dr[["trace_element"]]))
+  expect_true(is.na(dr[["sewage_volume"]]))
+  expect_true(is.na(dr[["unconditional_prob"]]))
+})
+
+test_that("detect_roles disclosure_role is NA but analysis role is unchanged", {
+  df <- data.frame(city = rep(c("Toronto", "Montreal"), 25), stringsAsFactors = FALSE)
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "geography")
+  expect_true(is.na(r$disclosure_role[1]))
 })

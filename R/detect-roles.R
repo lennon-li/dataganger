@@ -18,7 +18,11 @@
 #'     \item{user_role}{User-supplied override (initially `NA`).}
 #'     \item{simulation}{How the column is treated during synthesis.}
 #'     \item{reason}{Justification for the recommended role.}
-#'     \item{disclosure_role}{Disclosure role: "none", "direct", "quasi", or "sensitive".}
+#'     \item{disclosure_role}{Disclosure role. `NA` (unselected) is the
+#'       conservative default whenever detection is not confident; the user must
+#'       choose a role before generating. `"direct"` and `"sensitive"` are the
+#'       only values auto-assigned (confident identifier / known-sensitive name).
+#'       `"quasi"` and `"none"` are user-assigned choices only.}
 #'     \item{disclosure_reason}{Justification for the auto-assigned disclosure role.}
 #'   }
 #' @export
@@ -57,7 +61,21 @@ detect_roles <- function(data, profile = NULL) {
 # Single-column role detector — implements threshold table verbatim
 # ---------------------------------------------------------------------------
 
-detect_single_role <- function(x, name, n_rows) {
+# Conservative known-sensitive column-name heuristic. Documented in
+# inst/disclosure-sensitive-terms.md for review. Intentionally narrow:
+# a missed sensitive column is recoverable at the Configure gate (the user must
+# choose a role for every column), while a false positive is annoying. Keep tight.
+is_sensitive_name <- function(name) {
+  rx <- paste0(
+    "(?i)(diagnos|\\bicd\\b|disease|\\bcondition|symptom|",
+    "\\brace|ethnic|religio|sexual|orientation|gender_identity|",
+    "\\bhiv\\b|\\bsti\\b|\\bstd\\b|mental_health|disabilit|",
+    "income|salary|\\bwage|earnings|criminal|conviction|immigration)"
+  )
+  grepl(rx, name, perl = TRUE)
+}
+
+detect_single_role_inner <- function(x, name, n_rows) {
   # Determine class for the output
   if (haven::is.labelled(x)) {
     r_class <- "haven_labelled"
@@ -89,12 +107,12 @@ detect_single_role <- function(x, name, n_rows) {
 
   # Test 1: haven_labelled
   if (r_class == "haven_labelled") {
-    return(make_role_row(name, r_class, "label_check", "class is haven_labelled", "quasi"))
+    return(make_role_row(name, r_class, "label_check", "class is haven_labelled", NA_character_))
   }
 
   # Test 2: Date or POSIXct
   if (r_class %in% c("Date", "POSIXct")) {
-    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", "quasi"))
+    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", NA_character_))
   }
 
   # Test 2b: character column storing dates as formatted strings.
@@ -115,7 +133,7 @@ detect_single_role <- function(x, name, n_rows) {
         return(make_role_row(
           name, r_class, "date",
           "character values match a common date string format",
-          "quasi"
+          NA_character_
         ))
       }
     }
@@ -135,7 +153,7 @@ detect_single_role <- function(x, name, n_rows) {
   # Test 4: geography column name pattern
   geo_pattern <- "(?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)"
   if (grepl(geo_pattern, name, perl = TRUE)) {
-    return(make_role_row(name, r_class, "geography", paste0("name matches geography pattern: ", geo_pattern), "quasi"))
+    return(make_role_row(name, r_class, "geography", paste0("name matches geography pattern: ", geo_pattern), NA_character_))
   }
 
   # Test 5: name matches ID patterns
@@ -163,16 +181,28 @@ detect_single_role <- function(x, name, n_rows) {
 
   # Test 7: low cardinality → categorical candidate
   if (distinct_ratio < 0.05 || n_distinct <= 20) {
-    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", "quasi"))
+    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", NA_character_))
   }
 
   # Test 8: distinctive numeric → numeric (user classifies via UI)
   if (is.numeric(x)) {
-    return(make_role_row(name, r_class, "numeric", "distinctive numeric; classify via UI", "none"))
+    return(make_role_row(name, r_class, "numeric", "distinctive numeric; classify via UI", NA_character_))
   }
 
   # Default
-  make_role_row(name, r_class, "unknown", "no rule matched", "none")
+  make_role_row(name, r_class, "unknown", "no rule matched", NA_character_)
+}
+
+detect_single_role <- function(x, name, n_rows) {
+  row <- detect_single_role_inner(x, name, n_rows)
+  # Sensitive name heuristic: a known-sensitive column is marked sensitive
+  # unless it is already a confident direct identifier (direct wins — it is
+  # removed from output entirely, the stronger protection).
+  if (is_sensitive_name(name) && !identical(row$disclosure_role, "direct")) {
+    row$disclosure_role <- "sensitive"
+    row$disclosure_reason <- "auto: column name matches a known-sensitive pattern"
+  }
+  row
 }
 
 is_free_text_candidate <- function(x) {
@@ -216,10 +246,14 @@ make_role_row <- function(name, r_class, role, reason, disclosure_role) {
 }
 
 disclosure_reason_for <- function(disclosure_role, role) {
+  if (is.na(disclosure_role)) {
+    return("auto: not confidently identifying; choose a disclosure role before generating")
+  }
   switch(disclosure_role,
     direct = "auto: identifies a person by itself; removed from output",
-    quasi = "auto: identifying in combination; covered by the k-anonymity guarantee",
-    none = "auto: not identifying alone or in combination",
+    sensitive = "auto: column name matches a known-sensitive pattern",
+    quasi = "user: identifying in combination; covered by the k-anonymity guarantee",
+    none = "user: not identifying alone or in combination",
     "auto"
   )
 }
