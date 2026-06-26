@@ -224,7 +224,7 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
   }
   if (!is.null(dr)) {
     k_target <- if (!is.null(spec)) spec$k_anon %||% 5 else 5
-    qi_cols <- intersect(names(dr)[dr == "quasi"], names(synthetic))
+    qi_cols <- intersect(names(dr)[dr %in% "quasi"], names(synthetic))  # %in% is NA-safe
     if (length(qi_cols) >= 1L) {
       res <- assess_kanonymity(synthetic, qi_cols, k = k_target)
       if (!is.na(res$smallest_cell) && res$smallest_cell < k_target) {

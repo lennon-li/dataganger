@@ -120,7 +120,7 @@ build_diagnostic_view <- function(roles, dictionary, synthetic, purpose) {
     list(
       name            = var_name,
       role            = roles$recommended_role[i],
-      disclosure_role = roles$disclosure_role[i] %||% "none",
+      disclosure_role = if (!is.na(roles$disclosure_role[i])) roles$disclosure_role[i] else "none",
       treatment       = treatment
     )
   })

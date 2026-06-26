@@ -507,8 +507,8 @@ mod_roles_server <- function(id, state) {
         return(NULL)
       }
       k <- state$k_anon %||% 5
-      qi <- intersect(roles$variable[roles$disclosure_role == "quasi"], names(data))
-      direct <- intersect(roles$variable[roles$disclosure_role == "direct"], names(data))
+      qi <- intersect(roles$variable[roles$disclosure_role %in% "quasi"], names(data))
+      direct <- intersect(roles$variable[roles$disclosure_role %in% "direct"], names(data))
 
       if (length(qi) == 0L) {
         return(shiny::tags$div(

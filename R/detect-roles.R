@@ -282,6 +282,7 @@ apply_disclosure_overrides <- function(roles, overrides) {
       cli::cli_abort("disclosure_roles[{col}] must be one of {.or {.val {valid}}}")
     }
     roles$disclosure_role[roles$variable == col] <- val
+    roles$disclosure_reason[roles$variable == col] <- "user: set via spec disclosure_roles"
   }
   roles
 }

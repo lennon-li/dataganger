@@ -54,7 +54,7 @@ export_diagnostic_package <- function(data, path, roles = NULL,
       name           = roles$variable[i],
       type           = roles$class[i],
       role           = role,
-      disclosure_role = roles$disclosure_role[i] %||% "none",
+      disclosure_role = if (!is.na(roles$disclosure_role[i])) roles$disclosure_role[i] else "none",
       exposed        = level != "blocked",
       exposure_level = level
     )
