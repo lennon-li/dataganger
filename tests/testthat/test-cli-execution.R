@@ -247,6 +247,34 @@ test_that("synthesize routes development to synthpop and records provenance (no 
   expect_true("lab_value" %in% names(syn))  # distinctive numeric survived end-to-end
 })
 
+test_that("apply_disclosure_overrides sets per-column disclosure roles", {
+  roles <- detect_roles(data.frame(
+    a = rep(c("x", "y"), 25), b = rnorm(50), stringsAsFactors = FALSE
+  ))
+  out <- apply_disclosure_overrides(roles, list(a = "quasi", b = "none"))
+  dr <- stats::setNames(out$disclosure_role, out$variable)
+  expect_equal(dr[["a"]], "quasi")
+  expect_equal(dr[["b"]], "none")
+})
+
+test_that("apply_disclosure_overrides rejects unknown column or value", {
+  roles <- detect_roles(data.frame(a = 1:50))
+  expect_error(apply_disclosure_overrides(roles, list(zzz = "quasi")), "unknown column")
+  expect_error(apply_disclosure_overrides(roles, list(a = "bogus")), "must be one of")
+})
+
+test_that("cli_read_spec_yaml carries a disclosure_roles map", {
+  tmp <- tempfile(fileext = ".yaml")
+  writeLines(c(
+    "purpose: development",
+    "disclosure_roles:",
+    "  age: quasi",
+    "  diagnosis: sensitive"
+  ), tmp)
+  spec <- cli_read_spec_yaml(tmp)
+  expect_equal(attr(spec, "disclosure_roles"), list(age = "quasi", diagnosis = "sensitive"))
+})
+
 test_that("synthesize records internal engine and no synthpop citation for demo", {
   tmp       <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)

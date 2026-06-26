@@ -259,6 +259,34 @@ disclosure_reason_for <- function(disclosure_role, role) {
 }
 
 # ---------------------------------------------------------------------------
+# Disclosure override helper
+# ---------------------------------------------------------------------------
+
+#' Apply explicit per-column disclosure-role overrides to a roles object
+#'
+#' @param roles A `dataganger_roles` object.
+#' @param overrides A named list mapping column name -> disclosure role
+#'   (one of "none", "direct", "quasi", "sensitive"). `NULL` is a no-op.
+#' @return The roles object with `disclosure_role` updated.
+#' @keywords internal
+#' @noRd
+apply_disclosure_overrides <- function(roles, overrides) {
+  if (is.null(overrides) || !length(overrides)) return(roles)
+  valid <- c("none", "direct", "quasi", "sensitive")
+  for (col in names(overrides)) {
+    if (!col %in% roles$variable) {
+      cli::cli_abort("disclosure_roles: unknown column {.val {col}}")
+    }
+    val <- as.character(overrides[[col]])
+    if (!val %in% valid) {
+      cli::cli_abort("disclosure_roles[{col}] must be one of {.or {.val {valid}}}")
+    }
+    roles$disclosure_role[roles$variable == col] <- val
+  }
+  roles
+}
+
+# ---------------------------------------------------------------------------
 # Print method
 # ---------------------------------------------------------------------------
 

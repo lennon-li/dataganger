@@ -219,7 +219,14 @@ cli_read_spec_yaml <- function(path) {
     "k_anon"
   )
   override <- raw[intersect(names(raw), allowed)]
-  do.call(synth_spec, c(list(purpose = raw$purpose), override))
+  spec <- do.call(synth_spec, c(list(purpose = raw$purpose), override))
+  if (!is.null(raw$disclosure_roles)) {
+    if (!is.list(raw$disclosure_roles)) {
+      stop("Spec YAML 'disclosure_roles' must be a mapping of column -> role", call. = FALSE)
+    }
+    attr(spec, "disclosure_roles") <- raw$disclosure_roles
+  }
+  spec
 }
 
 cli_cmd_synthesize <- function(args) {
@@ -233,6 +240,7 @@ cli_cmd_synthesize <- function(args) {
   spec <- cli_read_spec_yaml(spec_path)
   profile <- profile_data(data)
   roles <- detect_roles(data, profile = profile)
+  roles <- apply_disclosure_overrides(roles, attr(spec, "disclosure_roles"))
   pre_privacy <- privacy_check(data, roles = roles, stage = "pre")
   hardened_spec <- synth_spec(
     purpose = spec$purpose,
