@@ -154,3 +154,26 @@ test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
     expect_true(is.na(res$smallest_cell) || res$smallest_cell >= 5)
   }
 })
+
+# Regression for the 100%-NA bug: with conservative disclosure defaults, a
+# CUSUM-shaped frame (low-cardinality dimensions + a count measure) auto-marks
+# ZERO columns as quasi, so enforce_kanon performs no suppression and the
+# output stays fully populated. The old over-quasi defaults blanked ~99% to NA.
+test_that("conservative defaults keep CUSUM-shaped output populated (no silent NA blanking)", {
+  set.seed(7)
+  n <- 300
+  df <- data.frame(
+    Region    = sample(c("N", "S", "E", "W"), n, TRUE),
+    Year      = sample(2015:2020, n, TRUE),
+    Month     = sample(1:12, n, TRUE),
+    Sex       = sample(c("F", "M"), n, TRUE),
+    AgeGroup  = sample(c("0-18", "19-64", "65+"), n, TRUE),
+    CaseCount = sample(1:50, n, TRUE),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(sum(roles$disclosure_role %in% "quasi"), 0L)
+  out <- enforce_kanon(df, roles = roles, k = 5)
+  expect_equal(mean(is.na(out$Region)), 0)
+  expect_equal(mean(is.na(out$CaseCount)), 0)
+})
