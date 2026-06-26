@@ -1,3 +1,10 @@
+# dataganger 0.3.3
+
+*   `pkgload` removed from `Suggests` (uses `.__DEVTOOLS__` namespace check directly).
+*   CRAN-readiness: `cran-comments.md` refreshed with accurate 0/0/2 NOTE explanations.
+*   Added `pkgdown` site generation via GitHub Actions (`_pkgdown.yml` + workflows).
+*   Planning artifacts (`docs/superpowers/`, `todo.md`) migrated out of the package root.
+
 # dataganger 0.3.2
 
 ## Disclosure roles
