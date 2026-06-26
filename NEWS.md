@@ -1,3 +1,20 @@
+# dataganger 0.3.2
+
+## Disclosure roles
+* `detect_roles()` is now conservative: it only auto-assigns a disclosure role
+  when confident (a clear direct identifier, or a known-sensitive column name).
+  All other columns are left **unselected** rather than defaulted to
+  quasi-identifier. This fixes the root cause of the 100%-NA synthetic output:
+  measures, counts, dates, and low-cardinality categoricals are no longer
+  silently treated as quasi-identifiers.
+* The Configure page now **requires an explicit disclosure role for every
+  column** before generating. A live counter shows how many are still
+  unselected. `None` is a valid explicit choice; empty is not.
+* k-anonymity fires only on columns the user marks as quasi-identifiers. The
+  `max_suppress_frac` feasibility backstop is retained as defense-in-depth.
+* CLI: spec YAML accepts a `disclosure_roles:` mapping (column -> role) so
+  disclosure decisions are reproducible from the command line.
+
 # dataganger 0.3.1
 
 * **Bug fix — CUSUM hang (Bug 5)**: Synthesis no longer hangs on datasets with

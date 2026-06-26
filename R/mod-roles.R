@@ -131,6 +131,13 @@ disclosure_help_ui <- function() {
         "Sensitive",
         "carries risk if linked to a known person.",
         "diagnosis, income, HIV status"
+      ),
+      shiny::tags$p(
+        style = "color:var(--fg-muted); margin-top:8px;",
+        "Detection is conservative. Columns left ",
+        shiny::tags$strong("unselected"),
+        " must be given a role before you can generate. Measures and counts ",
+        "are not quasi-identifiers by default."
       )
     )
   )

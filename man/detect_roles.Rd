@@ -22,7 +22,11 @@ An S3 object of class \code{dataganger_roles}, a tibble with columns:
 \item{user_role}{User-supplied override (initially \code{NA}).}
 \item{simulation}{How the column is treated during synthesis.}
 \item{reason}{Justification for the recommended role.}
-\item{disclosure_role}{Disclosure role: "none", "direct", "quasi", or "sensitive".}
+\item{disclosure_role}{Disclosure role. \code{NA} (unselected) is the
+conservative default whenever detection is not confident; the user must
+choose a role before generating. \code{"direct"} and \code{"sensitive"} are the
+only values auto-assigned (confident identifier / known-sensitive name).
+\code{"quasi"} and \code{"none"} are user-assigned choices only.}
 \item{disclosure_reason}{Justification for the auto-assigned disclosure role.}
 }
 }
