@@ -18,3 +18,5 @@
 ^\.hermes$
 ^todo\.md$
 ^_pkgdown\.yml$
+^vignettes/articles$
+^pkgdown$

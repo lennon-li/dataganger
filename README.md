@@ -8,6 +8,9 @@
 prototype code, build Shiny apps, teach, and collaborate with AI tools without
 sharing the original dataset.
 
+![DataGangeR walks you through objective, upload, configure, generate, compare,
+and export](man/figures/hero.gif)
+
 ## Overview
 
 Analysts often need to share data structure with teammates, students, or AI
@@ -28,19 +31,41 @@ need to expose original records.
 pak::pak("lennon-li/dataganger")
 ```
 
-## Usage
+## The interactive app
+
+The guided Shiny app takes you from a real dataset to a shareable synthetic
+bundle in six steps — pick an **objective**, **upload** your data (or load a
+built-in sample), **configure** column disclosure roles, **generate** the
+synthetic double, **compare** real vs. synthetic distributions, and **export**
+the bundle.
+
+```r
+library(dataganger)
+run_app()
+```
+
+| Configure disclosure roles | Compare real vs. synthetic |
+| :---: | :---: |
+| ![Configure step](man/figures/step-3-configure.png) | ![Compare step](man/figures/step-5-compare.png) |
+
+## Use it from R
+
+Every step the app performs is a plain function call, so you can script the
+whole pipeline without the UI:
 
 ```r
 library(dataganger)
 
-# Phase 1+ functions — coming soon
-# dat     <- read_input("my-data.csv")
-# profile <- profile_data(dat)
-# roles   <- detect_roles(dat, profile)
-# spec    <- synth_spec(purpose = "development", roles = roles, seed = 42)
-# syn     <- synthesize_data(dat, spec, roles)
-# export_synthetic(syn, original = dat, path = "output.zip")
+dat     <- read_input("my-data.csv")          # or: individual_sample
+profile <- profile_data(dat)
+roles   <- detect_roles(dat, profile)
+spec    <- synth_spec(purpose = "development", roles = roles, seed = 42)
+syn     <- synthesize_data(dat, spec, roles)
+export_synthetic(syn, original = dat, path = "output.zip")
 ```
+
+A command-line interface is available too — see
+`dataganger::dataganger_cli(c("--help"))`.
 
 ## Synthesis engines
 
