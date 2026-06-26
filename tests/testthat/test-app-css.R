@@ -6,6 +6,10 @@ skip_if_not_installed("chromote")
 library(shinytest2)
 
 test_that("design system CSS loads and tokens are applied", {
+  testthat::skip_if(
+    dataganger:::synthesis_dev_loaded(),
+    "shinytest2 subprocess requires an installed package; skipping under devtools::load_all()"
+  )
   app <- AppDriver$new(
     system.file("app", package = "dataganger"),
     name = "css-check",

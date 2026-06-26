@@ -10,11 +10,11 @@ test_that("run_synthesis_pipeline returns synthetic, comparison, and privacy", {
   expect_s3_class(result$privacy, "dataganger_privacy_check")
 })
 
-test_that("synthesis_dev_loaded() detects a devtools::load_all'd package", {
-  # The suite itself runs under pkgload::load_all, so this should be TRUE here
-  # and FALSE for an installed build (where pkgload is typically absent).
-  testthat::skip_if_not_installed("pkgload")
-  expect_equal(synthesis_dev_loaded(), pkgload::is_dev_package("dataganger"))
+test_that("synthesis_dev_loaded() returns a single logical", {
+  # Returns TRUE under devtools::test() (load_all), FALSE under R CMD check.
+  result <- synthesis_dev_loaded()
+  expect_type(result, "logical")
+  expect_length(result, 1L)
 })
 
 test_that("start_synthesis_process runs the pipeline in a background process", {
@@ -23,7 +23,7 @@ test_that("start_synthesis_process runs the pipeline in a background process", {
   # The subprocess loads dataganger from the library; under devtools::load_all
   # the package isn't installed, so this can only run against an installed build.
   testthat::skip_if(
-    requireNamespace("pkgload", quietly = TRUE) && pkgload::is_dev_package("dataganger"),
+    synthesis_dev_loaded(),
     "dataganger is dev-loaded, not installed (subprocess can't find it)"
   )
 

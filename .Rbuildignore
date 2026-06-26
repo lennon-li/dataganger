@@ -17,3 +17,4 @@
 ^Screenshot .*\.png$
 ^\.hermes$
 ^todo\.md$
+^_pkgdown\.yml$

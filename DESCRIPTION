@@ -42,7 +42,7 @@ Suggests:
     DT,
     ggplot2,
     knitr,
-    pkgload,
+    pkgdown,
     rmarkdown,
     shiny,
     shinytest2,
