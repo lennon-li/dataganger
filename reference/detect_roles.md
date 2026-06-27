@@ -2,9 +2,8 @@
 
 Applies heuristic-based role detection to every column in a data frame.
 Roles include ID candidate, date, label_check (labelled vectors),
-categorical candidate, free text, geography, and unknown. All
-assignments are overridable by passing a `user_role` column in a
-supplied roles tibble.
+categorical candidate, free text, and unknown. All assignments are
+overridable by passing a `user_role` column in a supplied roles tibble.
 
 ## Usage
 
@@ -87,9 +86,9 @@ detect_roles(df)
 #> ── date (Date) -> date 
 #> • Reason: Stored as a date/time value, so it is treated as a date column.
 #> 
-#> ── city (character) -> geography 
-#> • Reason: The column name looks geographic, such as a place, region, or
-#> coordinate field.
+#> ── city (character) -> categorical candidate 
+#> • Reason: Only a few distinct values appear, so this looks like a coded
+#> category rather than a measurement.
 #> 
 #> ── cat (factor) -> categorical candidate 
 #> • Reason: Only a few distinct values appear, so this looks like a coded

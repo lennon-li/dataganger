@@ -75,6 +75,13 @@ collaborators or AI programming tools.
 - [`check_code_readiness()`](https://lennon-li.github.io/dataganger/reference/check_code_readiness.md)
   : Check whether synthetic data is code-compatible with the original
 
+## Feedback
+
+Report a problem or suggest a feature via a pre-filled GitHub issue.
+
+- [`report_issue()`](https://lennon-li.github.io/dataganger/reference/report_issue.md)
+  : Report a problem or share feedback
+
 ## CLI
 
 Command-line interface entry point.

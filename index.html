@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,7 +88,7 @@
 <div class="section level2">
 <h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
-<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> column disclosure roles, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle.</p>
+<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> column disclosure roles, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button that opens a pre-filled GitHub issue in your browser.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/lennon-li/dataganger" class="external-link">dataganger</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
@@ -119,7 +119,10 @@
 <span><span class="va">roles</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/detect_roles.html">detect_roles</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">profile</span><span class="op">)</span></span>
 <span><span class="va">spec</span>    <span class="op">&lt;-</span> <span class="fu"><a href="reference/synth_spec.html">synth_spec</a></span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"development"</span>, roles <span class="op">=</span> <span class="va">roles</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">syn</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/synthesize_data.html">synthesize_data</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">spec</span>, <span class="va">roles</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span><span class="va">syn</span>, original <span class="op">=</span> <span class="va">dat</span>, path <span class="op">=</span> <span class="st">"output.zip"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span><span class="va">syn</span>, original <span class="op">=</span> <span class="va">dat</span>, path <span class="op">=</span> <span class="st">"output.zip"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Open a pre-filled issue for bugs, feedback, or feature requests</span></span>
+<span><span class="fu"><a href="reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The compare step was hard to interpret"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
 <p>A command-line interface is available too — see <code>dataganger::dataganger_cli(c("--help"))</code>.</p>
 </div>
 <div class="section level2">

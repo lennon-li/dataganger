@@ -36,4 +36,4 @@ A data frame with 50 rows and 5 columns:
 
 ## Source
 
-Synthetically generated via `data-raw/geographic_sample.R`
+Synthetically generated via `data-raw/Geographic_sample.R`

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,18 @@
       <small>Source: <a href="https://github.com/lennon-li/dataganger/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.5" id="dataganger-035">dataganger 0.3.5<a class="anchor" aria-label="anchor" href="#dataganger-035"></a></h2>
+<p>Generation, comparison, and export clarity pass:</p>
+<ul><li>Generate page now shows a read-only “Column decisions” snapshot (the Configure table as final, non-editable values) so choices can be reviewed before generating.</li>
+<li>New <code><a href="../reference/report_issue.html">report_issue()</a></code> helper plus an in-app <strong>Report a problem</strong> button open a pre-filled GitHub issue with environment details, without sending anything automatically.</li>
+<li>The engine recap resolves to the engine actually used (e.g. <code>synthpop (auto)</code>) after generation, instead of always showing <code>auto</code>.</li>
+<li>The Regenerate button is disabled until the first generation, so it no longer duplicates Generate on the initial visit.</li>
+<li>Exact-row-match count moved into the result stats; the redundant verbatim Result box was removed.</li>
+<li>Compare page treats geography columns as categorical, so they get an original-vs-synthetic comparison instead of being skipped.</li>
+<li>Export page gains a generation summary: original rows/columns, how many columns were synthesized, passed through, and dropped, and the final synthetic dimensions.</li>
+<li>Internal: the cancellable-synthesis subprocess no longer uses a <code>:::</code> self-reference (clearing an <code>R CMD check</code> NOTE); spelling WORDLIST expanded.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.4" id="dataganger-034">dataganger 0.3.4<a class="anchor" aria-label="anchor" href="#dataganger-034"></a></h2>
 <p>Configure page clarity pass:</p>

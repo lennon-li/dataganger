@@ -2,9 +2,10 @@
 
 Writes a reviewable export bundle containing the synthetic data, data
 dictionary, comparison report, privacy report, manifest, an
-`analysis.qmd` Quarto report (R and Python code to compare the synthetic
-data against the original), and helper files for re-loading the bundle.
-By default the bundle is written as a zip archive.
+`analysis.qmd` Quarto report (R code to compare the synthetic data
+against the original), and helper files for re-loading the bundle. The
+standalone data dictionary file is optional via `include_dictionary`. By
+default the bundle is written as a zip archive.
 
 ## Usage
 
@@ -18,9 +19,11 @@ export_synthetic(
   format = c("zip", "dir"),
   sanitize_for_spreadsheets = TRUE,
   purpose = NULL,
+  roles = NULL,
   include_original_names = NULL,
   fail_on_exact_match = FALSE,
   include_report = TRUE,
+  include_dictionary = TRUE,
   code_readiness = NULL,
   overwrite = FALSE
 )
@@ -73,6 +76,12 @@ export_synthetic(
   Optional purpose label for README text. Defaults to the purpose
   recorded in `attr(synthetic, "spec")` when available.
 
+- roles:
+
+  Optional recorded role decisions as a `dataganger_roles` data frame.
+  When supplied, the export bundle includes the exact column decisions
+  needed to reproduce the same synthetic output.
+
 - include_original_names:
 
   Logical or `NULL`. Controls whether `data_dictionary.csv` includes
@@ -92,6 +101,13 @@ export_synthetic(
   Logical. When `TRUE` (the default), write `comparison_report.html`. If
   `rmarkdown`/`knitr` are unavailable, the report is skipped with a
   message instead of an error.
+
+- include_dictionary:
+
+  Logical. When `TRUE` (the default), write `data_dictionary.csv` into
+  the bundle. The dictionary is always computed in memory for the load
+  helper and README; this only controls whether the standalone CSV is
+  written.
 
 - code_readiness:
 

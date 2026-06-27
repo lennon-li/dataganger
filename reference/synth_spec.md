@@ -75,8 +75,7 @@ synth_spec(
 
   Additional arguments passed to the spec list. Currently supports
   `preserve_correlations`, `coarsen_dates`, `merge_rare`,
-  `free_text_strategy`, `geography_strategy`, `rare_level_min_n`,
-  `preserve_missingness`.
+  `free_text_strategy`, `rare_level_min_n`, `preserve_missingness`.
 
 ## Value
 
@@ -101,7 +100,6 @@ synth_spec(purpose = "demo")
 #> • Merge rare levels: TRUE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "drop"
-#> • Geography strategy: "coarsen"
 #> • Preserve correlations: "low"
 #> • Preserve missingness: "approx"
 #> • Engine required: "internal"
@@ -126,7 +124,6 @@ synth_spec(purpose = "development", n = 200, seed = 42)
 #> • Merge rare levels: TRUE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "drop"
-#> • Geography strategy: "coarsen"
 #> • Preserve correlations: "moderate"
 #> • Preserve missingness: "approx"
 #> • Engine required: "internal"
@@ -150,7 +147,6 @@ synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 #> • Merge rare levels: FALSE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "redact"
-#> • Geography strategy: "preserve"
 #> • Preserve correlations: "high"
 #> • Preserve missingness: "approx"
 #> • Engine required: "hifi"
