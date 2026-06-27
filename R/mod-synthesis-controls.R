@@ -593,6 +593,11 @@ mod_synthesis_controls_server <- function(id, state) {
       roles <- state$roles
       if (!is.null(roles) && "disclosure_role" %in% names(roles)) {
         unset <- is.na(roles$disclosure_role) | !nzchar(roles$disclosure_role)
+        if ("simulation" %in% names(roles)) {
+          eligible <- !(roles$simulation %in% c("drop", "pass_through"))
+          eligible[is.na(eligible)] <- TRUE
+          unset <- unset & eligible
+        }
         if (any(unset)) {
           shiny::showNotification(
             sprintf(

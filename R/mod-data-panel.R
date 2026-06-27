@@ -36,6 +36,20 @@ mod_data_panel_server <- function(id, state) {
   shiny::moduleServer(id, function(input, output, session) {
     active_tab <- shiny::reactiveVal("real")
 
+    is_whole_number_column <- function(x) {
+      if (is.integer(x)) {
+        return(TRUE)
+      }
+      if (!is.numeric(x)) {
+        return(FALSE)
+      }
+      x_finite <- x[!is.na(x) & is.finite(x)]
+      if (!length(x_finite)) {
+        return(FALSE)
+      }
+      all(x_finite == round(x_finite))
+    }
+
     shiny::observeEvent(input$active_tab, ignoreNULL = TRUE, {
       active_tab(input$active_tab)
     })
@@ -248,7 +262,7 @@ mod_data_panel_server <- function(id, state) {
       for (col_name in intersect(names(df), names(orig_df))) {
         if (col_name %in% id_col_set) next
         orig_col <- orig_df[[col_name]]
-        if (is.integer(orig_col)) {
+        if (is_whole_number_column(orig_col)) {
           dt <- DT::formatRound(dt, columns = col_name, digits = 0)
         } else if (is.numeric(orig_col)) {
           dt <- DT::formatRound(dt, columns = col_name, digits = 2)
@@ -297,4 +311,3 @@ mod_data_panel_server <- function(id, state) {
     invisible(NULL)
   })
 }
-

@@ -229,21 +229,47 @@ a.action-button:hover {
 details > summary {
   cursor: pointer;
   user-select: none;
-  padding: 8px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
   color: var(--ink-900);
   list-style: none;
+  border: 1px solid var(--paper-300);
+  border-radius: 999px;
+  background: var(--paper-50);
 }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before {
-  content: "▸ ";
+  content: "+";
   display: inline-block;
-  margin-right: 6px;
+  width: 12px;
+  text-align: center;
   color: var(--fg-muted);
+  font-weight: 700;
 }
-details[open] > summary::before { content: "▾ "; }
+details[open] > summary::before { content: "\2212"; }
+details > summary:hover {
+  border-color: var(--paper-400);
+  background: var(--paper-100);
+}
+
+.dg-disabled-select,
+.dg-disabled-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  background: var(--paper-100) !important;
+  color: var(--fg-muted) !important;
+}
+
+.role-info {
+  color: var(--fg-muted);
+  font-size: 12px;
+  cursor: help;
+}
 
 
 /* ============ 6 · DT chrome ============ */

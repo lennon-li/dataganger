@@ -40,7 +40,7 @@ test_that("detect_roles() detects ID candidate from high cardinality", {
   df <- data.frame(token = sprintf("tok-%03d", 1:50))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[r$variable == "token"], "ID candidate")
-  expect_match(r$reason[r$variable == "token"], "n_distinct/nrow")
+  expect_match(r$reason[r$variable == "token"], "Nearly every value is unique")
 })
 
 test_that("detect_roles() does NOT flag high-cardinality as ID when nrow < 20", {
@@ -63,7 +63,7 @@ test_that("detect_roles() still flags distinctive numeric as ID when name matche
   df <- data.frame(record_id = seq(1.1, 50.1, length.out = 50))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "ID candidate")
-  expect_match(r$reason[1], "name matches ID pattern")
+  expect_match(r$reason[1], "suggests an identifier")
 })
 
 test_that("detect_roles() still flags distinctive character as ID candidate", {
@@ -78,7 +78,7 @@ test_that("detect_roles() detects ID from column name pattern", {
   df <- data.frame(patient_id = rep(1:3, length.out = 25))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "ID candidate")
-  expect_match(r$reason[1], "name matches ID pattern")
+  expect_match(r$reason[1], "suggests an identifier")
 })
 
 test_that("detect_roles() detects multiple ID name patterns", {
@@ -110,7 +110,7 @@ test_that("detect_roles() detects haven_labelled columns", {
   )
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "label_check")
-  expect_match(r$reason[1], "haven_labelled")
+  expect_match(r$reason[1], "labelled survey codes")
 })
 
 test_that("detect_roles() detects categorical candidate (low cardinality ratio)", {
