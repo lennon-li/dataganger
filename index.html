@@ -6,6 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>DataGangeR — Synthetic Data Doubles for Safer Prototyping • dataganger</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" sizes="any" href="favicon.ico">
+<link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -13,6 +18,7 @@
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="DataGangeR — Synthetic Data Doubles for Safer Prototyping">
 <meta name="description" content="Creates synthetic data doubles from real datasets for prototyping, teaching, Shiny development, and AI-assisted programming. Provides data profiling, role detection, configurable synthesis, utility comparison, and disclosure-risk warnings. Synthetic outputs are intended to reduce direct disclosure risk, not to guarantee privacy.">
 <meta property="og:description" content="Creates synthetic data doubles from real datasets for prototyping, teaching, Shiny development, and AI-assisted programming. Provides data profiling, role detection, configurable synthesis, utility comparison, and disclosure-risk warnings. Synthetic outputs are intended to reduce direct disclosure risk, not to guarantee privacy.">
+<meta property="og:image" content="https://lennon-li.github.io/dataganger/logo.png">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -32,6 +38,12 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/getting-started.html">Getting started with the app</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -47,11 +59,16 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="dataganger-">DataGangeR <img src="reference/figures/logo.png" align="right" height="139" alt=""><a class="anchor" aria-label="anchor" href="#dataganger-"></a>
-</h1></div>
+<div class="page-header">
+<img src="logo.png" class="logo" alt=""><h1 id="dataganger-">DataGangeR <a class="anchor" aria-label="anchor" href="#dataganger-"></a>
+</h1>
+</div>
 <!-- badges: start -->
 
 <p><strong>DataGangeR</strong> creates synthetic data doubles from real datasets so you can prototype code, build Shiny apps, teach, and collaborate with AI tools without sharing the original dataset.</p>
+<div class="float">
+<img src="reference/figures/hero.gif" alt="DataGangeR walks you through objective, upload, configure, generate, compare, and export"><div class="figcaption">DataGangeR walks you through objective, upload, configure, generate, compare, and export</div>
+</div>
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
@@ -69,18 +86,41 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"lennon-li/dataganger"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+<h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
+<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> column disclosure roles, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/lennon-li/dataganger" class="external-link">dataganger</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th align="center">Configure disclosure roles</th>
+<th align="center">Compare real vs. synthetic</th>
+</tr></thead>
+<tbody><tr>
+<td align="center"><img src="reference/figures/step-3-configure.png" alt="Configure step"></td>
+<td align="center"><img src="reference/figures/step-5-compare.png" alt="Compare step"></td>
+</tr></tbody>
+</table>
+</div>
+<div class="section level2">
+<h2 id="use-it-from-r">Use it from R<a class="anchor" aria-label="anchor" href="#use-it-from-r"></a>
+</h2>
+<p>Every step the app performs is a plain function call, so you can script the whole pipeline without the UI:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/lennon-li/dataganger" class="external-link">dataganger</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Phase 1+ functions — coming soon</span></span>
-<span><span class="co"># dat     &lt;- read_input("my-data.csv")</span></span>
-<span><span class="co"># profile &lt;- profile_data(dat)</span></span>
-<span><span class="co"># roles   &lt;- detect_roles(dat, profile)</span></span>
-<span><span class="co"># spec    &lt;- synth_spec(purpose = "development", roles = roles, seed = 42)</span></span>
-<span><span class="co"># syn     &lt;- synthesize_data(dat, spec, roles)</span></span>
-<span><span class="co"># export_synthetic(syn, original = dat, path = "output.zip")</span></span></code></pre></div>
+<span><span class="va">dat</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_input.html">read_input</a></span><span class="op">(</span><span class="st">"my-data.csv"</span><span class="op">)</span>          <span class="co"># or: individual_sample</span></span>
+<span><span class="va">profile</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/profile_data.html">profile_data</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
+<span><span class="va">roles</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/detect_roles.html">detect_roles</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">profile</span><span class="op">)</span></span>
+<span><span class="va">spec</span>    <span class="op">&lt;-</span> <span class="fu"><a href="reference/synth_spec.html">synth_spec</a></span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"development"</span>, roles <span class="op">=</span> <span class="va">roles</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
+<span><span class="va">syn</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/synthesize_data.html">synthesize_data</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">spec</span>, <span class="va">roles</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span><span class="va">syn</span>, original <span class="op">=</span> <span class="va">dat</span>, path <span class="op">=</span> <span class="st">"output.zip"</span><span class="op">)</span></span></code></pre></div>
+<p>A command-line interface is available too — see <code>dataganger::dataganger_cli(c("--help"))</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="synthesis-engines">Synthesis engines<a class="anchor" aria-label="anchor" href="#synthesis-engines"></a>
