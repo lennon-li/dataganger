@@ -159,7 +159,7 @@ sidebar_content <- tags$nav(
         class = "name",
         "DataGange", tags$span(class = "r", "R")
       ),
-      tags$span(class = "version", "v0.3.2")
+      tags$span(class = "version", paste0("v", utils::packageVersion("dataganger")))
     )
   ),
   tags$div(class = "section-label", "Workflow"),
