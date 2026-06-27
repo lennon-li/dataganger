@@ -11,6 +11,23 @@ sharing the original dataset.
 ![DataGangeR walks you through objective, upload, configure, generate, compare,
 and export](man/figures/hero.gif)
 
+## Want AI to prototype on your data — without handing over the real thing?
+
+DataGangeR turns sensitive datasets into safe, synthetic stand-ins. Your AI
+assistant prototypes at full speed; the real people in your data never leave the
+building.
+
+- 🤖 **Harness AI, keep your privacy** — feed agents realistic synthetic data
+  via a built-in CLI, not your production records.
+- 🧭 **Human in control** — a guided UI lets you decide what's identifying,
+  sensitive, or safe, column by column.
+- ⚙️ **Real synthesis** — synthpop + k-anonymity: faithful enough to build on,
+  private by design.
+- 🔁 **Reproducible & human-gated** — every export is a one-click bundle with an
+  R script to regenerate the exact result.
+
+Prototype with AI. Protect your data. Both.
+
 ## Overview
 
 Analysts often need to share data structure with teammates, students, or AI
