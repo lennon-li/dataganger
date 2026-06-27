@@ -66,7 +66,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
           label = NULL,
           choiceValues = c("demo", "development", "analytics"),
           choiceNames = c("demo", "development", "analytics"),
-          selected = "demo"
+          selected = "development"
         )
       )
     )
@@ -137,25 +137,22 @@ objective_cards <- function(ns) {
       shiny::tags$div(
         shiny::tags$strong("Fidelity"),
         shiny::tags$span(
-          "how closely the synthetic data reproduces the real data's ",
-          "distributions and relationships. More bars = closer to the real ",
-          "data, and more detail retained."
+          "how closely the synthetic data matches the real data. ",
+          "More bars = more detail retained."
         )
       ),
       shiny::tags$div(
         shiny::tags$strong("Privacy"),
         shiny::tags$span(
-          "how well the original records are protected from disclosure, ",
-          "such as no exact-row copies or rare-value leaks. More bars = ",
-          "less of the source data is recoverable."
+          "how well original records are protected from disclosure. ",
+          "More bars = less is recoverable."
         )
       ),
       shiny::tags$div(
         shiny::tags$strong("Anonymity"),
         shiny::tags$span(
-          "how hard it is to single out an individual from combinations of ",
-          "quasi-identifiers (the k-anonymity guarantee). More bars = ",
-          "individuals blend into larger groups."
+          "how hard it is to single out an individual (k-anonymity). ",
+          "More bars = larger groups to hide in."
         )
       )
     ),
@@ -165,7 +162,7 @@ objective_cards <- function(ns) {
     ),
     dg_purpose_card(
       ns, "development", "development", "Development and prototyping",
-      "Build apps, AI tooling, or model pipelines.", 3, 3, 3
+      "Build apps, AI tooling, or model pipelines.", 3, 3, 3, selected = TRUE
     ),
     dg_purpose_card(
       ns, "analytics", "analytics", "Internal Analytics",

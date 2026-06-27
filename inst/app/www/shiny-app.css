@@ -953,8 +953,8 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 /* Objective-page meter legend: one metric per row, larger and clearer. */
 .meter-legend { margin: 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
 .meter-legend > div { font-size: 14px; line-height: 1.45; color: var(--ink-700); }
-.meter-legend > div strong { display: inline-block; min-width: 104px; color: var(--ink-900); font-weight: 600; }
-.meter-legend > div span { color: var(--fg-muted); }
+.meter-legend > div strong { display: block; margin-bottom: 1px; color: var(--ink-900); font-weight: 600; }
+.meter-legend > div span { display: block; color: var(--fg-muted); }
 #synthesis_controls-purpose_detail_host .purpose-detail-panel {
   margin-top: 16px;
   padding-top: 16px;
