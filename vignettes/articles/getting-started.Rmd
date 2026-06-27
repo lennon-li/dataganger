@@ -45,14 +45,45 @@ fig("step-2-upload.png")
 
 ## 3. Configure
 
-Review each column's **disclosure role** (direct identifier, quasi-identifier,
-sensitive, or none) and adjust synthesis settings only if you need to. Defaults
-are safe for the objective you picked. Every column must carry an explicit role
-before you can generate — uncertain columns are left unselected on purpose.
+This is where you, the human, make the decisions. Nothing is generated until you
+have reviewed them. There are two kinds of choice on this screen.
 
 ```{r, echo = FALSE}
 fig("step-3-configure.png")
 ```
+
+**Per-column decisions.** For every column you set:
+
+- **Disclosure role** — how sensitive the column is for re-identification:
+  *direct identifier* (e.g. name, ID), *quasi-identifier* (combines with others
+  to single someone out, e.g. age + postcode), *sensitive* (private attribute),
+  or *none*. Roles drive privacy hardening and k-anonymity. Every column must
+  carry an explicit role before you can generate — uncertain columns are left
+  unselected on purpose, so you make the call rather than the tool guessing.
+- **Action** — what happens to the column: *synthesize* (replace with synthetic
+  values), *pass through* (copy as-is — only safe for non-identifying columns),
+  or *drop* (exclude from the output entirely).
+
+**Synthesis settings.** The objective you picked presets safe defaults, but you
+can override any of these:
+
+| Setting | What you are deciding |
+|---|---|
+| **Row count (n)** | How many synthetic rows to generate. |
+| **Seed** | Fixes the random draw so the same settings reproduce the exact same data. |
+| **Engine** | *Auto* (from objective), *Internal* (per-column, fast, ignores relationships), or *synthpop* (relationship-aware, higher fidelity). |
+| **Column name handling** | Keep original names, replace with generic names, or anonymize names and keep the mapping in the data dictionary. |
+| **Rare category threshold** | Values seen fewer than this many times count as rare, so they can be merged or suppressed. |
+| **Coarsen dates** | Round dates (e.g. to month/year) so an exact date can't single out an individual. |
+| **Merge rare categories** | Combine infrequent values into an "other" group to reduce re-identification risk. |
+| **Free-text handling** | How free-text columns are treated (usually set by your objective). |
+| **Preserve missing values** | How closely to reproduce the original pattern of missing (`NA`) values. |
+
+Defaults are safe for the objective you picked — leave them unless you have a
+reason to change them. Each control in the app also carries a one-line
+explanation, and every decision is recorded in the exported spec so the result
+is reproducible (see [`synth_spec()`](../reference/synth_spec.html) for the
+programmatic equivalents).
 
 ## 4. Generate
 

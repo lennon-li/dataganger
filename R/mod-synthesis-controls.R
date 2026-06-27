@@ -455,7 +455,7 @@ mod_synthesis_controls_server <- function(id, state) {
           choices = c(
             "Keep original column names" = "preserve",
             "Replace with generic names (var1, var2, ...)" = "generic",
-            "Anonymise names, keep mapping in the data dictionary" = "dictionary_only"
+            "Anonymize names, keep mapping in the data dictionary" = "dictionary_only"
           ),
           selected = preset$name_strategy
         ),
