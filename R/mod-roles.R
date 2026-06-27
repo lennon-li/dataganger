@@ -343,6 +343,45 @@ mod_roles_server <- function(id, state) {
       class_to_role(class_col)
     }
 
+    is_whole_number_column <- function(x) {
+      if (is.integer(x)) {
+        return(TRUE)
+      }
+      if (!is.numeric(x)) {
+        return(FALSE)
+      }
+      x_finite <- x[!is.na(x) & is.finite(x)]
+      if (!length(x_finite)) {
+        return(FALSE)
+      }
+      all(x_finite == round(x_finite))
+    }
+
+    storage_signal_for <- function(variable, class_col) {
+      data <- state$raw_data
+      if (!is.null(data) && variable %in% names(data)) {
+        x <- data[[variable]]
+        if (is_whole_number_column(x)) {
+          return("stored as integer")
+        }
+        if (is.numeric(x)) {
+          return("stored as decimal/numeric")
+        }
+      }
+
+      lc <- tolower(class_col %||% "")
+      if (grepl("integer", lc)) {
+        return("stored as integer")
+      }
+      if (grepl("numeric|double", lc)) {
+        return("stored as decimal/numeric")
+      }
+      if (nzchar(class_col %||% "")) {
+        return(sprintf("stored as %s", class_col))
+      }
+      "stored in an unknown class"
+    }
+
     output$roles_table <- shiny::renderUI({
       vr <- visible_roles()
       shiny::req(vr)
@@ -357,9 +396,10 @@ mod_roles_server <- function(id, state) {
         ))
       }
 
-      make_select <- function(orig_row, user_role, recommended_role, class_col) {
+      make_select <- function(orig_row, user_role, recommended_role, class_col, disabled = FALSE) {
         effective  <- eff_role(user_role, recommended_role, class_col)
         overridden <- !is.na(user_role) && nzchar(user_role)
+        recommended_option <- rec_to_role(recommended_role)
         needs_review <- !overridden &&
           !is.na(recommended_role) && nzchar(recommended_role) &&
           !identical(tolower(effective %||% ""), tolower(class_to_role(class_col) %||% ""))
@@ -367,15 +407,21 @@ mod_roles_server <- function(id, state) {
           shiny::tags$option(
             value    = opt,
             selected = if (identical(opt, effective)) "selected" else NULL,
-            opt
+            if (!is.na(recommended_option) && identical(opt, recommended_option)) {
+              paste0(opt, " (recommended)")
+            } else {
+              opt
+            }
           )
         })
         sel <- shiny::tags$select(
-          class    = "input",
+          class    = paste("input", if (disabled) "dg-disabled-select"),
           style    = sprintf(
-            "width:100%%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px; %s",
-            if (overridden) "background:var(--synth-50); border-color:var(--synth-300);" else ""
+            "width:100%%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px; %s%s",
+            if (overridden) "background:var(--synth-50); border-color:var(--synth-300);" else "",
+            if (disabled) " opacity:0.5; cursor:not-allowed;" else ""
           ),
+          disabled = if (disabled) "disabled" else NULL,
           onchange = sprintf(
             "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
             session$ns("role_change"),
@@ -422,7 +468,7 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_disclosure_select <- function(orig_row, current, ns) {
+      make_disclosure_select <- function(orig_row, current, ns, disabled = FALSE) {
         is_unset <- is.na(current) || !nzchar(current)
         placeholder <- shiny::tags$option(
           value = "", disabled = "disabled",
@@ -437,15 +483,18 @@ mod_roles_server <- function(id, state) {
           )
         })
         shiny::tags$select(
+          class = if (disabled) "dg-disabled-select" else NULL,
           onchange = sprintf(
             "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
             ns("disclosure_change"),
             orig_row
           ),
           style = sprintf(
-            "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s",
-            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else ""
+            "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s%s",
+            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else "",
+            if (disabled) " opacity:0.5; cursor:not-allowed;" else ""
           ),
+          disabled = if (disabled) "disabled" else NULL,
           c(list(placeholder), opts)
         )
       }
@@ -453,32 +502,59 @@ mod_roles_server <- function(id, state) {
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
+        simulation_value <- as.character(r$simulation[[1]] %||% "synthesize")
+        is_passthrough <- identical(simulation_value, "pass_through")
+        is_drop <- identical(simulation_value, "drop")
+        disable_controls <- is_passthrough || is_drop
+        tooltip <- paste(
+          r$reason[[1]],
+          storage_signal_for(r$variable[[1]], r$class[[1]]),
+          sep = "\n"
+        )
         shiny::tags$tr(
           shiny::tags$td(
             style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
-            r$variable
+            shiny::tags$div(
+              style = "display:flex; align-items:center; gap:6px;",
+              shiny::tags$span(r$variable[[1]]),
+              shiny::tags$span(
+                class = "role-info",
+                title = tooltip,
+                "\u24d8"
+              )
+            )
           ),
           shiny::tags$td(
             style = "min-width:128px; padding:4px 8px;",
-            make_simulation_select(orig_row, r$simulation)
+            make_simulation_select(orig_row, simulation_value)
           ),
           shiny::tags$td(
             style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
-            r$class
-          ),
-          shiny::tags$td(
-            style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
-            r$recommended_role
+            r$class[[1]]
           ),
           shiny::tags$td(
             class = "col-type",
             style = "min-width:140px; padding:4px 8px;",
-            make_select(orig_row, r$user_role, r$recommended_role, r$class)
+            make_select(
+              orig_row, r$user_role[[1]], r$recommended_role[[1]], r$class[[1]],
+              disabled = disable_controls
+            )
           ),
           shiny::tags$td(
             class = "col-type",
             style = "min-width:150px; padding:4px 8px;",
-            make_disclosure_select(orig_row, r$disclosure_role, session$ns)
+            shiny::tags$div(
+              make_disclosure_select(
+                orig_row, r$disclosure_role[[1]], session$ns,
+                disabled = disable_controls
+              ),
+              if (is_passthrough) {
+                shiny::tags$div(
+                  style = "margin-top:4px; font-size:11px; color:var(--fg-muted);",
+                  "real values - verify before sharing"
+                )
+              }
+            )
           )
         )
       })
@@ -488,12 +564,11 @@ mod_roles_server <- function(id, state) {
         style = "width:100%; border-collapse:collapse;",
         shiny::tags$thead(
           shiny::tags$tr(
-            shiny::tags$th(style = "width:20%; padding:6px 8px;", "variable"),
-            shiny::tags$th(style = "width:16%; padding:6px 8px;", "Simulation"),
+            shiny::tags$th(style = "width:22%; padding:6px 8px;", "variable"),
+            shiny::tags$th(style = "width:16%; padding:6px 8px;", "Action"),
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
-            shiny::tags$th(style = "width:20%; padding:6px 8px;", "recommended_role"),
-            shiny::tags$th(class = "col-type", style = "width:24%; padding:6px 8px;", "TYPE"),
-            shiny::tags$th(style = "width:16%; padding:6px 8px;", "DISCLOSURE")
+            shiny::tags$th(class = "col-type", style = "width:28%; padding:6px 8px;", "TYPE"),
+            shiny::tags$th(style = "width:22%; padding:6px 8px;", "DISCLOSURE")
           )
         ),
         shiny::tags$tbody(rows)
@@ -564,7 +639,12 @@ mod_roles_server <- function(id, state) {
     output$disclosure_gate <- shiny::renderUI({
       roles <- roles_local()
       if (is.null(roles) || !"disclosure_role" %in% names(roles)) return(NULL)
-      unset <- sum(is.na(roles$disclosure_role) | !nzchar(roles$disclosure_role))
+      eligible <- rep(TRUE, nrow(roles))
+      if ("simulation" %in% names(roles)) {
+        eligible <- !(roles$simulation %in% c("drop", "pass_through"))
+        eligible[is.na(eligible)] <- TRUE
+      }
+      unset <- sum((is.na(roles$disclosure_role) | !nzchar(roles$disclosure_role)) & eligible)
       if (unset == 0L) {
         shiny::tags$div(
           class = "banner", style = "margin-top:12px; color:var(--real-700);",

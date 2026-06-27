@@ -107,12 +107,20 @@ detect_single_role_inner <- function(x, name, n_rows) {
 
   # Test 1: haven_labelled
   if (r_class == "haven_labelled") {
-    return(make_role_row(name, r_class, "label_check", "class is haven_labelled", NA_character_))
+    return(make_role_row(
+      name, r_class, "label_check",
+      "This column uses labelled survey codes and should be checked before synthesis.",
+      NA_character_
+    ))
   }
 
   # Test 2: Date or POSIXct
   if (r_class %in% c("Date", "POSIXct")) {
-    return(make_role_row(name, r_class, "date", "class is Date or POSIXct", NA_character_))
+    return(make_role_row(
+      name, r_class, "date",
+      "Stored as a date/time value, so it is treated as a date column.",
+      NA_character_
+    ))
   }
 
   # Test 2b: character column storing dates as formatted strings.
@@ -132,7 +140,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
       if (mean(grepl(date_rx, trimws(x_sample))) >= 0.9) {
         return(make_role_row(
           name, r_class, "date",
-          "character values match a common date string format",
+          "The values look like dates even though they are stored as text.",
           NA_character_
         ))
       }
@@ -145,7 +153,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
       name,
       r_class,
       "free text",
-      "median string length > 20 or median word count >= 5",
+      "Entries are long text, so this looks like free-form notes rather than coded values.",
       "direct"
     ))
   }
@@ -153,13 +161,21 @@ detect_single_role_inner <- function(x, name, n_rows) {
   # Test 4: geography column name pattern
   geo_pattern <- "(?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)"
   if (grepl(geo_pattern, name, perl = TRUE)) {
-    return(make_role_row(name, r_class, "geography", paste0("name matches geography pattern: ", geo_pattern), NA_character_))
+    return(make_role_row(
+      name, r_class, "geography",
+      "The column name looks geographic, such as a place, region, or coordinate field.",
+      NA_character_
+    ))
   }
 
   # Test 5: name matches ID patterns
   id_pattern <- "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
   if (grepl(id_pattern, name, perl = TRUE)) {
-    return(make_role_row(name, r_class, "ID candidate", paste0("name matches ID pattern: ", id_pattern), "direct"))
+    return(make_role_row(
+      name, r_class, "ID candidate",
+      "The column name suggests an identifier, such as an ID, record number, or key.",
+      "direct"
+    ))
   }
 
   # Test 6: high cardinality → ID candidate
@@ -176,21 +192,37 @@ detect_single_role_inner <- function(x, name, n_rows) {
     length(x_obs) > 0 && stats::median(nchar(x_obs), na.rm = TRUE) > 20
   }
   if (!is_long_char && !is.numeric(x) && distinct_ratio >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
-    return(make_role_row(name, r_class, "ID candidate", "n_distinct/nrow >= 0.95", "direct"))
+    return(make_role_row(
+      name, r_class, "ID candidate",
+      "Nearly every value is unique, so this likely identifies individual records.",
+      "direct"
+    ))
   }
 
   # Test 7: low cardinality → categorical candidate
   if (distinct_ratio < 0.05 || n_distinct <= 20) {
-    return(make_role_row(name, r_class, "categorical candidate", "n_distinct/nrow < 0.05 or n_distinct <= 20", NA_character_))
+    return(make_role_row(
+      name, r_class, "categorical candidate",
+      "Only a few distinct values appear, so this looks like a coded category rather than a measurement.",
+      NA_character_
+    ))
   }
 
   # Test 8: distinctive numeric → numeric (user classifies via UI)
   if (is.numeric(x)) {
-    return(make_role_row(name, r_class, "numeric", "distinctive numeric; classify via UI", NA_character_))
+    return(make_role_row(
+      name, r_class, "numeric",
+      "Many distinct numeric values appear, so this could be a measurement or an ID; you decide.",
+      NA_character_
+    ))
   }
 
   # Default
-  make_role_row(name, r_class, "unknown", "no rule matched", NA_character_)
+  make_role_row(
+    name, r_class, "unknown",
+    "No clear pattern matched, so this column needs a manual review.",
+    NA_character_
+  )
 }
 
 detect_single_role <- function(x, name, n_rows) {
@@ -200,7 +232,7 @@ detect_single_role <- function(x, name, n_rows) {
   # removed from output entirely, the stronger protection).
   if (is_sensitive_name(name) && !identical(row$disclosure_role, "direct")) {
     row$disclosure_role <- "sensitive"
-    row$disclosure_reason <- "auto: column name matches a known-sensitive pattern"
+    row$disclosure_reason <- "Marked sensitive because the column name suggests sensitive personal information."
   }
   row
 }
@@ -247,13 +279,13 @@ make_role_row <- function(name, r_class, role, reason, disclosure_role) {
 
 disclosure_reason_for <- function(disclosure_role, role) {
   if (is.na(disclosure_role)) {
-    return("auto: not confidently identifying; choose a disclosure role before generating")
+    return("Not assigned automatically. Choose the disclosure role before generating.")
   }
   switch(disclosure_role,
-    direct = "auto: identifies a person by itself; removed from output",
-    sensitive = "auto: column name matches a known-sensitive pattern",
-    quasi = "user: identifying in combination; covered by the k-anonymity guarantee",
-    none = "user: not identifying alone or in combination",
+    direct = "Marked direct because this column can identify a person on its own, so it is removed from the output.",
+    sensitive = "Marked sensitive because the column name suggests sensitive personal information.",
+    quasi = "Set as quasi-identifier because it may identify someone when combined with other columns.",
+    none = "Set to none because this column is not expected to identify someone on its own or in combination.",
     "auto"
   )
 }
@@ -282,7 +314,7 @@ apply_disclosure_overrides <- function(roles, overrides) {
       cli::cli_abort("disclosure_roles[{col}] must be one of {.or {.val {valid}}}")
     }
     roles$disclosure_role[roles$variable == col] <- val
-    roles$disclosure_reason[roles$variable == col] <- "user: set via spec disclosure_roles"
+    roles$disclosure_reason[roles$variable == col] <- "Set explicitly in the synthesis spec."
   }
   roles
 }

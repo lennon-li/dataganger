@@ -69,7 +69,7 @@ test_that("editing user_role and confirming writes back to state", {
   })
 })
 
-test_that("editing simulation treatment and confirming writes back to state", {
+test_that("editing Action treatment and confirming writes back to state", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")
 
@@ -199,7 +199,7 @@ test_that("editing a non-user_role column is ignored silently", {
 })
 
 
-test_that("roles table labels the override column TYPE", {
+test_that("roles table labels the Action and TYPE columns", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")
 
@@ -216,8 +216,38 @@ test_that("roles table labels the override column TYPE", {
 
     html <- paste(as.character(output$`roles-roles_table`), collapse = "
 ")
+    expect_match(html, ">Action<")
+    expect_false(grepl(">Simulation<", html))
     expect_match(html, ">TYPE<")
     expect_false(grepl(">user_role<", html))
+  })
+})
+
+test_that("disclosure gate excludes drop and pass-through rows from unset count", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  shiny::testServer(roles_host_server, {
+    state <- session$getReturned()$state
+
+    roles <- tibble::tibble(
+      variable = c("drop_me", "share_me", "needs_role"),
+      class = c("character", "numeric", "numeric"),
+      recommended_role = c("free text", "numeric", "numeric"),
+      user_role = c(NA_character_, NA_character_, NA_character_),
+      simulation = c("drop", "pass_through", "synthesize"),
+      reason = c("reason", "reason", "reason"),
+      disclosure_role = c(NA_character_, NA_character_, NA_character_),
+      disclosure_reason = c(NA_character_, NA_character_, NA_character_)
+    )
+    class(roles) <- c("dataganger_roles", class(roles))
+
+    state$roles <- roles
+    session$flushReact()
+
+    html <- paste(as.character(output$`roles-disclosure_gate`), collapse = "\n")
+    expect_match(html, "1 column still need a disclosure role")
+    expect_false(grepl("3 columns", html, fixed = TRUE))
   })
 })
 
