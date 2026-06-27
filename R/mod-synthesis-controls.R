@@ -391,6 +391,15 @@ mod_synthesis_controls_server <- function(id, state) {
       preset <- current_preset()
       current_n <- default_n()
 
+      # One-line explanation rendered directly under a control.
+      setting_hint <- function(txt) {
+        shiny::tags$p(
+          class = "text-muted",
+          style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
+          txt
+        )
+      }
+
       shiny::tagList(
         shiny::numericInput(
           inputId = session$ns("rows_n"),
@@ -398,6 +407,7 @@ mod_synthesis_controls_server <- function(id, state) {
           value = current_n,
           min = 1
         ),
+        setting_hint("How many synthetic rows to generate."),
         shiny::uiOutput(session$ns("rows_hint")),
         shiny::selectInput(
           inputId = session$ns("engine"),
@@ -438,40 +448,54 @@ mod_synthesis_controls_server <- function(id, state) {
           label = "Seed",
           value = preset$seed %||% NA
         ),
+        setting_hint("Fixes the random draw so the same settings reproduce the exact same synthetic data."),
         shiny::selectInput(
           inputId = session$ns("name_strategy"),
-          label = "name_strategy",
-          choices = c("preserve", "generic", "dictionary_only"),
+          label = "Column name handling",
+          choices = c(
+            "Keep original column names" = "preserve",
+            "Replace with generic names (var1, var2, ...)" = "generic",
+            "Anonymise names, keep mapping in the data dictionary" = "dictionary_only"
+          ),
           selected = preset$name_strategy
         ),
+        setting_hint("Whether the synthetic data keeps your original column names or hides them."),
         shiny::sliderInput(
           inputId = session$ns("rare_level_min_n"),
-          label = "rare_level_min_n",
+          label = "Rare category threshold",
           min = 2,
           max = 30,
           value = preset$rare_level_min_n
         ),
+        setting_hint("Category values seen fewer than this many times count as rare, so they can be merged or suppressed to limit disclosure risk."),
         shiny::checkboxInput(
           inputId = session$ns("coarsen_dates"),
-          label = "coarsen_dates",
+          label = "Coarsen dates",
           value = isTRUE(preset$coarsen_dates)
         ),
+        setting_hint("Rounds dates (e.g. to month or year) so an exact event date cannot single out an individual."),
         shiny::checkboxInput(
           inputId = session$ns("merge_rare"),
-          label = "merge_rare",
+          label = "Merge rare categories",
           value = isTRUE(preset$merge_rare)
         ),
+        setting_hint("Combines infrequent category values into an 'other' group to reduce re-identification risk."),
         shiny::p(
-          shiny::tags$strong("free_text_strategy:"),
+          shiny::tags$strong("Free-text handling:"),
           paste(preset$free_text_strategy)
         ),
-        shiny::p(class = "text-muted", "Set by your purpose choice"),
+        setting_hint("How free-text columns are treated. Set automatically by your objective."),
         shiny::selectInput(
           inputId = session$ns("preserve_missingness"),
-          label = "preserve_missingness",
-          choices = c("approx", "exact", "none"),
+          label = "Preserve missing values",
+          choices = c(
+            "Approximate the original missing-value rate" = "approx",
+            "Match the original missing-value pattern exactly" = "exact",
+            "Do not reproduce missing values" = "none"
+          ),
           selected = preset$preserve_missingness %||% "approx"
-        )
+        ),
+        setting_hint("How closely to reproduce the pattern of missing (NA) values from the original data.")
       )
     })
 
