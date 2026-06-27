@@ -114,7 +114,7 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, anon, risk =
     ),
     shiny::tags$div(
       class = "pc-meters",
-      meter("Fidelity", fid, "var(--ink-700)"),
+      meter("Coarsening", fid, "var(--ink-700)"),
       meter("Privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
       meter("Anonymity", anon, "var(--risk-400)")
     ),
@@ -131,34 +131,34 @@ objective_cards <- function(ns) {
       shiny::tags$p(
         class = "help",
         style = "margin:0 0 8px;",
-        "Each objective trades these three off against each other: more ",
-        "fidelity usually means less privacy and anonymity."
+        "All three point the same way: more bars = stronger protection, ",
+        "at the cost of less original detail preserved."
       ),
       shiny::tags$div(
-        shiny::tags$strong("Fidelity"),
+        shiny::tags$strong("Coarsening"),
         shiny::tags$span(
-          "how closely the synthetic data matches the real data. ",
-          "More bars = more detail retained."
+          "how much of the original detail is blurred or removed. ",
+          "More bars = less raw detail kept."
         )
       ),
       shiny::tags$div(
         shiny::tags$strong("Privacy"),
         shiny::tags$span(
           "how well original records are protected from disclosure. ",
-          "More bars = less is recoverable."
+          "More bars = stronger privacy."
         )
       ),
       shiny::tags$div(
         shiny::tags$strong("Anonymity"),
         shiny::tags$span(
           "how hard it is to single out an individual (k-anonymity). ",
-          "More bars = larger groups to hide in."
+          "More bars = stronger anonymity."
         )
       )
     ),
     dg_purpose_card(
       ns, "demo", "demo", "Demo / Teaching",
-      "Share externally, teach with, or use in presentations.", 2, 4, 5
+      "Share externally, teach with, or use in presentations.", 4, 4, 5
     ),
     dg_purpose_card(
       ns, "development", "development", "Development and prototyping",
@@ -166,7 +166,7 @@ objective_cards <- function(ns) {
     ),
     dg_purpose_card(
       ns, "analytics", "analytics", "Internal Analytics",
-      "Maximum structural detail \u2014 internal use only.", 5, 1, 1, risk = TRUE
+      "Maximum structural detail \u2014 internal use only.", 1, 1, 1, risk = TRUE
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'analytics'",
