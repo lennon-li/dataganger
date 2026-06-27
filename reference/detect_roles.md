@@ -80,18 +80,19 @@ detect_roles(df)
 #> 
 #> 
 #> ── id (numeric) -> ID candidate 
-#> • Reason: name matches ID pattern:
-#> (?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)
+#> • Reason: The column name suggests an identifier, such as an ID, record number,
+#> or key.
 #> • Disclosure: direct
 #> 
 #> ── date (Date) -> date 
-#> • Reason: class is Date or POSIXct
+#> • Reason: Stored as a date/time value, so it is treated as a date column.
 #> 
 #> ── city (character) -> geography 
-#> • Reason: name matches geography pattern:
-#> (?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)
+#> • Reason: The column name looks geographic, such as a place, region, or
+#> coordinate field.
 #> 
 #> ── cat (factor) -> categorical candidate 
-#> • Reason: n_distinct/nrow < 0.05 or n_distinct <= 20
+#> • Reason: Only a few distinct values appear, so this looks like a coded
+#> category rather than a measurement.
 #> 
 ```

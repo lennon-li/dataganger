@@ -13,7 +13,7 @@ are overridable by passing a user_role column in a supplied roles tibble."><meta
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -116,19 +116,20 @@ only values auto-assigned (confident identifier / known-sensitive name).
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── id (numeric) -&gt; ID candidate </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: name matches ID pattern:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> (?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: The column name suggests an identifier, such as an ID, record number,</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> or key.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • <span style="font-weight: bold;">Disclosure</span>: direct</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── date (Date) -&gt; date </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: class is Date or POSIXct</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: Stored as a date/time value, so it is treated as a date column.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── city (character) -&gt; geography </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: name matches geography pattern:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> (?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: The column name looks geographic, such as a place, region, or</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> coordinate field.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── cat (factor) -&gt; categorical candidate </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: n_distinct/nrow &lt; 0.05 or n_distinct &lt;= 20</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Reason: Only a few distinct values appear, so this looks like a coded</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> category rather than a measurement.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 </code></pre></div>
     </div>

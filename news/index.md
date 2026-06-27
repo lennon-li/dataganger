@@ -1,5 +1,23 @@
 # Changelog
 
+## dataganger 0.3.4
+
+Configure page clarity pass:
+
+- Integer-valued columns now display without spurious decimals
+  (e.g. `127`, not `127.00`) by detecting whole-valued numerics, not
+  just R integer storage.
+- The column-roles table renames “Simulation” to **Action**, folds the
+  recommendation inline into the TYPE control (`... (recommended)`),
+  drops the redundant `recommended_role` column, and adds a per-row info
+  tooltip with a plain-English reason and the storage type.
+- Setting a column’s Action to **Drop** or **Pass through** now greys
+  out and disables its TYPE and DISCLOSURE selectors and no longer
+  blocks generation; pass-through columns carry a “real values - verify
+  before sharing” note.
+- Disclosure-detection reason strings rewritten in plain English.
+- Collapsible help now uses an obvious `+`/`-` affordance.
+
 ## dataganger 0.3.3
 
 - `pkgload` removed from `Suggests` (uses `.__DEVTOOLS__` namespace
