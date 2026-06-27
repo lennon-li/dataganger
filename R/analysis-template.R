@@ -9,15 +9,21 @@
 #'
 #' @param synthetic A synthetic data frame (its column types drive which
 #'   variables are plotted as numeric vs categorical).
+#' @param spec Optional recorded synthesis specification. When `NULL`, uses
+#'   `attr(synthetic, "spec")`.
+#' @param roles Optional recorded role decisions used to rebuild the exact
+#'   reproduction pipeline.
 #' @param purpose Optional purpose label, used for a one-line note at the top.
 #'
 #' @return A single character string: the contents of the `.qmd` file.
 #' @keywords internal
 #' @noRd
-render_analysis_template <- function(synthetic, purpose = NULL) {
+render_analysis_template <- function(synthetic, spec = NULL, roles = NULL, purpose = NULL) {
   if (!is.data.frame(synthetic)) {
     cli::cli_abort("{.arg synthetic} must be a data frame")
   }
+
+  spec <- spec %||% attr(synthetic, "spec", exact = TRUE)
 
   template <- paste(
     readLines(
@@ -39,19 +45,15 @@ render_analysis_template <- function(synthetic, purpose = NULL) {
 
   interpolate(
     template,
-    purpose_line        = purpose_line,
-    numeric_cols        = r_char_vector(numeric_cols),
-    categorical_cols    = r_char_vector(categorical_cols),
-    numeric_cols_py     = py_char_list(numeric_cols),
-    categorical_cols_py = py_char_list(categorical_cols)
+    purpose_line = purpose_line,
+    reproduction_script = build_reproduction_script(
+      spec = spec,
+      roles = roles,
+      purpose = purpose %||% spec$purpose %||% "unspecified"
+    ),
+    numeric_cols = r_char_vector(numeric_cols),
+    categorical_cols = r_char_vector(categorical_cols)
   )
-}
-
-#' Render a character vector as a Python list literal, e.g. `["a", "b"]`
-#' @keywords internal
-#' @noRd
-py_char_list <- function(x) {
-  paste0("[", paste(sprintf('"%s"', x), collapse = ", "), "]")
 }
 
 #' Render a character vector as R source code, e.g. `c("a", "b")`
@@ -61,5 +63,5 @@ r_char_vector <- function(x) {
   if (length(x) == 0L) {
     return("character(0)")
   }
-  paste0("c(", paste(sprintf('"%s"', x), collapse = ", "), ")")
+  paste0("c(", paste(sprintf('"%s"', escape_r_string(x)), collapse = ", "), ")")
 }

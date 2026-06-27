@@ -152,10 +152,7 @@ coarsen_qi_step <- function(x, step) {
   }
   if (is.character(x) || is.factor(x)) {
     chr <- as.character(x)
-    if (is_geography_like(chr)) {
-      return(coarsen_geography(chr, level = step))
-    }
-    # ISO date strings (YYYY-MM-DD) — coarsen as Date to avoid 366-level
+    # ISO date strings (YYYY-MM-DD) -- coarsen as Date to avoid 366-level
     # merge_rarest_level loop that leaves every row unique after 6 steps.
     chr_nna <- chr[!is.na(chr) & nzchar(trimws(chr))]
     if (length(chr_nna) > 0L &&
@@ -198,13 +195,3 @@ merge_rarest_level <- function(chr) {
   chr
 }
 
-is_geography_like <- function(chr) {
-  vals <- chr[!is.na(chr) & nzchar(chr)]
-  if (!length(vals)) {
-    return(FALSE)
-  }
-
-  normalized <- gsub("\\s+", "", vals)
-  all(grepl("^[0-9]{5}(-[0-9]{4})?$", vals) |
-        grepl("^[A-Za-z][0-9][A-Za-z][0-9][A-Za-z][0-9]$", normalized))
-}

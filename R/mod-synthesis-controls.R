@@ -128,17 +128,35 @@ objective_cards <- function(ns) {
   shiny::tagList(
     shiny::tags$div(
       class = "meter-legend",
+      shiny::tags$p(
+        class = "help",
+        style = "margin:0 0 8px;",
+        "Each objective trades these three off against each other: more ",
+        "fidelity usually means less privacy and anonymity."
+      ),
       shiny::tags$div(
         shiny::tags$strong("Fidelity"),
-        shiny::tags$span("more bars = closer to the real data")
+        shiny::tags$span(
+          "how closely the synthetic data reproduces the real data's ",
+          "distributions and relationships. More bars = closer to the real ",
+          "data, and more detail retained."
+        )
       ),
       shiny::tags$div(
         shiny::tags$strong("Privacy"),
-        shiny::tags$span("more bars = stronger protection against disclosure")
+        shiny::tags$span(
+          "how well the original records are protected from disclosure, ",
+          "such as no exact-row copies or rare-value leaks. More bars = ",
+          "less of the source data is recoverable."
+        )
       ),
       shiny::tags$div(
         shiny::tags$strong("Anonymity"),
-        shiny::tags$span("more bars = harder to re-identify individuals")
+        shiny::tags$span(
+          "how hard it is to single out an individual from combinations of ",
+          "quasi-identifiers (the k-anonymity guarantee). More bars = ",
+          "individuals blend into larger groups."
+        )
       )
     ),
     dg_purpose_card(
@@ -449,12 +467,6 @@ mod_synthesis_controls_server <- function(id, state) {
         ),
         shiny::p(class = "text-muted", "Set by your purpose choice"),
         shiny::selectInput(
-          inputId = session$ns("geography_strategy"),
-          label = "geography_strategy",
-          choices = c("coarsen", "aggregate", "preserve"),
-          selected = preset$geography_strategy
-        ),
-        shiny::selectInput(
           inputId = session$ns("preserve_missingness"),
           label = "preserve_missingness",
           choices = c("approx", "exact", "none"),
@@ -523,15 +535,9 @@ mod_synthesis_controls_server <- function(id, state) {
       } else {
         preset$name_strategy
       }
-      current_geo_strategy <- if (!is.null(input$geography_strategy)) {
-        input$geography_strategy
-      } else {
-        preset$geography_strategy
-      }
-
       # Always honour the row-count input. It pre-fills to the coverage-based
       # suggestion (Feature 8), which is often below the original row count, so
-      # we cannot treat "equals the default" as "leave n unset" — that would
+      # we cannot treat "equals the default" as "leave n unset" - that would
       # silently fall back to the full original size.
       n_arg <- NULL
       if (!is.null(current_rows_n) && !is.na(current_rows_n)) {
@@ -561,7 +567,6 @@ mod_synthesis_controls_server <- function(id, state) {
           coarsen_dates = isTRUE(input$coarsen_dates %||% preset$coarsen_dates),
           merge_rare = isTRUE(input$merge_rare %||% preset$merge_rare),
           free_text_strategy = preset$free_text_strategy,
-          geography_strategy = current_geo_strategy,
           preserve_missingness = input$preserve_missingness %||% preset$preserve_missingness %||% "approx",
           engine = engine_arg
         ),

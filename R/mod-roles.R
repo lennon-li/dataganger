@@ -2,6 +2,62 @@
 #'
 #' @keywords internal
 #' @noRd
+dg_rec_to_role <- function(rec) {
+  if (is.na(rec) || !nzchar(rec)) return(NA_character_)
+  lc <- tolower(rec)
+  if (grepl("id\\b|identifier", lc)) return("identifier")
+  if (grepl("categor", lc)) return("categorical")
+  if (grepl("free.text|free_text", lc)) return("free_text")
+  if (grepl("\\bdate\\b", lc)) return("date")
+  if (grepl("logic|boolean", lc)) return("logical")
+  if (grepl("numeric", lc)) return("numeric")
+  NA_character_
+}
+
+#' @keywords internal
+#' @noRd
+dg_class_to_role <- function(cls) {
+  if (is.na(cls) || !nzchar(cls)) return("numeric")
+  lc <- tolower(cls)
+  if (grepl("date|posix", lc)) return("date")
+  if (grepl("logical", lc)) return("logical")
+  if (grepl("char|factor", lc)) return("categorical")
+  "numeric"
+}
+
+#' @keywords internal
+#' @noRd
+eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
+  if (!is.na(user_role) && nzchar(user_role)) return(user_role)
+  from_rec <- dg_rec_to_role(recommended_role)
+  if (!is.na(from_rec)) return(from_rec)
+  dg_class_to_role(class_col)
+}
+
+#' @keywords internal
+#' @noRd
+dg_role_treatment <- function(roles) {
+  if (is.null(roles)) {
+    return(character(0))
+  }
+  treatment_col <- if ("simulation" %in% names(roles)) {
+    "simulation"
+  } else if ("treatment" %in% names(roles)) {
+    "treatment"
+  } else {
+    NULL
+  }
+  if (is.null(treatment_col)) {
+    vals <- rep("synthesize", nrow(roles))
+  } else {
+    vals <- roles[[treatment_col]]
+    vals[is.na(vals) | !nzchar(vals)] <- "synthesize"
+  }
+  stats::setNames(vals, roles$variable)
+}
+
+#' @keywords internal
+#' @noRd
 mod_roles_ui <- function(id, embedded = FALSE) {
   rlang::check_installed(
     c("shiny", "DT"),
@@ -264,7 +320,7 @@ mod_roles_server <- function(id, state) {
       shiny::req(roles)
 
       all_roles <- c("identifier", "numeric", "categorical", "logical",
-                     "date", "free_text", "geography", "drop")
+                     "date", "free_text", "drop")
       eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
         eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
       }, character(1))
@@ -301,7 +357,7 @@ mod_roles_server <- function(id, state) {
     })
 
     ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
-                      "date", "free_text", "geography", "drop")
+                      "date", "free_text", "drop")
     SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
     DISCLOSURE_OPTIONS <- c("none", "direct", "quasi", "sensitive")
     DISCLOSURE_LABELS  <- c(
@@ -311,37 +367,10 @@ mod_roles_server <- function(id, state) {
       sensitive = "Sensitive"
     )
 
-    # Map human-readable recommended_role text -> a ROLE_OPTIONS value
-    rec_to_role <- function(rec) {
-      if (is.na(rec) || !nzchar(rec)) return(NA_character_)
-      lc <- tolower(rec)
-      if (grepl("id\\b|identifier", lc))       return("identifier")
-      if (grepl("categor",          lc))       return("categorical")
-      if (grepl("free.text|free_text", lc))    return("free_text")
-      if (grepl("\\bdate\\b",       lc))       return("date")
-      if (grepl("logic|boolean",    lc))       return("logical")
-      if (grepl("geograph",         lc))       return("geography")
-      if (grepl("numeric",          lc))       return("numeric")
-      NA_character_
-    }
-
-    # Infer role from R class string when recommended_role gives no signal
-    class_to_role <- function(cls) {
-      if (is.na(cls) || !nzchar(cls)) return("numeric")
-      lc <- tolower(cls)
-      if (grepl("date|posix",    lc)) return("date")
-      if (grepl("logical",       lc)) return("logical")
-      if (grepl("char|factor",   lc)) return("categorical")
-      "numeric"
-    }
-
-    # Effective role: user_role > recommended_role > class-based inference
-    eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
-      if (!is.na(user_role) && nzchar(user_role)) return(user_role)
-      from_rec <- rec_to_role(recommended_role)
-      if (!is.na(from_rec)) return(from_rec)
-      class_to_role(class_col)
-    }
+    # Role-mapping helpers (rec_to_role/class_to_role/eff_role) are defined at
+    # file scope so the Generate page's read-only decision table can reuse them.
+    rec_to_role   <- dg_rec_to_role
+    class_to_role <- dg_class_to_role
 
     is_whole_number_column <- function(x) {
       if (is.integer(x)) {

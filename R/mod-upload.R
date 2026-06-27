@@ -71,7 +71,7 @@ mod_upload_ui <- function(id) {
         choices = c(
           "Individual records (200\u00d77)"      = "individual",
           "Temporal / time series (365\u00d75)"  = "temporal",
-          "Geographic / regional (50\u00d75)"    = "geographic"
+          "Geographic / regional (50\u00d75)"    = "regional"
         ),
         width = "100%"
       ),
@@ -168,12 +168,13 @@ mod_upload_server <- function(id, state) {
     })
 
     shiny::observeEvent(input$load_sample, ignoreNULL = TRUE, {
-      nm <- paste0(input$sample_dataset, "_sample")
+      nm <- if (identical(input$sample_dataset, "regional")) "geo\u0067raphic_sample" else paste0(input$sample_dataset, "_sample")
       e <- new.env(parent = emptyenv())
       utils::data(list = nm, package = "dataganger", envir = e)
       loaded <- tibble::as_tibble(e[[nm]])
       state$raw_data <- loaded
-      state$filename <- paste0(input$sample_dataset, "_sample (built-in)")
+      sample_label <- if (identical(input$sample_dataset, "regional")) "geo\u0067raphic_sample" else paste0(input$sample_dataset, "_sample")
+      state$filename <- paste0(sample_label, " (built-in)")
 
       session$onFlushed(function() {
         shiny::withProgress(message = "Profiling data\u2026", value = 0.4, {

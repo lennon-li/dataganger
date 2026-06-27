@@ -47,7 +47,7 @@ If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the en
 
 \item{...}{Additional arguments passed to the spec list. Currently supports
 \code{preserve_correlations}, \code{coarsen_dates}, \code{merge_rare},
-\code{free_text_strategy}, \code{geography_strategy}, \code{rare_level_min_n},
+\code{free_text_strategy}, \code{rare_level_min_n},
 \code{preserve_missingness}.}
 }
 \value{

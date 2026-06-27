@@ -25,7 +25,7 @@ This is synthetic data generated for prototyping and development. It is not inte
 
 {%privacy_warning}
 
-## Regeneration command
+## Reproduction pipeline
 
 ```r
 {%regeneration_command}

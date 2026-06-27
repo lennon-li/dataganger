@@ -1,4 +1,4 @@
-# Background synthesis for the Shiny app (Bug 6 — cancellable generation).
+# Background synthesis for the Shiny app (Bug 6 - cancellable generation).
 #
 # The app runs the full synthesize -> compare -> privacy pipeline in a separate
 # R process via callr, so the main Shiny session stays responsive and a Cancel
@@ -59,7 +59,9 @@ start_synthesis_process <- function(data, spec, roles = NULL) {
   rlang::check_installed("callr", reason = "to run cancellable background synthesis")
   callr::r_bg(
     func = function(data, spec, roles) {
-      dataganger:::run_synthesis_pipeline(data, spec, roles = roles)
+      get("run_synthesis_pipeline", envir = asNamespace("dataganger"))(
+        data, spec, roles = roles
+      )
     },
     args = list(data = data, spec = spec, roles = roles),
     supervise = TRUE

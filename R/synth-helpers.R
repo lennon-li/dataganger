@@ -4,9 +4,9 @@
 # All return vectors of length n.
 #
 # Constraints:
-# - Never use set.seed() — the caller wraps with withr::with_seed()
+# - Never use set.seed() -- the caller wraps with withr::with_seed()
 # - Never pass raw haven_labelled into base R distribution functions
-# - All-NA inputs → all-NA output of same type
+# - All-NA inputs -> all-NA output of same type
 
 # ===========================================================================
 # Numeric synthesis [2.5]
@@ -240,21 +240,6 @@ synth_free_text <- function(x, n, strategy = "drop") {
   cli::cli_abort("Unknown free_text_strategy: {.val {strategy}}")
 }
 
-# Coarsen geography-like string codes by removing `level` trailing units.
-# A "unit" is a trailing alphanumeric run after stripping spaces: full postal
-# code "M5V 3A8" -> "M5V" (level 1) -> "M5" (level 2). Plain numeric ZIPs lose
-# one trailing digit per level.
-coarsen_geography <- function(x, level = 1L) {
-  if (level < 1L) {
-    return(as.character(x))
-  }
-
-  out <- gsub("\\s+", "", as.character(x))
-  for (i in seq_len(level)) {
-    out <- ifelse(is.na(out) | nchar(out) <= 1L, out, substr(out, 1L, nchar(out) - 1L))
-  }
-  out
-}
 
 # ===========================================================================
 # Missingness application (R5: independent per-column Bernoulli)

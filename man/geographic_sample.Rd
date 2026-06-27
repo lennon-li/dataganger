@@ -15,7 +15,7 @@ A data frame with 50 rows and 5 columns:
 }
 }
 \source{
-Synthetically generated via \code{data-raw/geographic_sample.R}
+Synthetically generated via \code{data-raw/Geographic_sample.R}
 }
 \usage{
 geographic_sample

@@ -70,6 +70,7 @@ make_agent_bundle <- function(file, out, purpose = "development",
   export_synthetic(
     synthetic,
     original       = data,
+    roles          = roles,
     comparison     = comparison,
     privacy        = post_privacy,
     code_readiness = code_readiness,

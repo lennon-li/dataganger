@@ -77,9 +77,9 @@ fig("step-5-compare.png")
 
 ## 6. Export
 
-Download a single bundle containing the synthetic data, a data dictionary, the
-synthesis spec, a manifest, a comparison report, and diagnostic files — ready to
-share with collaborators or AI programming tools.
+Download a single bundle containing the synthetic data, the synthesis spec, a
+manifest, a comparison report, diagnostic files, and (optionally) a standalone
+data dictionary - ready to share with collaborators or AI programming tools.
 
 ```{r, echo = FALSE}
 fig("step-6-export.png")
@@ -88,3 +88,15 @@ fig("step-6-export.png")
 > **Remember:** synthetic data reduces direct disclosure risk; it does not
 > replace a formal privacy assessment. Review the comparison and privacy
 > warnings before sharing any output externally.
+
+## Reporting problems and feedback
+
+If something feels off, you can open a pre-filled GitHub issue straight from R:
+
+```r
+report_issue("The export summary was confusing", context = "Shiny app")
+```
+
+The Shiny app also includes a **Report a problem** button in the sidebar. Both
+paths open your browser with environment details filled in, but they do not
+send anything automatically - you stay in control of what gets submitted.

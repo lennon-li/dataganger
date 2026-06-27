@@ -164,6 +164,25 @@ test_that("categorical comparison treats NA as an explicit missing level", {
   })
 })
 
+test_that("geographic-named categorical columns render through the categorical comparison path", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(region = c("north", "north", "south", NA), stringsAsFactors = FALSE)
+  synthetic <- data.frame(region = c("north", "south", "south", NA), stringsAsFactors = FALSE)
+  roles <- detect_roles(raw)
+  expect_equal(roles$recommended_role[roles$variable == "region"], "categorical candidate")
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "TVD =")
+    expect_no_match(stats_html, "excluded from distribution comparison")
+  })
+})
+
 test_that("date comparison handles all-missing dates without Inf summaries", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("plotly")

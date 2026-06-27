@@ -157,28 +157,20 @@ test_that("detect_roles() classifies long narrative text as free text before ID"
   expect_equal(r$recommended_role[1], "free text")
 })
 
-test_that("detect_roles() detects geography from column name", {
-  # Use data with moderate cardinality to avoid earlier thresholds
-  # 50 rows, 30 distinct values → 30/50=0.6, >=0.05, not ID (<0.95),
-  # n_distinct=30 > 20, so doesn't hit categorical
-  geo_names <- c("zip", "postal", "fsa", "county", "region", "province",
-                 "state", "city", "geo", "lat", "lon", "coord")
-  for (nm in geo_names) {
-    n <- 50
-    vals <- sample(seq_len(30), n, replace = TRUE)
-    df <- setNames(data.frame(x = vals), nm)
-    r <- detect_roles(df)
-    expect_equal(r$recommended_role[1], "geography", info = nm)
-  }
-})
-
-test_that("detect_roles() classifies low-cardinality region as geography before categorical", {
-  df <- data.frame(
+test_that("detect_roles() classifies geographic names by cardinality, not a special role", {
+  low_card <- data.frame(
     region = rep(c("north", "south", "east", "west", "central"), each = 6),
     stringsAsFactors = FALSE
   )
-  r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "geography")
+  low_roles <- detect_roles(low_card)
+  expect_equal(low_roles$recommended_role[1], "categorical candidate")
+
+  high_card <- data.frame(
+    region = sprintf("region-%03d", 1:50),
+    stringsAsFactors = FALSE
+  )
+  high_roles <- detect_roles(high_card)
+  expect_equal(high_roles$recommended_role[1], "ID candidate")
 })
 
 test_that("detect_roles() labels a distinctive numeric column as numeric", {
@@ -320,9 +312,9 @@ test_that("detect_roles sensitive-name heuristic rejects near-miss false positiv
   expect_true(is.na(dr[["unconditional_prob"]]))
 })
 
-test_that("detect_roles disclosure_role is NA but analysis role is unchanged", {
+test_that("detect_roles leaves geographic categorical columns unselected for disclosure", {
   df <- data.frame(city = rep(c("Toronto", "Montreal"), 25), stringsAsFactors = FALSE)
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "geography")
+  expect_equal(r$recommended_role[1], "categorical candidate")
   expect_true(is.na(r$disclosure_role[1]))
 })

@@ -74,6 +74,11 @@ reference:
       - make_agent_bundle
       - check_code_readiness
 
+  - title: "Feedback"
+    desc: Report a problem or suggest a feature via a pre-filled GitHub issue.
+    contents:
+      - report_issue
+
   - title: "CLI"
     desc: Command-line interface entry point.
     contents:

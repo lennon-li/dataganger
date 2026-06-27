@@ -133,7 +133,7 @@ test_that("geographic sample loads 50x5 tibble with non-empty filename", {
   shiny::testServer(upload_host_server, {
     state <- session$getReturned()$state
 
-    session$setInputs(`upload-sample_dataset` = "geographic")
+    session$setInputs(`upload-sample_dataset` = "regional")
     session$setInputs(`upload-load_sample` = 1)
     session$flushReact()
 

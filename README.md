@@ -37,7 +37,8 @@ The guided Shiny app takes you from a real dataset to a shareable synthetic
 bundle in six steps — pick an **objective**, **upload** your data (or load a
 built-in sample), **configure** column disclosure roles, **generate** the
 synthetic double, **compare** real vs. synthetic distributions, and **export**
-the bundle.
+the bundle. The sidebar also includes a **Report a problem** button that opens
+a pre-filled GitHub issue in your browser.
 
 ```r
 library(dataganger)
@@ -62,6 +63,9 @@ roles   <- detect_roles(dat, profile)
 spec    <- synth_spec(purpose = "development", roles = roles, seed = 42)
 syn     <- synthesize_data(dat, spec, roles)
 export_synthetic(syn, original = dat, path = "output.zip")
+
+# Open a pre-filled issue for bugs, feedback, or feature requests
+report_issue("The compare step was hard to interpret", context = "Shiny app")
 ```
 
 A command-line interface is available too — see
