@@ -32,6 +32,7 @@ mod_export_ui <- function(id) {
     ),
     stale_banner_ui("export", ns = ns),
     shiny::tags$div(class = "double-rule"),
+    shiny::uiOutput(ns("export_summary")),
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
@@ -42,15 +43,17 @@ mod_export_ui <- function(id) {
       shiny::tags$ul(
         class = "bundle-contents",
         shiny::tags$li(shiny::tags$strong("synthetic_data.csv"), " \u2014 the synthetic dataset"),
-        shiny::tags$li(shiny::tags$strong("data_dictionary.csv"), " \u2014 column-by-column schema"),
-        shiny::tags$li(shiny::tags$strong("analysis.qmd"), " \u2014 Quarto report with R (runnable) and Python (reference) code to read both datasets and compare them"),
+        shiny::tags$li(shiny::tags$strong("README.md"), " \u2014 start here; explains every file in the bundle"),
+        shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types"),
+        shiny::tags$li(shiny::tags$strong("analysis.qmd"), " \u2014 Quarto report with the R-only reproduction pipeline and comparison workflow"),
         shiny::tags$li(shiny::tags$strong("comparison_report.html"), " \u2014 fidelity + privacy comparison"),
-        shiny::tags$li(shiny::tags$strong("manifest.json"), " / ", shiny::tags$strong("privacy_report.txt"), " \u2014 provenance and disclosure metrics"),
-        shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types")
+        shiny::tags$li(shiny::tags$strong("ai-readme.md"), " \u2014 summary for AI coding assistants you share this with"),
+        shiny::tags$li(shiny::tags$strong("manifest.json"), " / ", shiny::tags$strong("privacy_report.txt"), " \u2014 provenance and disclosure metrics")
       ),
       shiny::tags$p(
         class = "help",
-        "The bundle downloads to your browser's Downloads folder."
+        "The bundle downloads to your browser's Downloads folder. ",
+        "See README.md inside it for what each file is for."
       )
     )
   )
@@ -71,6 +74,54 @@ mod_export_server <- function(id, state) {
     })
 
     shiny::outputOptions(output, "stale__export", suspendWhenHidden = FALSE)
+
+    output$export_summary <- shiny::renderUI({
+      shiny::req(state$raw_data, state$synthetic)
+
+      raw_data <- state$raw_data
+      synthetic <- state$synthetic
+      roles <- state$roles
+
+      # Reconcile against what is actually in the synthetic output, so the
+      # counts always tie out (Original = synthesized + pass-through + dropped).
+      # A column can leave the output via Action = drop OR by role exclusion
+      # (e.g. an ID candidate that is never synthesized); both count as dropped.
+      orig_n  <- ncol(raw_data)
+      final_n <- ncol(synthetic)
+      pass_cols <- character(0)
+      if (!is.null(roles) && "variable" %in% names(roles) && nrow(roles) > 0L) {
+        treatment <- dg_role_treatment(roles)
+        pass_cols <- names(treatment)[treatment == "pass_through"]
+      }
+      pass_through_n <- length(intersect(pass_cols, names(synthetic)))
+      synthesized_n  <- max(0L, final_n - pass_through_n)
+      dropped_n      <- max(0L, orig_n - final_n)
+
+      row <- function(label, value) shiny::tags$tr(
+        shiny::tags$td(class = "name", label),
+        shiny::tags$td(value)
+      )
+
+      shiny::tags$div(
+        class = "card",
+        shiny::tags$div(
+          class = "card-header",
+          shiny::tags$span(class = "title", "Generation summary"),
+          shiny::tags$span(class = "sub", "what happened to each column")
+        ),
+        shiny::tags$table(
+          class = "data",
+          style = "margin-top:8px;",
+          shiny::tags$tbody(
+            row("Original", sprintf("%d rows \u00d7 %d cols", nrow(raw_data), ncol(raw_data))),
+            row("Synthesized", sprintf("%d column(s)", synthesized_n)),
+            row("Pass-through", sprintf("%d column(s)", pass_through_n)),
+            row("Dropped", sprintf("%d column(s)", dropped_n)),
+            row("Final synthetic", sprintf("%d rows \u00d7 %d cols", nrow(synthetic), ncol(synthetic)))
+          )
+        )
+      )
+    })
 
     export_base_name <- function() {
       seed <- shiny::isolate(state$seed_used)
@@ -103,7 +154,9 @@ mod_export_server <- function(id, state) {
         format = "dir",
         overwrite = TRUE,
         include_report = TRUE,
+        include_dictionary = FALSE,
         fail_on_exact_match = FALSE,
+        roles = shiny::isolate(state$roles),
         include_original_names = use_original_names()
       )
 

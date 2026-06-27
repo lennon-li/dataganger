@@ -25,6 +25,7 @@ test_that("generate UI exposes a configuration recap output", {
   html <- as.character(mod_generate_ui("generate"))
   expect_match(html, "Your configuration")
   expect_match(html, "generate-config_recap")
+  expect_match(html, "generate-decision_recap")
 })
 
 capture_notifications <- function() {
@@ -218,7 +219,7 @@ test_that("generate uses spec seed when not NULL", {
   expect_identical(shiny::isolate(state$seed_used), 42L)
 })
 
-test_that("result_summary includes Seed line after generation", {
+test_that("engine label resolves to the generated engine after synthesis", {
   testthat::skip_if_not_installed("shiny")
 
   state <- generate_test_state(
@@ -226,6 +227,11 @@ test_that("result_summary includes Seed line after generation", {
     spec = synth_spec(purpose = "development", seed = 99L)
   )
   stubs <- make_stub_bindings()
+  stubs$synthesize_data <- function(...) {
+    out <- structure(data.frame(x = 1:3), class = c("dataganger_synthetic", "data.frame"))
+    attr(out, "engine") <- "internal"
+    out
+  }
   testthat::local_mocked_bindings(
     synthesize_data   = stubs$synthesize_data,
     compare_synthetic = stubs$compare_synthetic,
@@ -235,7 +241,65 @@ test_that("result_summary includes Seed line after generation", {
   shiny::testServer(mod_generate_server, args = list(state = state), {
     session$setInputs(generate = 1L)
     session$flushReact()
-    expect_match(output$result_summary, "Seed: 99")
+    recap_html <- paste(as.character(output$config_recap), collapse = "\n")
+    expect_match(recap_html, "internal \\(auto\\)")
+  })
+})
+
+test_that("regenerate is disabled before generation and enabled after", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "development", seed = 5L)
+  )
+  stubs <- make_stub_bindings()
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    before_html <- paste(as.character(output$generate_actions), collapse = "\n")
+    expect_match(before_html, "Regenerate")
+    expect_match(before_html, "disabled")
+
+    session$setInputs(generate = 1L)
+    session$flushReact()
+
+    after_html <- paste(as.character(output$generate_actions), collapse = "\n")
+    expect_match(after_html, "Regenerate")
+    expect_no_match(after_html, "disabled")
+  })
+})
+
+test_that("result stats include exact row matches after generation", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "development", seed = 11L)
+  )
+  stubs <- make_stub_bindings()
+  stubs$privacy_check <- local({
+    p <- tibble::tibble()
+    class(p) <- c("dataganger_privacy_check", class(p))
+    attr(p, "exact_row_matches") <- 2L
+    function(...) p
+  })
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    stats_html <- paste(as.character(output$result_stats), collapse = "\n")
+    expect_match(stats_html, "EXACT MATCHES")
+    expect_match(stats_html, ">2<")
   })
 })
 
@@ -254,8 +318,15 @@ test_that("try_new_seed runs synthesis and stores a new seed_used", {
   )
 
   shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    first_seed <- state$seed_used
+
     session$setInputs(try_new_seed = 1L)
     session$flushReact()
+
+    expect_false(is.null(first_seed))
+    expect_false(identical(state$seed_used, first_seed))
   })
 
   expect_false(is.null(shiny::isolate(state$synthetic)))

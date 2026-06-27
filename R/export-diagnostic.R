@@ -96,7 +96,6 @@ diagnostic_exposure_level <- function(role) {
     "ID candidate" = "blocked",
     "free text"    = "blocked",
     "date"         = "coarsened",
-    "geography"    = "coarsened",
     "schema_only"
   )
 }

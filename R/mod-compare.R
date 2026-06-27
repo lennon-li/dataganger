@@ -65,24 +65,31 @@ mod_compare_server <- function(id, state) {
     selected_var <- shiny::reactiveVal(NULL)
 
     # Derive the kind used for plot/stats: user_role > recommended_role > column class
+    role_to_kind <- function(role) {
+      if (is.na(role) || !nzchar(role)) return(NA_character_)
+      lc <- tolower(role)
+      if (grepl("id\\b|identifier", lc)) return("identifier")
+      if (grepl("categor", lc)) return("categorical")
+      if (grepl("\\bdate\\b", lc)) return("date")
+      if (grepl("logic|boolean", lc)) return("logical")
+      if (grepl("free.text|free_text", lc)) return("free_text")
+      if (grepl("geograph", lc)) return("categorical")
+      if (grepl("numeric", lc)) return("numeric")
+      if (grepl("drop", lc)) return("drop")
+      role
+    }
+
     eff_kind <- function(var, roles, col_data) {
       if (!is.null(roles)) {
         idx <- match(var, roles$variable)
         if (!is.na(idx)) {
           ur  <- roles$user_role[[idx]]
           rec <- if ("recommended_role" %in% names(roles)) roles$recommended_role[[idx]] else NA_character_
-          if (!is.na(ur) && nzchar(ur)) return(ur)
+          kind_from_user <- role_to_kind(ur)
+          if (!is.na(kind_from_user)) return(kind_from_user)
           # Map recommended_role text to a kind
-          if (!is.na(rec) && nzchar(rec)) {
-            lc <- tolower(rec)
-            if (grepl("id\\b|identifier", lc))    return("identifier")
-            if (grepl("categor",          lc))    return("categorical")
-            if (grepl("\\bdate\\b",       lc))    return("date")
-            if (grepl("logic|boolean",    lc))    return("logical")
-            if (grepl("free.text",        lc))    return("free_text")
-            if (grepl("geograph",         lc))    return("geography")
-            if (grepl("numeric",          lc))    return("numeric")
-          }
+          kind_from_rec <- role_to_kind(rec)
+          if (!is.na(kind_from_rec)) return(kind_from_rec)
         }
       }
       # Fall back to actual column class
@@ -283,7 +290,7 @@ mod_compare_server <- function(id, state) {
         vapply(lvls, function(l) mean(vals == l), numeric(1))
       }
 
-      if (kind %in% c("free_text", "geography", "drop")) {
+      if (kind %in% c("free_text", "drop")) {
         return(empty_plot(paste0(kind, " \u2014 no distribution plot")))
       }
 
@@ -414,7 +421,7 @@ mod_compare_server <- function(id, state) {
 
       kind <- eff_kind(var, roles, orig[[var]])
 
-      if (kind %in% c("identifier", "free_text", "geography", "drop")) {
+      if (kind %in% c("identifier", "free_text", "drop")) {
         return(shiny::tags$p(
           style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin-top:8px;",
           paste0("Role is '", kind, "' \u2014 this column is excluded from distribution comparison.")

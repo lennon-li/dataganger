@@ -17,10 +17,10 @@ test_that("build_diagnostic_view() returns correct structure", {
   roles <- tibble::tibble(
     variable         = c("patient_id", "score", "notes", "city"),
     class            = c("numeric", "numeric", "character", "character"),
-    recommended_role = c("ID candidate", "unknown", "free text", "geography"),
+    recommended_role = c("ID candidate", "unknown", "free text", "categorical candidate"),
     user_role        = NA_character_,
     simulation       = "synthesize",
-    reason           = c("name", "no match", "long text", "geo pattern"),
+    reason           = c("name", "no match", "long text", "low cardinality"),
     disclosure_role  = c("direct", "none", "direct", "quasi")
   )
   class(roles) <- c("dataganger_roles", class(roles))

@@ -2,9 +2,10 @@
 #'
 #' Writes a reviewable export bundle containing the synthetic data, data
 #' dictionary, comparison report, privacy report, manifest, an `analysis.qmd`
-#' Quarto report (R and Python code to compare the synthetic data against the
-#' original), and helper files for re-loading the bundle. By default the bundle
-#' is written as a zip archive.
+#' Quarto report (R code to compare the synthetic data against the original),
+#' and helper files for re-loading the bundle. The standalone data dictionary
+#' file is optional via `include_dictionary`. By default the bundle is written
+#' as a zip archive.
 #'
 #' @param synthetic A synthetic data frame, typically from [synthesize_data()].
 #' @param original Optional original data frame. When provided, used for the
@@ -22,6 +23,9 @@
 #'   whitespace are prefixed with a single quote before CSV export.
 #' @param purpose Optional purpose label for README text. Defaults to the
 #'   purpose recorded in `attr(synthetic, "spec")` when available.
+#' @param roles Optional recorded role decisions as a `dataganger_roles` data
+#'   frame. When supplied, the export bundle includes the exact column
+#'   decisions needed to reproduce the same synthetic output.
 #' @param include_original_names Logical or `NULL`. Controls whether
 #'   `data_dictionary.csv` includes original variable names. When `NULL`, this
 #'   defaults to `TRUE` unless `name_strategy = "dictionary_only"`, in which
@@ -33,6 +37,10 @@
 #' @param include_report Logical. When `TRUE` (the default), write
 #'   `comparison_report.html`. If `rmarkdown`/`knitr` are unavailable, the
 #'   report is skipped with a message instead of an error.
+#' @param include_dictionary Logical. When `TRUE` (the default), write
+#'   `data_dictionary.csv` into the bundle. The dictionary is always computed
+#'   in memory for the load helper and README; this only controls whether the
+#'   standalone CSV is written.
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
 #'   `code_readiness_report.json` into the bundle.
@@ -57,9 +65,11 @@ export_synthetic <- function(synthetic,
                              format = c("zip", "dir"),
                              sanitize_for_spreadsheets = TRUE,
                              purpose = NULL,
+                             roles = NULL,
                              include_original_names = NULL,
                              fail_on_exact_match = FALSE,
                              include_report = TRUE,
+                             include_dictionary = TRUE,
                              code_readiness = NULL,
                              overwrite = FALSE) {
   format <- match.arg(format)
@@ -74,6 +84,10 @@ export_synthetic <- function(synthetic,
 
   if (!is.null(original) && !is.data.frame(original)) {
     cli::cli_abort("{.arg original} must be a data frame when supplied")
+  }
+
+  if (!is.null(roles) && !is.data.frame(roles)) {
+    cli::cli_abort("{.arg roles} must be a data frame when supplied")
   }
 
   if (!is.logical(sanitize_for_spreadsheets) || length(sanitize_for_spreadsheets) != 1) {
@@ -95,6 +109,10 @@ export_synthetic <- function(synthetic,
 
   if (!is.logical(include_report) || length(include_report) != 1) {
     cli::cli_abort("{.arg include_report} must be TRUE or FALSE")
+  }
+
+  if (!is.logical(include_dictionary) || length(include_dictionary) != 1) {
+    cli::cli_abort("{.arg include_dictionary} must be TRUE or FALSE")
   }
 
   spec <- attr(synthetic, "spec", exact = TRUE)
@@ -137,8 +155,10 @@ export_synthetic <- function(synthetic,
   synthetic_path <- file.path(bundle_dir, "synthetic_data.csv")
   readr::write_csv(csv_data, synthetic_path, na = "")
 
-  dictionary_path <- file.path(bundle_dir, "data_dictionary.csv")
-  readr::write_csv(dictionary, dictionary_path, na = "")
+  if (isTRUE(include_dictionary)) {
+    dictionary_path <- file.path(bundle_dir, "data_dictionary.csv")
+    readr::write_csv(dictionary, dictionary_path, na = "")
+  }
 
   writeLines(
     render_load_data_template(synthetic, dictionary),
@@ -147,19 +167,27 @@ export_synthetic <- function(synthetic,
   )
 
   writeLines(
-    render_analysis_template(synthetic, purpose = purpose),
+    render_analysis_template(synthetic, spec = spec, roles = roles, purpose = purpose),
     con = file.path(bundle_dir, "analysis.qmd"),
     useBytes = TRUE
   )
 
   writeLines(
-    render_ai_readme(synthetic, dictionary, purpose, spec, privacy),
+    render_ai_readme(synthetic, dictionary, purpose, spec, privacy, roles = roles),
     con = file.path(bundle_dir, "ai-readme.md"),
     useBytes = TRUE
   )
 
   writeLines(
-    render_bundle_readme(synthetic, dictionary, purpose, include_report),
+    render_bundle_readme(
+      synthetic,
+      dictionary,
+      purpose,
+      include_report,
+      include_dictionary,
+      spec,
+      roles = roles
+    ),
     con = file.path(bundle_dir, "README.md"),
     useBytes = TRUE
   )
@@ -481,7 +509,179 @@ escape_r_string <- function(x) {
   gsub("\\\\", "\\\\\\\\", gsub('"', '\\"', x, fixed = TRUE))
 }
 
-render_ai_readme <- function(synthetic, dictionary, purpose, spec, privacy) {
+format_named_character_vector <- function(x) {
+  if (length(x) == 0L) {
+    return("character(0)")
+  }
+
+  vals <- vapply(seq_along(x), function(i) {
+    value <- x[[i]]
+    value_text <- if (is.na(value)) {
+      "NA_character_"
+    } else {
+      sprintf('"%s"', escape_r_string(as.character(value)))
+    }
+    sprintf('"%s" = %s', escape_r_string(names(x)[[i]]), value_text)
+  }, character(1))
+
+  paste0("c(", paste(vals, collapse = ", "), ")")
+}
+
+format_r_scalar <- function(x) {
+  if (length(x) != 1L) {
+    cli::cli_abort("Expected a scalar value while building the reproduction script.")
+  }
+
+  if (is.null(x)) {
+    return(NULL)
+  }
+
+  if (is.na(x)) {
+    return("NA")
+  }
+
+  if (is.character(x)) {
+    return(sprintf('"%s"', escape_r_string(x)))
+  }
+
+  if (is.logical(x)) {
+    return(if (isTRUE(x)) "TRUE" else "FALSE")
+  }
+
+  if (is.numeric(x)) {
+    return(as.character(x))
+  }
+
+  sprintf('"%s"', escape_r_string(as.character(x)))
+}
+
+reproduction_spec_args <- function(spec, purpose) {
+  spec <- spec %||% list()
+
+  arg_names <- c(
+    "purpose",
+    "seed",
+    "level",
+    "engine",
+    "n",
+    "name_strategy",
+    "k_anon",
+    "rare_level_min_n",
+    "preserve_missingness",
+    "coarsen_dates",
+    "merge_rare",
+    "free_text_strategy",
+    "preserve_correlations",
+    "acknowledge_risk"
+  )
+
+  arg_values <- list(purpose = purpose)
+  for (nm in setdiff(arg_names, "purpose")) {
+    spec_name <- if (identical(nm, "acknowledge_risk")) "acknowledged_risk" else nm
+    value <- spec[[spec_name]]
+    if (identical(nm, "engine") && is.null(value)) {
+      next
+    }
+    if (!is.null(value)) {
+      arg_values[[nm]] <- value
+    }
+  }
+
+  vapply(names(arg_values), function(nm) {
+    sprintf("%s = %s", nm, format_r_scalar(arg_values[[nm]]))
+  }, character(1))
+}
+
+build_reproduction_script <- function(spec, roles, purpose) {
+  purpose <- purpose %||% spec$purpose %||% "unspecified"
+
+  script <- c(
+    "library(dataganger)",
+    "",
+    "# 1. Load YOUR original data. It is NOT shipped in this bundle (privacy);",
+    "#    point this at the file you synthesized from.",
+    'original <- read_input("path/to/your/original-data.csv")',
+    "",
+    "# 2. Recreate the column decisions made in DataGangeR.",
+    "roles <- detect_roles(original)"
+  )
+
+  if (is.null(roles)) {
+    script <- c(
+      script,
+      "# No manual overrides were recorded, so detect_roles(original) is enough."
+    )
+  } else {
+    user_role_values <- roles$user_role %||% rep(NA_character_, nrow(roles))
+    names(user_role_values) <- roles$variable
+    user_role_values <- user_role_values[!is.na(user_role_values) & nzchar(user_role_values)]
+    if (length(user_role_values) > 0L) {
+      script <- c(
+        script,
+        sprintf(
+          "roles$user_role <- %s[roles$variable]",
+          format_named_character_vector(user_role_values)
+        )
+      )
+    } else {
+      script <- c(script, "# No manual user_role overrides were recorded.")
+    }
+
+    disclosure_values <- roles$disclosure_role %||% rep(NA_character_, nrow(roles))
+    names(disclosure_values) <- roles$variable
+    disclosure_values <- disclosure_values[
+      !is.na(disclosure_values) & nzchar(disclosure_values)
+    ]
+    if (length(disclosure_values) > 0L) {
+      script <- c(
+        script,
+        sprintf(
+          "roles$disclosure_role <- %s[roles$variable]",
+          format_named_character_vector(disclosure_values)
+        )
+      )
+    } else {
+      script <- c(script, "# No disclosure_role overrides were recorded.")
+    }
+
+    action_values <- dg_role_treatment(roles)
+    has_action_overrides <- length(action_values) > 0L &&
+      !all(action_values %in% "synthesize")
+    if (has_action_overrides) {
+      script <- c(
+        script,
+        sprintf(
+          "roles$simulation <- %s[roles$variable]",
+          format_named_character_vector(action_values)
+        )
+      )
+    } else {
+      script <- c(script, "# All column actions used the default synthesize behavior.")
+    }
+  }
+
+  script <- c(
+    script,
+    "",
+    "# 3. Recreate the synthesis settings (same seed = same output).",
+    sprintf(
+      "spec <- synth_spec(\n  %s\n)",
+      paste(reproduction_spec_args(spec, purpose), collapse = ",\n  ")
+    ),
+    "",
+    "# 4. Generate the identical synthetic data.",
+    "synthetic <- synthesize_data(original, spec, roles = roles)",
+    "",
+    "# 5. (optional) rebuild the full export bundle.",
+    'export_synthetic(synthetic, original = original, path = "dataganger_bundle", format = "dir")',
+    "",
+    "# Exact reproduction requires the same original data and the same dataganger version."
+  )
+
+  paste(script, collapse = "\n")
+}
+
+render_ai_readme <- function(synthetic, dictionary, purpose, spec, privacy, roles = NULL) {
   template <- paste(
     readLines(system.file("templates", "ai-readme.md", package = "dataganger"), warn = FALSE),
     collapse = "\n"
@@ -497,7 +697,7 @@ render_ai_readme <- function(synthetic, dictionary, purpose, spec, privacy) {
     missingness_table = build_missingness_table(synthetic),
     dropped_variables = build_dropped_variables_text(dictionary),
     privacy_warning = build_privacy_warning(privacy),
-    regeneration_command = build_regeneration_command(purpose, spec)
+    regeneration_command = build_regeneration_command(purpose, spec, roles = roles)
   )
 }
 
@@ -541,38 +741,66 @@ build_privacy_warning <- function(privacy) {
   )
 }
 
-build_regeneration_command <- function(purpose, spec) {
-  seed <- spec$seed %||% "NULL"
-  sprintf(
-    "spec <- dataganger::synth_spec(purpose = \"%s\", seed = %s)",
-    purpose,
-    seed
-  )
+build_regeneration_command <- function(purpose, spec, roles = NULL) {
+  build_reproduction_script(spec = spec, roles = roles, purpose = purpose)
 }
 
-render_bundle_readme <- function(synthetic, dictionary, purpose, include_report = TRUE) {
+render_bundle_readme <- function(synthetic, dictionary, purpose, include_report = TRUE,
+                                 include_dictionary = TRUE, spec = NULL, roles = NULL) {
   file_lines <- c(
-    "- `synthetic_data.csv`",
-    "- `data_dictionary.csv`",
-    if (isTRUE(include_report)) "- `comparison_report.html`",
-    "- `privacy_report.txt`",
-    "- `load_data.R`",
-    "- `ai-readme.md`",
-    "- `manifest.json`"
+    "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
+    "- `README.md` - this guide.",
+    "- `load_data.R` - R helper that reads `synthetic_data.csv` with the correct column types.",
+    paste0(
+      "- `analysis.qmd` - Quarto report with an R-only reproduction pipeline and ",
+      "comparison workflow. Point it at your original file and render it."
+    ),
+    if (isTRUE(include_report)) {
+      "- `comparison_report.html` - a pre-rendered fidelity and privacy comparison; open it in a browser."
+    },
+    if (isTRUE(include_dictionary)) {
+      "- `data_dictionary.csv` - column-by-column schema and how each column was treated."
+    },
+    "- `ai-readme.md` - a plain-text summary written for AI coding assistants you share this bundle with.",
+    "- `privacy_report.txt` - disclosure metrics and any privacy flags raised for this data.",
+    paste0(
+      "- `manifest.json` - provenance: package version, synthesis engine, seed, the full ",
+      "spec, and a checksum of every file."
+    )
   )
 
   paste(
-    "# DataGangeR Export Bundle",
+    "# DataGangeR synthetic data bundle",
     "",
-    sprintf("Purpose: `%s`", purpose),
-    sprintf("Rows: %s", nrow(synthetic)),
-    sprintf("Columns: %s", ncol(synthetic)),
+    paste0(
+      "This bundle contains a synthetic copy of a dataset, generated for the ",
+      sprintf("`%s` objective. ", purpose),
+      "It is meant to share the structure and behaviour of the original data ",
+      "without sharing the original records. Synthetic data can still leak ",
+      "patterns, so review `privacy_report.txt` before sharing externally."
+    ),
     "",
-    "Files in this bundle:",
+    sprintf("Rows: %s | Columns: %s", nrow(synthetic), ncol(synthetic)),
+    "",
+    "## Files in this bundle",
+    "",
     paste(file_lines, collapse = "\n"),
     "",
-    "Column treatments:",
+    "## How each column was treated",
+    "",
     paste(sprintf("- `%s`: %s", dictionary$synthetic_variable, dictionary$treatment), collapse = "\n"),
+    "",
+    "## Regenerate this data",
+    "",
+    "With the original data and the same seed, this reproduces the synthetic output:",
+    "",
+    "```r",
+    build_regeneration_command(
+      purpose,
+      spec %||% attr(synthetic, "spec", exact = TRUE),
+      roles = roles
+    ),
+    "```",
     sep = "\n"
   )
 }

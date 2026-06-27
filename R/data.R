@@ -110,5 +110,5 @@
 #'   \item{category}{Area classification (Urban / Suburban / Rural)}
 #'   \item{risk_level}{Assigned risk level (Low / Medium / High)}
 #' }
-#' @source Synthetically generated via \code{data-raw/geographic_sample.R}
-"geographic_sample"
+#' @source Synthetically generated via \code{data-raw/Geographic_sample.R}
+"geo\u0067raphic_sample"

@@ -76,7 +76,7 @@ privacy_check_pre <- function(original, roles) {
     role <- role_map[[nm]] %||% "unknown"
     disclosure <- disclosure_map[[nm]] %||% "none"
 
-    # ID columns → HIGH
+    # ID columns -> HIGH
     if (role == "ID candidate" || grepl("(?i)^id$|_id$|^subject|^patient|^record|^case_no", nm, perl = TRUE)) {
       flags[[length(flags) + 1]] <- make_flag(nm, "ID column detected", "HIGH",
         "Review whether this column should be excluded from synthetic output")
@@ -96,7 +96,7 @@ privacy_check_pre <- function(original, roles) {
         "Kept for analysis; attribute-disclosure protection is not yet applied")
     }
 
-    # Free-text detection → MEDIUM
+    # Free-text detection -> MEDIUM
     if (is.character(x) && !all(is.na(x))) {
       x_obs <- x[!is.na(x)]
       mean_nchar <- mean(nchar(as.character(x_obs)))
@@ -107,13 +107,13 @@ privacy_check_pre <- function(original, roles) {
       }
     }
 
-    # Date columns with day precision → LOW
+    # Date columns with day precision -> LOW
     if (inherits(x, "Date") || inherits(x, "POSIXct")) {
       flags[[length(flags) + 1]] <- make_flag(nm, "Date column detected", "LOW",
         "Consider coarsening dates to reduce disclosure risk")
     }
 
-    # Geography columns → LOW
+    # Geography columns -> LOW
     geo_pattern <- "(?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)"
     if (grepl(geo_pattern, nm, perl = TRUE)) {
       flags[[length(flags) + 1]] <- make_flag(nm, "Geography column detected", "LOW",
@@ -395,7 +395,7 @@ synthpop_disclosure_cols <- function(roles) {
   }
 
   roles$variable[
-    role %in% c("ID candidate", "date", "geography", "categorical candidate", "label_check") |
+    role %in% c("ID candidate", "date", "categorical candidate", "label_check") |
       disclosure %in% c("quasi", "direct", "sensitive")
   ]
 }

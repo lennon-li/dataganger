@@ -1,3 +1,27 @@
+# dataganger 0.3.5
+
+Generation, comparison, and export clarity pass:
+
+*   Generate page now shows a read-only "Column decisions" snapshot (the Configure
+    table as final, non-editable values) so choices can be reviewed before
+    generating.
+*   New `report_issue()` helper plus an in-app **Report a problem** button open
+    a pre-filled GitHub issue with environment details, without sending anything
+    automatically.
+*   The engine recap resolves to the engine actually used (e.g. `synthpop (auto)`)
+    after generation, instead of always showing `auto`.
+*   The Regenerate button is disabled until the first generation, so it no longer
+    duplicates Generate on the initial visit.
+*   Exact-row-match count moved into the result stats; the redundant verbatim
+    Result box was removed.
+*   Compare page treats geography columns as categorical, so they get an
+    original-vs-synthetic comparison instead of being skipped.
+*   Export page gains a generation summary: original rows/columns, how many
+    columns were synthesized, passed through, and dropped, and the final
+    synthetic dimensions.
+*   Internal: the cancellable-synthesis subprocess no longer uses a `:::`
+    self-reference (clearing an `R CMD check` NOTE); spelling WORDLIST expanded.
+
 # dataganger 0.3.4
 
 Configure page clarity pass:

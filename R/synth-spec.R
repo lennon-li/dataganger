@@ -25,7 +25,7 @@
 #'   `purpose = "analytics"`.
 #' @param ... Additional arguments passed to the spec list. Currently supports
 #'   `preserve_correlations`, `coarsen_dates`, `merge_rare`,
-#'   `free_text_strategy`, `geography_strategy`, `rare_level_min_n`,
+#'   `free_text_strategy`, `rare_level_min_n`,
 #'   `preserve_missingness`.
 #'
 #' @return An S3 object of class `dataganger_spec` (a named list).
@@ -113,7 +113,6 @@ preset_table <- function(purpose) {
       coarsen_dates       = TRUE,
       merge_rare          = TRUE,
       free_text_strategy  = "drop",
-      geography_strategy  = "coarsen",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
       k_anon              = 5,
@@ -127,7 +126,6 @@ preset_table <- function(purpose) {
       coarsen_dates       = FALSE,
       merge_rare          = TRUE,
       free_text_strategy  = "drop",
-      geography_strategy  = "coarsen",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
       k_anon              = 5,
@@ -141,7 +139,6 @@ preset_table <- function(purpose) {
       coarsen_dates       = FALSE,
       merge_rare          = FALSE,
       free_text_strategy  = "redact",
-      geography_strategy  = "preserve",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
       k_anon              = 5,
@@ -254,13 +251,6 @@ apply_privacy_hardening <- function(spec, privacy, roles) {
     spec$free_text_strategy <- "drop"
   }
 
-  # If geography flags exist, reinforce geography_strategy
-  if (any(grepl("(?i)geography|geo|spatial", flag_vars))) {
-    if (is.null(spec$geography_strategy) || spec$geography_strategy == "preserve") {
-      spec$geography_strategy <- "coarsen"
-    }
-  }
-
   # If date flags exist, reinforce coarsen_dates
   if (any(grepl("(?i)date|time", flag_vars))) {
     spec$coarsen_dates <- TRUE
@@ -313,7 +303,6 @@ print.dataganger_spec <- function(x, ...) {
   cli::cli_li("Merge rare levels: {x$merge_rare} (min_n = {x$rare_level_min_n})")
   cli::cli_li("Minimum cell size (k-anonymity): {x$k_anon}")
   cli::cli_li("Free text strategy: {.val {x$free_text_strategy}}")
-  cli::cli_li("Geography strategy: {.val {x$geography_strategy}}")
   cli::cli_li("Preserve correlations: {.val {x$preserve_correlations}}")
   cli::cli_li("Preserve missingness: {.val {x$preserve_missingness}}")
   cli::cli_li("Engine required: {.val {x$engine_required}}")

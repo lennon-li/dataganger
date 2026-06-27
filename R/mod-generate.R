@@ -41,24 +41,11 @@ mod_generate_ui <- function(id) {
         shiny::tags$span(class = "title", "Your configuration"),
         shiny::tags$span(class = "sub", "from steps 1\u20133")
       ),
-      shiny::uiOutput(ns("config_recap"))
+      shiny::uiOutput(ns("config_recap")),
+      shiny::uiOutput(ns("decision_recap"))
     ),
     shiny::uiOutput(ns("result_stats")),
-    shiny::div(
-      class = "card",
-      shiny::tags$div(
-        class = "card-header",
-        shiny::tags$span(class = "title", "Result"),
-        shiny::tags$span(class = "sub", "synthesize_data()")
-      ),
-      shiny::verbatimTextOutput(ns("result_summary"))
-    ),
-    shiny::div(
-      class = "btn-row",
-      style = "margin-top:16px;",
-      shiny::actionButton(ns("try_new_seed"), "Regenerate", class = "btn btn-primary"),
-      shiny::actionButton(ns("adjust_settings"), "\u2190 Adjust settings", class = "btn btn-secondary")
-    )
+    shiny::uiOutput(ns("generate_actions"))
   )
 }
 
@@ -117,7 +104,13 @@ mod_generate_server <- function(id, state) {
       }
       raw_data <- state$raw_data %||% data.frame()
       n_over <- if (!is.null(roles)) sum(!is.na(roles$user_role) & nzchar(roles$user_role)) else 0L
-      engine <- spec[["engine", exact = TRUE]] %||% "auto"
+      configured_engine <- spec[["engine", exact = TRUE]] %||% "auto"
+      resolved_engine <- attr(state$synthetic, "engine", exact = TRUE)
+      engine <- if (!is.null(state$synthetic) && !is.null(resolved_engine) && nzchar(resolved_engine)) {
+        paste0(resolved_engine, " (", configured_engine, ")")
+      } else {
+        configured_engine
+      }
       row <- function(label, value) shiny::tags$tr(
         shiny::tags$td(class = "name", label),
         shiny::tags$td(value)
@@ -151,6 +144,65 @@ mod_generate_server <- function(id, state) {
       )
     })
 
+    output$decision_recap <- shiny::renderUI({
+      roles <- state$roles
+      if (is.null(roles) || !nrow(roles)) {
+        return(NULL)
+      }
+
+      treatment <- dg_role_treatment(roles)
+      disclosure <- if ("disclosure_role" %in% names(roles)) roles$disclosure_role else rep(NA_character_, nrow(roles))
+      disclosure[is.na(disclosure) | !nzchar(disclosure)] <- "\u2014"
+      action_label <- function(x) {
+        switch(
+          x,
+          synthesize = "Synthesize",
+          pass_through = "Pass through",
+          drop = "Drop",
+          x
+        )
+      }
+      rows <- lapply(seq_len(nrow(roles)), function(i) {
+        shiny::tags$tr(
+          shiny::tags$td(style = "width:28%; padding:6px 8px;", roles$variable[[i]]),
+          shiny::tags$td(style = "width:22%; padding:6px 8px;", action_label(unname(treatment[[roles$variable[[i]]]]))),
+          shiny::tags$td(style = "width:28%; padding:6px 8px;", eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])),
+          shiny::tags$td(style = "width:22%; padding:6px 8px;", disclosure[[i]])
+        )
+      })
+
+      shiny::tags$div(
+        style = "margin-top:12px;",
+        shiny::tags$div(
+          class = "card-header",
+          shiny::tags$span(class = "title", "Column decisions"),
+          shiny::tags$span(class = "sub", "what will happen to each column")
+        ),
+        shiny::tags$p(
+          class = "help",
+          style = "margin:4px 0 8px;",
+          "These are your final per-column choices from Configure. ",
+          shiny::tags$strong("Action"), " is what happens to the column (synthesize, pass through, or drop); ",
+          shiny::tags$strong("TYPE"), " is how it is modelled; ",
+          shiny::tags$strong("DISCLOSURE"), " is its identifiability role. ",
+          "Use \u2190 Adjust settings to change any of these."
+        ),
+        shiny::tags$table(
+          class = "data compact",
+          style = "width:100%; border-collapse:collapse; margin-top:8px;",
+          shiny::tags$thead(
+            shiny::tags$tr(
+              shiny::tags$th(style = "width:28%; padding:6px 8px;", "Column"),
+              shiny::tags$th(style = "width:22%; padding:6px 8px;", "Action"),
+              shiny::tags$th(style = "width:28%; padding:6px 8px;", "TYPE"),
+              shiny::tags$th(style = "width:22%; padding:6px 8px;", "DISCLOSURE")
+            )
+          ),
+          shiny::tags$tbody(rows)
+        )
+      )
+    })
+
     last_duration   <- shiny::reactiveVal(NULL)
     generating      <- shiny::reactiveVal(FALSE)
     proc            <- shiny::reactiveVal(NULL)   # callr background process
@@ -167,24 +219,6 @@ mod_generate_server <- function(id, state) {
     })
 
     shiny::outputOptions(output, "stale__synthesis", suspendWhenHidden = FALSE)
-
-    output$result_summary <- shiny::renderText({
-      shiny::req(state$synthetic)
-
-      exact_row_matches <- attr(state$privacy, "exact_row_matches", exact = TRUE)
-
-      if (is.null(exact_row_matches)) {
-        exact_row_matches <- "unavailable"
-      }
-
-      paste0(
-        "Synthetic data generated.\n",
-        "Rows: ", nrow(state$synthetic), "\n",
-        "Columns: ", ncol(state$synthetic), "\n",
-        "Exact row matches: ", exact_row_matches, "\n",
-        "Seed: ", state$seed_used
-      )
-    })
 
     # Commit a finished pipeline result into app state.
     finalize_result <- function(result) {
@@ -378,6 +412,8 @@ mod_generate_server <- function(id, state) {
       dur <- last_duration()
       dur_label <- if (is.null(dur)) "n/a" else sprintf("%.2fs", dur)
       seed_label <- if (is.null(state$seed_used)) "n/a" else as.character(state$seed_used)
+      exact_row_matches <- attr(state$privacy, "exact_row_matches", exact = TRUE)
+      exact_row_matches <- if (is.null(exact_row_matches)) "unavailable" else as.character(exact_row_matches)
 
       stat_cell <- function(label, value) {
         shiny::tags$div(
@@ -399,8 +435,32 @@ mod_generate_server <- function(id, state) {
           stat_cell("ROWS", as.character(nrow(state$synthetic))),
           stat_cell("COLS", as.character(ncol(state$synthetic))),
           stat_cell("SEED", seed_label),
-          stat_cell("DURATION", dur_label)
+          stat_cell("DURATION", dur_label),
+          stat_cell("EXACT MATCHES", exact_row_matches)
         )
+      )
+    })
+
+    output$generate_actions <- shiny::renderUI({
+      has_synthetic <- !is.null(state$synthetic)
+      shiny::div(
+        class = "btn-row",
+        style = "margin-top:16px;",
+        if (has_synthetic) {
+          shiny::actionButton(
+            session$ns("try_new_seed"),
+            "Regenerate",
+            class = "btn btn-primary"
+          )
+        } else {
+          shiny::tags$button(
+            type = "button",
+            class = "btn btn-primary",
+            disabled = "disabled",
+            "Regenerate"
+          )
+        },
+        shiny::actionButton(session$ns("adjust_settings"), "\u2190 Adjust settings", class = "btn btn-secondary")
       )
     })
 
@@ -419,6 +479,9 @@ mod_generate_server <- function(id, state) {
 
     shiny::observeEvent(input$try_new_seed, ignoreNULL = TRUE, {
       if (isTRUE(generating())) {
+        return(invisible(NULL))
+      }
+      if (is.null(state$synthetic)) {
         return(invisible(NULL))
       }
       if (is.null(state$raw_data) || is.null(state$spec)) {

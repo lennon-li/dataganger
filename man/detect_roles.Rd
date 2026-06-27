@@ -33,7 +33,7 @@ only values auto-assigned (confident identifier / known-sensitive name).
 \description{
 Applies heuristic-based role detection to every column in a data frame.
 Roles include ID candidate, date, label_check (labelled vectors),
-categorical candidate, free text, geography, and unknown. All assignments
+categorical candidate, free text, and unknown. All assignments
 are overridable by passing a \code{user_role} column in a supplied roles tibble.
 }
 \examples{

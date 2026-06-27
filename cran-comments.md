@@ -8,7 +8,7 @@
 
 ## R CMD check results
 
-0 errors | 0 warnings | 2 notes
+0 errors | 0 warnings | 1 note
 
 **Note 1 — New submission:**
 
@@ -17,20 +17,6 @@
     New submission
 
 This is a new package submission. It is expected and unavoidable.
-
-**Note 2 — Internal `:::` self-reference in a callr closure:**
-
-    checking dependencies in R code ... NOTE
-    Packages used but not declared from:
-      'dataganger'
-
-The `:::` call is inside a `callr::r_bg()` function literal in
-`R/run-synthesis-async.R`. The callr subprocess loads `dataganger` from the
-installed library and calls `dataganger:::run_synthesis_pipeline()` because
-`run_synthesis_pipeline` is an unexported internal function. The function
-literal is serialised and executed in a separate R process where normal
-scoping does not apply; `:::` is required here. This is a documented
-limitation of the callr pattern, not a namespace-hygiene issue.
 
 One additional note appears only under WSL2 network isolation (not on
 GitHub Actions or win-builder):

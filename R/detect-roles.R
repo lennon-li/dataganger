@@ -2,7 +2,7 @@
 #'
 #' Applies heuristic-based role detection to every column in a data frame.
 #' Roles include ID candidate, date, label_check (labelled vectors),
-#' categorical candidate, free text, geography, and unknown. All assignments
+#' categorical candidate, free text, and unknown. All assignments
 #' are overridable by passing a `user_role` column in a supplied roles tibble.
 #'
 #' @param data A data frame.
@@ -58,7 +58,7 @@ detect_roles <- function(data, profile = NULL) {
 }
 
 # ---------------------------------------------------------------------------
-# Single-column role detector — implements threshold table verbatim
+# Single-column role detector -- implements threshold table verbatim
 # ---------------------------------------------------------------------------
 
 # Conservative known-sensitive column-name heuristic. Documented in
@@ -158,17 +158,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 4: geography column name pattern
-  geo_pattern <- "(?i)(zip|postal|fsa|county|region|province|state|city|geo|lat|lon|coord)"
-  if (grepl(geo_pattern, name, perl = TRUE)) {
-    return(make_role_row(
-      name, r_class, "geography",
-      "The column name looks geographic, such as a place, region, or coordinate field.",
-      NA_character_
-    ))
-  }
-
-  # Test 5: name matches ID patterns
+  # Test 4: name matches ID patterns
   id_pattern <- "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
   if (grepl(id_pattern, name, perl = TRUE)) {
     return(make_role_row(
@@ -178,14 +168,14 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 6: high cardinality → ID candidate
+  # Test 5: high cardinality -> ID candidate
   # Guard: character columns with long median values are not IDs even when
-  # unique — they belong in free text territory and only reached here due to
+  # unique -- they belong in free text territory and only reached here due to
   # edge cases in is_free_text_candidate (e.g. non-sentence long strings).
   # Numeric columns are excluded: distinctive numbers (lab values, prices,
   # measurements) are not identifiers unless the column name says so (Test 5).
   # They fall through to the numeric rule below for the user to classify in
-  # the UI — DataGangeR is designed for the user to make that call.
+  # the UI -- DataGangeR is designed for the user to make that call.
   distinct_ratio <- if (n_rows > 0) n_distinct / n_rows else 0
   is_long_char <- is.character(x) && {
     x_obs <- x[!is.na(x) & nzchar(trimws(x))]
@@ -199,7 +189,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 7: low cardinality → categorical candidate
+  # Test 6: low cardinality -> categorical candidate
   if (distinct_ratio < 0.05 || n_distinct <= 20) {
     return(make_role_row(
       name, r_class, "categorical candidate",
@@ -208,7 +198,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 8: distinctive numeric → numeric (user classifies via UI)
+  # Test 7: distinctive numeric -> numeric (user classifies via UI)
   if (is.numeric(x)) {
     return(make_role_row(
       name, r_class, "numeric",
@@ -228,7 +218,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
 detect_single_role <- function(x, name, n_rows) {
   row <- detect_single_role_inner(x, name, n_rows)
   # Sensitive name heuristic: a known-sensitive column is marked sensitive
-  # unless it is already a confident direct identifier (direct wins — it is
+  # unless it is already a confident direct identifier (direct wins -- it is
   # removed from output entirely, the stronger protection).
   if (is_sensitive_name(name) && !identical(row$disclosure_role, "direct")) {
     row$disclosure_role <- "sensitive"

@@ -243,3 +243,78 @@ test_that("export_synthetic() skips report gracefully when report deps are unava
   expect_false(file.exists(file.path(out_dir, "comparison_report.html")))
   expect_true(file.exists(file.path(out_dir, "manifest.json")))
 })
+
+test_that("build_reproduction_script() emits a runnable R-only pipeline", {
+  original <- tibble::tibble(
+    id = sprintf("id-%02d", 1:5),
+    city = c("A", "B", "A", "C", "B"),
+    score = c(1, 2, 3, NA, 5)
+  )
+  roles <- detect_roles(original)
+  roles$user_role[roles$variable == "city"] <- "categorical"
+  roles$disclosure_role[roles$variable == "id"] <- "direct"
+  roles$simulation[roles$variable == "id"] <- "drop"
+  roles$simulation[roles$variable == "city"] <- "pass_through"
+
+  spec <- synth_spec(
+    purpose = "development",
+    seed = 42L,
+    level = "marginal",
+    name_strategy = "preserve",
+    k_anon = 7L,
+    rare_level_min_n = 3L,
+    preserve_missingness = "exact",
+    coarsen_dates = FALSE,
+    merge_rare = TRUE,
+    free_text_strategy = "drop"
+  )
+
+  script <- build_reproduction_script(spec = spec, roles = roles, purpose = "development")
+
+  expect_match(script, "read_input\\(")
+  expect_match(script, "detect_roles\\(")
+  expect_match(script, "synth_spec\\(")
+  expect_match(script, "synthesize_data\\(")
+  expect_match(script, "seed = 42")
+  expect_match(script, "roles\\$user_role")
+  expect_match(script, "roles\\$disclosure_role")
+  expect_match(script, "roles\\$simulation")
+  expect_no_match(script, "import ")
+  expect_no_match(script, "```\\{python\\}")
+})
+
+test_that("export_synthetic() writes the same reproduction pipeline into bundle files", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = sprintf("id-%02d", 1:12),
+    grp = factor(rep(c("a", "b", "c"), each = 4)),
+    score = c(1:11, NA)
+  )
+  roles <- detect_roles(original)
+  roles$disclosure_role[roles$variable == "id"] <- "direct"
+  roles$simulation[roles$variable == "id"] <- "drop"
+  spec <- synth_spec(purpose = "development", seed = 99L, n = nrow(original))
+  syn <- synthesize_data(original, spec, roles = roles)
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  export_synthetic(
+    syn,
+    original = original,
+    roles = roles,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  analysis <- paste(readLines(file.path(out_dir, "analysis.qmd"), warn = FALSE), collapse = "\n")
+  ai_readme <- paste(readLines(file.path(out_dir, "ai-readme.md"), warn = FALSE), collapse = "\n")
+
+  expect_match(analysis, "synthesize_data\\(")
+  expect_match(analysis, "read_input\\(")
+  expect_match(analysis, "detect_roles\\(")
+  expect_no_match(analysis, "```\\{python\\}")
+  expect_no_match(analysis, "import ")
+  expect_match(ai_readme, "synthesize_data\\(")
+  expect_match(ai_readme, "read_input\\(")
+})

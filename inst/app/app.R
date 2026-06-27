@@ -175,6 +175,12 @@ sidebar_content <- tags$nav(
   tags$div(
     style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
     actionButton(
+      "report_issue", "\u2709 Report a problem",
+      class = "btn btn-sm btn-ghost",
+      style = "width:100%;"
+    ),
+    tags$div(style = "height:8px;"),
+    actionButton(
       "reset_all", "\u21ba Start over",
       class = "btn btn-sm btn-ghost",
       style = "width:100%;"
@@ -287,6 +293,10 @@ ui <- bslib::page(
 
 server <- function(input, output, session) {
   state <- mod_state_server("state")
+
+  shiny::observeEvent(input$report_issue, ignoreNULL = TRUE, {
+    dataganger::report_issue(context = "Shiny app")
+  })
 
   shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {
     state$raw_data            <- NULL

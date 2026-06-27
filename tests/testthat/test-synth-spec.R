@@ -32,7 +32,6 @@ test_that("synth_spec() maps presets correctly", {
   expect_equal(s$engine_required, "hifi")
   expect_equal(s$preserve_correlations, "high")
   expect_equal(s$free_text_strategy, "redact")
-  expect_equal(s$geography_strategy, "preserve")
   expect_equal(s$merge_rare, FALSE)
 })
 
