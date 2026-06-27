@@ -19,6 +19,7 @@ export_synthetic(
   include_report = TRUE,
   include_dictionary = TRUE,
   code_readiness = NULL,
+  compact = FALSE,
   overwrite = FALSE
 )
 }
@@ -73,6 +74,12 @@ standalone CSV is written.}
 \item{code_readiness}{Optional \code{dataganger_code_readiness} object from
 \code{\link[=check_code_readiness]{check_code_readiness()}}. When supplied, writes
 \code{code_readiness_report.json} into the bundle.}
+
+\item{compact}{Logical. When \code{TRUE}, produce a smaller bundle by folding the
+AI summary and privacy report into \code{README.md} instead of also writing the
+standalone \code{ai-readme.md} and \code{privacy_report.txt}. The README always
+contains this information; this only controls the extra files. Defaults to
+\code{FALSE} (full bundle).}
 
 \item{overwrite}{Logical. When \code{FALSE} (the default), existing output paths
 are refused.}

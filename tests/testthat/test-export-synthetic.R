@@ -66,6 +66,39 @@ test_that("export_synthetic() writes the full bundle file set", {
   )
 })
 
+test_that("export_synthetic(compact = TRUE) folds extras into README", {
+  tmp <- withr::local_tempdir()
+  data("example_health_survey", package = "dataganger")
+
+  roles <- detect_roles(example_health_survey)
+  spec <- synth_spec(purpose = "development", seed = 1, n = 40)
+  syn <- synthesize_data(example_health_survey, spec, roles = roles)
+  prv <- privacy_check(example_health_survey, syn, roles = roles, stage = "post", spec = spec)
+
+  out_dir <- file.path(tmp, "compact-dir")
+  export_synthetic(
+    syn,
+    original = example_health_survey,
+    privacy = prv,
+    path = out_dir,
+    format = "dir",
+    include_dictionary = FALSE,
+    compact = TRUE
+  )
+
+  listing <- list.files(out_dir)
+  # The two standalone files are gone in compact mode.
+  expect_false("ai-readme.md" %in% listing)
+  expect_false("privacy_report.txt" %in% listing)
+  expect_true("README.md" %in% listing)
+
+  # Their content lives in the consolidated README instead.
+  readme <- paste(readLines(file.path(out_dir, "README.md"), warn = FALSE), collapse = "\n")
+  expect_match(readme, "## Privacy")
+  expect_match(readme, "## For AI assistants")
+  expect_match(readme, "Exact row matches")
+})
+
 test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {
   tmp <- withr::local_tempdir()
 

@@ -43,12 +43,11 @@ mod_export_ui <- function(id) {
       shiny::tags$ul(
         class = "bundle-contents",
         shiny::tags$li(shiny::tags$strong("synthetic_data.csv"), " \u2014 the synthetic dataset"),
-        shiny::tags$li(shiny::tags$strong("README.md"), " \u2014 start here; explains every file in the bundle"),
+        shiny::tags$li(shiny::tags$strong("README.md"), " \u2014 start here; explains every file, the privacy report, and notes for AI assistants"),
         shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types"),
         shiny::tags$li(shiny::tags$strong("analysis.qmd"), " \u2014 Quarto report with the R-only reproduction pipeline and comparison workflow"),
         shiny::tags$li(shiny::tags$strong("comparison_report.html"), " \u2014 fidelity + privacy comparison"),
-        shiny::tags$li(shiny::tags$strong("ai-readme.md"), " \u2014 summary for AI coding assistants you share this with"),
-        shiny::tags$li(shiny::tags$strong("manifest.json"), " / ", shiny::tags$strong("privacy_report.txt"), " \u2014 provenance and disclosure metrics")
+        shiny::tags$li(shiny::tags$strong("manifest.json"), " \u2014 provenance and disclosure metrics")
       ),
       shiny::tags$p(
         class = "help",
@@ -155,6 +154,7 @@ mod_export_server <- function(id, state) {
         overwrite = TRUE,
         include_report = TRUE,
         include_dictionary = FALSE,
+        compact = TRUE,
         fail_on_exact_match = FALSE,
         roles = shiny::isolate(state$roles),
         include_original_names = use_original_names()

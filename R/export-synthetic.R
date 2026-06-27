@@ -44,6 +44,11 @@
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
 #'   `code_readiness_report.json` into the bundle.
+#' @param compact Logical. When `TRUE`, produce a smaller bundle by folding the
+#'   AI summary and privacy report into `README.md` instead of also writing the
+#'   standalone `ai-readme.md` and `privacy_report.txt`. The README always
+#'   contains this information; this only controls the extra files. Defaults to
+#'   `FALSE` (full bundle).
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
 #'
@@ -71,6 +76,7 @@ export_synthetic <- function(synthetic,
                              include_report = TRUE,
                              include_dictionary = TRUE,
                              code_readiness = NULL,
+                             compact = FALSE,
                              overwrite = FALSE) {
   format <- match.arg(format)
 
@@ -113,6 +119,10 @@ export_synthetic <- function(synthetic,
 
   if (!is.logical(include_dictionary) || length(include_dictionary) != 1) {
     cli::cli_abort("{.arg include_dictionary} must be TRUE or FALSE")
+  }
+
+  if (!is.logical(compact) || length(compact) != 1) {
+    cli::cli_abort("{.arg compact} must be TRUE or FALSE")
   }
 
   spec <- attr(synthetic, "spec", exact = TRUE)
@@ -173,12 +183,6 @@ export_synthetic <- function(synthetic,
   )
 
   writeLines(
-    render_ai_readme(synthetic, dictionary, purpose, spec, privacy, roles = roles),
-    con = file.path(bundle_dir, "ai-readme.md"),
-    useBytes = TRUE
-  )
-
-  writeLines(
     render_bundle_readme(
       synthetic,
       dictionary,
@@ -186,17 +190,30 @@ export_synthetic <- function(synthetic,
       include_report,
       include_dictionary,
       spec,
-      roles = roles
+      roles = roles,
+      privacy = privacy,
+      exact_row_matches = exact_row_matches
     ),
     con = file.path(bundle_dir, "README.md"),
     useBytes = TRUE
   )
 
-  writeLines(
-    render_privacy_report(privacy, exact_row_matches),
-    con = file.path(bundle_dir, "privacy_report.txt"),
-    useBytes = TRUE
-  )
+  # The compact bundle (app download) folds the AI summary and privacy report
+  # into README.md to keep the file count down. The full bundle (CLI / agent)
+  # also writes them as standalone files for tools that read them directly.
+  if (!isTRUE(compact)) {
+    writeLines(
+      render_ai_readme(synthetic, dictionary, purpose, spec, privacy, roles = roles),
+      con = file.path(bundle_dir, "ai-readme.md"),
+      useBytes = TRUE
+    )
+
+    writeLines(
+      render_privacy_report(privacy, exact_row_matches),
+      con = file.path(bundle_dir, "privacy_report.txt"),
+      useBytes = TRUE
+    )
+  }
 
   if (isTRUE(include_report)) {
     if (can_render_comparison_report()) {
@@ -297,7 +314,7 @@ handle_exact_row_matches <- function(n_exact, fail_on_exact_match) {
   if (n_exact > 0) {
     msg <- c(
       "{n_exact} exact-row match{?es} detected between {.arg synthetic} and {.arg original}",
-      "i" = "The exact-row match count is recorded in {.file privacy_report.txt} and {.file manifest.json}."
+      "i" = "The exact-row match count is recorded in {.file manifest.json} and the README Privacy section."
     )
     if (isTRUE(fail_on_exact_match)) {
       cli::cli_abort(msg)
@@ -746,10 +763,11 @@ build_regeneration_command <- function(purpose, spec, roles = NULL) {
 }
 
 render_bundle_readme <- function(synthetic, dictionary, purpose, include_report = TRUE,
-                                 include_dictionary = TRUE, spec = NULL, roles = NULL) {
+                                 include_dictionary = TRUE, spec = NULL, roles = NULL,
+                                 privacy = NULL, exact_row_matches = 0L) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
-    "- `README.md` - this guide.",
+    "- `README.md` - this guide (for both humans and AI assistants).",
     "- `load_data.R` - R helper that reads `synthetic_data.csv` with the correct column types.",
     paste0(
       "- `analysis.qmd` - Quarto report with an R-only reproduction pipeline and ",
@@ -761,11 +779,9 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
     if (isTRUE(include_dictionary)) {
       "- `data_dictionary.csv` - column-by-column schema and how each column was treated."
     },
-    "- `ai-readme.md` - a plain-text summary written for AI coding assistants you share this bundle with.",
-    "- `privacy_report.txt` - disclosure metrics and any privacy flags raised for this data.",
     paste0(
       "- `manifest.json` - provenance: package version, synthesis engine, seed, the full ",
-      "spec, and a checksum of every file."
+      "spec, disclosure metrics, and a checksum of every file."
     )
   )
 
@@ -777,7 +793,7 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
       sprintf("`%s` objective. ", purpose),
       "It is meant to share the structure and behaviour of the original data ",
       "without sharing the original records. Synthetic data can still leak ",
-      "patterns, so review `privacy_report.txt` before sharing externally."
+      "patterns, so review the Privacy section below before sharing externally."
     ),
     "",
     sprintf("Rows: %s | Columns: %s", nrow(synthetic), ncol(synthetic)),
@@ -790,6 +806,10 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
     "",
     paste(sprintf("- `%s`: %s", dictionary$synthetic_variable, dictionary$treatment), collapse = "\n"),
     "",
+    "## Privacy",
+    "",
+    paste(render_privacy_report(privacy, exact_row_matches), collapse = "\n"),
+    "",
     "## Regenerate this data",
     "",
     "With the original data and the same seed, this reproduces the synthetic output:",
@@ -801,6 +821,19 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
       roles = roles
     ),
     "```",
+    "",
+    "## For AI assistants",
+    "",
+    paste0(
+      "This is synthetic data, safe to share with AI coding tools. Use it to build ",
+      "and test code, then run the same pipeline on the real data. To reproduce the ",
+      "exact synthetic output, run the command above; for a full analysis and ",
+      "fidelity check, render `analysis.qmd` against the original file."
+    ),
+    "",
+    "Columns dropped from the synthetic output:",
+    "",
+    build_dropped_variables_text(dictionary),
     sep = "\n"
   )
 }
