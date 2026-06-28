@@ -119,3 +119,45 @@ test_that("dg_seed_disclosure seeds protective suggestions, leaves ambiguous uns
   expect_equal(out$identifies, c("direct", "combination", "none", ""))
   expect_equal(out$disclosure_role, c("direct", "quasi", "none", NA))
 })
+
+
+test_that("dg_decision_recap_table builds the generate recap rows", {
+  roles <- tibble::tibble(
+    variable = c("name", "zip", "bp"),
+    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    user_role = c(NA_character_, "date", NA_character_),
+    class = c("ID candidate", "categorical candidate", "numeric"),
+    identifies = c("direct", "combination", "none"),
+    sensitive = c(FALSE, TRUE, FALSE),
+    simulation = c("drop", "pass_through", "synthesize")
+  )
+
+  out <- dg_decision_recap_table(roles)
+
+  expect_equal(out$variable, c("name", "zip", "bp"))
+  expect_equal(out$points_to_person, c("Yes, directly", "Only combined with other columns", "No"))
+  expect_equal(out$sensitive, c("No", "Yes", "No"))
+  expect_equal(out$action, c("Drop", "Pass through", "Synthesize"))
+  expect_match(out$what_we_do[[1]], "Removed")
+  expect_match(out$what_we_do[[2]], "linkage")
+  expect_match(out$what_we_do[[3]], "distribution kept")
+  expect_equal(out$type, c("identifier", "date", "numeric"))
+})
+
+test_that("dg_decision_recap_table is robust to missing columns", {
+  roles <- data.frame(
+    variable = c("x", "y"),
+    recommended_role = c(NA_character_, NA_character_),
+    class = c("numeric", "date"),
+    stringsAsFactors = FALSE
+  )
+
+  out <- dg_decision_recap_table(roles)
+
+  expect_equal(out$points_to_person, c("—", "—"))
+  expect_equal(out$sensitive, c("No", "No"))
+  expect_equal(out$action, c("Synthesize", "Synthesize"))
+  expect_match(out$what_we_do[[1]], "needs an answer")
+  expect_match(out$type[[1]], "numeric")
+  expect_match(out$type[[2]], "date")
+})

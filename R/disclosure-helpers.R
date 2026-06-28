@@ -220,3 +220,71 @@ isTRUE_vec <- function(x) {
   }
   tolower(as.character(x)) %in% c("true", "yes", "1")
 }
+
+#' @keywords internal
+#' @noRd
+dg_decision_recap_table <- function(roles) {
+  if (is.null(roles) || !nrow(roles)) {
+    return(data.frame(
+      variable = character(0),
+      points_to_person = character(0),
+      sensitive = character(0),
+      action = character(0),
+      what_we_do = character(0),
+      type = character(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  pick_col <- function(name, default) {
+    if (name %in% names(roles)) roles[[name]] else rep(default, nrow(roles))
+  }
+
+  variable <- pick_col("variable", "")
+  identifies <- pick_col("identifies", NA_character_)
+  sensitive_raw <- pick_col("sensitive", FALSE)
+  user_role <- pick_col("user_role", NA_character_)
+  recommended_role <- pick_col("recommended_role", NA_character_)
+  class_col <- pick_col("class", NA_character_)
+
+  sensitive <- isTRUE_vec(sensitive_raw)
+  treatment <- unname(dg_role_treatment(roles))
+  treatment[is.na(treatment) | !nzchar(treatment)] <- "synthesize"
+
+  identifies_meta <- dg_identifies_option_meta()
+  identifies_labels <- stats::setNames(
+    vapply(identifies_meta, `[[`, character(1), "label"),
+    vapply(identifies_meta, `[[`, character(1), "value")
+  )
+
+  action_label <- function(x) {
+    switch(
+      x,
+      synthesize = "Synthesize",
+      pass_through = "Pass through",
+      drop = "Drop",
+      x
+    )
+  }
+
+  points_to_person <- unname(identifies_labels[identifies])
+  points_to_person[is.na(points_to_person) | is.na(identifies) | !nzchar(identifies)] <- "\u2014"
+
+  data.frame(
+    variable = as.character(variable),
+    points_to_person = points_to_person,
+    sensitive = ifelse(sensitive, "Yes", "No"),
+    action = vapply(treatment, action_label, character(1)),
+    what_we_do = vapply(
+      seq_len(nrow(roles)),
+      function(i) dg_treatment_text_axes(identifies[[i]], sensitive[[i]]),
+      character(1)
+    ),
+    type = vapply(
+      seq_len(nrow(roles)),
+      function(i) eff_role(user_role[[i]], recommended_role[[i]], class_col[[i]]),
+      character(1)
+    ),
+    stringsAsFactors = FALSE
+  )
+}

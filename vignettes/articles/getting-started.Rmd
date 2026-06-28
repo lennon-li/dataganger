@@ -72,7 +72,10 @@ fig("step-3-configure.png")
     religion, or anything that would cause harm if linked back to a person
 
 You do **not** choose the action separately in the normal flow. DataGangeR
-derives it and shows the result live in **What we'll do**:
+derives it from those two answers. On Configure, the per-column
+**Action override** cell exposes optional Action and Data type overrides
+directly if you need them. The plain-English outcome is reviewed on the
+Generate step:
 
 |                      | sensitive = No | sensitive = Yes |
 |---|---|---|

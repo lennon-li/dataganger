@@ -150,26 +150,18 @@ mod_generate_server <- function(id, state) {
         return(NULL)
       }
 
-      treatment <- dg_role_treatment(roles)
-      disclosure <- if ("disclosure_role" %in% names(roles)) roles$disclosure_role else rep(NA_character_, nrow(roles))
-      blank <- is.na(disclosure) | !nzchar(disclosure)
-      disclosure <- dg_disclosure_label(disclosure)
-      disclosure[blank] <- "\u2014"
-      action_label <- function(x) {
-        switch(
-          x,
-          synthesize = "Synthesize",
-          pass_through = "Pass through",
-          drop = "Drop",
-          x
-        )
-      }
-      rows <- lapply(seq_len(nrow(roles)), function(i) {
+      recap <- dg_decision_recap_table(roles)
+      rows <- lapply(seq_len(nrow(recap)), function(i) {
         shiny::tags$tr(
-          shiny::tags$td(style = "width:28%; padding:6px 8px;", roles$variable[[i]]),
-          shiny::tags$td(style = "width:22%; padding:6px 8px;", action_label(unname(treatment[[roles$variable[[i]]]]))),
-          shiny::tags$td(style = "width:28%; padding:6px 8px;", eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])),
-          shiny::tags$td(style = "width:22%; padding:6px 8px;", disclosure[[i]])
+          shiny::tags$td(
+            style = "width:22%; padding:6px 8px;",
+            title = paste0("Modelled as: ", recap$type[[i]]),
+            recap$variable[[i]]
+          ),
+          shiny::tags$td(style = "width:24%; padding:6px 8px;", recap$points_to_person[[i]]),
+          shiny::tags$td(style = "width:12%; padding:6px 8px;", recap$sensitive[[i]]),
+          shiny::tags$td(style = "width:16%; padding:6px 8px;", recap$action[[i]]),
+          shiny::tags$td(style = "width:26%; padding:6px 8px;", recap$what_we_do[[i]])
         )
       })
 
@@ -183,10 +175,10 @@ mod_generate_server <- function(id, state) {
         shiny::tags$p(
           class = "help",
           style = "margin:4px 0 8px;",
-          "These are your final per-column choices from Configure. ",
-          shiny::tags$strong("Action"), " is what happens to the column (synthesize, pass through, or drop); ",
-          shiny::tags$strong("TYPE"), " is how it is modelled; ",
-          shiny::tags$strong("DISCLOSURE"), " is its identifiability role. ",
+          "These are your final per-column choices from Configure: the two privacy questions you answered, ",
+          shiny::tags$strong("Action"), " for the resulting column handling, and ",
+          shiny::tags$strong("What we'll do"), " as the plain-English outcome. ",
+          shiny::tags$strong("TYPE"), " is shown in the tooltip on each column name. ",
           "Use \u2190 Adjust settings to change any of these."
         ),
         shiny::tags$table(
@@ -194,10 +186,11 @@ mod_generate_server <- function(id, state) {
           style = "width:100%; border-collapse:collapse; margin-top:8px;",
           shiny::tags$thead(
             shiny::tags$tr(
-              shiny::tags$th(style = "width:28%; padding:6px 8px;", "Column"),
-              shiny::tags$th(style = "width:22%; padding:6px 8px;", "Action"),
-              shiny::tags$th(style = "width:28%; padding:6px 8px;", "TYPE"),
-              shiny::tags$th(style = "width:22%; padding:6px 8px;", "DISCLOSURE")
+              shiny::tags$th(style = "width:22%; padding:6px 8px;", "Column"),
+              shiny::tags$th(style = "width:24%; padding:6px 8px;", "Points to a person?"),
+              shiny::tags$th(style = "width:12%; padding:6px 8px;", "Sensitive?"),
+              shiny::tags$th(style = "width:16%; padding:6px 8px;", "Action"),
+              shiny::tags$th(style = "width:26%; padding:6px 8px;", "What we'll do")
             )
           ),
           shiny::tags$tbody(rows)

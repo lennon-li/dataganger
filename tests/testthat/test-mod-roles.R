@@ -267,12 +267,13 @@ test_that("roles table labels the four configure columns", {
     expect_match(html, ">Column<")
     expect_match(html, ">Points to a person\\?<")
     expect_match(html, ">Sensitive\\?<")
-    expect_match(html, ">What we'll do<")
+    expect_match(html, ">Action override<")
+    expect_false(grepl(">What we'll do<", html, fixed = TRUE))
     expect_false(grepl(">Action<", html, fixed = TRUE))
   })
 })
 
-test_that("Configure table shows both axis selects, examples, and derived treatment", {
+test_that("Configure table shows both axis selects, examples, and inline override controls", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
@@ -282,21 +283,27 @@ test_that("Configure table shows both axis selects, examples, and derived treatm
     expect_match(html, "sensitive_change")
     expect_match(html, "Only combined with other columns")
     expect_match(html, "email")
-    expect_match(html, "What we.ll do")
+    expect_match(html, "Action override")
+    expect_match(html, "Data type override")
+    expect_match(html, "Pass through keeps the real values")
+    expect_false(grepl("What we.ll do", html))
     expect_false(grepl(">Action<", html, fixed = TRUE))
     expect_false(grepl(">TYPE<", html, fixed = TRUE))
+    expect_false(grepl("Advanced", html, fixed = TRUE))
   })
 })
 
-test_that("advanced override exposes drop/pass-through and data type", {
+test_that("inline override controls expose drop/pass-through and data type", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
   shiny::testServer(mod_roles_server, args = list(state = state), {
     html <- paste(as.character(output$roles_table), collapse = "\n")
-    expect_match(html, "Advanced")
+    expect_match(html, "Action override")
     expect_match(html, "Pass through")
     expect_match(html, "verify before sharing")
+    expect_false(grepl("<summary", html, fixed = TRUE))
+    expect_false(grepl("<details", html, fixed = TRUE))
   })
 })
 

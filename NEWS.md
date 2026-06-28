@@ -19,6 +19,10 @@
 *   Configure now asks two intrinsic questions per column (`identifies` /
     `sensitive`) and derives the action; k-anonymity membership reads both
     axes; numeric quasi-identifiers no longer get coarsened into `NA` bins.
+*   The Configure table now exposes the Action and Data type overrides directly
+    in a renamed **Action override** column, while the derived "what we'll do"
+    explanation moved to the Generate review table, which now mirrors the two
+    privacy questions, Action, and the plain-English outcome.
 
 # dataganger 0.3.5
 

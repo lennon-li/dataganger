@@ -4,20 +4,6 @@
 #' @noRd
 NULL
 
-# Human-readable label for a stored disclosure-role value. Shared by the
-# Configure dropdown and the read-only Generate recap so they stay in sync.
-dg_disclosure_label <- function(value) {
-  labels <- c(
-    none      = "Measure / metric",
-    direct    = "Direct identifier",
-    quasi     = "Quasi-identifier",
-    sensitive = "Sensitive"
-  )
-  out <- unname(labels[value])
-  out[is.na(out)] <- value[is.na(out)]
-  out
-}
-
 #' @keywords internal
 #' @noRd
 dg_rec_to_role <- function(rec) {
@@ -532,35 +518,31 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_advanced_controls <- function(orig_row, row_data) {
+      make_action_override_controls <- function(orig_row, row_data) {
         simulation_value <- as.character(row_data$simulation[[1]] %||% "synthesize")
-        shiny::tags$details(
-          style = "margin-top:6px;",
-          shiny::tags$summary("Advanced"),
+        shiny::tags$div(
+          style = "display:grid; gap:6px;",
           shiny::tags$div(
-            style = "margin-top:6px; display:grid; gap:6px;",
-            shiny::tags$div(
-              shiny::tags$div(
-                style = "font-size:11px; color:var(--fg-muted); margin-bottom:2px;",
-                "Action override"
-              ),
-              make_simulation_select(orig_row, simulation_value)
-            ),
             shiny::tags$div(
               style = "font-size:11px; color:var(--fg-muted);",
-              "Pass through keeps the real values - verify before sharing."
+              "Action override"
             ),
+            make_simulation_select(orig_row, simulation_value)
+          ),
+          shiny::tags$div(
+            style = "font-size:11px; color:var(--fg-muted);",
+            "Pass through keeps the real values - verify before sharing."
+          ),
+          shiny::tags$div(
             shiny::tags$div(
-              shiny::tags$div(
-                style = "font-size:11px; color:var(--fg-muted); margin-bottom:2px;",
-                "Data type override"
-              ),
-              make_select(
-                orig_row,
-                row_data$user_role[[1]],
-                row_data$recommended_role[[1]],
-                row_data$class[[1]]
-              )
+              style = "font-size:11px; color:var(--fg-muted);",
+              "Data type override"
+            ),
+            make_select(
+              orig_row,
+              row_data$user_role[[1]],
+              row_data$recommended_role[[1]],
+              row_data$class[[1]]
             )
           )
         )
@@ -597,12 +579,7 @@ mod_roles_server <- function(id, state) {
           ),
           shiny::tags$td(
             style = "min-width:320px; padding:6px 8px;",
-            shiny::tags$div(
-              shiny::tags$div(
-                dg_treatment_text_axes(r$identifies[[1]], isTRUE_vec(r$sensitive[[1]]))
-              ),
-              make_advanced_controls(orig_row, r)
-            )
+            make_action_override_controls(orig_row, r)
           )
         )
       })
@@ -615,7 +592,7 @@ mod_roles_server <- function(id, state) {
             shiny::tags$th(style = "width:22%; padding:6px 8px;", "Column"),
             shiny::tags$th(style = "width:27%; padding:6px 8px;", "Points to a person?"),
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "Sensitive?"),
-            shiny::tags$th(style = "width:39%; padding:6px 8px;", "What we'll do")
+            shiny::tags$th(style = "width:39%; padding:6px 8px;", "Action override")
           )
         ),
         shiny::tags$tbody(rows)
