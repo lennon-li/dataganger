@@ -20,3 +20,4 @@
 ^_pkgdown\.yml$
 ^vignettes/articles$
 ^pkgdown$
+^dev$
