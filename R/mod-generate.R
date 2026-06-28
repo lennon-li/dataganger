@@ -152,7 +152,9 @@ mod_generate_server <- function(id, state) {
 
       treatment <- dg_role_treatment(roles)
       disclosure <- if ("disclosure_role" %in% names(roles)) roles$disclosure_role else rep(NA_character_, nrow(roles))
-      disclosure[is.na(disclosure) | !nzchar(disclosure)] <- "\u2014"
+      blank <- is.na(disclosure) | !nzchar(disclosure)
+      disclosure <- dg_disclosure_label(disclosure)
+      disclosure[blank] <- "\u2014"
       action_label <- function(x) {
         switch(
           x,

@@ -2,6 +2,24 @@
 #'
 #' @keywords internal
 #' @noRd
+NULL
+
+# Human-readable label for a stored disclosure-role value. Shared by the
+# Configure dropdown and the read-only Generate recap so they stay in sync.
+dg_disclosure_label <- function(value) {
+  labels <- c(
+    none      = "Measure / metric",
+    direct    = "Direct identifier",
+    quasi     = "Quasi-identifier",
+    sensitive = "Sensitive"
+  )
+  out <- unname(labels[value])
+  out[is.na(out)] <- value[is.na(out)]
+  out
+}
+
+#' @keywords internal
+#' @noRd
 dg_rec_to_role <- function(rec) {
   if (is.na(rec) || !nzchar(rec)) return(NA_character_)
   lc <- tolower(rec)
@@ -169,9 +187,9 @@ disclosure_help_ui <- function() {
     shiny::tags$div(
       class = "engine-help",
       role_def(
-        "None",
-        "no special disclosure handling.",
-        "a treatment group label, a yes/no outcome"
+        "Measure / metric",
+        "a measurement or other non-identifying attribute; no special disclosure handling.",
+        "a lab value, a score, a count, a treatment-group label"
       ),
       role_def(
         "Direct identifier",
@@ -360,11 +378,9 @@ mod_roles_server <- function(id, state) {
                       "date", "free_text", "drop")
     SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
     DISCLOSURE_OPTIONS <- c("none", "direct", "quasi", "sensitive")
-    DISCLOSURE_LABELS  <- c(
-      none = "None",
-      direct = "Direct identifier",
-      quasi = "Quasi-identifier",
-      sensitive = "Sensitive"
+    DISCLOSURE_LABELS  <- stats::setNames(
+      dg_disclosure_label(DISCLOSURE_OPTIONS),
+      DISCLOSURE_OPTIONS
     )
 
     # Role-mapping helpers (rec_to_role/class_to_role/eff_role) are defined at
