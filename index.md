@@ -4,6 +4,8 @@
 can prototype code, build Shiny apps, teach, and collaborate with AI
 tools without sharing the original dataset.
 
+📖 **Documentation:** <https://lennon-li.github.io/dataganger/>
+
 ![DataGangeR walks you through objective, upload, configure, generate,
 compare, and export](reference/figures/hero.gif)
 
