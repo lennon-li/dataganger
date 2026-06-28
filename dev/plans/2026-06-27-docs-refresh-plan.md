@@ -27,6 +27,35 @@ until E lands in R/mod-roles.R. Split into phases accordingly.
      table already matches B)
 3. devtools::document() to keep man pages in sync (no manual .Rd edits).
 
+## CLI PIPELINE (must be covered; Lennon flagged)
+The end-to-end CLI/agent pipeline is core to the product story (human + AI use
+the same spec). Audit and update:
+- dataganger_cli help text / man page (man/dataganger_cli.Rd) and any CLI
+  vignette/article: confirm flags match current synth_spec (no geography_*;
+  current engine/name_strategy/etc.) and the disclosure-role values.
+- README "Use it from R" + any CLI usage section: show the full reproduce-from-
+  bundle pipeline (the same-seed analysis.qmd path) an agent runs; ensure it
+  matches inst/templates/analysis_template.qmd and ai-readme.md.
+- pkgdown: ensure dataganger_cli is in the reference index and an
+  article/section walks the agent CLI workflow end to end.
+- Cross-check the CLI bundle path (cli.R) still references existing files after
+  the compact-bundle change (it reads the FULL bundle: manifest, dictionary,
+  privacy_report.txt) - confirm docs describe FULL vs compact correctly.
+
+## DOWNLOAD BUNDLE (must be covered; Lennon flagged)
+Document the bundle contents in ONE authoritative place and reference it
+everywhere consistently:
+- App (compact) bundle: synthetic_data.csv, README.md (consolidated: Privacy +
+  "For AI assistants"), load_data.R, analysis.qmd, data_dictionary.csv,
+  manifest.json (+ comparison_report.html when included). ai-readme.md and
+  privacy_report.txt are FOLDED INTO README.md.
+- Full CLI/agent bundle (make_agent_bundle): keeps standalone ai-readme.md,
+  privacy_report.txt, code_readiness_report.json, diagnostic_view.json, etc.
+- Update: vignette "## 6. Export" (done in Phase 1 item 2), the in-bundle
+  README generator wording if stale, inst/skills SKILL.md (note compact vs full),
+  and any README/pkgdown mention of "what's in the download." Make the two
+  bundle variants explicit so users/agents know which file to read.
+
 ## PHASE 2 (after E lands in mod-roles.R)
 4. getting-started.Rmd "## 3. Configure": rewrite Per-column decisions to the
    4-option privacy-first dropdown + derived action + "what we'll do" + two-
