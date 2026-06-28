@@ -24,10 +24,16 @@ script from the R console (see *Use it from R* in the
 
 ## 1. Objective
 
-Start by telling DataGangeR what the synthetic data is *for*. The objective —
-**Demo / Teaching**, **Development and prototyping**, or **Internal Analytics** —
-presets sensible defaults for fidelity, privacy hardening, and coarsening across
-the rest of the workflow.
+Start by telling DataGangeR what the synthetic data is *for*. Instead of
+separate Fidelity / Privacy / Anonymity meters, the app now shows one
+**Protection** meter: **Demo / Teaching = 5 bars**, **Development and
+prototyping = 3 bars**, and **Internal Analytics = 1 bar**. **Development** is
+the default objective.
+
+When you click an objective, the detail panel explains it along the same
+dimensions every time: **Use when**, **Exact values**, **Distributions**,
+**Relationships**, **Identifiers**, and **Sensitive & rare values**. That keeps
+the trade-off readable without making you interpret multiple competing meters.
 
 ```{r, echo = FALSE}
 fig("step-1-objective.png")
@@ -45,20 +51,73 @@ fig("step-2-upload.png")
 
 ## 3. Configure
 
-Review each column's **disclosure role** (direct identifier, quasi-identifier,
-sensitive, or none) and adjust synthesis settings only if you need to. Defaults
-are safe for the objective you picked. Every column must carry an explicit role
-before you can generate — uncertain columns are left unselected on purpose.
+This is where you, the human, make the decisions. Nothing is generated until you
+have reviewed them. The screen is built around privacy-first column
+classification, plus the synthesis settings described below.
 
 ```{r, echo = FALSE}
 fig("step-3-configure.png")
 ```
 
+**Per-column decisions.** Each row now asks two intrinsic questions:
+
+- **Does this point to a person?**
+  - **No** — blood pressure, lab value, score, price, outcome
+  - **Only combined with other columns** — age, sex, ZIP / postcode, birth
+    date, job title
+  - **Yes, directly** — name, email, phone, address, Social Security number,
+    record / account number
+- **Is it sensitive?**
+  - **No** or **Yes** — mark **Yes** for values like diagnosis, income,
+    religion, or anything that would cause harm if linked back to a person
+
+You do **not** choose the action separately in the normal flow. DataGangeR
+derives it from those two answers. On Configure, the per-column
+**Action override** cell exposes optional Action and Data type overrides
+directly if you need them. The plain-English outcome is reviewed on the
+Generate step:
+
+|                      | sensitive = No | sensitive = Yes |
+|---|---|---|
+| identifies = none | Synthesized; distribution kept, exact values not. | Synthesized; protected from linkage. |
+| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Coarsened & grouped + protected from linkage. |
+| identifies = direct | **Removed** from the output. | **Removed** from the output. |
+
+Direct identifiers always drop. Everything non-direct is synthesized. Every
+column still needs an explicit answer to the first question before you can
+generate.
+
+**Synthesis settings.** The objective you picked presets safe defaults, but you
+can override any of these:
+
+| Setting | What you are deciding |
+|---|---|
+| **Row count (n)** | How many synthetic rows to generate. |
+| **Seed** | Fixes the random draw so the same settings reproduce the exact same data. |
+| **Engine** | *Auto* (from objective), *Internal* (per-column, fast, ignores relationships), or *synthpop* (relationship-aware, higher fidelity). |
+| **Column name handling** | Keep original names, replace with generic names, or anonymize names and keep the mapping in the data dictionary. |
+| **Rare category threshold** | Values seen fewer than this many times count as rare, so they can be merged or suppressed. |
+| **Coarsen dates** | Round dates (e.g. to month/year) so an exact date can't single out an individual. |
+| **Merge rare categories** | Combine infrequent values into an "other" group to reduce re-identification risk. |
+| **Free-text handling** | How free-text columns are treated (usually set by your objective). |
+| **Preserve missing values** | How closely to reproduce the original pattern of missing (`NA`) values. |
+
+Defaults are safe for the objective you picked — leave them unless you have a
+reason to change them. Each control in the app also carries a one-line
+explanation, and every decision is recorded in the exported spec so the result
+is reproducible (see [`synth_spec()`](../reference/synth_spec.html) for the
+programmatic equivalents).
+
 ## 4. Generate
 
-Generate the synthetic double. The summary reports row and column counts, the
-engine used, and the elapsed time; the right panel switches to preview the
-synthetic records.
+Before anything is generated, this step shows a **per-column review table** that
+mirrors your Configure choices and spells out the outcome: the two questions you
+answered (*Points to a person?* and *Sensitive?*), the resulting **Action**
+(synthesize, pass through, or drop), and a plain-English **What we'll do** for
+each column. Hover a column name to see how it will be modelled. If anything
+looks wrong, use **← Adjust settings** to go back; otherwise generate the
+synthetic double. The summary then reports row and column counts, the engine
+used, and the elapsed time, and the right panel previews the synthetic records.
 
 ```{r, echo = FALSE}
 fig("step-4-generate.png")
@@ -77,9 +136,23 @@ fig("step-5-compare.png")
 
 ## 6. Export
 
-Download a single bundle containing the synthetic data, the synthesis spec, a
-manifest, a comparison report, diagnostic files, and (optionally) a standalone
-data dictionary - ready to share with collaborators or AI programming tools.
+The in-app download is the **compact** bundle: a small, shareable package built
+around six files:
+
+- `synthetic_data.csv`
+- `README.md`
+- `load_data.R`
+- `analysis.qmd`
+- `data_dictionary.csv`
+- `manifest.json`
+
+If a rendered comparison is included, you also get `comparison_report.html`.
+
+In the compact bundle, `README.md` is consolidated: it includes the privacy
+summary and a **For AI assistants** section, so there is no separate
+`ai-readme.md` or `privacy_report.txt`. Those standalone files stay in the
+**full** CLI / agent bundle (`compact = FALSE` or `make_agent_bundle()`), along
+with the extra diagnostics used in agent workflows.
 
 ```{r, echo = FALSE}
 fig("step-6-export.png")

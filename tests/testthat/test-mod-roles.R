@@ -39,6 +39,54 @@ roles_host_server <- function(id) {
   })
 }
 
+roles_test_state <- function() {
+  state <- shiny::reactiveValues()
+  state$raw_data <- data.frame(
+    id = c("P001", "P002", "P003"),
+    zip = c("100", "100", "200"),
+    income = c(10, 20, 30),
+    stringsAsFactors = FALSE
+  )
+  state$roles <- tibble::tibble(
+    variable = c("id", "zip", "income"),
+    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    user_role = c(NA_character_, NA_character_, NA_character_),
+    class = c("ID candidate", "categorical candidate", "numeric"),
+    identifies = c("direct", "combination", "none"),
+    sensitive = c(FALSE, FALSE, FALSE),
+    disclosure_role = c("direct", "quasi", "none"),
+    simulation = c("drop", "synthesize", "synthesize"),
+    reason = c("Likely identifies a person.", "May identify in combination.", "Looks numeric."),
+    disclosure_reason = c(NA_character_, NA_character_, NA_character_)
+  )
+  state$profile <- list()
+  state
+}
+
+roles_test_state_with_unset <- function() {
+  state <- shiny::reactiveValues()
+  state$raw_data <- data.frame(
+    id = c("P001", "P002", "P003"),
+    zip = c("100", "100", "200"),
+    income = c(10, 20, 30),
+    stringsAsFactors = FALSE
+  )
+  state$roles <- tibble::tibble(
+    variable = c("id", "zip", "income"),
+    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    user_role = c(NA_character_, NA_character_, NA_character_),
+    class = c("ID candidate", "categorical candidate", "categorical candidate"),
+    identifies = c("direct", "combination", NA_character_),
+    sensitive = c(FALSE, FALSE, FALSE),
+    disclosure_role = c("direct", "quasi", ""),
+    simulation = c("drop", "synthesize", "synthesize"),
+    reason = c("Likely identifies a person.", "May identify in combination.", "Needs review."),
+    disclosure_reason = c(NA_character_, NA_character_, NA_character_)
+  )
+  state$profile <- list()
+  state
+}
+
 test_that("editing user_role and confirming writes back to state", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")
@@ -199,7 +247,7 @@ test_that("editing a non-user_role column is ignored silently", {
 })
 
 
-test_that("roles table labels the Action and TYPE columns", {
+test_that("roles table labels the four configure columns", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")
 
@@ -216,10 +264,80 @@ test_that("roles table labels the Action and TYPE columns", {
 
     html <- paste(as.character(output$`roles-roles_table`), collapse = "
 ")
-    expect_match(html, ">Action<")
-    expect_false(grepl(">Simulation<", html))
-    expect_match(html, ">TYPE<")
-    expect_false(grepl(">user_role<", html))
+    expect_match(html, ">Column<")
+    expect_match(html, ">Points to a person\\?<")
+    expect_match(html, ">Sensitive\\?<")
+    expect_match(html, ">Action override<")
+    expect_false(grepl(">What we'll do<", html, fixed = TRUE))
+    expect_false(grepl(">Action<", html, fixed = TRUE))
+  })
+})
+
+test_that("Configure table shows both axis selects, examples, and inline override controls", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, "identifies_change")
+    expect_match(html, "sensitive_change")
+    expect_match(html, "Only combined with other columns")
+    expect_match(html, "email")
+    expect_match(html, "Action override")
+    expect_match(html, "Data type override")
+    expect_match(html, "Pass through keeps the real values")
+    expect_false(grepl("What we.ll do", html))
+    expect_false(grepl(">Action<", html, fixed = TRUE))
+    expect_false(grepl(">TYPE<", html, fixed = TRUE))
+    expect_false(grepl("Advanced", html, fixed = TRUE))
+  })
+})
+
+test_that("inline override controls expose drop/pass-through and data type", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, "Action override")
+    expect_match(html, "Pass through")
+    expect_match(html, "verify before sharing")
+    expect_false(grepl("<summary", html, fixed = TRUE))
+    expect_false(grepl("<details", html, fixed = TRUE))
+  })
+})
+
+test_that("changing identifies derives drop action and changing sensitive keeps synthesis", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(identifies_change = list(row = 2, value = "direct"))
+    expect_equal(state$roles$simulation[[2]], "drop")
+    expect_equal(state$roles$disclosure_role[[2]], "direct")
+    session$setInputs(identifies_change = list(row = 2, value = "none"))
+    expect_equal(state$roles$simulation[[2]], "synthesize")
+    session$setInputs(sensitive_change = list(row = 2, value = "yes"))
+    expect_true(state$roles$sensitive[[2]])
+    expect_equal(state$roles$disclosure_role[[2]], "sensitive")
+  })
+})
+
+test_that("disclosure help leads with the two questions and is not wrapped in details", {
+  html <- as.character(disclosure_help_ui())
+  expect_match(html, "Could a value point to a specific person")
+  expect_match(html, "Would it harm someone")
+  expect_match(html, "Only combined with other columns")
+  expect_false(grepl("<details", html, fixed = TRUE))
+})
+
+test_that("gate copy uses 'need an answer'", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state_with_unset()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$disclosure_gate), collapse = "\n")
+    expect_match(html, "still need an answer before you can generate")
   })
 })
 
@@ -232,9 +350,11 @@ test_that("disclosure gate excludes drop and pass-through rows from unset count"
 
     roles <- tibble::tibble(
       variable = c("drop_me", "share_me", "needs_role"),
-      class = c("character", "numeric", "numeric"),
+      class = c("character", "numeric", "categorical candidate"),
       recommended_role = c("free text", "numeric", "numeric"),
       user_role = c(NA_character_, NA_character_, NA_character_),
+      identifies = c(NA_character_, NA_character_, NA_character_),
+      sensitive = c(FALSE, FALSE, FALSE),
       simulation = c("drop", "pass_through", "synthesize"),
       reason = c("reason", "reason", "reason"),
       disclosure_role = c(NA_character_, NA_character_, NA_character_),
@@ -246,7 +366,7 @@ test_that("disclosure gate excludes drop and pass-through rows from unset count"
     session$flushReact()
 
     html <- paste(as.character(output$`roles-disclosure_gate`), collapse = "\n")
-    expect_match(html, "1 column still need a disclosure role")
+    expect_match(html, "1 column still need an answer")
     expect_false(grepl("3 columns", html, fixed = TRUE))
   })
 })

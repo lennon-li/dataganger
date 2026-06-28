@@ -230,6 +230,9 @@ mod_data_panel_server <- function(id, state) {
 
       dt <- DT::datatable(
         df,
+        # Per-column filter row under the header (search box for text/factor,
+        # range slider for numeric) so users can filter each column.
+        filter   = "top",
         options  = list(
           dom        = "tp",
           ordering   = FALSE,

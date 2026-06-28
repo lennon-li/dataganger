@@ -60,20 +60,31 @@ rows_ready <- function()
   isTRUE(suppressWarnings(as.numeric(app$get_js(
     "document.querySelectorAll('#data_panel-dp_table tbody tr').length"))) > 3)
 for (i in 1:30) { if (rows_ready()) break; Sys.sleep(1) }
-shot("step-3-configure.png", pause = 3)
 
-# Clear the v0.3.2 hard gate: every column needs an explicit disclosure role.
-# id -> direct identifier; the rest -> none (safe, fully-populated output).
-roles <- c(id = "direct", age = "none", sex = "none", income = "none",
-           education = "none", smoker = "none", bmi = "none")
-for (i in seq_along(roles)) {
+# Clear the two-question gate: every column needs a "Points to a person?"
+# answer (identifies). A realistic mix shows the derived actions well:
+#   id -> direct (Removed), age/sex -> combination (Coarsened),
+#   the rest -> none, with income & smoker also marked sensitive.
+identifies <- c(id = "direct", age = "combination", sex = "combination",
+                income = "none", education = "none", smoker = "none",
+                bmi = "none")
+for (i in seq_along(identifies)) {
   app$set_inputs(
-    `roles-disclosure_change` = list(row = i, value = unname(roles[i])),
+    `roles-identifies_change` = list(row = i, value = unname(identifies[i])),
     allow_no_input_binding_ = TRUE, priority_ = "event", wait_ = FALSE
   )
   Sys.sleep(0.2)
 }
-Sys.sleep(0.6)
+for (i in c(4L, 6L)) {  # income, smoker -> Sensitive? = Yes
+  app$set_inputs(
+    `roles-sensitive_change` = list(row = i, value = "yes"),
+    allow_no_input_binding_ = TRUE, priority_ = "event", wait_ = FALSE
+  )
+  Sys.sleep(0.2)
+}
+# Capture Configure with the two-question panel up top and the per-column
+# answers + Action override column populated.
+shot("step-3-configure.png", pause = 3)
 
 # --- Step 04 · Generate --------------------------------------------------
 app$click("synthesis_controls-confirm"); Sys.sleep(2)

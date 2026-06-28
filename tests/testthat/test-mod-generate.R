@@ -348,3 +348,37 @@ test_that("adjust_settings sets nav_request to configure", {
 
   expect_identical(shiny::isolate(state$nav_request), "configure")
 })
+
+
+test_that("decision recap renders the revised review columns", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(name = "a", zip = "100", bp = 10, stringsAsFactors = FALSE),
+    spec = synth_spec(purpose = "development")
+  )
+  state$roles <- tibble::tibble(
+    variable = c("name", "zip", "bp"),
+    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    user_role = c(NA_character_, "date", NA_character_),
+    class = c("ID candidate", "categorical candidate", "numeric"),
+    identifies = c("direct", "combination", "none"),
+    sensitive = c(FALSE, TRUE, FALSE),
+    simulation = c("drop", "pass_through", "synthesize")
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    html <- paste(as.character(output$decision_recap), collapse = "\n")
+    expect_match(html, ">Column<")
+    expect_match(html, ">Points to a person\\?<")
+    expect_match(html, ">Sensitive\\?<")
+    expect_match(html, ">Action<")
+    expect_match(html, ">What we.ll do<")
+    expect_false(grepl("<th[^>]*>TYPE<", html, perl = TRUE))
+    expect_false(grepl("<th[^>]*>DISCLOSURE<", html, perl = TRUE))
+    expect_match(html, 'title="Modelled as: date"')
+    expect_match(html, "Only combined with other columns")
+    expect_match(html, "Pass through")
+    expect_match(html, "Use .* Adjust settings to change any of these")
+  })
+})

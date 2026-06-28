@@ -953,8 +953,8 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 /* Objective-page meter legend: one metric per row, larger and clearer. */
 .meter-legend { margin: 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
 .meter-legend > div { font-size: 14px; line-height: 1.45; color: var(--ink-700); }
-.meter-legend > div strong { display: inline-block; min-width: 104px; color: var(--ink-900); font-weight: 600; }
-.meter-legend > div span { color: var(--fg-muted); }
+.meter-legend > div strong { display: block; margin-bottom: 1px; color: var(--ink-900); font-weight: 600; }
+.meter-legend > div span { display: block; color: var(--fg-muted); }
 #synthesis_controls-purpose_detail_host .purpose-detail-panel {
   margin-top: 16px;
   padding-top: 16px;
@@ -964,6 +964,54 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
 .engine-help { margin: 4px 0 14px; }
 .engine-help p { font-size: 12px; color: var(--fg-muted); margin: 0 0 4px; line-height: 1.45; }
 .engine-help strong { color: var(--ink-900); }
+
+/* Two-question classifier — the core concept of the product, shown prominently
+   above the per-column table. Highlighted panel, large readable questions. */
+.disclosure-help {
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--synth-100);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin: 6px 0 18px;
+  display: grid;
+  gap: 18px;
+}
+.disclosure-help .dq-lead {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--accent-hover);
+  margin: 0;
+}
+.disclosure-help .dq { display: grid; gap: 4px; }
+.disclosure-help .dq-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.disclosure-help .dq-q {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink-900);
+  margin: 0;
+}
+.disclosure-help .dq-ex {
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+.disclosure-help .dq-opts { display: grid; gap: 5px; margin-top: 2px; }
+.disclosure-help .dq-opt { font-size: 13px; line-height: 1.5; }
+.disclosure-help .dq-opt-label { font-weight: 600; color: var(--ink-700); }
+.disclosure-help .dq-opt-ex { color: var(--fg-muted); }
 
 /* Inline risk acknowledgement, shown inside the selected internal card */
 .pc-ack {

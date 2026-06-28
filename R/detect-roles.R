@@ -52,6 +52,7 @@ detect_roles <- function(data, profile = NULL) {
   }
 
   out <- dplyr::bind_rows(roles)
+  out <- dg_seed_disclosure(out)
 
   class(out) <- c("dataganger_roles", class(out))
   out
@@ -220,8 +221,9 @@ detect_single_role <- function(x, name, n_rows) {
   # Sensitive name heuristic: a known-sensitive column is marked sensitive
   # unless it is already a confident direct identifier (direct wins -- it is
   # removed from output entirely, the stronger protection).
-  if (is_sensitive_name(name) && !identical(row$disclosure_role, "direct")) {
-    row$disclosure_role <- "sensitive"
+  if (is_sensitive_name(name) && !identical(row$identifies, "direct")) {
+    row$sensitive <- TRUE
+    row$disclosure_role <- dg_axes_to_role(row$identifies, row$sensitive)
     row$disclosure_reason <- "Marked sensitive because the column name suggests sensitive personal information."
   }
   row
@@ -255,6 +257,7 @@ is_free_text_candidate <- function(x) {
 }
 
 make_role_row <- function(name, r_class, role, reason, disclosure_role) {
+  axes <- dg_role_to_axes(disclosure_role)
   tibble::tibble(
     variable         = name,
     class            = r_class,
@@ -262,6 +265,8 @@ make_role_row <- function(name, r_class, role, reason, disclosure_role) {
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = reason,
+    identifies       = axes$identifies,
+    sensitive        = axes$sensitive,
     disclosure_role = disclosure_role,
     disclosure_reason = disclosure_reason_for(disclosure_role, role)
   )
@@ -303,10 +308,14 @@ apply_disclosure_overrides <- function(roles, overrides) {
     if (!val %in% valid) {
       cli::cli_abort("disclosure_roles[{col}] must be one of {.or {.val {valid}}}")
     }
-    roles$disclosure_role[roles$variable == col] <- val
+    rows <- roles$variable == col
+    roles$disclosure_role[rows] <- val
+    axes <- dg_role_to_axes(val)
+    roles$identifies[rows] <- axes$identifies
+    roles$sensitive[rows] <- axes$sensitive
     roles$disclosure_reason[roles$variable == col] <- "Set explicitly in the synthesis spec."
   }
-  roles
+  dg_sync_roles_axes(roles)
 }
 
 # ---------------------------------------------------------------------------

@@ -15,18 +15,37 @@
 #' @param privacy A `dataganger_privacy_check` object or `NULL`. When
 #'   `stage == "pre"`, flags harden defaults (e.g. IDs dropped, free text
 #'   removed).
-#' @param name_strategy Character or `NULL`. One of `"preserve"`, `"generic"`,
-#'   or `"dictionary_only"`. If `NULL`, derived from the preset.
-#' @param seed Integer or `NULL`. Reproducibility seed.
+#' @param name_strategy Character or `NULL`. How synthetic column names are
+#'   handled: `"preserve"` keeps your original column names, `"generic"`
+#'   replaces them with neutral names (`var1`, `var2`, ...), and
+#'   `"dictionary_only"` anonymizes the names but records the mapping in the
+#'   exported data dictionary. If `NULL`, derived from the preset.
+#' @param seed Integer or `NULL`. Reproducibility seed. Fixes the random draw
+#'   so the same spec and data reproduce the exact same synthetic output.
 #' @param engine Character or `NULL`. Optional explicit synthesis engine:
-#'   `"internal"`, `"marginal"` (alias for `"internal"`), or `"synthpop"`.
+#'   `"internal"`/`"marginal"` synthesizes each column from its own
+#'   distribution (fast, dependency-free, ignores cross-column relationships),
+#'   `"synthpop"` models columns conditionally so correlations and joint
+#'   structure are preserved (higher fidelity, needs the synthpop package).
 #'   If `NULL`, [synthesize_data()] derives the engine from the objective.
 #' @param acknowledge_risk Logical. Required to be `TRUE` when
 #'   `purpose = "analytics"`.
-#' @param ... Additional arguments passed to the spec list. Currently supports
-#'   `preserve_correlations`, `coarsen_dates`, `merge_rare`,
-#'   `free_text_strategy`, `rare_level_min_n`,
-#'   `preserve_missingness`.
+#' @param ... Additional decision parameters passed to the spec list. These are
+#'   the same settings exposed under *Synthesis Settings* in the app:
+#'   \itemize{
+#'     \item `preserve_correlations` --- how strongly cross-variable
+#'       relationships are retained (`"none"`, `"moderate"`, `"high"`).
+#'     \item `coarsen_dates` --- logical; round dates (e.g. to month or year)
+#'       so an exact event date cannot single out an individual.
+#'     \item `merge_rare` --- logical; combine infrequent category values into
+#'       an `"other"` group to reduce re-identification risk.
+#'     \item `rare_level_min_n` --- integer; category values seen fewer than
+#'       this many times count as rare (then merged or suppressed).
+#'     \item `free_text_strategy` --- how free-text columns are treated
+#'       (e.g. `"drop"`, `"generic"`); usually set by the purpose preset.
+#'     \item `preserve_missingness` --- how closely to reproduce the original
+#'       pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
+#'   }
 #'
 #' @return An S3 object of class `dataganger_spec` (a named list).
 #' @export

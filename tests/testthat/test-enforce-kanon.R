@@ -121,6 +121,22 @@ test_that("enforce_kanon handles a mix of NA and explicit roles", {
   expect_true(all(c("zip", "other") %in% names(out)))
 })
 
+test_that("enforce_kanon unions identifying sensitive columns into the QI set", {
+  syn <- data.frame(
+    zip = rep(c("100", "200"), each = 6),
+    religion = c(rep("A", 11), "B"),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("zip", "religion"),
+    disclosure_role = c("quasi", "sensitive"),
+    class = c("categorical candidate", "categorical candidate"),
+    stringsAsFactors = FALSE
+  )
+  res <- enforce_kanon(syn, roles, k = 5)
+  expect_true("religion" %in% attr(res, "kanon")$qi_cols)
+})
+
 test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
   set.seed(42)
   df <- data.frame(

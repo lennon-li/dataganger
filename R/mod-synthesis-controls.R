@@ -66,7 +66,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
           label = NULL,
           choiceValues = c("demo", "development", "analytics"),
           choiceNames = c("demo", "development", "analytics"),
-          selected = "demo"
+          selected = "development"
         )
       )
     )
@@ -75,7 +75,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
 
 #' @keywords internal
 #' @noRd
-dg_purpose_card <- function(ns, key, group, title, line, fid, priv, anon, risk = FALSE, selected = FALSE) {
+dg_purpose_card <- function(ns, key, group, title, line, protection, risk = FALSE, selected = FALSE) {
   meter <- function(label, n, color) {
     shiny::tags$div(
       class = "pc-meter",
@@ -114,9 +114,7 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, anon, risk =
     ),
     shiny::tags$div(
       class = "pc-meters",
-      meter("Fidelity", fid, "var(--ink-700)"),
-      meter("Privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
-      meter("Anonymity", anon, "var(--risk-400)")
+      meter("Protection", protection, if (risk) "var(--risk-500)" else "var(--real-700)")
     ),
     shiny::tags$div(class = "pc-detail-slot", `data-detail-slot` = key)
   )
@@ -128,48 +126,27 @@ objective_cards <- function(ns) {
   shiny::tagList(
     shiny::tags$div(
       class = "meter-legend",
-      shiny::tags$p(
-        class = "help",
-        style = "margin:0 0 8px;",
-        "Each objective trades these three off against each other: more ",
-        "fidelity usually means less privacy and anonymity."
-      ),
       shiny::tags$div(
-        shiny::tags$strong("Fidelity"),
+        shiny::tags$strong("Protection"),
         shiny::tags$span(
-          "how closely the synthetic data reproduces the real data's ",
-          "distributions and relationships. More bars = closer to the real ",
-          "data, and more detail retained."
-        )
-      ),
-      shiny::tags$div(
-        shiny::tags$strong("Privacy"),
-        shiny::tags$span(
-          "how well the original records are protected from disclosure, ",
-          "such as no exact-row copies or rare-value leaks. More bars = ",
-          "less of the source data is recoverable."
-        )
-      ),
-      shiny::tags$div(
-        shiny::tags$strong("Anonymity"),
-        shiny::tags$span(
-          "how hard it is to single out an individual from combinations of ",
-          "quasi-identifiers (the k-anonymity guarantee). More bars = ",
-          "individuals blend into larger groups."
+          "how strongly the data is shielded \u2014 combining coarsening, ",
+          "disclosure protection, and k-anonymity. More bars = safer to ",
+          "share, at the cost of less original detail preserved. (See the ",
+          "details under each objective for the specifics.)"
         )
       )
     ),
     dg_purpose_card(
       ns, "demo", "demo", "Demo / Teaching",
-      "Share externally, teach with, or use in presentations.", 2, 4, 5
+      "Share externally, teach with, or use in presentations.", 5
     ),
     dg_purpose_card(
       ns, "development", "development", "Development and prototyping",
-      "Build apps, AI tooling, or model pipelines.", 3, 3, 3
+      "Build apps, AI tooling, or model pipelines.", 3, selected = TRUE
     ),
     dg_purpose_card(
       ns, "analytics", "analytics", "Internal Analytics",
-      "Maximum structural detail \u2014 internal use only.", 5, 1, 1, risk = TRUE
+      "Maximum structural detail \u2014 internal use only.", 1, risk = TRUE
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'analytics'",
@@ -259,26 +236,41 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
 mod_synthesis_controls_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
+  # Each objective is described along the SAME dimensions, in the same order and
+  # terminology, framed around the disclosure roles from the Configure page
+  # (direct identifiers, quasi-identifiers, sensitive values). The exact-values
+  # line is identical for all three on purpose: no original record is ever
+  # reproduced; only distributions and relationships may carry over.
+  exact_values_line <- paste(
+    "Never reproduced. Every value is synthetic and no original record appears",
+    "in the output."
+  )
   purpose_copy <- list(
     demo = list(
-      use_when = "You want safe synthetic data to share externally, teach with, or use in presentations.",
-      preserves = "column names \u00b7 column types \u00b7 approximate distributions \u00b7 plausible values \u00b7 low-level relationships",
-      does_not_preserve = "exact records \u00b7 precise dates \u00b7 free text \u00b7 direct identifiers \u00b7 rare categories",
-      recommended_use = "Classrooms, workshops, documentation, external demos, public-facing examples.",
+      use_when = "Sharing externally, teaching, demos, or public examples, where safety matters more than fidelity.",
+      exact_values = exact_values_line,
+      distributions = "Approximated and simplified: rare categories are merged and dates coarsened, so each column's distribution is roughly right, not exact.",
+      relationships = "Not preserved. Columns are generated independently, so relationships among quasi-identifiers and other variables are broken.",
+      identifiers = "Direct identifiers are removed. Quasi-identifiers are coarsened and k-anonymity is enforced.",
+      sensitive = "Sensitive and rare values are merged or dropped.",
       privacy_caution = "Not a formal privacy guarantee. Review all privacy warnings before sharing externally."
     ),
     development = list(
-      use_when = "You want synthetic data for building code, apps, or model pipelines.",
-      preserves = "column names \u00b7 column types \u00b7 distributions \u00b7 relationships between variables (when synthpop is installed)",
-      does_not_preserve = "exact records \u00b7 exact model coefficients \u00b7 individual trajectories",
-      recommended_use = "AI-assisted coding, Shiny app testing, model pipeline development, UI testing.",
+      use_when = "Building code, apps, AI tooling, or model pipelines that need realistic structure without exposing real records.",
+      exact_values = exact_values_line,
+      distributions = "Preserved per column: each column's distribution of values matches the original.",
+      relationships = "Preserved between variables, including among quasi-identifiers, when synthpop is installed (otherwise columns are independent).",
+      identifiers = "Direct identifiers are removed. Quasi-identifiers keep their distributions with light coarsening, and k-anonymity is enforced.",
+      sensitive = "Sensitive value distributions are kept; very rare categories are merged.",
       privacy_caution = "Relationship-preserving synthesis may retain sensitive patterns. Not for external release."
     ),
     analytics = list(
-      use_when = "You want the highest-fidelity synthetic data for internal statistical work.",
-      preserves = "maximum structural detail \u00b7 relationships between variables \u00b7 rare categories \u00b7 precise dates",
-      does_not_preserve = "a low-risk disclosure posture.",
-      recommended_use = "Internal development, validation studies, statistical auditing.",
+      use_when = "Internal statistical work, validation studies, or auditing, where fidelity matters most and output stays internal.",
+      exact_values = exact_values_line,
+      distributions = "Preserved in full detail, including rare categories and precise dates.",
+      relationships = "Strongly preserved between variables and among quasi-identifiers (high correlation fidelity).",
+      identifiers = "Direct identifiers are removed, but quasi-identifiers receive minimal coarsening, so re-identification risk is higher.",
+      sensitive = "Sensitive patterns may be retained. Internal use only.",
       privacy_caution = "May preserve sensitive patterns. Not for external sharing. Requires explicit risk acknowledgement."
     )
   )
@@ -340,12 +332,12 @@ mod_synthesis_controls_server <- function(id, state) {
       copy <- purpose_copy[[purpose]]
       shiny::div(
         class = "purpose-detail-panel",
-        if (!is.null(copy$use_when)) {
-          shiny::p(shiny::tags$strong("Use when:"), paste(copy$use_when))
-        },
-        shiny::p(shiny::tags$strong("Preserves:"), paste(copy$preserves)),
-        shiny::p(shiny::tags$strong("Does not preserve:"), paste(copy$does_not_preserve)),
-        shiny::p(shiny::tags$strong("Recommended use:"), paste(copy$recommended_use)),
+        shiny::p(shiny::tags$strong("Use when:"), paste(copy$use_when)),
+        shiny::p(shiny::tags$strong("Exact values:"), paste(copy$exact_values)),
+        shiny::p(shiny::tags$strong("Distributions:"), paste(copy$distributions)),
+        shiny::p(shiny::tags$strong("Relationships:"), paste(copy$relationships)),
+        shiny::p(shiny::tags$strong("Identifiers:"), paste(copy$identifiers)),
+        shiny::p(shiny::tags$strong("Sensitive & rare values:"), paste(copy$sensitive)),
         shiny::tags$div(
           class = "banner risk",
           shiny::tags$span(class = "icon", "!"),
@@ -391,6 +383,15 @@ mod_synthesis_controls_server <- function(id, state) {
       preset <- current_preset()
       current_n <- default_n()
 
+      # One-line explanation rendered directly under a control.
+      setting_hint <- function(txt) {
+        shiny::tags$p(
+          class = "text-muted",
+          style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
+          txt
+        )
+      }
+
       shiny::tagList(
         shiny::numericInput(
           inputId = session$ns("rows_n"),
@@ -398,6 +399,7 @@ mod_synthesis_controls_server <- function(id, state) {
           value = current_n,
           min = 1
         ),
+        setting_hint("How many synthetic rows to generate."),
         shiny::uiOutput(session$ns("rows_hint")),
         shiny::selectInput(
           inputId = session$ns("engine"),
@@ -438,40 +440,54 @@ mod_synthesis_controls_server <- function(id, state) {
           label = "Seed",
           value = preset$seed %||% NA
         ),
+        setting_hint("Fixes the random draw so the same settings reproduce the exact same synthetic data."),
         shiny::selectInput(
           inputId = session$ns("name_strategy"),
-          label = "name_strategy",
-          choices = c("preserve", "generic", "dictionary_only"),
+          label = "Column name handling",
+          choices = c(
+            "Keep original column names" = "preserve",
+            "Replace with generic names (var1, var2, ...)" = "generic",
+            "Anonymize names, keep mapping in the data dictionary" = "dictionary_only"
+          ),
           selected = preset$name_strategy
         ),
+        setting_hint("Whether the synthetic data keeps your original column names or hides them."),
         shiny::sliderInput(
           inputId = session$ns("rare_level_min_n"),
-          label = "rare_level_min_n",
+          label = "Rare category threshold",
           min = 2,
           max = 30,
           value = preset$rare_level_min_n
         ),
+        setting_hint("Category values seen fewer than this many times count as rare, so they can be merged or suppressed to limit disclosure risk."),
         shiny::checkboxInput(
           inputId = session$ns("coarsen_dates"),
-          label = "coarsen_dates",
+          label = "Coarsen dates",
           value = isTRUE(preset$coarsen_dates)
         ),
+        setting_hint("Rounds dates (e.g. to month or year) so an exact event date cannot single out an individual."),
         shiny::checkboxInput(
           inputId = session$ns("merge_rare"),
-          label = "merge_rare",
+          label = "Merge rare categories",
           value = isTRUE(preset$merge_rare)
         ),
+        setting_hint("Combines infrequent category values into an 'other' group to reduce re-identification risk."),
         shiny::p(
-          shiny::tags$strong("free_text_strategy:"),
+          shiny::tags$strong("Free-text handling:"),
           paste(preset$free_text_strategy)
         ),
-        shiny::p(class = "text-muted", "Set by your purpose choice"),
+        setting_hint("How free-text columns are treated. Set automatically by your objective."),
         shiny::selectInput(
           inputId = session$ns("preserve_missingness"),
-          label = "preserve_missingness",
-          choices = c("approx", "exact", "none"),
+          label = "Preserve missing values",
+          choices = c(
+            "Approximate the original missing-value rate" = "approx",
+            "Match the original missing-value pattern exactly" = "exact",
+            "Do not reproduce missing values" = "none"
+          ),
           selected = preset$preserve_missingness %||% "approx"
-        )
+        ),
+        setting_hint("How closely to reproduce the pattern of missing (NA) values from the original data.")
       )
     })
 

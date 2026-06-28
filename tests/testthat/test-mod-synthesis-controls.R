@@ -102,13 +102,11 @@ test_that("confirming a changed spec sets all stale flags", {
 })
 
 
-test_that("purpose card meters use unified Title-Case labels incl. Anonymity", {
+test_that("purpose card shows a single Protection meter", {
   html <- as.character(dg_purpose_card(
-    shiny::NS("x"), "demo", "demo", "Demo", "line", 2, 4, 1
+    shiny::NS("x"), "demo", "demo", "Demo", "line", 5
   ))
-  expect_match(html, "Fidelity")
-  expect_match(html, "Privacy")
-  expect_match(html, "Anonymity")
+  expect_match(html, "Protection")
   expect_false(grepl("identifiability", html, ignore.case = FALSE))
 })
 

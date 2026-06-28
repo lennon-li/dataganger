@@ -33,22 +33,41 @@ defaults to \code{nrow(original)} at synthesis time.}
 \code{stage == "pre"}, flags harden defaults (e.g. IDs dropped, free text
 removed).}
 
-\item{name_strategy}{Character or \code{NULL}. One of \code{"preserve"}, \code{"generic"},
-or \code{"dictionary_only"}. If \code{NULL}, derived from the preset.}
+\item{name_strategy}{Character or \code{NULL}. How synthetic column names are
+handled: \code{"preserve"} keeps your original column names, \code{"generic"}
+replaces them with neutral names (\code{var1}, \code{var2}, ...), and
+\code{"dictionary_only"} anonymizes the names but records the mapping in the
+exported data dictionary. If \code{NULL}, derived from the preset.}
 
-\item{seed}{Integer or \code{NULL}. Reproducibility seed.}
+\item{seed}{Integer or \code{NULL}. Reproducibility seed. Fixes the random draw
+so the same spec and data reproduce the exact same synthetic output.}
 
 \item{engine}{Character or \code{NULL}. Optional explicit synthesis engine:
-\code{"internal"}, \code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}.
+\code{"internal"}/\code{"marginal"} synthesizes each column from its own
+distribution (fast, dependency-free, ignores cross-column relationships),
+\code{"synthpop"} models columns conditionally so correlations and joint
+structure are preserved (higher fidelity, needs the synthpop package).
 If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
 
 \item{acknowledge_risk}{Logical. Required to be \code{TRUE} when
 \code{purpose = "analytics"}.}
 
-\item{...}{Additional arguments passed to the spec list. Currently supports
-\code{preserve_correlations}, \code{coarsen_dates}, \code{merge_rare},
-\code{free_text_strategy}, \code{rare_level_min_n},
-\code{preserve_missingness}.}
+\item{...}{Additional decision parameters passed to the spec list. These are
+the same settings exposed under \emph{Synthesis Settings} in the app:
+\itemize{
+\item \code{preserve_correlations} --- how strongly cross-variable
+relationships are retained (\code{"none"}, \code{"moderate"}, \code{"high"}).
+\item \code{coarsen_dates} --- logical; round dates (e.g. to month or year)
+so an exact event date cannot single out an individual.
+\item \code{merge_rare} --- logical; combine infrequent category values into
+an \code{"other"} group to reduce re-identification risk.
+\item \code{rare_level_min_n} --- integer; category values seen fewer than
+this many times count as rare (then merged or suppressed).
+\item \code{free_text_strategy} --- how free-text columns are treated
+(e.g. \code{"drop"}, \code{"generic"}); usually set by the purpose preset.
+\item \code{preserve_missingness} --- how closely to reproduce the original
+pattern of missing (\code{NA}) values (\code{"approx"}, \code{"exact"}, \code{"none"}).
+}}
 }
 \value{
 An S3 object of class \code{dataganger_spec} (a named list).
