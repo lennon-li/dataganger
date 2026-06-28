@@ -2,11 +2,14 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/lennon-li/dataganger/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/lennon-li/dataganger/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://github.com/lennon-li/dataganger/actions/workflows/pkgdown.yaml/badge.svg)](https://lennon-li.github.io/dataganger/)
 <!-- badges: end -->
 
 **DataGangeR** creates synthetic data doubles from real datasets so you can
 prototype code, build Shiny apps, teach, and collaborate with AI tools without
 sharing the original dataset.
+
+📖 **Documentation:** <https://lennon-li.github.io/dataganger/>
 
 ![DataGangeR walks you through objective, upload, configure, generate, compare,
 and export](man/figures/hero.gif)
