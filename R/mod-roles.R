@@ -157,31 +157,37 @@ mod_roles_ui <- function(id, embedded = FALSE) {
 #' @noRd
 disclosure_help_ui <- function() {
   identifies_meta <- dg_identifies_option_meta()
-  shiny::tags$div(
-    class = "engine-help disclosure-help",
-    style = "margin:4px 0 12px;",
+  q1_options <- lapply(identifies_meta, function(meta) {
     shiny::tags$div(
+      class = "dq-opt",
+      shiny::tags$span(class = "dq-opt-label", meta$label),
+      shiny::tags$span(class = "dq-opt-ex", paste0(" \u2014 ", meta$examples))
+    )
+  })
+  shiny::tags$div(
+    class = "disclosure-help",
+    shiny::tags$div(
+      class = "dq-lead",
+      "Classify every column by answering two questions."
+    ),
+    shiny::tags$div(
+      class = "dq",
+      shiny::tags$div(class = "dq-eyebrow", "Question 1"),
       shiny::tags$p(
-        shiny::tags$strong("Question 1:"),
-        " Could a value point to a specific person on its own or when combined with other columns?"
+        class = "dq-q",
+        "Could a value point to a specific person \u2014 on its own, or combined with other columns?"
+      ),
+      shiny::tags$div(class = "dq-opts", q1_options)
+    ),
+    shiny::tags$div(
+      class = "dq",
+      shiny::tags$div(class = "dq-eyebrow", "Question 2"),
+      shiny::tags$p(
+        class = "dq-q",
+        "Would it harm someone if this value were linked back to them?"
       ),
       shiny::tags$p(
-        style = "margin-top:-6px;",
-        paste(
-          vapply(
-            identifies_meta,
-            function(meta) paste0(meta$label, " \u2014 ", meta$examples),
-            character(1)
-          ),
-          collapse = "; "
-        )
-      ),
-      shiny::tags$p(
-        shiny::tags$strong("Question 2:"),
-        " Would it harm someone if this value were linked back to them?"
-      ),
-      shiny::tags$p(
-        style = "margin-top:-6px;",
+        class = "dq-ex",
         "Examples: diagnosis, income, religion, mental health, immigration."
       )
     )
