@@ -139,6 +139,14 @@ kanon_key <- function(data, qi_cols) {
 }
 
 coarsen_qi_step <- function(x, step) {
+  is_range_label <- function(values) {
+    vals <- values[!is.na(values) & nzchar(trimws(values))]
+    if (!length(vals)) {
+      return(FALSE)
+    }
+    all(grepl("^\\[.*\\]$|^\\(.*\\]$", vals))
+  }
+
   if (inherits(x, "Date")) {
     return(switch(
       min(step, 3L),
@@ -152,6 +160,9 @@ coarsen_qi_step <- function(x, step) {
   }
   if (is.character(x) || is.factor(x)) {
     chr <- as.character(x)
+    if (is_range_label(chr)) {
+      return(chr)
+    }
     # ISO date strings (YYYY-MM-DD) -- coarsen as Date to avoid 366-level
     # merge_rarest_level loop that leaves every row unique after 6 steps.
     chr_nna <- chr[!is.na(chr) & nzchar(trimws(chr))]
@@ -180,7 +191,7 @@ coarsen_qi_step <- function(x, step) {
     if (length(br) < 2L) {
       return(x)
     }
-    return(as.character(cut(x, breaks = br, include.lowest = TRUE)))
+    return(as.character(cut(x, breaks = br, include.lowest = TRUE, ordered_result = TRUE)))
   }
   x
 }

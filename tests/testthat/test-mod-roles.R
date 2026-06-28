@@ -52,6 +52,8 @@ roles_test_state <- function() {
     recommended_role = c("ID candidate", "categorical candidate", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
     class = c("ID candidate", "categorical candidate", "numeric"),
+    identifies = c("direct", "combination", "none"),
+    sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "quasi", "none"),
     simulation = c("drop", "synthesize", "synthesize"),
     reason = c("Likely identifies a person.", "May identify in combination.", "Looks numeric."),
@@ -74,6 +76,8 @@ roles_test_state_with_unset <- function() {
     recommended_role = c("ID candidate", "categorical candidate", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
     class = c("ID candidate", "categorical candidate", "categorical candidate"),
+    identifies = c("direct", "combination", NA_character_),
+    sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "quasi", ""),
     simulation = c("drop", "synthesize", "synthesize"),
     reason = c("Likely identifies a person.", "May identify in combination.", "Needs review."),
@@ -243,7 +247,7 @@ test_that("editing a non-user_role column is ignored silently", {
 })
 
 
-test_that("roles table labels the three privacy-first columns", {
+test_that("roles table labels the four configure columns", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")
 
@@ -261,20 +265,22 @@ test_that("roles table labels the three privacy-first columns", {
     html <- paste(as.character(output$`roles-roles_table`), collapse = "
 ")
     expect_match(html, ">Column<")
-    expect_match(html, ">This column is\\.\\.\\.<")
+    expect_match(html, ">Points to a person\\?<")
+    expect_match(html, ">Sensitive\\?<")
     expect_match(html, ">What we'll do<")
     expect_false(grepl(">Action<", html, fixed = TRUE))
   })
 })
 
-test_that("Configure table shows privacy-first options, examples, and derived treatment", {
+test_that("Configure table shows both axis selects, examples, and derived treatment", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
   shiny::testServer(mod_roles_server, args = list(state = state), {
     html <- paste(as.character(output$roles_table), collapse = "\n")
-    expect_match(html, "This column is")
-    expect_match(html, "Identifies a person directly")
+    expect_match(html, "identifies_change")
+    expect_match(html, "sensitive_change")
+    expect_match(html, "Only combined with other columns")
     expect_match(html, "email")
     expect_match(html, "What we.ll do")
     expect_false(grepl(">Action<", html, fixed = TRUE))
@@ -294,24 +300,28 @@ test_that("advanced override exposes drop/pass-through and data type", {
   })
 })
 
-test_that("changing disclosure to direct derives drop action", {
+test_that("changing identifies derives drop action and changing sensitive keeps synthesis", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
   shiny::testServer(mod_roles_server, args = list(state = state), {
-    session$setInputs(disclosure_change = list(row = 2, value = "direct"))
+    session$setInputs(identifies_change = list(row = 2, value = "direct"))
     expect_equal(state$roles$simulation[[2]], "drop")
-    session$setInputs(disclosure_change = list(row = 2, value = "none"))
+    expect_equal(state$roles$disclosure_role[[2]], "direct")
+    session$setInputs(identifies_change = list(row = 2, value = "none"))
     expect_equal(state$roles$simulation[[2]], "synthesize")
+    session$setInputs(sensitive_change = list(row = 2, value = "yes"))
+    expect_true(state$roles$sensitive[[2]])
+    expect_equal(state$roles$disclosure_role[[2]], "sensitive")
   })
 })
 
-test_that("disclosure help leads with the two questions and PII/PHI bridge", {
+test_that("disclosure help leads with the two questions and is not wrapped in details", {
   html <- as.character(disclosure_help_ui())
   expect_match(html, "Could a value point to a specific person")
   expect_match(html, "Would it harm someone")
-  expect_match(html, "PII / PHI")
-    expect_match(html, "pick the more protective option", ignore.case = TRUE)
+  expect_match(html, "Only combined with other columns")
+  expect_false(grepl("<details", html, fixed = TRUE))
 })
 
 test_that("gate copy uses 'need an answer'", {
@@ -336,6 +346,8 @@ test_that("disclosure gate excludes drop and pass-through rows from unset count"
       class = c("character", "numeric", "categorical candidate"),
       recommended_role = c("free text", "numeric", "numeric"),
       user_role = c(NA_character_, NA_character_, NA_character_),
+      identifies = c(NA_character_, NA_character_, NA_character_),
+      sensitive = c(FALSE, FALSE, FALSE),
       simulation = c("drop", "pass_through", "synthesize"),
       reason = c("reason", "reason", "reason"),
       disclosure_role = c(NA_character_, NA_character_, NA_character_),

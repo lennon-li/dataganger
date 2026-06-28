@@ -7,7 +7,7 @@ test_that("detect_roles() returns correct S3 class and columns", {
     r,
     c(
       "variable", "class", "recommended_role", "user_role", "simulation",
-      "reason", "disclosure_role", "disclosure_reason"
+      "reason", "identifies", "sensitive", "disclosure_role", "disclosure_reason"
     )
   )
   expect_equal(r$variable, c("x", "y"))
@@ -30,9 +30,9 @@ test_that("detect_roles assigns disclosure_role per the conservative policy", {
   dr <- stats::setNames(roles$disclosure_role, roles$variable)
   expect_equal(dr[["patient_id"]], "direct")
   expect_true(is.na(dr[["zip"]]))
-  expect_true(is.na(dr[["visit_date"]]))
+  expect_equal(dr[["visit_date"]], "quasi")
   expect_true(is.na(dr[["sex"]]))
-  expect_true(is.na(dr[["lab_value"]]))
+  expect_equal(dr[["lab_value"]], "none")
 })
 
 test_that("detect_roles() detects ID candidate from high cardinality", {
@@ -195,8 +195,28 @@ test_that("detect_roles maps confident identifiers to direct, leaves rest unsele
   )
   r <- detect_roles(df)
   expect_equal(r$disclosure_role[r$variable == "record_id"], "direct")
-  expect_true(is.na(r$disclosure_role[r$variable == "visit_date"]))
-  expect_true(is.na(r$disclosure_role[r$variable == "city_name"]))
+  expect_equal(r$disclosure_role[r$variable == "visit_date"], "quasi")
+  expect_equal(r$disclosure_role[r$variable == "city_name"], "none")
+})
+
+test_that("detect_roles populates identifies/sensitive and a consistent disclosure_role", {
+  r <- detect_roles(example_health_survey)
+  expect_true(all(c("identifies", "sensitive", "disclosure_role") %in% names(r)))
+  expect_equal(r$identifies[r$variable == "record_id"], "direct")
+  derived <- vapply(
+    seq_len(nrow(r)),
+    function(i) dg_axes_to_role(r$identifies[i], r$sensitive[i]),
+    character(1)
+  )
+  expect_equal(r$disclosure_role, derived)
+})
+
+test_that("CLI disclosure override back-fills axes", {
+  r <- detect_roles(example_health_survey)
+  r2 <- apply_disclosure_overrides(r, list(bmi = "sensitive"))
+  expect_equal(r2$identifies[r2$variable == "bmi"], "none")
+  expect_true(isTRUE_vec(r2$sensitive[r2$variable == "bmi"]))
+  expect_equal(r2$disclosure_role[r2$variable == "bmi"], "sensitive")
 })
 
 test_that("detect_roles() user_role is initially NA", {
@@ -277,9 +297,9 @@ test_that("detect_roles leaves uncertain columns unselected (NA disclosure_role)
   dr <- stats::setNames(r$disclosure_role, r$variable)
   expect_equal(dr[["patient_id"]], "direct")
   expect_true(is.na(dr[["zip"]]))
-  expect_true(is.na(dr[["visit_date"]]))
+  expect_equal(dr[["visit_date"]], "quasi")
   expect_true(is.na(dr[["sex"]]))
-  expect_true(is.na(dr[["case_count"]]))
+  expect_equal(dr[["case_count"]], "none")
 })
 
 test_that("detect_roles auto-assigns sensitive for known-sensitive names", {
@@ -291,9 +311,17 @@ test_that("detect_roles auto-assigns sensitive for known-sensitive names", {
     stringsAsFactors = FALSE
   )
   r <- detect_roles(df)
+  ids <- stats::setNames(r$identifies, r$variable)
+  sens <- stats::setNames(r$sensitive, r$variable)
   dr <- stats::setNames(r$disclosure_role, r$variable)
-  expect_equal(dr[["diagnosis"]], "sensitive")
-  expect_equal(dr[["race"]], "sensitive")
+  expect_true(sens[["diagnosis"]])
+  expect_true(sens[["race"]])
+  expect_true(sens[["income"]])
+  expect_equal(ids[["diagnosis"]], "")
+  expect_equal(ids[["race"]], "")
+  expect_equal(ids[["income"]], "none")
+  expect_true(is.na(dr[["diagnosis"]]))
+  expect_true(is.na(dr[["race"]]))
   expect_equal(dr[["income"]], "sensitive")
   expect_true(is.na(dr[["treatment"]]))
 })
@@ -307,9 +335,9 @@ test_that("detect_roles sensitive-name heuristic rejects near-miss false positiv
   )
   r <- detect_roles(df)
   dr <- stats::setNames(r$disclosure_role, r$variable)
-  expect_true(is.na(dr[["trace_element"]]))
-  expect_true(is.na(dr[["sewage_volume"]]))
-  expect_true(is.na(dr[["unconditional_prob"]]))
+  expect_equal(dr[["trace_element"]], "none")
+  expect_equal(dr[["sewage_volume"]], "none")
+  expect_equal(dr[["unconditional_prob"]], "none")
 })
 
 test_that("detect_roles leaves geographic categorical columns unselected for disclosure", {

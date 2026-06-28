@@ -59,44 +59,30 @@ classification, plus the synthesis settings described below.
 fig("step-3-configure.png")
 ```
 
-**Per-column decisions.** Each row now starts with one drop-down that asks what
-the column *is*, not what privacy jargon to assign to it:
+**Per-column decisions.** Each row now asks two intrinsic questions:
 
-- **Identifies a person directly** — for names, emails, phone numbers,
-  addresses, Social Security numbers, or account / record numbers
-- **Helps identify in combination** — for age, sex, ZIP / postcode, race,
-  birth date, job title, or rare / unique codes
-- **Is a private or sensitive fact** — for diagnoses, medications, test
-  results, income, religion, or sexual orientation
-- **Is a measurement or value you analyze** — for blood pressure, lab values,
-  scores, counts, prices, quantities, or outcomes
-
-The role formerly labeled **None** is now **Measure / metric** in the app,
-because the point is "this is an analytic value," not "nothing special."
+- **Does this point to a person?**
+  - **No** — blood pressure, lab value, score, price, outcome
+  - **Only combined with other columns** — age, sex, ZIP / postcode, birth
+    date, job title
+  - **Yes, directly** — name, email, phone, address, Social Security number,
+    record / account number
+- **Is it sensitive?**
+  - **No** or **Yes** — mark **Yes** for values like diagnosis, income,
+    religion, or anything that would cause harm if linked back to a person
 
 You do **not** choose the action separately in the normal flow. DataGangeR
-derives it from the classification and shows the result live in a **What we'll
-do** column:
+derives it and shows the result live in **What we'll do**:
 
-- direct identifiers are removed from the synthetic output
-- identifying-in-combination columns are coarsened and grouped for
-  k-anonymity, then recreated
-- sensitive columns are recreated synthetically and protected from linkage
-- measures / metrics are recreated synthetically so distributions carry over,
-  but exact original values do not
+|                      | sensitive = No | sensitive = Yes |
+|---|---|---|
+| identifies = none | Synthesized; distribution kept, exact values not. | Synthesized; protected from linkage. |
+| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Coarsened & grouped + protected from linkage. |
+| identifies = direct | **Removed** from the output. | **Removed** from the output. |
 
-The help panel on the page reduces the decision to two questions:
-
-- **Could a value point to a specific person?**
-- **Would it harm someone if it leaked?**
-
-If you are unsure, pick the more protective option. Every column still needs an
-explicit answer before you can generate.
-
-One subtle safety rule is automatic: if a column is both **sensitive** and also
-helps identify someone, DataGangeR layers those protections together. In other
-words, identifying-sensitive columns are automatically included in the
-k-anonymity protection set as well.
+Direct identifiers always drop. Everything non-direct is synthesized. Every
+column still needs an explicit answer to the first question before you can
+generate.
 
 **Synthesis settings.** The objective you picked presets safe defaults, but you
 can override any of these:

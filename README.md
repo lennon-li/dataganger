@@ -52,8 +52,9 @@ pak::pak("lennon-li/dataganger")
 
 The guided Shiny app takes you from a real dataset to a shareable synthetic
 bundle in six steps — pick an **objective**, **upload** your data (or load a
-built-in sample), **configure** how each column identifies a person (and review
-what DataGangeR will do with it), **generate** the synthetic double,
+built-in sample), **configure** by answering two questions per column (does it
+point to a person? is it sensitive?) and reviewing what DataGangeR will do,
+**generate** the synthetic double,
 **compare** real vs. synthetic distributions, and **export** the bundle. The
 sidebar also includes a **Report a problem** button that opens a pre-filled
 GitHub issue in your browser.

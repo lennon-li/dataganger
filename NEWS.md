@@ -16,6 +16,9 @@
     identifying-sensitive columns.
 *   The per-column data preview now includes a filter so you can inspect one
     variable at a time while reviewing the Configure step.
+*   Configure now asks two intrinsic questions per column (`identifies` /
+    `sensitive`) and derives the action; k-anonymity membership reads both
+    axes; numeric quasi-identifiers no longer get coarsened into `NA` bins.
 
 # dataganger 0.3.5
 
