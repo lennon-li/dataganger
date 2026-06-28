@@ -52,24 +52,31 @@ pak::pak("lennon-li/dataganger")
 
 The guided Shiny app takes you from a real dataset to a shareable synthetic
 bundle in six steps — pick an **objective**, **upload** your data (or load a
-built-in sample), **configure** column disclosure roles, **generate** the
-synthetic double, **compare** real vs. synthetic distributions, and **export**
-the bundle. The sidebar also includes a **Report a problem** button that opens
-a pre-filled GitHub issue in your browser.
+built-in sample), **configure** how each column identifies a person (and review
+what DataGangeR will do with it), **generate** the synthetic double,
+**compare** real vs. synthetic distributions, and **export** the bundle. The
+sidebar also includes a **Report a problem** button that opens a pre-filled
+GitHub issue in your browser.
 
 ```r
 library(dataganger)
 run_app()
 ```
 
-| Configure disclosure roles | Compare real vs. synthetic |
+| Classify columns | Compare real vs. synthetic |
 | :---: | :---: |
 | ![Configure step](man/figures/step-3-configure.png) | ![Compare step](man/figures/step-5-compare.png) |
 
 ## Use it from R
 
 Every step the app performs is a plain function call, so you can script the
-whole pipeline without the UI:
+whole pipeline without the UI. Objective presets are:
+
+- `development` *(the default)* — balanced protection for prototyping and app development
+- `demo` — strongest protection, best for teaching and low-risk sharing
+- `analytics` — highest fidelity, with more emphasis on preserving relationships
+
+An end-to-end reproducible pipeline looks like this:
 
 ```r
 library(dataganger)
@@ -79,14 +86,59 @@ profile <- profile_data(dat)
 roles   <- detect_roles(dat, profile)
 spec    <- synth_spec(purpose = "development", roles = roles, seed = 42)
 syn     <- synthesize_data(dat, spec, roles)
-export_synthetic(syn, original = dat, path = "output.zip")
+export_synthetic(
+  syn,
+  original = dat,
+  path = "dataganger_bundle.zip",
+  compact = FALSE
+)
+
+unzip("dataganger_bundle.zip", exdir = "dataganger_bundle")
+
+# Re-run the same-seed audit/comparison notebook against the exported bundle.
+quarto::quarto_render(
+  "dataganger_bundle/analysis.qmd",
+  execute_params = list(
+    original_path = "my-data.csv",
+    synthetic_path = "dataganger_bundle/synthetic_data.csv"
+  )
+)
 
 # Open a pre-filled issue for bugs, feedback, or feature requests
 report_issue("The compare step was hard to interpret", context = "Shiny app")
 ```
 
-A command-line interface is available too — see
-`dataganger::dataganger_cli(c("--help"))`.
+The Shiny app downloads a compact bundle for humans. For CLI or agent workflows,
+use the full bundle (`compact = FALSE`, or `make_agent_bundle()`) so the
+standalone `ai-readme.md`, `privacy_report.txt`, and other diagnostics are
+included alongside `analysis.qmd`.
+
+### CLI / agent workflow
+
+The CLI follows the same spec-first pipeline an agent would use:
+
+```sh
+dataganger profile my-data.csv --out profile.json
+dataganger roles my-data.csv --out roles.yaml
+dataganger spec --purpose development --out spec.yaml
+
+# Edit spec.yaml if needed: set seed, engine/name_strategy overrides,
+# and disclosure_roles: <column>: <direct|quasi|sensitive|none>.
+dataganger synthesize my-data.csv --spec spec.yaml --out dataganger_bundle.zip
+dataganger inspect dataganger_bundle.zip
+```
+
+Then unzip the full bundle and render the included notebook against the real
+input file to reproduce and review the same-seed result:
+
+```sh
+unzip dataganger_bundle.zip -d dataganger_bundle
+quarto render dataganger_bundle/analysis.qmd \
+  -P original_path:my-data.csv \
+  -P synthetic_path:dataganger_bundle/synthetic_data.csv
+```
+
+For the full command list, run `dataganger::dataganger_cli(c("--help"))`.
 
 ## Synthesis engines
 

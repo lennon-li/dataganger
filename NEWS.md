@@ -1,3 +1,22 @@
+# dataganger (development version)
+
+*   Objective selection now uses a single Protection meter, makes
+    **development** the default objective, and rewrites the per-objective detail
+    panel around consistent dimensions for use, values, relationships,
+    identifiers, and sensitive / rare data.
+*   Synthesis Settings labels are now more human-readable, with matching
+    `synth_spec()` documentation for the current settings surface.
+*   The disclosure role formerly labeled `None` is now presented as
+    **Measure / metric**.
+*   `export_synthetic(compact = )` now clearly supports two bundle variants:
+    the compact app download and the full CLI / agent bundle.
+*   The Configure step has been redesigned around privacy-first per-column
+    classification: one drop-down, a derived action, a live "What we'll do"
+    column, a two-question help model, and automatic k-anonymity union for
+    identifying-sensitive columns.
+*   The per-column data preview now includes a filter so you can inspect one
+    variable at a time while reviewing the Configure step.
+
 # dataganger 0.3.5
 
 Generation, comparison, and export clarity pass:

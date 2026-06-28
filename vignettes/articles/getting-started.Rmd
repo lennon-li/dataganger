@@ -24,10 +24,16 @@ script from the R console (see *Use it from R* in the
 
 ## 1. Objective
 
-Start by telling DataGangeR what the synthetic data is *for*. The objective —
-**Demo / Teaching**, **Development and prototyping**, or **Internal Analytics** —
-presets sensible defaults for fidelity, privacy hardening, and coarsening across
-the rest of the workflow.
+Start by telling DataGangeR what the synthetic data is *for*. Instead of
+separate Fidelity / Privacy / Anonymity meters, the app now shows one
+**Protection** meter: **Demo / Teaching = 5 bars**, **Development and
+prototyping = 3 bars**, and **Internal Analytics = 1 bar**. **Development** is
+the default objective.
+
+When you click an objective, the detail panel explains it along the same
+dimensions every time: **Use when**, **Exact values**, **Distributions**,
+**Relationships**, **Identifiers**, and **Sensitive & rare values**. That keeps
+the trade-off readable without making you interpret multiple competing meters.
 
 ```{r, echo = FALSE}
 fig("step-1-objective.png")
@@ -46,23 +52,51 @@ fig("step-2-upload.png")
 ## 3. Configure
 
 This is where you, the human, make the decisions. Nothing is generated until you
-have reviewed them. There are two kinds of choice on this screen.
+have reviewed them. The screen is built around privacy-first column
+classification, plus the synthesis settings described below.
 
 ```{r, echo = FALSE}
 fig("step-3-configure.png")
 ```
 
-**Per-column decisions.** For every column you set:
+**Per-column decisions.** Each row now starts with one drop-down that asks what
+the column *is*, not what privacy jargon to assign to it:
 
-- **Disclosure role** — how sensitive the column is for re-identification:
-  *direct identifier* (e.g. name, ID), *quasi-identifier* (combines with others
-  to single someone out, e.g. age + postcode), *sensitive* (private attribute),
-  or *none*. Roles drive privacy hardening and k-anonymity. Every column must
-  carry an explicit role before you can generate — uncertain columns are left
-  unselected on purpose, so you make the call rather than the tool guessing.
-- **Action** — what happens to the column: *synthesize* (replace with synthetic
-  values), *pass through* (copy as-is — only safe for non-identifying columns),
-  or *drop* (exclude from the output entirely).
+- **Identifies a person directly** — for names, emails, phone numbers,
+  addresses, Social Security numbers, or account / record numbers
+- **Helps identify in combination** — for age, sex, ZIP / postcode, race,
+  birth date, job title, or rare / unique codes
+- **Is a private or sensitive fact** — for diagnoses, medications, test
+  results, income, religion, or sexual orientation
+- **Is a measurement or value you analyze** — for blood pressure, lab values,
+  scores, counts, prices, quantities, or outcomes
+
+The role formerly labeled **None** is now **Measure / metric** in the app,
+because the point is "this is an analytic value," not "nothing special."
+
+You do **not** choose the action separately in the normal flow. DataGangeR
+derives it from the classification and shows the result live in a **What we'll
+do** column:
+
+- direct identifiers are removed from the synthetic output
+- identifying-in-combination columns are coarsened and grouped for
+  k-anonymity, then recreated
+- sensitive columns are recreated synthetically and protected from linkage
+- measures / metrics are recreated synthetically so distributions carry over,
+  but exact original values do not
+
+The help panel on the page reduces the decision to two questions:
+
+- **Could a value point to a specific person?**
+- **Would it harm someone if it leaked?**
+
+If you are unsure, pick the more protective option. Every column still needs an
+explicit answer before you can generate.
+
+One subtle safety rule is automatic: if a column is both **sensitive** and also
+helps identify someone, DataGangeR layers those protections together. In other
+words, identifying-sensitive columns are automatically included in the
+k-anonymity protection set as well.
 
 **Synthesis settings.** The objective you picked presets safe defaults, but you
 can override any of these:
@@ -108,9 +142,23 @@ fig("step-5-compare.png")
 
 ## 6. Export
 
-Download a single bundle containing the synthetic data, the synthesis spec, a
-manifest, a comparison report, diagnostic files, and (optionally) a standalone
-data dictionary - ready to share with collaborators or AI programming tools.
+The in-app download is the **compact** bundle: a small, shareable package built
+around six files:
+
+- `synthetic_data.csv`
+- `README.md`
+- `load_data.R`
+- `analysis.qmd`
+- `data_dictionary.csv`
+- `manifest.json`
+
+If a rendered comparison is included, you also get `comparison_report.html`.
+
+In the compact bundle, `README.md` is consolidated: it includes the privacy
+summary and a **For AI assistants** section, so there is no separate
+`ai-readme.md` or `privacy_report.txt`. Those standalone files stay in the
+**full** CLI / agent bundle (`compact = FALSE` or `make_agent_bundle()`), along
+with the extra diagnostics used in agent workflows.
 
 ```{r, echo = FALSE}
 fig("step-6-export.png")

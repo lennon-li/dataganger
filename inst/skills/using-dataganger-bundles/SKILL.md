@@ -47,6 +47,20 @@ Protocol:
 
 ## What you are given: the bundle
 
+There are two bundle shapes:
+
+- **Full CLI / agent bundle** - produced by `dataganger make-agent-bundle` or
+  `export_synthetic(..., compact = FALSE)`. This is the bundle this skill
+  expects.
+- **Compact app bundle** - the Shiny app download. It keeps the core files
+  (`synthetic_data.csv`, `README.md`, `load_data.R`, `analysis.qmd`,
+  `data_dictionary.csv`, `manifest.json`, and sometimes
+  `comparison_report.html`) but folds the standalone `ai-readme.md` and
+  `privacy_report.txt` into `README.md`.
+
+If you are handed the compact app bundle, read `README.md` for the privacy and
+AI-use guidance that would otherwise live in those standalone files.
+
 The data owner runs DataGangeR on the real data and hands you a single zip (the **agent
 bundle**). It contains **no real records** - only:
 
