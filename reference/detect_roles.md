@@ -85,6 +85,7 @@ detect_roles(df)
 #> 
 #> ── date (Date) -> date 
 #> • Reason: Stored as a date/time value, so it is treated as a date column.
+#> • Disclosure: quasi
 #> 
 #> ── city (character) -> categorical candidate 
 #> • Reason: Only a few distinct values appear, so this looks like a coded

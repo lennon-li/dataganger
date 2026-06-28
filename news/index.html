@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,19 @@
       <small>Source: <a href="https://github.com/lennon-li/dataganger/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.0" id="dataganger-040">dataganger 0.4.0<a class="anchor" aria-label="anchor" href="#dataganger-040"></a></h2>
+<p>Configure redesign around two intrinsic privacy questions.</p>
+<ul><li>The Configure step now classifies each column by answering two independent questions — does it point to a person (<code>identifies</code>: none / combination / direct) and is it sensitive (<code>sensitive</code>) — and <strong>derives</strong> the treatment rather than asking the user to pick it. The two questions are shown prominently above the per-column table.</li>
+<li>k-anonymity membership now reads both axes, so a column that is both identifying-in-combination and sensitive is covered. Numeric quasi-identifiers are no longer coarsened into <code>NA</code> bins.</li>
+<li>Each column row has an <strong>Action override</strong> column exposing the Action (synthesize / pass through / drop) and data-type overrides directly.</li>
+<li>The Generate step now shows a per-column review table (points to a person?, sensitive?, action, and a plain-English outcome) so choices can be verified before generating.</li>
+<li>Objective selection uses a single Protection meter, makes <strong>development</strong> the default objective, and rewrites the per-objective detail panel around consistent dimensions for use, values, relationships, identifiers, and sensitive / rare data.</li>
+<li>Synthesis Settings labels are more human-readable, with matching <code><a href="../reference/synth_spec.html">synth_spec()</a></code> documentation for the current settings surface.</li>
+<li>The per-column data preview includes a filter so you can inspect one variable at a time while reviewing the Configure step.</li>
+<li>
+<code>export_synthetic(compact = )</code> supports two bundle variants: the compact app download and the full CLI / agent bundle.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.5" id="dataganger-035">dataganger 0.3.5<a class="anchor" aria-label="anchor" href="#dataganger-035"></a></h2>
 <p>Generation, comparison, and export clarity pass:</p>

@@ -1,5 +1,34 @@
 # Changelog
 
+## dataganger 0.4.0
+
+Configure redesign around two intrinsic privacy questions.
+
+- The Configure step now classifies each column by answering two
+  independent questions — does it point to a person (`identifies`: none
+  / combination / direct) and is it sensitive (`sensitive`) — and
+  **derives** the treatment rather than asking the user to pick it. The
+  two questions are shown prominently above the per-column table.
+- k-anonymity membership now reads both axes, so a column that is both
+  identifying-in-combination and sensitive is covered. Numeric
+  quasi-identifiers are no longer coarsened into `NA` bins.
+- Each column row has an **Action override** column exposing the Action
+  (synthesize / pass through / drop) and data-type overrides directly.
+- The Generate step now shows a per-column review table (points to a
+  person?, sensitive?, action, and a plain-English outcome) so choices
+  can be verified before generating.
+- Objective selection uses a single Protection meter, makes
+  **development** the default objective, and rewrites the per-objective
+  detail panel around consistent dimensions for use, values,
+  relationships, identifiers, and sensitive / rare data.
+- Synthesis Settings labels are more human-readable, with matching
+  [`synth_spec()`](https://lennon-li.github.io/dataganger/reference/synth_spec.md)
+  documentation for the current settings surface.
+- The per-column data preview includes a filter so you can inspect one
+  variable at a time while reviewing the Configure step.
+- `export_synthetic(compact = )` supports two bundle variants: the
+  compact app download and the full CLI / agent bundle.
+
 ## dataganger 0.3.5
 
 Generation, comparison, and export clarity pass:

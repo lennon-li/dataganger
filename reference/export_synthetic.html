@@ -17,7 +17,7 @@ as a zip archive."><meta property="og:image" content="https://lennon-li.github.i
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,6 +72,7 @@ as a zip archive.</p>
 <span>  include_report <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  include_dictionary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  code_readiness <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  compact <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -157,6 +158,14 @@ standalone CSV is written.</p></dd>
 <dd><p>Optional <code>dataganger_code_readiness</code> object from
 <code><a href="check_code_readiness.html">check_code_readiness()</a></code>. When supplied, writes
 <code>code_readiness_report.json</code> into the bundle.</p></dd>
+
+
+<dt id="arg-compact">compact<a class="anchor" aria-label="anchor" href="#arg-compact"></a></dt>
+<dd><p>Logical. When <code>TRUE</code>, produce a smaller bundle by folding the
+AI summary and privacy report into <code>README.md</code> instead of also writing the
+standalone <code>ai-readme.md</code> and <code>privacy_report.txt</code>. The README always
+contains this information; this only controls the extra files. Defaults to
+<code>FALSE</code> (full bundle).</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,7 +100,7 @@
 <div class="section level2">
 <h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
-<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> column disclosure roles, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button that opens a pre-filled GitHub issue in your browser.</p>
+<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button that opens a pre-filled GitHub issue in your browser.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/lennon-li/dataganger" class="external-link">dataganger</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
@@ -110,7 +110,7 @@
 <col width="50%">
 </colgroup>
 <thead><tr>
-<th align="center">Configure disclosure roles</th>
+<th align="center">Classify columns</th>
 <th align="center">Compare real vs. synthetic</th>
 </tr></thead>
 <tbody><tr>
@@ -122,7 +122,16 @@
 <div class="section level2">
 <h2 id="use-it-from-r">Use it from R<a class="anchor" aria-label="anchor" href="#use-it-from-r"></a>
 </h2>
-<p>Every step the app performs is a plain function call, so you can script the whole pipeline without the UI:</p>
+<p>Every step the app performs is a plain function call, so you can script the whole pipeline without the UI. Objective presets are:</p>
+<ul>
+<li>
+<code>development</code> <em>(the default)</em> — balanced protection for prototyping and app development</li>
+<li>
+<code>demo</code> — strongest protection, best for teaching and low-risk sharing</li>
+<li>
+<code>analytics</code> — highest fidelity, with more emphasis on preserving relationships</li>
+</ul>
+<p>An end-to-end reproducible pipeline looks like this:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/lennon-li/dataganger" class="external-link">dataganger</a></span><span class="op">)</span></span>
 <span></span>
@@ -131,11 +140,46 @@
 <span><span class="va">roles</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/detect_roles.html">detect_roles</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">profile</span><span class="op">)</span></span>
 <span><span class="va">spec</span>    <span class="op">&lt;-</span> <span class="fu"><a href="reference/synth_spec.html">synth_spec</a></span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"development"</span>, roles <span class="op">=</span> <span class="va">roles</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">syn</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/synthesize_data.html">synthesize_data</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">spec</span>, <span class="va">roles</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span><span class="va">syn</span>, original <span class="op">=</span> <span class="va">dat</span>, path <span class="op">=</span> <span class="st">"output.zip"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span></span>
+<span>  <span class="va">syn</span>,</span>
+<span>  original <span class="op">=</span> <span class="va">dat</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"dataganger_bundle.zip"</span>,</span>
+<span>  compact <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/unzip.html" class="external-link">unzip</a></span><span class="op">(</span><span class="st">"dataganger_bundle.zip"</span>, exdir <span class="op">=</span> <span class="st">"dataganger_bundle"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Re-run the same-seed audit/comparison notebook against the exported bundle.</span></span>
+<span><span class="fu">quarto</span><span class="fu">::</span><span class="fu">quarto_render</span><span class="op">(</span></span>
+<span>  <span class="st">"dataganger_bundle/analysis.qmd"</span>,</span>
+<span>  execute_params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    original_path <span class="op">=</span> <span class="st">"my-data.csv"</span>,</span>
+<span>    synthetic_path <span class="op">=</span> <span class="st">"dataganger_bundle/synthetic_data.csv"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Open a pre-filled issue for bugs, feedback, or feature requests</span></span>
 <span><span class="fu"><a href="reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The compare step was hard to interpret"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
-<p>A command-line interface is available too — see <code>dataganger::dataganger_cli(c("--help"))</code>.</p>
+<p>The Shiny app downloads a compact bundle for humans. For CLI or agent workflows, use the full bundle (<code>compact = FALSE</code>, or <code><a href="reference/make_agent_bundle.html">make_agent_bundle()</a></code>) so the standalone <code>ai-readme.md</code>, <code>privacy_report.txt</code>, and other diagnostics are included alongside <code>analysis.qmd</code>.</p>
+<div class="section level3">
+<h3 id="cli--agent-workflow">CLI / agent workflow<a class="anchor" aria-label="anchor" href="#cli--agent-workflow"></a>
+</h3>
+<p>The CLI follows the same spec-first pipeline an agent would use:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">dataganger</span> profile my-data.csv <span class="at">--out</span> profile.json</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">dataganger</span> roles my-data.csv <span class="at">--out</span> roles.yaml</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="ex">dataganger</span> spec <span class="at">--purpose</span> development <span class="at">--out</span> spec.yaml</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co"># Edit spec.yaml if needed: set seed, engine/name_strategy overrides,</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co"># and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
+<p>Then unzip the full bundle and render the included notebook against the real input file to reproduce and review the same-seed result:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">unzip</span> dataganger_bundle.zip <span class="at">-d</span> dataganger_bundle</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">quarto</span> render dataganger_bundle/analysis.qmd <span class="dt">\</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">-P</span> original_path:my-data.csv <span class="dt">\</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">-P</span> synthetic_path:dataganger_bundle/synthetic_data.csv</span></code></pre></div>
+<p>For the full command list, run <code>dataganger::dataganger_cli(c("--help"))</code>.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="synthesis-engines">Synthesis engines<a class="anchor" aria-label="anchor" href="#synthesis-engines"></a>

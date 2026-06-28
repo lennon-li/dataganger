@@ -25,6 +25,7 @@ export_synthetic(
   include_report = TRUE,
   include_dictionary = TRUE,
   code_readiness = NULL,
+  compact = FALSE,
   overwrite = FALSE
 )
 ```
@@ -114,6 +115,14 @@ export_synthetic(
   Optional `dataganger_code_readiness` object from
   [`check_code_readiness()`](https://lennon-li.github.io/dataganger/reference/check_code_readiness.md).
   When supplied, writes `code_readiness_report.json` into the bundle.
+
+- compact:
+
+  Logical. When `TRUE`, produce a smaller bundle by folding the AI
+  summary and privacy report into `README.md` instead of also writing
+  the standalone `ai-readme.md` and `privacy_report.txt`. The README
+  always contains this information; this only controls the extra files.
+  Defaults to `FALSE` (full bundle).
 
 - overwrite:
 

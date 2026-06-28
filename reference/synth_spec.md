@@ -53,17 +53,25 @@ synth_spec(
 
 - name_strategy:
 
-  Character or `NULL`. One of `"preserve"`, `"generic"`, or
-  `"dictionary_only"`. If `NULL`, derived from the preset.
+  Character or `NULL`. How synthetic column names are handled:
+  `"preserve"` keeps your original column names, `"generic"` replaces
+  them with neutral names (`var1`, `var2`, ...), and `"dictionary_only"`
+  anonymizes the names but records the mapping in the exported data
+  dictionary. If `NULL`, derived from the preset.
 
 - seed:
 
-  Integer or `NULL`. Reproducibility seed.
+  Integer or `NULL`. Reproducibility seed. Fixes the random draw so the
+  same spec and data reproduce the exact same synthetic output.
 
 - engine:
 
-  Character or `NULL`. Optional explicit synthesis engine: `"internal"`,
-  `"marginal"` (alias for `"internal"`), or `"synthpop"`. If `NULL`,
+  Character or `NULL`. Optional explicit synthesis engine:
+  `"internal"`/`"marginal"` synthesizes each column from its own
+  distribution (fast, dependency-free, ignores cross-column
+  relationships), `"synthpop"` models columns conditionally so
+  correlations and joint structure are preserved (higher fidelity, needs
+  the synthpop package). If `NULL`,
   [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
   derives the engine from the objective.
 
@@ -73,9 +81,26 @@ synth_spec(
 
 - ...:
 
-  Additional arguments passed to the spec list. Currently supports
-  `preserve_correlations`, `coarsen_dates`, `merge_rare`,
-  `free_text_strategy`, `rare_level_min_n`, `preserve_missingness`.
+  Additional decision parameters passed to the spec list. These are the
+  same settings exposed under *Synthesis Settings* in the app:
+
+  - `preserve_correlations` — how strongly cross-variable relationships
+    are retained (`"none"`, `"moderate"`, `"high"`).
+
+  - `coarsen_dates` — logical; round dates (e.g. to month or year) so an
+    exact event date cannot single out an individual.
+
+  - `merge_rare` — logical; combine infrequent category values into an
+    `"other"` group to reduce re-identification risk.
+
+  - `rare_level_min_n` — integer; category values seen fewer than this
+    many times count as rare (then merged or suppressed).
+
+  - `free_text_strategy` — how free-text columns are treated (e.g.
+    `"drop"`, `"generic"`); usually set by the purpose preset.
+
+  - `preserve_missingness` — how closely to reproduce the original
+    pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
 
 ## Value
 

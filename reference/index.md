@@ -15,9 +15,10 @@ are the first step in the DataGangeR workflow.
 
 ## Column Role Detection
 
-Detect and assign disclosure roles (direct identifier, quasi-identifier,
-sensitive, none) and synthesis roles. Used on the Configure page and in
-the CLI `disclosure_roles:` spec.
+Detect each column’s two intrinsic disclosure axes — whether it
+identifies a person (none / combination / direct) and whether it is
+sensitive — plus synthesis roles. Used on the Configure page and in the
+CLI `disclosure_roles:` spec.
 
 - [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md)
   : Detect data roles for each column

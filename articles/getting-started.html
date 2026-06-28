@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,10 +84,17 @@ the <a href="https://github.com/lennon-li/dataganger#use-it-from-r" class="exter
 <h2 id="objective">1. Objective<a class="anchor" aria-label="anchor" href="#objective"></a>
 </h2>
 <p>Start by telling DataGangeR what the synthetic data is <em>for</em>.
-The objective — <strong>Demo / Teaching</strong>, <strong>Development
-and prototyping</strong>, or <strong>Internal Analytics</strong> —
-presets sensible defaults for fidelity, privacy hardening, and
-coarsening across the rest of the workflow.</p>
+Instead of separate Fidelity / Privacy / Anonymity meters, the app now
+shows one <strong>Protection</strong> meter: <strong>Demo / Teaching = 5
+bars</strong>, <strong>Development and prototyping = 3 bars</strong>,
+and <strong>Internal Analytics = 1 bar</strong>.
+<strong>Development</strong> is the default objective.</p>
+<p>When you click an objective, the detail panel explains it along the
+same dimensions every time: <strong>Use when</strong>, <strong>Exact
+values</strong>, <strong>Distributions</strong>,
+<strong>Relationships</strong>, <strong>Identifiers</strong>, and
+<strong>Sensitive &amp; rare values</strong>. That keeps the trade-off
+readable without making you interpret multiple competing meters.</p>
 <p><img src="step-1-objective.png"><!-- --></p>
 </div>
 <div class="section level2">
@@ -101,19 +108,157 @@ right-hand panel previews your data live as it loads.</p>
 <div class="section level2">
 <h2 id="configure">3. Configure<a class="anchor" aria-label="anchor" href="#configure"></a>
 </h2>
-<p>Review each column’s <strong>disclosure role</strong> (direct
-identifier, quasi-identifier, sensitive, or none) and adjust synthesis
-settings only if you need to. Defaults are safe for the objective you
-picked. Every column must carry an explicit role before you can generate
-— uncertain columns are left unselected on purpose.</p>
+<p>This is where you, the human, make the decisions. Nothing is
+generated until you have reviewed them. The screen is built around
+privacy-first column classification, plus the synthesis settings
+described below.</p>
 <p><img src="step-3-configure.png"><!-- --></p>
+<p><strong>Per-column decisions.</strong> Each row now asks two
+intrinsic questions:</p>
+<ul>
+<li>
+<strong>Does this point to a person?</strong>
+<ul>
+<li>
+<strong>No</strong> — blood pressure, lab value, score, price,
+outcome</li>
+<li>
+<strong>Only combined with other columns</strong> — age, sex, ZIP /
+postcode, birth date, job title</li>
+<li>
+<strong>Yes, directly</strong> — name, email, phone, address, Social
+Security number, record / account number</li>
+</ul>
+</li>
+<li>
+<strong>Is it sensitive?</strong>
+<ul>
+<li>
+<strong>No</strong> or <strong>Yes</strong> — mark
+<strong>Yes</strong> for values like diagnosis, income, religion, or
+anything that would cause harm if linked back to a person</li>
+</ul>
+</li>
+</ul>
+<p>You do <strong>not</strong> choose the action separately in the
+normal flow. DataGangeR derives it from those two answers. On Configure,
+the per-column <strong>Action override</strong> cell exposes optional
+Action and Data type overrides directly if you need them. The
+plain-English outcome is reviewed on the Generate step:</p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr class="header">
+<th></th>
+<th>sensitive = No</th>
+<th>sensitive = Yes</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>identifies = none</td>
+<td>Synthesized; distribution kept, exact values not.</td>
+<td>Synthesized; protected from linkage.</td>
+</tr>
+<tr class="even">
+<td>identifies = combination</td>
+<td>Coarsened &amp; grouped (k-anonymity), then synthesized.</td>
+<td>Coarsened &amp; grouped + protected from linkage.</td>
+</tr>
+<tr class="odd">
+<td>identifies = direct</td>
+<td>
+<strong>Removed</strong> from the output.</td>
+<td>
+<strong>Removed</strong> from the output.</td>
+</tr>
+</tbody>
+</table>
+<p>Direct identifiers always drop. Everything non-direct is synthesized.
+Every column still needs an explicit answer to the first question before
+you can generate.</p>
+<p><strong>Synthesis settings.</strong> The objective you picked presets
+safe defaults, but you can override any of these:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Setting</th>
+<th>What you are deciding</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><strong>Row count (n)</strong></td>
+<td>How many synthetic rows to generate.</td>
+</tr>
+<tr class="even">
+<td><strong>Seed</strong></td>
+<td>Fixes the random draw so the same settings reproduce the exact same
+data.</td>
+</tr>
+<tr class="odd">
+<td><strong>Engine</strong></td>
+<td>
+<em>Auto</em> (from objective), <em>Internal</em> (per-column, fast,
+ignores relationships), or <em>synthpop</em> (relationship-aware, higher
+fidelity).</td>
+</tr>
+<tr class="even">
+<td><strong>Column name handling</strong></td>
+<td>Keep original names, replace with generic names, or anonymize names
+and keep the mapping in the data dictionary.</td>
+</tr>
+<tr class="odd">
+<td><strong>Rare category threshold</strong></td>
+<td>Values seen fewer than this many times count as rare, so they can be
+merged or suppressed.</td>
+</tr>
+<tr class="even">
+<td><strong>Coarsen dates</strong></td>
+<td>Round dates (e.g. to month/year) so an exact date can’t single out
+an individual.</td>
+</tr>
+<tr class="odd">
+<td><strong>Merge rare categories</strong></td>
+<td>Combine infrequent values into an “other” group to reduce
+re-identification risk.</td>
+</tr>
+<tr class="even">
+<td><strong>Free-text handling</strong></td>
+<td>How free-text columns are treated (usually set by your
+objective).</td>
+</tr>
+<tr class="odd">
+<td><strong>Preserve missing values</strong></td>
+<td>How closely to reproduce the original pattern of missing
+(<code>NA</code>) values.</td>
+</tr>
+</tbody>
+</table>
+<p>Defaults are safe for the objective you picked — leave them unless
+you have a reason to change them. Each control in the app also carries a
+one-line explanation, and every decision is recorded in the exported
+spec so the result is reproducible (see <a href="../reference/synth_spec.html"><code>synth_spec()</code></a> for
+the programmatic equivalents).</p>
 </div>
 <div class="section level2">
 <h2 id="generate">4. Generate<a class="anchor" aria-label="anchor" href="#generate"></a>
 </h2>
-<p>Generate the synthetic double. The summary reports row and column
-counts, the engine used, and the elapsed time; the right panel switches
-to preview the synthetic records.</p>
+<p>Before anything is generated, this step shows a <strong>per-column
+review table</strong> that mirrors your Configure choices and spells out
+the outcome: the two questions you answered (<em>Points to a
+person?</em> and <em>Sensitive?</em>), the resulting
+<strong>Action</strong> (synthesize, pass through, or drop), and a
+plain-English <strong>What we’ll do</strong> for each column. Hover a
+column name to see how it will be modelled. If anything looks wrong, use
+<strong>← Adjust settings</strong> to go back; otherwise generate the
+synthetic double. The summary then reports row and column counts, the
+engine used, and the elapsed time, and the right panel previews the
+synthetic records.</p>
 <p><img src="step-4-generate.png"><!-- --></p>
 </div>
 <div class="section level2">
@@ -128,10 +273,25 @@ with the delta between them.</p>
 <div class="section level2">
 <h2 id="export">6. Export<a class="anchor" aria-label="anchor" href="#export"></a>
 </h2>
-<p>Download a single bundle containing the synthetic data, the synthesis
-spec, a manifest, a comparison report, diagnostic files, and
-(optionally) a standalone data dictionary - ready to share with
-collaborators or AI programming tools.</p>
+<p>The in-app download is the <strong>compact</strong> bundle: a small,
+shareable package built around six files:</p>
+<ul>
+<li><code>synthetic_data.csv</code></li>
+<li><code>README.md</code></li>
+<li><code>load_data.R</code></li>
+<li><code>analysis.qmd</code></li>
+<li><code>data_dictionary.csv</code></li>
+<li><code>manifest.json</code></li>
+</ul>
+<p>If a rendered comparison is included, you also get
+<code>comparison_report.html</code>.</p>
+<p>In the compact bundle, <code>README.md</code> is consolidated: it
+includes the privacy summary and a <strong>For AI assistants</strong>
+section, so there is no separate <code>ai-readme.md</code> or
+<code>privacy_report.txt</code>. Those standalone files stay in the
+<strong>full</strong> CLI / agent bundle (<code>compact = FALSE</code>
+or <code><a href="../reference/make_agent_bundle.html">make_agent_bundle()</a></code>), along with the extra diagnostics
+used in agent workflows.</p>
 <p><img src="step-6-export.png"><!-- --></p>
 <blockquote>
 <p><strong>Remember:</strong> synthetic data reduces direct disclosure

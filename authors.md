@@ -10,12 +10,12 @@ Source:
 [`DESCRIPTION`](https://github.com/lennon-li/dataganger/blob/main/DESCRIPTION)
 
 Li L (2026). *dataganger: Synthetic Data Doubles for Safer Prototyping*.
-R package version 0.3.5, <https://github.com/lennon-li/dataganger>.
+R package version 0.4.0, <https://github.com/lennon-li/dataganger>.
 
     @Manual{,
       title = {dataganger: Synthetic Data Doubles for Safer Prototyping},
       author = {Lennon Li},
       year = {2026},
-      note = {R package version 0.3.5},
+      note = {R package version 0.4.0},
       url = {https://github.com/lennon-li/dataganger},
     }

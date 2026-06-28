@@ -13,7 +13,7 @@ done by synthesize_data()."><meta property="og:image" content="https://lennon-li
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,17 +95,24 @@ removed).</p></dd>
 
 
 <dt id="arg-name-strategy">name_strategy<a class="anchor" aria-label="anchor" href="#arg-name-strategy"></a></dt>
-<dd><p>Character or <code>NULL</code>. One of <code>"preserve"</code>, <code>"generic"</code>,
-or <code>"dictionary_only"</code>. If <code>NULL</code>, derived from the preset.</p></dd>
+<dd><p>Character or <code>NULL</code>. How synthetic column names are
+handled: <code>"preserve"</code> keeps your original column names, <code>"generic"</code>
+replaces them with neutral names (<code>var1</code>, <code>var2</code>, ...), and
+<code>"dictionary_only"</code> anonymizes the names but records the mapping in the
+exported data dictionary. If <code>NULL</code>, derived from the preset.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>Integer or <code>NULL</code>. Reproducibility seed.</p></dd>
+<dd><p>Integer or <code>NULL</code>. Reproducibility seed. Fixes the random draw
+so the same spec and data reproduce the exact same synthetic output.</p></dd>
 
 
 <dt id="arg-engine">engine<a class="anchor" aria-label="anchor" href="#arg-engine"></a></dt>
 <dd><p>Character or <code>NULL</code>. Optional explicit synthesis engine:
-<code>"internal"</code>, <code>"marginal"</code> (alias for <code>"internal"</code>), or <code>"synthpop"</code>.
+<code>"internal"</code>/<code>"marginal"</code> synthesizes each column from its own
+distribution (fast, dependency-free, ignores cross-column relationships),
+<code>"synthpop"</code> models columns conditionally so correlations and joint
+structure are preserved (higher fidelity, needs the synthpop package).
 If <code>NULL</code>, <code><a href="synthesize_data.html">synthesize_data()</a></code> derives the engine from the objective.</p></dd>
 
 
@@ -115,10 +122,20 @@ If <code>NULL</code>, <code><a href="synthesize_data.html">synthesize_data()</a>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional arguments passed to the spec list. Currently supports
-<code>preserve_correlations</code>, <code>coarsen_dates</code>, <code>merge_rare</code>,
-<code>free_text_strategy</code>, <code>rare_level_min_n</code>,
-<code>preserve_missingness</code>.</p></dd>
+<dd><p>Additional decision parameters passed to the spec list. These are
+the same settings exposed under <em>Synthesis Settings</em> in the app:</p><ul><li><p><code>preserve_correlations</code> — how strongly cross-variable
+relationships are retained (<code>"none"</code>, <code>"moderate"</code>, <code>"high"</code>).</p></li>
+<li><p><code>coarsen_dates</code> — logical; round dates (e.g. to month or year)
+so an exact event date cannot single out an individual.</p></li>
+<li><p><code>merge_rare</code> — logical; combine infrequent category values into
+an <code>"other"</code> group to reduce re-identification risk.</p></li>
+<li><p><code>rare_level_min_n</code> — integer; category values seen fewer than
+this many times count as rare (then merged or suppressed).</p></li>
+<li><p><code>free_text_strategy</code> — how free-text columns are treated
+(e.g. <code>"drop"</code>, <code>"generic"</code>); usually set by the purpose preset.</p></li>
+<li><p><code>preserve_missingness</code> — how closely to reproduce the original
+pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact"</code>, <code>"none"</code>).</p></li>
+</ul></dd>
 
 </dl></div>
     <div class="section level2">
