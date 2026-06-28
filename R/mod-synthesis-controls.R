@@ -75,7 +75,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
 
 #' @keywords internal
 #' @noRd
-dg_purpose_card <- function(ns, key, group, title, line, fid, priv, anon, risk = FALSE, selected = FALSE) {
+dg_purpose_card <- function(ns, key, group, title, line, protection, risk = FALSE, selected = FALSE) {
   meter <- function(label, n, color) {
     shiny::tags$div(
       class = "pc-meter",
@@ -114,9 +114,7 @@ dg_purpose_card <- function(ns, key, group, title, line, fid, priv, anon, risk =
     ),
     shiny::tags$div(
       class = "pc-meters",
-      meter("Coarsening", fid, "var(--ink-700)"),
-      meter("Privacy", priv, if (risk) "var(--risk-500)" else "var(--real-700)"),
-      meter("Anonymity", anon, "var(--risk-400)")
+      meter("Protection", protection, if (risk) "var(--risk-500)" else "var(--real-700)")
     ),
     shiny::tags$div(class = "pc-detail-slot", `data-detail-slot` = key)
   )
@@ -128,45 +126,27 @@ objective_cards <- function(ns) {
   shiny::tagList(
     shiny::tags$div(
       class = "meter-legend",
-      shiny::tags$p(
-        class = "help",
-        style = "margin:0 0 8px;",
-        "All three point the same way: more bars = stronger protection, ",
-        "at the cost of less original detail preserved."
-      ),
       shiny::tags$div(
-        shiny::tags$strong("Coarsening"),
+        shiny::tags$strong("Protection"),
         shiny::tags$span(
-          "how much of the original detail is blurred or removed. ",
-          "More bars = less raw detail kept."
-        )
-      ),
-      shiny::tags$div(
-        shiny::tags$strong("Privacy"),
-        shiny::tags$span(
-          "how well original records are protected from disclosure. ",
-          "More bars = stronger privacy."
-        )
-      ),
-      shiny::tags$div(
-        shiny::tags$strong("Anonymity"),
-        shiny::tags$span(
-          "how hard it is to single out an individual (k-anonymity). ",
-          "More bars = stronger anonymity."
+          "how strongly the data is shielded \u2014 combining coarsening, ",
+          "disclosure protection, and k-anonymity. More bars = safer to ",
+          "share, at the cost of less original detail preserved. (See the ",
+          "details under each objective for the specifics.)"
         )
       )
     ),
     dg_purpose_card(
       ns, "demo", "demo", "Demo / Teaching",
-      "Share externally, teach with, or use in presentations.", 4, 4, 5
+      "Share externally, teach with, or use in presentations.", 5
     ),
     dg_purpose_card(
       ns, "development", "development", "Development and prototyping",
-      "Build apps, AI tooling, or model pipelines.", 3, 3, 3, selected = TRUE
+      "Build apps, AI tooling, or model pipelines.", 3, selected = TRUE
     ),
     dg_purpose_card(
       ns, "analytics", "analytics", "Internal Analytics",
-      "Maximum structural detail \u2014 internal use only.", 1, 1, 1, risk = TRUE
+      "Maximum structural detail \u2014 internal use only.", 1, risk = TRUE
     ),
     shiny::conditionalPanel(
       condition = "input.purpose_group === 'analytics'",
