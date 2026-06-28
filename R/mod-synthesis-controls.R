@@ -236,26 +236,41 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
 mod_synthesis_controls_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
+  # Each objective is described along the SAME dimensions, in the same order and
+  # terminology, framed around the disclosure roles from the Configure page
+  # (direct identifiers, quasi-identifiers, sensitive values). The exact-values
+  # line is identical for all three on purpose: no original record is ever
+  # reproduced; only distributions and relationships may carry over.
+  exact_values_line <- paste(
+    "Never reproduced. Every value is synthetic and no original record appears",
+    "in the output."
+  )
   purpose_copy <- list(
     demo = list(
-      use_when = "You want safe synthetic data to share externally, teach with, or use in presentations.",
-      preserves = "column names \u00b7 column types \u00b7 approximate distributions \u00b7 plausible values \u00b7 low-level relationships",
-      does_not_preserve = "exact records \u00b7 precise dates \u00b7 free text \u00b7 direct identifiers \u00b7 rare categories",
-      recommended_use = "Classrooms, workshops, documentation, external demos, public-facing examples.",
+      use_when = "Sharing externally, teaching, demos, or public examples, where safety matters more than fidelity.",
+      exact_values = exact_values_line,
+      distributions = "Approximated and simplified: rare categories are merged and dates coarsened, so each column's distribution is roughly right, not exact.",
+      relationships = "Not preserved. Columns are generated independently, so relationships among quasi-identifiers and other variables are broken.",
+      identifiers = "Direct identifiers are removed. Quasi-identifiers are coarsened and k-anonymity is enforced.",
+      sensitive = "Sensitive and rare values are merged or dropped.",
       privacy_caution = "Not a formal privacy guarantee. Review all privacy warnings before sharing externally."
     ),
     development = list(
-      use_when = "You want synthetic data for building code, apps, or model pipelines.",
-      preserves = "column names \u00b7 column types \u00b7 distributions \u00b7 relationships between variables (when synthpop is installed)",
-      does_not_preserve = "exact records \u00b7 exact model coefficients \u00b7 individual trajectories",
-      recommended_use = "AI-assisted coding, Shiny app testing, model pipeline development, UI testing.",
+      use_when = "Building code, apps, AI tooling, or model pipelines that need realistic structure without exposing real records.",
+      exact_values = exact_values_line,
+      distributions = "Preserved per column: each column's distribution of values matches the original.",
+      relationships = "Preserved between variables, including among quasi-identifiers, when synthpop is installed (otherwise columns are independent).",
+      identifiers = "Direct identifiers are removed. Quasi-identifiers keep their distributions with light coarsening, and k-anonymity is enforced.",
+      sensitive = "Sensitive value distributions are kept; very rare categories are merged.",
       privacy_caution = "Relationship-preserving synthesis may retain sensitive patterns. Not for external release."
     ),
     analytics = list(
-      use_when = "You want the highest-fidelity synthetic data for internal statistical work.",
-      preserves = "maximum structural detail \u00b7 relationships between variables \u00b7 rare categories \u00b7 precise dates",
-      does_not_preserve = "a low-risk disclosure posture.",
-      recommended_use = "Internal development, validation studies, statistical auditing.",
+      use_when = "Internal statistical work, validation studies, or auditing, where fidelity matters most and output stays internal.",
+      exact_values = exact_values_line,
+      distributions = "Preserved in full detail, including rare categories and precise dates.",
+      relationships = "Strongly preserved between variables and among quasi-identifiers (high correlation fidelity).",
+      identifiers = "Direct identifiers are removed, but quasi-identifiers receive minimal coarsening, so re-identification risk is higher.",
+      sensitive = "Sensitive patterns may be retained. Internal use only.",
       privacy_caution = "May preserve sensitive patterns. Not for external sharing. Requires explicit risk acknowledgement."
     )
   )
@@ -317,12 +332,12 @@ mod_synthesis_controls_server <- function(id, state) {
       copy <- purpose_copy[[purpose]]
       shiny::div(
         class = "purpose-detail-panel",
-        if (!is.null(copy$use_when)) {
-          shiny::p(shiny::tags$strong("Use when:"), paste(copy$use_when))
-        },
-        shiny::p(shiny::tags$strong("Preserves:"), paste(copy$preserves)),
-        shiny::p(shiny::tags$strong("Does not preserve:"), paste(copy$does_not_preserve)),
-        shiny::p(shiny::tags$strong("Recommended use:"), paste(copy$recommended_use)),
+        shiny::p(shiny::tags$strong("Use when:"), paste(copy$use_when)),
+        shiny::p(shiny::tags$strong("Exact values:"), paste(copy$exact_values)),
+        shiny::p(shiny::tags$strong("Distributions:"), paste(copy$distributions)),
+        shiny::p(shiny::tags$strong("Relationships:"), paste(copy$relationships)),
+        shiny::p(shiny::tags$strong("Identifiers:"), paste(copy$identifiers)),
+        shiny::p(shiny::tags$strong("Sensitive & rare values:"), paste(copy$sensitive)),
         shiny::tags$div(
           class = "banner risk",
           shiny::tags$span(class = "icon", "!"),
