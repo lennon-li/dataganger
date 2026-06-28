@@ -38,7 +38,7 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
     synthetic <- synthetic[, !names(synthetic) %in% drop_cols, drop = FALSE]
   }
 
-  qi_cols <- intersect(names(dr)[dr %in% "quasi"], names(synthetic))  # %in% is NA-safe
+  qi_cols <- intersect(dg_kanon_columns(roles), names(synthetic))
   if (length(qi_cols) == 0L) {
     attr(synthetic, "kanon") <- list(
       qi_cols = qi_cols, k = k, smallest_cell = NA_integer_,
@@ -194,4 +194,3 @@ merge_rarest_level <- function(chr) {
   chr[!is.na(chr) & chr == rarest] <- "(other)"
   chr
 }
-

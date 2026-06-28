@@ -170,48 +170,46 @@ mod_roles_ui <- function(id, embedded = FALSE) {
 #' @keywords internal
 #' @noRd
 disclosure_help_ui <- function() {
-  role_def <- function(label, def, example) {
-    shiny::tags$p(
-      shiny::tags$strong(label),
-      paste0(" \u2014 ", def, " "),
-      shiny::tags$span(
-        style = "color:var(--fg-muted);",
-        paste0("(e.g. ", example, ")")
-      )
+  role_defs <- lapply(dg_disclosure_option_meta(), function(meta) {
+    treatment <- switch(
+      meta$value,
+      direct = dg_treatment_text("direct"),
+      quasi = dg_treatment_text("quasi"),
+      sensitive = dg_treatment_text("sensitive", also_identifying = TRUE),
+      none = dg_treatment_text("none")
     )
-  }
+    shiny::tags$li(
+      shiny::tags$strong(meta$label),
+      paste0(": ", meta$examples, ". "),
+      treatment
+    )
+  })
+
   shiny::tags$details(
     class = "disclosure-help",
     style = "margin:4px 0 12px;",
-    shiny::tags$summary("What do the disclosure roles mean?"),
+    shiny::tags$summary("How should I classify each column?"),
     shiny::tags$div(
       class = "engine-help",
-      role_def(
-        "Measure / metric",
-        "a measurement or other non-identifying attribute; no special disclosure handling.",
-        "a lab value, a score, a count, a treatment-group label"
+      shiny::tags$p(
+        shiny::tags$strong("Question 1:"),
+        " Could a value point to a specific person on its own or when combined with other columns?"
       ),
-      role_def(
-        "Direct identifier",
-        "uniquely identifies a person on its own; removed from the output.",
-        "name, email, SSN, medical record number"
+      shiny::tags$p(
+        shiny::tags$strong("Question 2:"),
+        " Would it harm someone if this value were linked back to them?"
       ),
-      role_def(
-        "Quasi-identifier",
-        "identifies a person in combination with others; covered by the k-anonymity guarantee.",
-        "age + zip + gender"
+      shiny::tags$p(
+        "Use the most protective fit:"
       ),
-      role_def(
-        "Sensitive",
-        "carries risk if linked to a known person.",
-        "diagnosis, income, HIV status"
+      shiny::tags$ul(role_defs),
+      shiny::tags$p(
+        shiny::tags$strong("PII / PHI bridge:"),
+        " direct and quasi columns cover identifying information; sensitive columns cover private facts that would cause harm if linked."
       ),
       shiny::tags$p(
         style = "color:var(--fg-muted); margin-top:8px;",
-        "Detection is conservative. Columns left ",
-        shiny::tags$strong("unselected"),
-        " must be given a role before you can generate. Measures and counts ",
-        "are not quasi-identifiers by default."
+        "When unsure, pick the more protective option."
       )
     )
   )
@@ -234,10 +232,19 @@ mod_roles_server <- function(id, state) {
       if (is.null(roles)) {
         return(roles)
       }
+      roles <- dg_seed_disclosure(roles)
       if (!"simulation" %in% names(roles)) {
-        roles$simulation <- "synthesize"
+        roles$simulation <- vapply(roles$disclosure_role, dg_derived_action, character(1))
+        return(roles)
       }
-      roles$simulation[is.na(roles$simulation) | !nzchar(roles$simulation)] <- "synthesize"
+      blank_simulation <- is.na(roles$simulation) | !nzchar(roles$simulation)
+      if (any(blank_simulation)) {
+        roles$simulation[blank_simulation] <- vapply(
+          roles$disclosure_role[blank_simulation],
+          dg_derived_action,
+          character(1)
+        )
+      }
       roles
     }
 
@@ -377,11 +384,7 @@ mod_roles_server <- function(id, state) {
     ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
                       "date", "free_text", "drop")
     SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
-    DISCLOSURE_OPTIONS <- c("none", "direct", "quasi", "sensitive")
-    DISCLOSURE_LABELS  <- stats::setNames(
-      dg_disclosure_label(DISCLOSURE_OPTIONS),
-      DISCLOSURE_OPTIONS
-    )
+    DISCLOSURE_OPTIONS <- vapply(dg_disclosure_option_meta(), `[[`, "", "value")
 
     # Role-mapping helpers (rec_to_role/class_to_role/eff_role) are defined at
     # file scope so the Generate page's read-only decision table can reuse them.
@@ -513,44 +516,72 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_disclosure_select <- function(orig_row, current, ns, disabled = FALSE) {
+      make_disclosure_select <- function(orig_row, current, ns) {
         is_unset <- is.na(current) || !nzchar(current)
         placeholder <- shiny::tags$option(
           value = "", disabled = "disabled",
           selected = if (is_unset) "selected" else NULL,
-          "Select role\u2026"
+          "Select role..."
         )
-        opts <- lapply(DISCLOSURE_OPTIONS, function(v) {
+        opts <- lapply(dg_disclosure_option_meta(), function(meta) {
           shiny::tags$option(
-            value = v,
-            selected = if (!is_unset && v == current) "selected" else NULL,
-            DISCLOSURE_LABELS[[v]]
+            value = meta$value,
+            selected = if (!is_unset && meta$value == current) "selected" else NULL,
+            paste0(meta$label, " - ", meta$examples)
           )
         })
         shiny::tags$select(
-          class = if (disabled) "dg-disabled-select" else NULL,
           onchange = sprintf(
             "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
             ns("disclosure_change"),
             orig_row
           ),
           style = sprintf(
-            "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s%s",
-            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else "",
-            if (disabled) " opacity:0.5; cursor:not-allowed;" else ""
+            "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s",
+            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else ""
           ),
-          disabled = if (disabled) "disabled" else NULL,
           c(list(placeholder), opts)
+        )
+      }
+
+      make_advanced_controls <- function(orig_row, row_data) {
+        simulation_value <- as.character(row_data$simulation[[1]] %||% "synthesize")
+        shiny::tags$details(
+          style = "margin-top:6px;",
+          shiny::tags$summary("Advanced"),
+          shiny::tags$div(
+            style = "margin-top:6px; display:grid; gap:6px;",
+            shiny::tags$div(
+              shiny::tags$div(
+                style = "font-size:11px; color:var(--fg-muted); margin-bottom:2px;",
+                "Action override"
+              ),
+              make_simulation_select(orig_row, simulation_value)
+            ),
+            shiny::tags$div(
+              style = "font-size:11px; color:var(--fg-muted);",
+              "Pass through keeps the real values - verify before sharing."
+            ),
+            shiny::tags$div(
+              shiny::tags$div(
+                style = "font-size:11px; color:var(--fg-muted); margin-bottom:2px;",
+                "Data type override"
+              ),
+              make_select(
+                orig_row,
+                row_data$user_role[[1]],
+                row_data$recommended_role[[1]],
+                row_data$class[[1]]
+              )
+            )
+          )
         )
       }
 
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
-        simulation_value <- as.character(r$simulation[[1]] %||% "synthesize")
-        is_passthrough <- identical(simulation_value, "pass_through")
-        is_drop <- identical(simulation_value, "drop")
-        disable_controls <- is_passthrough || is_drop
+        identifying_set <- dg_kanon_columns(roles)
         tooltip <- paste(
           r$reason[[1]],
           storage_signal_for(r$variable[[1]], r$class[[1]]),
@@ -565,40 +596,24 @@ mod_roles_server <- function(id, state) {
               shiny::tags$span(
                 class = "role-info",
                 title = tooltip,
-                "\u24d8"
+                "(i)"
               )
             )
           ),
           shiny::tags$td(
-            style = "min-width:128px; padding:4px 8px;",
-            make_simulation_select(orig_row, simulation_value)
+            style = "min-width:300px; padding:4px 8px;",
+            make_disclosure_select(orig_row, r$disclosure_role[[1]], session$ns)
           ),
           shiny::tags$td(
-            style = "color:var(--fg-muted); font-family:var(--font-mono); font-size:11px; padding:6px 8px;",
-            r$class[[1]]
-          ),
-          shiny::tags$td(
-            class = "col-type",
-            style = "min-width:140px; padding:4px 8px;",
-            make_select(
-              orig_row, r$user_role[[1]], r$recommended_role[[1]], r$class[[1]],
-              disabled = disable_controls
-            )
-          ),
-          shiny::tags$td(
-            class = "col-type",
-            style = "min-width:150px; padding:4px 8px;",
+            style = "min-width:320px; padding:6px 8px;",
             shiny::tags$div(
-              make_disclosure_select(
-                orig_row, r$disclosure_role[[1]], session$ns,
-                disabled = disable_controls
-              ),
-              if (is_passthrough) {
-                shiny::tags$div(
-                  style = "margin-top:4px; font-size:11px; color:var(--fg-muted);",
-                  "real values - verify before sharing"
+              shiny::tags$div(
+                dg_treatment_text(
+                  r$disclosure_role[[1]],
+                  also_identifying = r$variable[[1]] %in% identifying_set
                 )
-              }
+              ),
+              make_advanced_controls(orig_row, r)
             )
           )
         )
@@ -609,11 +624,9 @@ mod_roles_server <- function(id, state) {
         style = "width:100%; border-collapse:collapse;",
         shiny::tags$thead(
           shiny::tags$tr(
-            shiny::tags$th(style = "width:22%; padding:6px 8px;", "variable"),
-            shiny::tags$th(style = "width:16%; padding:6px 8px;", "Action"),
-            shiny::tags$th(style = "width:12%; padding:6px 8px;", "class"),
-            shiny::tags$th(class = "col-type", style = "width:28%; padding:6px 8px;", "TYPE"),
-            shiny::tags$th(style = "width:22%; padding:6px 8px;", "DISCLOSURE")
+            shiny::tags$th(style = "width:22%; padding:6px 8px;", "Column"),
+            shiny::tags$th(style = "width:39%; padding:6px 8px;", "This column is..."),
+            shiny::tags$th(style = "width:39%; padding:6px 8px;", "What we'll do")
           )
         ),
         shiny::tags$tbody(rows)
@@ -627,7 +640,7 @@ mod_roles_server <- function(id, state) {
         return(NULL)
       }
       k <- state$k_anon %||% 5
-      qi <- intersect(roles$variable[roles$disclosure_role %in% "quasi"], names(data))
+      qi <- intersect(dg_kanon_columns(roles), names(data))
       direct <- intersect(roles$variable[roles$disclosure_role %in% "direct"], names(data))
 
       if (length(qi) == 0L) {
@@ -696,11 +709,11 @@ mod_roles_server <- function(id, state) {
           "\u2713 All columns have a disclosure role. Ready to continue."
         )
       } else {
-        shiny::tags$div(
-          class = "banner risk", style = "margin-top:12px;",
-          shiny::tags$span(class = "icon", "!"),
-          sprintf(
-            "%d column%s still need a disclosure role before you can generate.",
+          shiny::tags$div(
+            class = "banner risk", style = "margin-top:12px;",
+            shiny::tags$span(class = "icon", "!"),
+            sprintf(
+            "%d column%s still need an answer before you can generate.",
             unset, if (unset == 1L) "" else "s"
           )
         )
@@ -735,6 +748,7 @@ mod_roles_server <- function(id, state) {
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
       if (!val %in% DISCLOSURE_OPTIONS) return(invisible(NULL))
       roles$disclosure_role[[orig_row]] <- val
+      roles$simulation[[orig_row]] <- dg_derived_action(val)
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)
