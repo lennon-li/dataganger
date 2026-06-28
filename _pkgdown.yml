@@ -28,9 +28,10 @@ reference:
 
   - title: "Column Role Detection"
     desc: >
-      Detect and assign disclosure roles (direct identifier, quasi-identifier,
-      sensitive, none) and synthesis roles. Used on the Configure page and in
-      the CLI `disclosure_roles:` spec.
+      Detect each column's two intrinsic disclosure axes — whether it identifies
+      a person (none / combination / direct) and whether it is sensitive — plus
+      synthesis roles. Used on the Configure page and in the CLI
+      `disclosure_roles:` spec.
     contents:
       - detect_roles
       - suggest_min_rows

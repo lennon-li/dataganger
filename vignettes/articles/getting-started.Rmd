@@ -110,9 +110,14 @@ programmatic equivalents).
 
 ## 4. Generate
 
-Generate the synthetic double. The summary reports row and column counts, the
-engine used, and the elapsed time; the right panel switches to preview the
-synthetic records.
+Before anything is generated, this step shows a **per-column review table** that
+mirrors your Configure choices and spells out the outcome: the two questions you
+answered (*Points to a person?* and *Sensitive?*), the resulting **Action**
+(synthesize, pass through, or drop), and a plain-English **What we'll do** for
+each column. Hover a column name to see how it will be modelled. If anything
+looks wrong, use **← Adjust settings** to go back; otherwise generate the
+synthetic double. The summary then reports row and column counts, the engine
+used, and the elapsed time, and the right panel previews the synthetic records.
 
 ```{r, echo = FALSE}
 fig("step-4-generate.png")
