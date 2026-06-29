@@ -104,3 +104,10 @@ reference:
       - individual_sample
       - temporal_sample
       - geographic_sample
+
+articles:
+  - title: Articles
+    navbar: Articles
+    contents:
+      - getting-started
+      - privacy-and-ai-workflow
