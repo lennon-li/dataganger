@@ -6,6 +6,10 @@ the user-facing manual/vignette (Phase 5). Last updated 2026-06-29.
 Status markers: **[NOW]** = true in the current codebase; **[PLANNED]** = designed, tracked in
 `dev/plans/2026-06-29-guardrail-comparison-agent-skill-implementation.md`, not yet implemented.
 
+> Update 2026-06-29: Phases 1-4 + 6 are implemented on branch
+> `feature/v0.5.0-guardrail-comparison-agent-skill` (pending merge to main / CRAN). Items below
+> marked "[NOW, branch]" are live on that branch. Phase 5 (vignette) is the only remaining piece.
+
 ---
 
 ## 1. The spine (one promise)
@@ -143,8 +147,8 @@ IS the anti-backdoor defense** — exfiltration needs a channel, and every chann
 | Human sets rules once | entry gate + two-axis Configure | [NOW] (gate [PLANNED]) |
 | AI never reads real data | Path B: `--roles` parity + agent SKILL.md | [NOW] |
 | AI gets only safe data | Path A: synthetic bundle export | [NOW] |
-| No network code | no network primitives in source | [NOW] core; guard [PLANNED] |
-| No browser-launch either | report_issue prints/copies, no browseURL | [PLANNED] Phase 6 |
+| No network code | no network primitives in source | [NOW] core; guard [NOW, branch] |
+| No browser-launch either | report_issue prints/copies, no browseURL | [NOW, branch] |
 | Nothing persisted | in-memory only; export is opt-in | [NOW] |
-| No external requests at all | self-host fonts (remove CDN) | [PLANNED] Phase 6 |
-| Provable no-internet | runtime trap test + source guard + offline CI | [PLANNED] Phase 6 |
+| No external requests at all | self-host fonts (remove CDN) | [NOW, branch] |
+| Provable no-internet | runtime trap test + source guard + offline CI | [NOW, branch] |
