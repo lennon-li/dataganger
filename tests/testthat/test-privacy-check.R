@@ -1,10 +1,8 @@
 
 # Tests for privacy_check() — [3.6]-[3.8]
 
-# Some earlier Shiny module tests exercise mocked package bindings under
-# testthat::test_local(). Reload the package before this file so the privacy
-# checks always run against a clean namespace.
-pkgload::load_all(testthat::test_path("..", ".."), quiet = TRUE)
+# Bind the real exports explicitly so these tests are insulated from any mocked
+# bindings left by earlier Shiny module tests under testthat::test_local().
 privacy_check <- dataganger::privacy_check
 detect_roles <- dataganger::detect_roles
 synthesize_data <- dataganger::synthesize_data
