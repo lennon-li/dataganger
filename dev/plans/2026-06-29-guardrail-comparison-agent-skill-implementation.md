@@ -831,16 +831,54 @@ the Google Fonts CDN `@import`.
   `grep -rinE "https?://|googleapis|gstatic|cdn" inst/app/` returns nothing (except comments).
 - [ ] **Step 4:** Commit: `feat(app): self-host fonts; remove Google Fonts CDN (offline-ready)`.
 
-### Task 6.2: prove offline operation
-- [ ] **Step 1:** Add `tests/testthat/test-no-network.R` that runs the core pipeline
-  (`profile_data` -> `detect_roles` -> `synthesize_data` -> `export_synthetic`) on a tiny frame
-  and asserts success. (This pipeline already makes no network calls; the test documents/locks
-  that.)
-- [ ] **Step 2:** Add a CI job `offline-check` that runs the full test suite (or at least the
-  app render + pipeline) under no network. On Linux runners: wrap the R invocation in
-  `unshare -rn` (network namespace with no interfaces) or disable networking, e.g.
-  `unshare -rn Rscript -e 'Sys.setenv(NOT_CRAN="true"); testthat::test_local(".")'`. The job
-  passing is the provable "works with the internet off" claim.
+### Task 6.2: prove the package makes NO network calls (internet-state-independent)
+
+Goal upgraded (Lennon): not just "works offline", but "provably never accesses the internet —
+whether it is on or off." Turning the internet off only proves offline operation; it does not
+disprove phoning-home when connected. Two locks make "phone home later" impossible: (a) no
+network code exists, (b) nothing is persisted (in-memory only -> nothing to send later).
+
+- [ ] **Step 1 — Runtime trap test (the strong proof).** Add
+  `tests/testthat/test-no-network.R` that traps R's network primitives so any call errors, then
+  runs the full pipeline + app UI construction; completion proves zero network attempts
+  (catches dependencies too — they go through the same primitives). Sketch:
+```r
+test_that("the full pipeline makes no network calls", {
+  boom <- function(...) stop("network access attempted", call. = FALSE)
+  testthat::local_mocked_bindings(url = boom, download.file = boom,
+                                  socketConnection = boom, .package = "base")
+  df <- data.frame(age = sample(20:80, 40, TRUE),
+                   grp = sample(c("a","b"), 40, TRUE), stringsAsFactors = FALSE)
+  roles <- dg_sync_roles_axes(detect_roles(df))
+  spec  <- synth_spec("development", seed = 1L)
+  syn   <- synthesize_data(df, spec, roles = roles)
+  expect_s3_class(compare_synthetic(df, syn), "dataganger_comparison")
+  tmp <- withr::local_tempdir()
+  export_synthetic(syn, original = df, roles = roles,
+                   path = file.path(tmp, "b.zip"), format = "zip")
+  succeed()
+})
+```
+  (Verify `local_mocked_bindings` can bind base network fns in this R version; if not, use
+  `testthat::with_mocked_bindings` or wrap calls via internal indirections that can be mocked.)
+- [ ] **Step 2 — Source-grep guard.** Add a test that fails if any network symbol appears in
+  `R/`: `url(`, `download.file`, `socketConnection`, `httr`, `curl`, `RCurl`, `GET(`, `POST(`,
+  `nsl(`. Makes "no network code" an enforced invariant.
+```r
+test_that("no network primitives in package source", {
+  src <- unlist(lapply(list.files("../../R", full.names = TRUE), readLines, warn = FALSE))
+  bad <- grep("\\burl\\(|download\\.file|socketConnection|\\bhttr\\b|\\bRCurl\\b|curl::|GET\\(|POST\\(|\\bnsl\\(",
+              src, value = TRUE)
+  expect_length(bad, 0)
+})
+```
+  (Adjust the path resolution to the test working dir; exclude false positives like the word
+  "curl" in comments if needed.)
+- [ ] **Step 3 — Offline CI job (secondary proof).** Add a CI job `no-network` on a Linux
+  runner that runs the suite under a network-less namespace:
+  `unshare -rn Rscript -e 'Sys.setenv(NOT_CRAN="true"); testthat::test_local(".")'`. This is
+  the platform-independent proof the *source* opens no connections (covers Windows/macOS too,
+  since it is the same code).
 - [ ] **Step 3:** Document a user-facing offline check in the privacy vignette (Phase 5),
   per-OS (the guarantee is identical everywhere — same code, no network calls once fonts are
   local — only the demo mechanism differs):

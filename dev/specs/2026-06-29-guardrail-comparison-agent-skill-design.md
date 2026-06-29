@@ -55,7 +55,21 @@ would be literally false). Scan-in-memory + drop-early + nothing-leaves-the-mach
 and a stronger trust statement.
 
 ### Offline / self-contained trust feature (DECIDED to pursue; own phase)
-Goal: the app needs **zero internet** and we can *demonstrate* it.
+Goal upgraded (Lennon): not "works offline" but **"provably never accesses the internet,
+whether it is on or off."** Turning wi-fi off only proves offline operation; it does not
+disprove phoning-home when connected. "Phone home later when internet returns" is impossible
+under **two locks**: (a) **no network code exists** (can't send), (b) **nothing is persisted**
+(in-memory only -> nothing to send later). Proofs, strongest first:
+- **Runtime trap test** — stub base network primitives (`url`, `download.file`,
+  `socketConnection`, + curl/httr) to error, run the full pipeline + app construction; success
+  = zero network attempts, internet-state-independent, catches dependencies too. (Phase 6)
+- **Source-grep guard** — test fails if any network symbol appears in `R/`. (Phase 6)
+- **Open source** — auditable; "don't trust, read the code + run the trap test yourself."
+- **Live monitor with internet ON** — for users who will not disconnect: watch the R process
+  egress (Windows Resource Monitor / Process Monitor / Wireshark; Linux `strace`/`ss`) -> zero.
+- Turning the internet off becomes just an optional extra demo, not the main proof.
+
+Still also needed (prerequisite): the app needs **zero internet**, demonstrable.
 - **Only outbound request today:** `inst/app/www/colors_and_type.css:7` `@import`s Google Fonts
   from a CDN. The package core (profile/detect/synthesize/export) makes no network calls.
 - **Make it self-contained:** vendor the fonts into `inst/app/www/fonts/` and replace the CDN
