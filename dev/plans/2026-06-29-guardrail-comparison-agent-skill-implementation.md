@@ -873,11 +873,27 @@ test_that("no network primitives in package source", {
 })
 ```
   (Adjust the path resolution to the test working dir; exclude false positives like the word
-  "curl" in comments if needed.) **Whitelist the one audited exception:** `report_issue()` uses
-  `utils::browseURL()` to open the user's browser at a prefilled GitHub issue (no dataset
-  content, user-initiated) — the regex is case-sensitive so it does not match `browseURL(` /
-  `URLencode(`; keep it that way, or explicitly exclude `R/report_issue.R`. Document the
-  exception in the test comment so it is a conscious allow, not an oversight.
+  "curl" in comments if needed.) After Task 6.4 removes `browseURL` from `report_issue()`, the
+  guard is **unconditional** — no whitelist needed. Add `browseURL` to the forbidden-symbol
+  regex so it stays gone: include `browseURL\\(` in the pattern and expect zero matches.
+
+### Task 6.4: disable browser auto-open in report_issue (unconditional no-network)
+
+Make the no-network claim absolute: the package must not even launch the user's browser.
+- [ ] **Step 1 (test):** in `tests/testthat/test-report-issue.R`, assert `report_issue(...)`
+  does NOT call `browseURL` and instead returns/prints the issue URL + body. E.g. mock
+  `utils::browseURL` to error and assert `report_issue()` still succeeds and returns the URL;
+  assert the prefilled body contains the environment table but no `browseURL` is invoked.
+- [ ] **Step 2 (impl):** change `report_issue()` to print the prefilled issue text + URL (via
+  `cli`/`cat`) and `invisible(url)` — remove the `utils::browseURL(url)` call. Keep
+  `.build_issue_url()` unchanged.
+- [ ] **Step 3 (UI):** the "Report a problem" button (`inst/app/app.R` `report_issue` observer)
+  shows a **copyable modal** with the URL + body instead of opening the browser.
+- [ ] **Step 4:** update `report_issue()` roxygen ("opens a pre-filled GitHub issue form in your
+  browser" -> "prints a pre-filled GitHub issue you can copy into your browser"); the source
+  grep guard (Task 6.2 Step 2) now finds zero `browseURL`.
+- [ ] **Step 5:** `devtools::document()`; gate; commit
+  `feat(privacy): report_issue prints (no browser auto-open) for absolute no-network claim`.
 - [ ] **Step 3 — Offline CI job (secondary proof).** Add a CI job `no-network` on a Linux
   runner that runs the suite under a network-less namespace:
   `unshare -rn Rscript -e 'Sys.setenv(NOT_CRAN="true"); testthat::test_local(".")'`. This is

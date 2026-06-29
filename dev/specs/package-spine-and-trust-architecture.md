@@ -58,14 +58,14 @@ real guarantee rests on two structural locks plus auditable proofs.
   `url()`, `download.file()`, `socketConnection()`, `httr`/`curl`/`RCurl`, no sockets. **[NOW]**
   for the core data path (profile / detect_roles / synthesize_data / compare_synthetic /
   privacy_check / export_synthetic / CLI). The Shiny app serves only on localhost.
-  - **One audited exception:** `report_issue()` (the "Report a problem" button) calls
-    `utils::browseURL()` to open the **user's own browser** at a prefilled GitHub issue form. The
-    package transmits nothing itself; the browser navigates, and only if the user submits. The
-    URL contains **only** package version / R version / platform / OS + the user's typed message
-    — it explicitly instructs "never include dataset content, column names, file paths, or
-    values," and no dataset content is ever placed in it. This is user-initiated and not part of
-    any data path. The Phase 6 source-grep guard whitelists `browseURL`; the runtime trap test
-    exercises the data pipeline (which never calls `report_issue`).
+  - **[PLANNED] Phase 6 — remove the one exception for an absolute claim.** Today
+    `report_issue()` (the "Report a problem" button) calls `utils::browseURL()` to open the
+    user's browser at a prefilled GitHub issue (only version/OS metadata + the user's message;
+    no dataset content; user-initiated). To make the no-network claim *unconditional* (Lennon,
+    2026-06-29), `report_issue()` will **no longer auto-open the browser** — it will print/return
+    the prefilled issue text + URL, and the UI button will show a **copyable modal**. The user
+    copies it into their own browser. After this, the package contains **no** `browseURL` and the
+    source-grep guard needs **no whitelist** — "zero network-related calls, no exceptions."
 - **Nothing is persisted (nothing to send later).** Real data is read into memory only; the app
   writes nothing to disk except the synthetic bundle the user chooses to export. When the app
   closes, the in-memory data is gone — so "internet comes back on later" has nothing to send.
@@ -118,6 +118,7 @@ identifiers; we never upload; we never keep."** Not "we don't read direct identi
 | AI never reads real data | Path B: `--roles` parity + agent SKILL.md | [NOW] |
 | AI gets only safe data | Path A: synthetic bundle export | [NOW] |
 | No network code | no network primitives in source | [NOW] core; guard [PLANNED] |
+| No browser-launch either | report_issue prints/copies, no browseURL | [PLANNED] Phase 6 |
 | Nothing persisted | in-memory only; export is opt-in | [NOW] |
 | No external requests at all | self-host fonts (remove CDN) | [PLANNED] Phase 6 |
 | Provable no-internet | runtime trap test + source guard + offline CI | [PLANNED] Phase 6 |
