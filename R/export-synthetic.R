@@ -970,6 +970,13 @@ render_comparison_report <- function(comparison, privacy, synthetic, purpose, ou
 }
 
 can_render_comparison_report <- function() {
+  override <- getOption("dataganger.can_render_comparison_report", NULL)
+  if (is.function(override)) {
+    return(isTRUE(override()))
+  }
+  if (is.logical(override) && length(override) == 1L && !is.na(override)) {
+    return(override)
+  }
   rlang::is_installed("rmarkdown") && rlang::is_installed("knitr")
 }
 
@@ -979,6 +986,18 @@ render_comparison_html_fallback <- function(comparison, privacy, synthetic, purp
     class = vapply(synthetic, class_string, character(1)),
     stringsAsFactors = FALSE
   )
+  comparison_rows <- function(section) {
+    if (is.null(comparison)) {
+      return(NULL)
+    }
+    comparison[[section]]
+  }
+  empty_rows <- function(x) {
+    is.null(x) || !is.data.frame(x) || nrow(x) == 0L
+  }
+  numeric_rows <- comparison_rows("numeric")
+  categorical_rows <- comparison_rows("categorical")
+  relationship_rows <- comparison_rows("relationship")
 
   paste(
     "<html><head><meta charset=\"utf-8\"><title>DataGangeR Comparison Report</title></head><body>",
@@ -990,11 +1009,11 @@ render_comparison_html_fallback <- function(comparison, privacy, synthetic, purp
     "<h2>Dataset Metrics</h2>",
     if (is.null(comparison)) "<p>No comparison object was supplied.</p>" else data_frame_to_html(comparison$dataset),
     "<h2>Numeric Comparison</h2>",
-    if (is.null(comparison) || nrow(comparison$numeric) == 0) "<p>No numeric comparison rows available.</p>" else data_frame_to_html(comparison$numeric),
+    if (empty_rows(numeric_rows)) "<p>No numeric comparison rows available.</p>" else data_frame_to_html(numeric_rows),
     "<h2>Categorical Comparison</h2>",
-    if (is.null(comparison) || nrow(comparison$categorical) == 0) "<p>No categorical comparison rows available.</p>" else data_frame_to_html(comparison$categorical),
+    if (empty_rows(categorical_rows)) "<p>No categorical comparison rows available.</p>" else data_frame_to_html(categorical_rows),
     "<h2>Relationship Comparison</h2>",
-    if (is.null(comparison) || nrow(comparison$relationship) == 0) "<p>No relationship comparison rows available.</p>" else data_frame_to_html(comparison$relationship),
+    if (empty_rows(relationship_rows)) "<p>No relationship comparison rows available.</p>" else data_frame_to_html(relationship_rows),
     "<h2>Privacy Flags</h2>",
     if (is.null(privacy) || nrow(privacy) == 0) "<p>No privacy flags were supplied for this bundle.</p>" else data_frame_to_html(privacy),
     "</body></html>",

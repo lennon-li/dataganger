@@ -1,6 +1,10 @@
 
 # Tests for synthesize_data() - [2.9]-[2.14]
 
+synthesize_data <- dataganger::synthesize_data
+detect_roles <- dataganger::detect_roles
+synth_spec <- dataganger::synth_spec
+
 # ---- Schema synthesis ----
 
 test_that("synthesize_data() schema level returns typed placeholder rows", {

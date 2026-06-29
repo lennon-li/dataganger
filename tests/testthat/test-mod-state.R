@@ -98,7 +98,7 @@ test_that("state initializes active_step and compare_selected_var", {
 
   shiny::testServer(mod_state_server, {
     state <- session$getReturned()
-    expect_identical(state$active_step, "objective")
+    expect_identical(state$active_step, "upload")
     expect_null(state$compare_selected_var)
   })
 })

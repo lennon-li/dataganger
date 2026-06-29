@@ -1,3 +1,5 @@
+run_app <- dataganger::run_app
+
 test_that("run_app() errors cleanly when shiny is absent", {
   skip_if(
     requireNamespace("shiny", quietly = TRUE) &&
@@ -32,7 +34,7 @@ test_that("run_app(launch = FALSE) does not call shiny::runApp()", {
       called <<- TRUE
       stop("runApp should not be called", call. = FALSE)
     },
-    .env = asNamespace("dataganger")
+    .env = environment(run_app)
   )
 
   run_app(launch = FALSE)
@@ -53,7 +55,7 @@ test_that("run_app() forwards NULL port to shiny::runApp()", {
       call_args <<- list(...)
       invisible(NULL)
     },
-    .env = asNamespace("dataganger")
+    .env = environment(run_app)
   )
 
   run_app(launch = TRUE)
@@ -75,7 +77,7 @@ test_that("run_app() forwards explicit port to shiny::runApp()", {
       call_args <<- list(...)
       invisible(NULL)
     },
-    .env = asNamespace("dataganger")
+    .env = environment(run_app)
   )
 
   run_app(port = 7654, launch = TRUE)
@@ -109,7 +111,7 @@ test_that("run_app() forwards additional arguments to shiny::runApp()", {
       call_args <<- list(...)
       invisible(NULL)
     },
-    .env = asNamespace("dataganger")
+    .env = environment(run_app)
   )
 
   run_app(launch = TRUE, quiet = TRUE)

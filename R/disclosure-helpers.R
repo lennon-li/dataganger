@@ -255,6 +255,220 @@ roles_ready_for_generation <- function(roles) {
 
 #' @keywords internal
 #' @noRd
+app_fail_safe_empty <- function() {
+  data.frame(
+    variable = character(0),
+    reason = character(0),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' @keywords internal
+#' @noRd
+app_fail_safe_token <- function(state) {
+  roles <- state$roles
+  data <- state$raw_data
+  if (is.null(roles) || is.null(data)) {
+    return(NULL)
+  }
+  paste(
+    nrow(data),
+    ncol(data),
+    paste(roles$variable, collapse = "|"),
+    sep = "::"
+  )
+}
+
+#' @keywords internal
+#' @noRd
+.app_refuse <- function(...) shiny::stopApp(...)
+
+#' @keywords internal
+#' @noRd
+app_attestation_modal <- function(ns = shiny::NS(NULL)) {
+  shiny::modalDialog(
+    title = "Before you continue",
+    shiny::tags$p(
+      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Use at your own risk."
+    ),
+    shiny::tags$p(
+      "By using this app I confirm there are no direct identifiers \u2014 including institutional identifiers \u2014 in this dataset (for example: name, email, healthcare/medical record number, national ID, phone, address)."
+    ),
+    footer = shiny::tagList(
+      shiny::actionButton(ns("refuse"), "I do not agree", class = "btn btn-secondary"),
+      shiny::actionButton(ns("agree"), "I agree", class = "btn btn-primary")
+    ),
+    easyClose = FALSE
+  )
+}
+
+#' @keywords internal
+#' @noRd
+app_fail_safe_modal <- function(flagged, ns = shiny::NS(NULL)) {
+  lines <- apply(flagged, 1L, function(row) {
+    shiny::tags$li(shiny::tags$code(row[["variable"]]), ": ", row[["reason"]])
+  })
+  shiny::modalDialog(
+    title = "Possible direct identifiers flagged",
+    shiny::tags$p(
+      "We flagged columns that might point to a person. You are still responsible for confirming."
+    ),
+    shiny::tags$ul(lines),
+    footer = shiny::tagList(
+      shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-secondary"),
+      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm-keep", class = "btn btn-secondary"),
+      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-primary")
+    ),
+    easyClose = FALSE
+  )
+}
+
+#' @keywords internal
+#' @noRd
+app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {
+  shiny::moduleServer(id, function(input, output, session) {
+    show_fail_safe <- function(flagged) {
+      shiny::showModal(app_fail_safe_modal(flagged, ns = session$ns))
+    }
+
+    resolve_flagged_roles <- function(mode = c("confirm_keep", "drop")) {
+      mode <- match.arg(mode)
+      flagged <- state$fail_safe_flagged
+      roles <- state$roles
+      if (is.null(roles) || !is.data.frame(flagged) || !nrow(flagged)) {
+        return(invisible(NULL))
+      }
+
+      idx <- roles$variable %in% flagged$variable
+      if (!any(idx)) {
+        return(invisible(NULL))
+      }
+
+      roles$identifies[idx] <- ""
+      roles$disclosure_role[idx] <- NA_character_
+      roles <- dg_sync_roles_axes(roles)
+      roles$simulation[idx] <- if (identical(mode, "drop")) "drop" else "synthesize"
+      state$roles <- roles
+      state$fail_safe_status <- "ready"
+      state$fail_safe_upload_token <- app_fail_safe_token(state)
+      shiny::removeModal()
+      invisible(NULL)
+    }
+
+    shiny::observe({
+      if (!isTRUE(state$attested_no_direct)) {
+        shiny::showModal(app_attestation_modal(ns = session$ns))
+      }
+    })
+
+    shiny::observeEvent(input$agree, ignoreNULL = TRUE, {
+      state$attested_no_direct <- TRUE
+      shiny::removeModal()
+    })
+
+    shiny::observeEvent(input$refuse, ignoreNULL = TRUE, {
+      app_refuse()
+    })
+
+    shiny::observe({
+      if (!isTRUE(state$attested_no_direct)) {
+        return()
+      }
+      if (is.null(state$raw_data) || is.null(state$roles)) {
+        return()
+      }
+
+      token <- app_fail_safe_token(state)
+      if (isTRUE(state$fail_safe_status == "pending") ||
+          identical(state$fail_safe_upload_token, token)) {
+        return()
+      }
+
+      flagged <- suspected_direct_identifiers(state$roles)
+      state$fail_safe_flagged <- flagged
+
+      if (nrow(flagged) > 0L) {
+        state$fail_safe_status <- "pending"
+        show_fail_safe(flagged)
+      } else {
+        state$fail_safe_status <- "ready"
+        state$fail_safe_upload_token <- token
+      }
+    })
+
+    shiny::observeEvent(input$confirm_keep_flagged, ignoreNULL = TRUE, {
+      resolve_flagged_roles("confirm_keep")
+    })
+
+    shiny::observeEvent(input$drop_flagged, ignoreNULL = TRUE, {
+      resolve_flagged_roles("drop")
+    })
+
+    shiny::observeEvent(input$abort_flagged, ignoreNULL = TRUE, {
+      shiny::removeModal()
+      state$raw_data <- NULL
+      state$profile <- NULL
+      state$roles <- NULL
+      state$filename <- NULL
+      state$fail_safe_status <- "idle"
+      state$fail_safe_flagged <- app_fail_safe_empty()
+      state$fail_safe_upload_token <- NULL
+      state$nav_request <- "upload"
+    })
+
+    invisible(NULL)
+  })
+}
+
+#' Columns that look like direct identifiers, with a human reason.
+#'
+#' Assistive only -- heuristic, not a guarantee.
+#' @keywords internal
+#' @noRd
+suspected_direct_identifiers <- function(roles) {
+  if (is.null(roles) || !nrow(roles)) {
+    return(data.frame(
+      variable = character(0),
+      reason = character(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  recommended_role <- if ("recommended_role" %in% names(roles)) {
+    as.character(roles$recommended_role)
+  } else {
+    rep(NA_character_, nrow(roles))
+  }
+  identifies <- if ("identifies" %in% names(roles)) {
+    as.character(roles$identifies)
+  } else {
+    rep(NA_character_, nrow(roles))
+  }
+  variables <- if ("variable" %in% names(roles)) {
+    as.character(roles$variable)
+  } else {
+    rep("", nrow(roles))
+  }
+
+  reason <- rep(NA_character_, nrow(roles))
+  reason[identifies %in% "direct"] <- "marked as a direct identifier"
+  reason[is.na(reason) & recommended_role %in% "ID candidate"] <-
+    "looks like an ID (high-cardinality / ID-shaped)"
+  reason[is.na(reason) & recommended_role %in% "free text"] <-
+    "free text may contain names or identifying details"
+  reason[is.na(reason) & vapply(variables, is_sensitive_name, logical(1))] <-
+    "column name suggests sensitive personal information"
+
+  keep <- !is.na(reason)
+  data.frame(
+    variable = variables[keep],
+    reason = reason[keep],
+    stringsAsFactors = FALSE
+  )
+}
+
+#' @keywords internal
+#' @noRd
 isTRUE_vec <- function(x) {
   if (is.logical(x)) {
     return(!is.na(x) & x)

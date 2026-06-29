@@ -38,6 +38,21 @@ eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
   dg_class_to_role(class_col)
 }
 
+#' Question-1 (identifies axis) choices.
+#'
+#' After the no-direct-identifier attestation, `direct` is removed because it
+#' would contradict the attestation.
+#' @keywords internal
+#' @noRd
+q1_identifies_choices <- function(attested) {
+  choices <- c("none", "combination", "direct")
+  if (isTRUE(attested)) {
+    choices[choices != "direct"]
+  } else {
+    choices
+  }
+}
+
 #' @keywords internal
 #' @noRd
 dg_role_treatment <- function(roles) {
@@ -139,7 +154,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           "No quasi-identifier combination in the synthetic output will appear in fewer than k records."
         )
       ),
-      disclosure_help_ui(),
+      shiny::uiOutput(ns("disclosure_help")),
       shiny::uiOutput(ns("roles_table")),
       shiny::uiOutput(ns("kanon_readout")),
       shiny::uiOutput(ns("disclosure_gate"))
@@ -155,8 +170,13 @@ mod_roles_ui <- function(id, embedded = FALSE) {
 #'
 #' @keywords internal
 #' @noRd
-disclosure_help_ui <- function() {
+disclosure_help_ui <- function(attested = FALSE) {
   identifies_meta <- dg_identifies_option_meta()
+  identifies_meta <- identifies_meta[vapply(
+    identifies_meta,
+    function(meta) meta$value %in% q1_identifies_choices(attested),
+    logical(1)
+  )]
   q1_options <- lapply(identifies_meta, function(meta) {
     shiny::tags$div(
       class = "dq-opt",
@@ -168,14 +188,22 @@ disclosure_help_ui <- function() {
     class = "disclosure-help",
     shiny::tags$div(
       class = "dq-lead",
-      "Classify every column by answering two questions."
+      if (isTRUE(attested)) {
+        "You've confirmed there are no direct identifiers. Two risks remain for each column:"
+      } else {
+        "Classify every column by answering two questions."
+      }
     ),
     shiny::tags$div(
       class = "dq",
       shiny::tags$div(class = "dq-eyebrow", "Question 1"),
       shiny::tags$p(
         class = "dq-q",
-        "Could a value point to a specific person \u2014 on its own, or combined with other columns?"
+        if (isTRUE(attested)) {
+          "Could this column, combined with others, help single out a person?"
+        } else {
+          "Could a value point to a specific person \u2014 on its own, or combined with other columns?"
+        }
       ),
       shiny::tags$div(class = "dq-opts", q1_options)
     ),
@@ -184,7 +212,11 @@ disclosure_help_ui <- function() {
       shiny::tags$div(class = "dq-eyebrow", "Question 2"),
       shiny::tags$p(
         class = "dq-q",
-        "Would it harm someone if this value were linked back to them?"
+        if (isTRUE(attested)) {
+          "Is this column sensitive - would it be harmful if revealed?"
+        } else {
+          "Would it harm someone if this value were linked back to them?"
+        }
       ),
       shiny::tags$p(
         class = "dq-ex",
@@ -232,6 +264,10 @@ mod_roles_server <- function(id, state) {
     shiny::observe({
       shiny::req(state$roles)
       roles_local(ensure_simulation_column(state$roles))
+    })
+
+    output$disclosure_help <- shiny::renderUI({
+      disclosure_help_ui(isTRUE(state$attested_no_direct))
     })
 
     visible_roles <- shiny::reactive({
@@ -484,12 +520,16 @@ mod_roles_server <- function(id, state) {
 
       make_identifies_select <- function(orig_row, current, ns) {
         is_unset <- is.na(current) || !nzchar(current)
+        allowed_values <- q1_identifies_choices(isTRUE(state$attested_no_direct))
         placeholder <- shiny::tags$option(
           value = "", disabled = "disabled",
           selected = if (is_unset) "selected" else NULL,
           "Select answer..."
         )
-        opts <- lapply(dg_identifies_option_meta(), function(meta) {
+        opts <- lapply(Filter(
+          function(meta) meta$value %in% allowed_values,
+          dg_identifies_option_meta()
+        ), function(meta) {
           shiny::tags$option(
             value = meta$value,
             selected = if (!is_unset && meta$value == current) "selected" else NULL,
@@ -713,7 +753,7 @@ mod_roles_server <- function(id, state) {
       orig_row <- as.integer(change$row)
       val      <- as.character(change$value)
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
-      if (!val %in% vapply(dg_identifies_option_meta(), `[[`, "", "value")) {
+      if (!val %in% q1_identifies_choices(isTRUE(state$attested_no_direct))) {
         return(invisible(NULL))
       }
       roles$identifies[[orig_row]] <- val

@@ -292,11 +292,8 @@ test_that("export_synthetic() skips report gracefully when report deps are unava
   attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 9)
   class(syn) <- c("dataganger_synthetic", class(syn))
 
-  testthat::local_mocked_bindings(
-    can_render_comparison_report = function() FALSE
-  )
-
   out_dir <- file.path(tmp, "no-report-bundle")
+  withr::local_options(dataganger.can_render_comparison_report = FALSE)
   expect_message(
     export_synthetic(syn, path = out_dir, format = "dir"),
     "skipping comparison report"

@@ -1,6 +1,15 @@
 
 # Tests for privacy_check() — [3.6]-[3.8]
 
+# Some earlier Shiny module tests exercise mocked package bindings under
+# testthat::test_local(). Reload the package before this file so the privacy
+# checks always run against a clean namespace.
+pkgload::load_all(testthat::test_path("..", ".."), quiet = TRUE)
+privacy_check <- dataganger::privacy_check
+detect_roles <- dataganger::detect_roles
+synthesize_data <- dataganger::synthesize_data
+synth_spec <- dataganger::synth_spec
+
 # ---- Pre-stage ----
 
 test_that("privacy_check() pre returns correct S3 class", {

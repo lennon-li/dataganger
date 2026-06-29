@@ -433,3 +433,19 @@ test_that("roles confirm is blocked until every generated column has an answer",
     expect_identical(state$roles_confirmed, 1L)
   })
 })
+
+
+test_that("question 1 options drop 'direct' once the user attests no direct identifiers", {
+  expect_equal(q1_identifies_choices(attested = FALSE),
+               c("none", "combination", "direct"))
+  expect_equal(q1_identifies_choices(attested = TRUE),
+               c("none", "combination"))
+})
+
+test_that("disclosure help uses the attested direct-identifier framing copy", {
+  html <- as.character(disclosure_help_ui(attested = TRUE))
+  expect_match(html, "You('|&#39;|&apos;)ve confirmed there are no direct identifiers")
+  expect_match(html, "Could this column, combined with others, help single out a person\\?")
+  expect_match(html, "Is this column sensitive - would it be harmful if revealed\\?")
+  expect_false(grepl("Yes, directly", html, fixed = TRUE))
+})

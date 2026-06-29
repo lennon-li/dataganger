@@ -33,6 +33,7 @@ mod_state_server <- function(id) {
 
     state <- shiny::reactiveValues(
       raw_data = NULL,
+      filename = NULL,
       profile = NULL,
       roles = NULL,
       roles_confirmed = 0L,
@@ -45,7 +46,15 @@ mod_state_server <- function(id) {
       privacy = NULL,
       seed_used = NULL,
       nav_request = NULL,
-      active_step = "objective",
+      active_step = "upload",
+      attested_no_direct = FALSE,
+      fail_safe_status = "idle",
+      fail_safe_flagged = data.frame(
+        variable = character(0),
+        reason = character(0),
+        stringsAsFactors = FALSE
+      ),
+      fail_safe_upload_token = NULL,
       stale = make_stale_flags(FALSE)
     )
 
@@ -73,12 +82,22 @@ mod_state_server <- function(id) {
       state$profile <- NULL
       state$roles <- NULL
       state$roles_confirmed <- 0L
+      if (is.null(state$raw_data)) {
+        state$filename <- NULL
+      }
       state$spec <- NULL
       state$synthetic <- NULL
       state$comparison <- NULL
       state$compare_selected_var <- NULL
       state$privacy <- NULL
       state$seed_used <- NULL
+      state$fail_safe_status <- "idle"
+      state$fail_safe_flagged <- data.frame(
+        variable = character(0),
+        reason = character(0),
+        stringsAsFactors = FALSE
+      )
+      state$fail_safe_upload_token <- NULL
       set_stale_flags(FALSE)
     })
 
