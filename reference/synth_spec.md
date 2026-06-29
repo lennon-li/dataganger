@@ -55,9 +55,9 @@ synth_spec(
 
   Character or `NULL`. How synthetic column names are handled:
   `"preserve"` keeps your original column names, `"generic"` replaces
-  them with neutral names (`var1`, `var2`, ...), and `"dictionary_only"`
-  anonymizes the names but records the mapping in the exported data
-  dictionary. If `NULL`, derived from the preset.
+  them with neutral names (`col_1`, `col_2`, ...), and
+  `"dictionary_only"` anonymizes the names but records the mapping in
+  the exported data dictionary. If `NULL`, derived from the preset.
 
 - seed:
 
@@ -125,7 +125,7 @@ synth_spec(purpose = "demo")
 #> • Merge rare levels: TRUE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "drop"
-#> • Preserve correlations: "low"
+#> • Preserve correlations: "none"
 #> • Preserve missingness: "approx"
 #> • Engine required: "internal"
 synth_spec(purpose = "development", n = 200, seed = 42)
@@ -174,6 +174,6 @@ synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 #> • Free text strategy: "redact"
 #> • Preserve correlations: "high"
 #> • Preserve missingness: "approx"
-#> • Engine required: "hifi"
+#> • Engine required: "synthpop"
 #> ! Risk acknowledged by user
 ```

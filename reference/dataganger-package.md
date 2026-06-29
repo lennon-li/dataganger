@@ -8,6 +8,8 @@ Statistical Software*, 74(11), 1-26. doi:10.18637/jss.v074.i11
 
 Useful links:
 
+- <https://lennon-li.github.io/dataganger/>
+
 - <https://github.com/lennon-li/dataganger>
 
 - Report bugs at <https://github.com/lennon-li/dataganger/issues>

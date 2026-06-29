@@ -14,16 +14,16 @@ compare, and export
 
 ## Want AI to prototype on your data — without handing over the real thing?
 
-DataGangeR turns sensitive datasets into safe, synthetic stand-ins. Your
-AI assistant prototypes at full speed; the real people in your data
-never leave the building.
+DataGangeR turns sensitive datasets into synthetic stand-ins that reduce
+direct disclosure risk. Your AI assistant prototypes at full speed while
+the real people in your data stay out of the shared bundle.
 
 - 🤖 **Harness AI, keep your privacy** — feed agents realistic synthetic
   data via a built-in CLI, not your production records.
 - 🧭 **Human in control** — a guided UI lets you decide what’s
-  identifying, sensitive, or safe, column by column.
+  identifying, sensitive, or not sensitive, column by column.
 - ⚙️ **Real synthesis** — synthpop + k-anonymity: faithful enough to
-  build on, private by design.
+  build on, with disclosure controls you can inspect and review.
 - 🔁 **Reproducible & human-gated** — every export is a one-click bundle
   with an R script to regenerate the exact result.
 
@@ -78,7 +78,8 @@ the whole pipeline without the UI. Objective presets are:
 
 - `development` *(the default)* — balanced protection for prototyping
   and app development
-- `demo` — strongest protection, best for teaching and low-risk sharing
+- `demo` — strongest protection, best for teaching and reviewed external
+  sharing
 - `analytics` — highest fidelity, with more emphasis on preserving
   relationships
 
@@ -131,7 +132,8 @@ dataganger roles my-data.csv --out roles.yaml
 dataganger spec --purpose development --out spec.yaml
 
 # Edit spec.yaml if needed: set seed, engine/name_strategy overrides,
-# and disclosure_roles: <column>: <direct|quasi|sensitive|none>.
+# acknowledge_risk: true for analytics, and disclosure_roles: <column>: <direct|quasi|sensitive|none>.
+# disclosure_roles is the compatibility YAML form; the app uses identifies + sensitive as the primary model.
 dataganger synthesize my-data.csv --spec spec.yaml --out dataganger_bundle.zip
 dataganger inspect dataganger_bundle.zip
 ```
@@ -152,14 +154,15 @@ For the full command list, run
 ## Synthesis engines
 
 DataGangeR uses two synthesis engines. By default the engine is chosen
-automatically by your objective: lower-fidelity objectives use a
-dependency-free internal marginal engine, while the **analytics**
-purpose - and any high-fidelity setting, where preserving relationships
-between variables matters - uses the synthpop package (Nowok, Raab &
-Dibben, 2016). In the Shiny app you can also choose the engine
-explicitly (auto, internal, or synthpop). Install it with
-`install.packages("synthpop")` to enable relationship-preserving
-synthesis at full fidelity.
+automatically by your objective: `demo` uses the dependency-free
+internal marginal engine by default, `development` requests moderate
+relationship preservation and therefore routes to `synthpop` when it is
+installed (otherwise falling back to the internal engine with a
+warning), and `analytics` is the high-fidelity path that requires
+explicit risk acknowledgement. In the Shiny app and CLI spec you can
+also choose the engine explicitly (`auto`, `internal`, or `synthpop`).
+Install it with `install.packages("synthpop")` to enable
+relationship-preserving synthesis when requested.
 
 Please cite synthpop when you use that engine:
 
@@ -210,8 +213,9 @@ are the first step in the DataGangeR workflow.
 
 Detect each column’s two intrinsic disclosure axes — whether it
 identifies a person (none / combination / direct) and whether it is
-sensitive — plus synthesis roles. Used on the Configure page and in the
-CLI `disclosure_roles:` spec.
+sensitive — plus synthesis roles. The app treats these two axes as the
+source of truth; the CLI still accepts `disclosure_roles:` as a
+compatibility mapping.
 
 - [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md)
   : Detect data roles for each column

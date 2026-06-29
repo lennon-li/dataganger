@@ -98,7 +98,7 @@ removed).</p></dd>
 <dt id="arg-name-strategy">name_strategy<a class="anchor" aria-label="anchor" href="#arg-name-strategy"></a></dt>
 <dd><p>Character or <code>NULL</code>. How synthetic column names are
 handled: <code>"preserve"</code> keeps your original column names, <code>"generic"</code>
-replaces them with neutral names (<code>var1</code>, <code>var2</code>, ...), and
+replaces them with neutral names (<code>col_1</code>, <code>col_2</code>, ...), and
 <code>"dictionary_only"</code> anonymizes the names but records the mapping in the
 exported data dictionary. If <code>NULL</code>, derived from the preset.</p></dd>
 
@@ -162,7 +162,7 @@ pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Merge rare levels: TRUE (min_n = 5)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Minimum cell size (k-anonymity): 5</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Free text strategy: <span style="color: #0000BB;">"drop"</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve correlations: <span style="color: #0000BB;">"low"</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve correlations: <span style="color: #0000BB;">"none"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve missingness: <span style="color: #0000BB;">"approx"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Engine required: <span style="color: #0000BB;">"internal"</span></span>
 <span class="r-in"><span><span class="fu">synth_spec</span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"development"</span>, n <span class="op">=</span> <span class="fl">200</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span></span>
@@ -211,7 +211,7 @@ pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Free text strategy: <span style="color: #0000BB;">"redact"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve correlations: <span style="color: #0000BB;">"high"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve missingness: <span style="color: #0000BB;">"approx"</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Engine required: <span style="color: #0000BB;">"hifi"</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Engine required: <span style="color: #0000BB;">"synthpop"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> Risk acknowledged by user</span>
 </code></pre></div>
     </div>

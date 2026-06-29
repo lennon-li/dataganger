@@ -74,11 +74,11 @@
 <div class="section level2">
 <h2 id="want-ai-to-prototype-on-your-data--without-handing-over-the-real-thing">Want AI to prototype on your data — without handing over the real thing?<a class="anchor" aria-label="anchor" href="#want-ai-to-prototype-on-your-data--without-handing-over-the-real-thing"></a>
 </h2>
-<p>DataGangeR turns sensitive datasets into safe, synthetic stand-ins. Your AI assistant prototypes at full speed; the real people in your data never leave the building.</p>
+<p>DataGangeR turns sensitive datasets into synthetic stand-ins that reduce direct disclosure risk. Your AI assistant prototypes at full speed while the real people in your data stay out of the shared bundle.</p>
 <ul>
 <li>🤖 <strong>Harness AI, keep your privacy</strong> — feed agents realistic synthetic data via a built-in CLI, not your production records.</li>
-<li>🧭 <strong>Human in control</strong> — a guided UI lets you decide what’s identifying, sensitive, or safe, column by column.</li>
-<li>⚙️ <strong>Real synthesis</strong> — synthpop + k-anonymity: faithful enough to build on, private by design.</li>
+<li>🧭 <strong>Human in control</strong> — a guided UI lets you decide what’s identifying, sensitive, or not sensitive, column by column.</li>
+<li>⚙️ <strong>Real synthesis</strong> — synthpop + k-anonymity: faithful enough to build on, with disclosure controls you can inspect and review.</li>
 <li>🔁 <strong>Reproducible &amp; human-gated</strong> — every export is a one-click bundle with an R script to regenerate the exact result.</li>
 </ul>
 <p>Prototype with AI. Protect your data. Both.</p>
@@ -129,7 +129,7 @@
 <li>
 <code>development</code> <em>(the default)</em> — balanced protection for prototyping and app development</li>
 <li>
-<code>demo</code> — strongest protection, best for teaching and low-risk sharing</li>
+<code>demo</code> — strongest protection, best for teaching and reviewed external sharing</li>
 <li>
 <code>analytics</code> — highest fidelity, with more emphasis on preserving relationships</li>
 </ul>
@@ -172,9 +172,10 @@
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="ex">dataganger</span> spec <span class="at">--purpose</span> development <span class="at">--out</span> spec.yaml</span>
 <span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a></span>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co"># Edit spec.yaml if needed: set seed, engine/name_strategy overrides,</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co"># and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co"># acknowledge_risk: true for analytics, and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co"># disclosure_roles is the compatibility YAML form; the app uses identifies + sensitive as the primary model.</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
 <p>Then unzip the full bundle and render the included notebook against the real input file to reproduce and review the same-seed result:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">unzip</span> dataganger_bundle.zip <span class="at">-d</span> dataganger_bundle</span>
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">quarto</span> render dataganger_bundle/analysis.qmd <span class="dt">\</span></span>
@@ -186,7 +187,7 @@
 <div class="section level2">
 <h2 id="synthesis-engines">Synthesis engines<a class="anchor" aria-label="anchor" href="#synthesis-engines"></a>
 </h2>
-<p>DataGangeR uses two synthesis engines. By default the engine is chosen automatically by your objective: lower-fidelity objectives use a dependency-free internal marginal engine, while the <strong>analytics</strong> purpose - and any high-fidelity setting, where preserving relationships between variables matters - uses the synthpop package (Nowok, Raab &amp; Dibben, 2016). In the Shiny app you can also choose the engine explicitly (auto, internal, or synthpop). Install it with <code>install.packages("synthpop")</code> to enable relationship-preserving synthesis at full fidelity.</p>
+<p>DataGangeR uses two synthesis engines. By default the engine is chosen automatically by your objective: <code>demo</code> uses the dependency-free internal marginal engine by default, <code>development</code> requests moderate relationship preservation and therefore routes to <code>synthpop</code> when it is installed (otherwise falling back to the internal engine with a warning), and <code>analytics</code> is the high-fidelity path that requires explicit risk acknowledgement. In the Shiny app and CLI spec you can also choose the engine explicitly (<code>auto</code>, <code>internal</code>, or <code>synthpop</code>). Install it with <code>install.packages("synthpop")</code> to enable relationship-preserving synthesis when requested.</p>
 <p>Please cite synthpop when you use that engine:</p>
 <p>Nowok B, Raab GM, Dibben C (2016). “synthpop: Bespoke Creation of Synthetic Data in R.” <em>Journal of Statistical Software</em>, 74(11), 1-26. <a href="doi:10.18637/jss.v074.i11" class="uri">doi:10.18637/jss.v074.i11</a></p>
 </div>

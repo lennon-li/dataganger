@@ -31,7 +31,8 @@ privacy_check(
 
   Optional; a `dataganger_roles` object from
   [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md).
-  Required for pre-stage flag detection.
+  Recommended for pre-stage flag detection. When omitted, fallback
+  name/type heuristics are used.
 
 - stage:
 
