@@ -873,7 +873,11 @@ test_that("no network primitives in package source", {
 })
 ```
   (Adjust the path resolution to the test working dir; exclude false positives like the word
-  "curl" in comments if needed.)
+  "curl" in comments if needed.) **Whitelist the one audited exception:** `report_issue()` uses
+  `utils::browseURL()` to open the user's browser at a prefilled GitHub issue (no dataset
+  content, user-initiated) — the regex is case-sensitive so it does not match `browseURL(` /
+  `URLencode(`; keep it that way, or explicitly exclude `R/report_issue.R`. Document the
+  exception in the test comment so it is a conscious allow, not an oversight.
 - [ ] **Step 3 — Offline CI job (secondary proof).** Add a CI job `no-network` on a Linux
   runner that runs the suite under a network-less namespace:
   `unshare -rn Rscript -e 'Sys.setenv(NOT_CRAN="true"); testthat::test_local(".")'`. This is

@@ -1,0 +1,123 @@
+# DataGangeR — package spine & trust architecture
+
+Canonical statement of what the package *is* and the guarantees it makes. Source of truth for
+the user-facing manual/vignette (Phase 5). Last updated 2026-06-29.
+
+Status markers: **[NOW]** = true in the current codebase; **[PLANNED]** = designed, tracked in
+`dev/plans/2026-06-29-guardrail-comparison-agent-skill-implementation.md`, not yet implemented.
+
+---
+
+## 1. The spine (one promise)
+
+**As a human, you decide the privacy rules once. Then you either hand the AI safe synthetic
+data, or hand the AI the package plus your saved rules so it generates safe data itself — the
+AI never touches the real data, and nothing ever leaves your machine.**
+
+### Two usage paths
+- **Path A — data hand-off:** human gates privacy in the UI -> generates a synthetic bundle ->
+  gives the *bundle* to the AI. The AI gets safe data, nothing else.
+- **Path B — delegated generation:** human gates privacy -> saves the config (`spec.yaml` +
+  `roles.yaml` + seed) -> the AI runs the package/CLI with that config to generate synthetic
+  data (and variations) itself, reproducing the human's exact decisions. The AI calls the
+  package but is structurally barred from reading the real data. **[NOW]** parity (CLI
+  `--roles`) + the agents-only `SKILL.md` ("You are not allowed to read the original data") ship
+  this; the first agent step is to reproduce the UI's CSV byte-for-byte before doing anything.
+
+### The privacy gating ladder (UI), mapped to the 3 disclosure-control categories
+1. Entry gate — disclaimer + attest "no direct identifiers"; refuse -> shutdown. => **direct
+   identifiers** **[PLANNED]**
+2. Upload **[PLANNED order change: upload-first]**
+3. Soft fail-safe (early) — scan; flag suspected direct identifiers -> drop / confirm / abort.
+   => safety net for direct identifiers **[PLANNED]**
+4. Objective preset **[NOW]**
+5. Configure, two questions per column — Q1 "could this, combined with others, single out a
+   person?" (none/combination) => **quasi-identifiers**; Q2 "is this sensitive?" => **sensitive
+   attributes**. Hard gate until every column is answered. **[NOW]** (two-axis model + gate)
+6. Synthesis enforcement — k-anonymity on quasi-identifiers, treatment of sensitive cols,
+   drops. **[NOW]**
+7. Compare + privacy report — fidelity + disclosure metrics. **[NOW]** (inference-aware stats
+   shipped this cycle)
+8. Export — synthetic bundle (Path A) and/or saved config (Path B). **[NOW]**
+
+What the two questions reinforce: after attesting no direct identifiers, Q1 reinforces
+*linkage* risk (combinations re-identify) and Q2 reinforces that *harm != identification*
+(sensitivity is independent). The attestation handles the obvious category; the two questions
+carry the two subtler ones, so the user does not falsely feel "done" after removing names.
+
+---
+
+## 2. What prevents internet usage (the no-network guarantee)
+
+Goal: **the package never accesses the internet — whether the internet is on or off.** Turning
+wi-fi off only proves offline operation; it does not disprove phoning-home when connected. The
+real guarantee rests on two structural locks plus auditable proofs.
+
+### Two structural locks
+- **No network code (can't send).** The package's own code makes no outbound calls — no
+  `url()`, `download.file()`, `socketConnection()`, `httr`/`curl`/`RCurl`, no sockets. **[NOW]**
+  for the core data path (profile / detect_roles / synthesize_data / compare_synthetic /
+  privacy_check / export_synthetic / CLI). The Shiny app serves only on localhost.
+  - **One audited exception:** `report_issue()` (the "Report a problem" button) calls
+    `utils::browseURL()` to open the **user's own browser** at a prefilled GitHub issue form. The
+    package transmits nothing itself; the browser navigates, and only if the user submits. The
+    URL contains **only** package version / R version / platform / OS + the user's typed message
+    — it explicitly instructs "never include dataset content, column names, file paths, or
+    values," and no dataset content is ever placed in it. This is user-initiated and not part of
+    any data path. The Phase 6 source-grep guard whitelists `browseURL`; the runtime trap test
+    exercises the data pipeline (which never calls `report_issue`).
+- **Nothing is persisted (nothing to send later).** Real data is read into memory only; the app
+  writes nothing to disk except the synthetic bundle the user chooses to export. When the app
+  closes, the in-memory data is gone — so "internet comes back on later" has nothing to send.
+  **[NOW]**
+
+Together these defeat the "internet returns -> it uploads" argument: there is no code to send,
+and no retained data to be sent.
+
+### The one current outbound request (being removed)
+- The Shiny UI `@import`s web fonts from the Google Fonts CDN
+  (`inst/app/www/colors_and_type.css`). This is a browser-side style request, not the R package
+  sending data — but it is the only thing that reaches the network. **[PLANNED]** Phase 6
+  self-hosts the fonts (`inst/app/www/fonts/`) and removes the CDN import, after which the app
+  has **zero** external requests.
+
+### Honest "we don't read" framing
+The package *must* read the file into memory to detect identifiers — you cannot catch what you
+do not scan. The truthful claim is therefore: **"we scan locally to find and drop direct
+identifiers; we never upload; we never keep."** Not "we don't read direct identifiers" (false).
+
+### Proofs (strongest first) — **[PLANNED]** Phase 6
+1. **Runtime trap test.** Stub the base network primitives (`url`, `download.file`,
+   `socketConnection`, + curl/httr) so any call errors, then run the full pipeline + app
+   construction. Completion = zero network attempts. Internet-state-independent; also catches a
+   dependency trying to phone home (they go through the same primitives). Runs in CI.
+2. **Source-grep guard.** A test that fails the build if any network symbol appears in `R/`.
+   Makes "no network code" an enforced, ongoing invariant.
+3. **Open source / auditable.** It is on CRAN and on GitHub: don't trust — read the code and run
+   the trap test yourself. (No closed binary can offer this.)
+4. **Offline CI job.** `unshare -rn Rscript -e 'testthat::test_local(".")'` on a Linux runner —
+   platform-independent proof the source opens no connections (covers Windows/macOS, same code).
+5. **Live egress monitor with internet ON** (for users who will not disconnect): watch the R
+   process — Windows Resource Monitor / Process Monitor / Wireshark; Linux `strace`/`ss` — and
+   observe zero connections during a full run.
+
+### Demonstrating it per OS (optional extra; guarantee is the same code everywhere)
+- Any OS: disconnect wi-fi, run `dataganger::run_app()`, complete the workflow.
+- Linux: `unshare -rn Rscript -e 'dataganger::run_app()'`.
+- Windows: disable adapter / Airplane mode; or a Defender Firewall outbound-block rule on
+  `Rscript.exe`/`R.exe`; or Windows Sandbox with `<Networking>Disable</Networking>`.
+- macOS: turn off wi-fi, or a `pf` block rule.
+
+---
+
+## 3. Summary table
+
+| Property | Mechanism | Status |
+|---|---|---|
+| Human sets rules once | entry gate + two-axis Configure | [NOW] (gate [PLANNED]) |
+| AI never reads real data | Path B: `--roles` parity + agent SKILL.md | [NOW] |
+| AI gets only safe data | Path A: synthetic bundle export | [NOW] |
+| No network code | no network primitives in source | [NOW] core; guard [PLANNED] |
+| Nothing persisted | in-memory only; export is opt-in | [NOW] |
+| No external requests at all | self-host fonts (remove CDN) | [PLANNED] Phase 6 |
+| Provable no-internet | runtime trap test + source guard + offline CI | [PLANNED] Phase 6 |
