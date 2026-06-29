@@ -274,7 +274,10 @@ cli_cmd_synthesize <- function(args) {
     privacy = pre_privacy,
     name_strategy = spec$name_strategy,
     seed = spec$seed,
-    engine = spec$engine,
+    # Exact match: `spec$engine` would partial-match `engine_required` and force
+    # the internal engine, defeating objective-derived synthpop routing. Only a
+    # user-set engine (YAML `engine:` / `--engine`) should be passed through.
+    engine = spec[["engine", exact = TRUE]],
     acknowledge_risk = isTRUE(spec$acknowledged_risk),
     preserve_correlations = spec$preserve_correlations,
     coarsen_dates = spec$coarsen_dates,

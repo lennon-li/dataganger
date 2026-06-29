@@ -175,7 +175,7 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 04 \u00b7 Synthesis Spec"),
+        shiny::tags$span(class = "eyebrow", "Step 03 \u00b7 Synthesis Spec"),
         shiny::tags$h1("Configure synthesis"),
         shiny::tags$p(
           class = "subtitle",

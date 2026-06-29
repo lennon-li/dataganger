@@ -1046,6 +1046,9 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     pass_through_rows$recommended_role %in% "free text",
     na.rm = TRUE
   )
+  # The comparison report is the only bundle artifact that embeds plots
+  # (distribution charts). Reflect its actual presence rather than hard-coding.
+  plots_included <- any(basename(files) == "comparison_report.html")
 
   manifest <- list(
     dataganger_version = as.character(utils::packageVersion("dataganger")),
@@ -1069,7 +1072,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     raw_rows_included       = raw_rows_included,
     free_text_included      = free_text_included,
     ids_included            = ids_included,
-    plots_included          = FALSE,
+    plots_included          = plots_included,
     original_names_included = isTRUE(include_original_names),
     factor_levels_included  = isTRUE(spec$level %in% c("marginal", "hifi")),
     numeric_ranges_included = FALSE,

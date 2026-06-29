@@ -4,6 +4,7 @@ test_that("age as combination survives the full pipeline without crashing", {
   df <- example_health_survey
   r <- detect_roles(df)
   r$identifies[r$variable %in% c("age", "sex", "province")] <- "combination"
+  r$identifies[r$variable == "smoking_status"] <- "none"
   r$sensitive[r$variable == "smoking_status"] <- TRUE
   r <- dg_sync_roles_axes(r)
 

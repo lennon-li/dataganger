@@ -1,5 +1,5 @@
 make_manifest_for_test <- function(purpose = "development", seed = 42L,
-                                    n = 10L) {
+                                    n = 10L, include_report = TRUE) {
   df <- data.frame(
     id    = seq_len(n),
     score = rnorm(n),
@@ -11,7 +11,8 @@ make_manifest_for_test <- function(purpose = "development", seed = 42L,
 
   spec      <- synth_spec(purpose = purpose, seed = seed)
   synthetic <- synthesize_data(df, spec)
-  export_synthetic(synthetic, original = df, path = out, format = "zip")
+  export_synthetic(synthetic, original = df, path = out, format = "zip",
+                   include_report = include_report)
 
   extract_dir <- file.path(tmp, "extracted")
   dir.create(extract_dir)
@@ -50,9 +51,16 @@ test_that("manifest.json ids_included is always false", {
   expect_false(isTRUE(m$ids_included))
 })
 
-test_that("manifest.json plots_included is always false", {
-  m <- make_manifest_for_test()
+test_that("manifest.json plots_included is false when no report is written", {
+  m <- make_manifest_for_test(include_report = FALSE)
   expect_false(isTRUE(m$plots_included))
+})
+
+test_that("manifest.json plots_included is true when the comparison report is written", {
+  skip_if_not_installed("rmarkdown")
+  skip_if_not_installed("knitr")
+  m <- make_manifest_for_test(include_report = TRUE)
+  expect_true(isTRUE(m$plots_included))
 })
 
 test_that("manifest.json factor_levels_included is true for marginal synthesis", {
