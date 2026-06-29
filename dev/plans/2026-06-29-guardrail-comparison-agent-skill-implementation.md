@@ -568,10 +568,21 @@ git add inst/app/app.R R/mod-state.R tests/testthat/test-app-gate.R
 git commit -m "feat(app): entry attestation gate + disclaimer; shutdown on refuse"
 ```
 
-### Task 3.4: soft detection fail-safe before Generate
+### Task 3.4: soft detection fail-safe — EARLY (right after upload, before objective + configure)
+
+REORDERED 2026-06-29 (Lennon): run the fail-safe **immediately after upload**, before the
+objective and the two questions — so suspected direct identifiers are caught/dropped before any
+other work (trust-first). This also makes **upload the first step** (today Objective is first);
+move the objective step to after upload + fail-safe. By the time the user reaches Configure,
+suspected direct identifiers are already handled, so Q1 = none/combination is consistent.
 
 **Files:**
-- Modify: the Configure->Generate confirm path (`R/mod-roles.R` confirm observer and/or `inst/app/app.R` navigation) to, on confirm, call `suspected_direct_identifiers(state$roles)`; if non-empty, show a modal listing `variable: reason` and offer **Confirm (proceed)**, **Drop these columns** (set their action/simulation to `drop`), **Abort** (stay on Configure). No shutdown.
+- Modify: the upload-completion path so that as soon as data is uploaded and roles are detected,
+  `suspected_direct_identifiers(roles)` runs; if non-empty, show a modal listing
+  `variable: reason` and offer **Drop these columns** (set action/simulation to `drop`),
+  **Confirm (keep & proceed)**, **Abort** (clear the upload). No shutdown.
+- Modify: `inst/app/app.R` navigation so the order is upload -> fail-safe -> objective ->
+  configure; relocate the objective panel/nav accordingly.
 
 - [ ] **Step 1: testServer assertion** in `test-mod-roles.R`: with roles containing a column flagged by `suspected_direct_identifiers`, confirm does not advance until the user picks an option; "drop" sets those columns' `simulation`/action to `drop`; "abort" leaves state unchanged.
 
@@ -794,6 +805,61 @@ git commit -m "docs: privacy-gating + AI-workflow vignette (trust story)"
 > Note for Phase 3: bake the brief's **Q1/Q2 framing copy** (Configure lead-in + the two
 > question prompts) directly into the Configure UI when implementing Tasks 3.2-3.4, so the UI
 > and the vignette tell the same story.
+
+---
+
+## Phase 6 — Offline / self-contained (provably no internet)
+
+**Spec:** See design brief section 0 ("Offline / self-contained trust feature"). The app must
+need zero internet, and we must be able to demonstrate it. The only outbound request today is
+the Google Fonts CDN `@import`.
+
+**File structure:**
+- Add `inst/app/www/fonts/` with the three font families (Instrument Serif, Inter, JetBrains
+  Mono) as self-hosted woff2 + a `fonts.css` with `@font-face` rules.
+- Modify `inst/app/www/colors_and_type.css` — remove the CDN `@import`; reference local fonts.
+- Add `tests/testthat/test-no-network.R` (or a CI job) proving the pipeline runs offline.
+
+### Task 6.1: vendor fonts locally
+- [ ] **Step 1:** Download the woff2 files for the three families (license: SIL OFL / fonts are
+  redistributable; include their license files under `inst/app/www/fonts/`). Add `@font-face`
+  rules in `inst/app/www/fonts/fonts.css`.
+- [ ] **Step 2:** In `inst/app/www/colors_and_type.css`, remove the
+  `@import url("https://fonts.googleapis.com/...")` line; add `@import url("fonts/fonts.css")`
+  (or link fonts.css from the app head).
+- [ ] **Step 3:** Verify no remaining external refs:
+  `grep -rinE "https?://|googleapis|gstatic|cdn" inst/app/` returns nothing (except comments).
+- [ ] **Step 4:** Commit: `feat(app): self-host fonts; remove Google Fonts CDN (offline-ready)`.
+
+### Task 6.2: prove offline operation
+- [ ] **Step 1:** Add `tests/testthat/test-no-network.R` that runs the core pipeline
+  (`profile_data` -> `detect_roles` -> `synthesize_data` -> `export_synthetic`) on a tiny frame
+  and asserts success. (This pipeline already makes no network calls; the test documents/locks
+  that.)
+- [ ] **Step 2:** Add a CI job `offline-check` that runs the full test suite (or at least the
+  app render + pipeline) under no network. On Linux runners: wrap the R invocation in
+  `unshare -rn` (network namespace with no interfaces) or disable networking, e.g.
+  `unshare -rn Rscript -e 'Sys.setenv(NOT_CRAN="true"); testthat::test_local(".")'`. The job
+  passing is the provable "works with the internet off" claim.
+- [ ] **Step 3:** Document a user-facing offline check in the privacy vignette (Phase 5),
+  per-OS (the guarantee is identical everywhere — same code, no network calls once fonts are
+  local — only the demo mechanism differs):
+  - **Any OS, simplest:** disconnect wi-fi / pull the network, run `dataganger::run_app()`,
+    complete the workflow. It works.
+  - **Linux:** `unshare -rn Rscript -e 'dataganger::run_app()'` (network namespace with no
+    interfaces — physically cannot reach the network).
+  - **Windows:** (a) disable the network adapter / "Airplane mode" then run; (b) a Windows
+    Defender Firewall *outbound block* rule on `Rscript.exe`/`R.exe` then run; (c) **Windows
+    Sandbox** (disposable VM) launched with `<Networking>Disable</Networking>` in the .wsb
+    config for a clean-room demo. Document (a) as the easy path.
+  - **macOS:** turn off wi-fi, or `Network Link Conditioner` / a `pf` block rule.
+  Note: the **authoritative proof is the Linux no-network CI job** — it proves the *source*
+  makes no outbound connections, which is platform-independent. The per-OS steps above are for
+  users to reproduce trust locally, not additional proofs.
+- [ ] **Step 4:** Gate + commit: `test(ci): offline (no-network) job proving zero internet dependency`.
+
+> Cross-link: the Phase 5 vignette should state the offline guarantee and cite the no-network
+> CI job as the proof.
 
 ---
 

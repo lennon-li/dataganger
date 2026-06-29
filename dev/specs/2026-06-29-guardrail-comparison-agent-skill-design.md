@@ -28,17 +28,45 @@ itself — the AI never touches the real data either way."**
   parity + Phase 4 agent skill.)
 
 ### The privacy gating ladder (UI, step by step) mapped to the 3 SDC categories
+REORDERED 2026-06-29 (Lennon): the soft fail-safe runs **early — right after upload, before
+objective + the two questions** — so suspected direct identifiers are caught and dropped
+*before* any other work. This makes upload the first real step (today Objective is first).
 1. **Entry gate** — disclaimer (local / in-memory / not kept / at-own-risk) + attest "no
    direct identifiers"; refuse -> shutdown.  => **direct identifiers**
-2. **Configure, two questions per column** — Q1 "could this, combined with others, single out
+2. **Upload** — user provides the file.
+3. **Soft detection fail-safe (EARLY)** — immediately scan; if the detector flags suspected
+   direct identifiers, surface them with reasons -> drop / confirm / abort. Catches identifiers
+   before objective/configure. Heuristic, assistive (defense-in-depth with the attestation).
+4. **Objective** — purpose preset (demo / development / analytics).
+5. **Configure, two questions per column** — Q1 "could this, combined with others, single out
    a person?" (none/combination) => **quasi-identifiers**; Q2 "is this sensitive?" =>
-   **sensitive attributes**. Hard gate: cannot proceed until every column is answered.
-3. **Soft detection fail-safe** — detector flags suspected identifiers despite the attestation
-   -> "are you sure?" -> drop / confirm / abort.
-4. **Synthesis enforcement** — k-anonymity on quasi-identifiers, treatment of sensitive
+   **sensitive attributes**. Hard gate: cannot proceed until every column is answered. (Because
+   step 3 already dropped suspected direct identifiers, Q1 has no `direct` option — consistent.)
+6. **Synthesis enforcement** — k-anonymity on quasi-identifiers, treatment of sensitive
    columns, drops.
-5. **Compare + privacy report** — fidelity + disclosure metrics => verification.
-6. **Export** — synthetic bundle (Path A) and/or saved config (Path B).
+7. **Compare + privacy report** — fidelity + disclosure metrics => verification.
+8. **Export** — synthetic bundle (Path A) and/or saved config (Path B).
+
+### Honest "read" framing (truthful claim)
+The package MUST read the file into memory to detect identifiers — you cannot catch what you do
+not scan. So the defensible, demonstrable claim is **"we scan locally to find and drop direct
+identifiers; we never upload; we never keep"** — NOT "we don't read direct identifiers" (which
+would be literally false). Scan-in-memory + drop-early + nothing-leaves-the-machine is both true
+and a stronger trust statement.
+
+### Offline / self-contained trust feature (DECIDED to pursue; own phase)
+Goal: the app needs **zero internet** and we can *demonstrate* it.
+- **Only outbound request today:** `inst/app/www/colors_and_type.css:7` `@import`s Google Fonts
+  from a CDN. The package core (profile/detect/synthesize/export) makes no network calls.
+- **Make it self-contained:** vendor the fonts into `inst/app/www/fonts/` and replace the CDN
+  `@import` with local `@font-face`. Then the app has no external requests.
+- **Prove it (not just claim it):**
+  - Linux no-network run: `unshare -rn Rscript -e 'dataganger::run_app()'` — physically
+    network-less, still works.
+  - A CI job that runs the full pipeline with networking disabled -> provable, repeatable
+    "works with the internet off".
+  - User-facing demo: turn off wi-fi, run `run_app()`, complete the workflow.
+- Tracked as Phase 6 in the plan. Feasible; the font CDN is the only blocker.
 
 ### Q1 / Q2 framing (what the two questions reinforce, after attestation)
 The entry attestation handles the *obvious* category (direct identifiers); the two questions
