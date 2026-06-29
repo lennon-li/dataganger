@@ -749,6 +749,54 @@ git commit -m "feat(cli): `dataganger skill` emits the agent skill; README point
 
 ---
 
+## Phase 5 — Manual / vignette: privacy gating + how to use with AI (trust story)
+
+**Spec:** See design brief section 0 ("Coherent package story"). A plain-language doc that
+explains the gating ladder and the two usage paths, to build user trust. Do this LAST, after
+Phases 1-4 land, so the doc describes shipped behavior.
+
+**File structure:**
+- Create `vignettes/privacy-and-ai-workflow.Rmd` (a new vignette) — or extend the existing
+  getting-started vignette if the maintainer prefers one doc. Also add a short "How privacy
+  gating works" section to `README.md` linking to the vignette, and surface it on pkgdown
+  (`_pkgdown.yml` articles).
+- Modify `_pkgdown.yml` (add the new article).
+
+### Task 5.1: write the vignette
+- [ ] **Step 1:** Create `vignettes/privacy-and-ai-workflow.Rmd` with the standard vignette
+  YAML header (`%\VignetteIndexEntry{Privacy gating and AI workflows}`,
+  `%\VignetteEngine{knitr::rmarkdown}`, `output: rmarkdown::html_vignette`). Content sections:
+  1. **The promise** — the one-line spine: you set the rules once; the AI only ever gets safe
+     data or a reproducible recipe; nothing leaves your machine.
+  2. **The privacy gating ladder** — the 6 steps from brief section 0, each with *why it
+     exists* (entry attestation = direct identifiers; Q1 = quasi-identifiers / linkage; Q2 =
+     sensitive attributes; soft fail-safe; synthesis enforcement; compare + privacy report).
+     Include the Q1/Q2 framing copy verbatim.
+  3. **What the two questions reinforce** — after attesting no direct identifiers, Q1 reinforces
+     linkage/combination risk, Q2 reinforces that harm != identification. Map to the 3 SDC
+     categories.
+  4. **Two ways to use it with AI** — Path A (hand off the synthetic bundle) and Path B (save
+     `spec.yaml` + `roles.yaml` + seed; AI runs the package/CLI to reproduce + vary, never
+     reading the real data). Reference `dataganger skill`.
+  5. **Trust + limits** — local/in-memory/not-kept; human in control; AI structurally barred
+     from real data; honest framing (reduces direct disclosure risk, not a guarantee).
+- [ ] **Step 2:** Build it: `Rscript -e 'devtools::build_vignettes()'` — expect no errors.
+- [ ] **Step 3:** Add the article to `_pkgdown.yml` and a README "How privacy gating works"
+  paragraph linking to it.
+- [ ] **Step 4:** Spelling: `Rscript -e 'spelling::spell_check_package(".")'` clean (add words
+  to `inst/WORDLIST` as needed).
+- [ ] **Step 5:** Commit:
+```bash
+git add vignettes/privacy-and-ai-workflow.Rmd _pkgdown.yml README.md inst/WORDLIST
+git commit -m "docs: privacy-gating + AI-workflow vignette (trust story)"
+```
+
+> Note for Phase 3: bake the brief's **Q1/Q2 framing copy** (Configure lead-in + the two
+> question prompts) directly into the Configure UI when implementing Tasks 3.2-3.4, so the UI
+> and the vignette tell the same story.
+
+---
+
 ## Version + release note
 - [ ] Bump `DESCRIPTION` Version (e.g. 0.4.0 -> 0.5.0) and add a consolidated `NEWS.md` heading once all phases land. (Maintainer decides the number.)
 

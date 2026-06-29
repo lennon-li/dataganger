@@ -12,6 +12,56 @@ Builds on the existing two-axis model (`identifies` + `sensitive`) — see
 
 ---
 
+## 0. Coherent package story (the spine — drives manual + UI copy)
+
+**"As a human, you decide the privacy rules once. Then you either hand the AI safe
+synthetic data, or hand the AI the package plus your saved rules so it generates safe data
+itself — the AI never touches the real data either way."**
+
+### Two usage paths (after the human gating)
+- **Path A — data hand-off:** human gates privacy in the UI -> generates a synthetic bundle
+  -> gives the *bundle* to the AI. AI gets safe data, nothing else.
+- **Path B — delegated generation:** human gates privacy -> *saves the config*
+  (`spec.yaml` + `roles.yaml` + seed) -> AI runs the package/CLI with that config to generate
+  synthetic data (and variations) itself, reproducing the human's exact decisions. AI calls
+  the package but is structurally barred from reading the real data. (Enabled by Phase 2
+  parity + Phase 4 agent skill.)
+
+### The privacy gating ladder (UI, step by step) mapped to the 3 SDC categories
+1. **Entry gate** — disclaimer (local / in-memory / not kept / at-own-risk) + attest "no
+   direct identifiers"; refuse -> shutdown.  => **direct identifiers**
+2. **Configure, two questions per column** — Q1 "could this, combined with others, single out
+   a person?" (none/combination) => **quasi-identifiers**; Q2 "is this sensitive?" =>
+   **sensitive attributes**. Hard gate: cannot proceed until every column is answered.
+3. **Soft detection fail-safe** — detector flags suspected identifiers despite the attestation
+   -> "are you sure?" -> drop / confirm / abort.
+4. **Synthesis enforcement** — k-anonymity on quasi-identifiers, treatment of sensitive
+   columns, drops.
+5. **Compare + privacy report** — fidelity + disclosure metrics => verification.
+6. **Export** — synthetic bundle (Path A) and/or saved config (Path B).
+
+### Q1 / Q2 framing (what the two questions reinforce, after attestation)
+The entry attestation handles the *obvious* category (direct identifiers); the two questions
+carry the two *subtler* ones, so the user does not falsely feel "done" after removing names:
+- **Q1 reinforces linkage risk** (quasi-identifier): removing names is not enough; combinations
+  re-identify. With `direct` ruled out by the attestation, the only identifiability question
+  left is combination.
+- **Q2 reinforces that harm != identification** (sensitive attribute): a non-identifying column
+  can still be sensitive; sensitivity is an independent axis the attestation says nothing about.
+
+**UI copy to bake in (Configure lead-in + the two questions):**
+> "You've confirmed there are no direct identifiers. Two risks remain for each column:"
+> - Q1: "Could this column, combined with others, help single out a person?"
+> - Q2: "Is this column sensitive — would it be harmful if revealed?"
+
+### Manual / vignette requirement (build user trust)
+Add a manual/vignette section that explains this gating ladder and the two usage paths in
+plain language, emphasizing: nothing leaves the machine; the human is in control; the AI is
+structurally prevented from touching real data (it only ever gets safe data or a reproducible
+recipe). This is a documentation deliverable, tracked as Phase 5 in the plan.
+
+---
+
 ## 1. Direct-identifier guardrail + fail-safe  (DECIDED)
 
 ### Intent
