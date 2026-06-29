@@ -1,3 +1,32 @@
+# dataganger 0.5.0
+
+Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarantee.
+
+*   Comparison stats are now inference-aware for numeric variables: the Compare
+    view shows mean SMD, SD ratio, and median standardized difference, each
+    coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.
+*   UI export bundles now include `spec.yaml` and `roles.yaml`, and CLI
+    `synthesize --roles` can reuse the full role matrix so UI and CLI runs
+    reproduce byte-identical output with the same seed.
+*   The app now opens with a hard no-direct-identifiers attestation gate, then
+    runs an early assistive fail-safe immediately after upload to flag possible
+    direct identifiers before Objective / Configure. Once attested, Configure's
+    first question collapses to `none` / `combination`. The two questions are
+    framed as the remaining risks after direct identifiers: linkage (combination)
+    and sensitivity.
+*   Added an agents-only packaged `SKILL.md` plus `dataganger skill [--out <file>]`
+    so an AI can drive the package to generate synthetic data without ever
+    reading the real data; fixed `ai-readme.md` so dropped columns are not listed
+    as `NA (NA)`.
+*   No-network guarantee: web fonts are now self-hosted (no Google Fonts CDN), so
+    the app makes no external requests; `report_issue()` prints a copy-paste
+    GitHub issue instead of opening a browser (the Shiny button shows a copyable
+    modal). A shipped runtime trap test and source guard prove the package makes
+    no network calls, and a Linux `unshare -rn` CI job runs the suite with no
+    network at all.
+*   New `vignette("privacy-and-ai-workflow")` documents the privacy gating ladder,
+    the two ways to use the package with AI, and the no-network guarantee.
+
 # dataganger 0.4.0
 
 Configure redesign around two intrinsic privacy questions.
@@ -25,19 +54,6 @@ Configure redesign around two intrinsic privacy questions.
     variable at a time while reviewing the Configure step.
 *   `export_synthetic(compact = )` supports two bundle variants: the compact app
     download and the full CLI / agent bundle.
-*   Comparison stats are now inference-aware for numeric variables: the Compare
-    view shows mean SMD, SD ratio, and median standardized difference, each
-    coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.
-*   UI export bundles now include `spec.yaml` and `roles.yaml`, and CLI
-    `synthesize --roles` can reuse the full role matrix so UI and CLI runs
-    reproduce byte-identical output with the same seed.
-*   The app now opens with a hard no-direct-identifiers attestation gate, then
-    runs an early assistive fail-safe immediately after upload to flag possible
-    direct identifiers before Objective / Configure. Once attested, Configure's
-    first question collapses to `none` / `combination`.
-*   Added an agents-only packaged `SKILL.md` plus `dataganger skill [--out <file>]`, and fixed `ai-readme.md` so dropped columns are not listed as `NA (NA)` in the Variables section.
-*   Report a problem now stays in-app: `report_issue()` prints a copy-paste GitHub issue instead of opening a browser, the Shiny button shows a copyable modal, and CI now includes a Linux `unshare -rn` no-network proof job.
-
 # dataganger 0.3.5
 
 Generation, comparison, and export clarity pass:
