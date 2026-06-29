@@ -110,6 +110,32 @@ identifiers; we never upload; we never keep."** Not "we don't read direct identi
 
 ---
 
+## 2b. Supply-chain / anti-backdoor defenses (open-source risk)
+
+Open source is also a *risk*: a malicious contributor (or compromised maintainer account, or a
+poisoned dependency) could add silent data-stealing code after the project earns trust (cf.
+xz-utils, event-stream). You cannot make this impossible, but you can make silent theft
+**break an automated test anyone can run**. Key insight: **the no-network machinery (section 2)
+IS the anti-backdoor defense** — exfiltration needs a channel, and every channel is watched.
+
+- **Every exfiltration path is caught:** network code -> source-grep guard (build) + runtime
+  trap (test); `system()`/shell-out to `curl` -> the **offline CI namespace** (`unshare -rn`)
+  is *method-agnostic*: no network exists, so any attempt fails regardless of how it is written.
+  A backdoor that phones home **breaks CI**. **[PLANNED]** Phase 6.
+- **Hard to inject:** branch protection on `main` (no direct pushes; required review; signed
+  commits), 2FA on GitHub + CRAN, protected maintainer email. **[PLANNED ops]**
+- **Smaller surface:** minimal, pinned dependencies (attacks often arrive via a dependency
+  update; the runtime trap catches a dependency phoning home too). **[ongoing]**
+- **CRAN as a checkpoint:** users install reviewed, checked CRAN releases (tagged, checksummed),
+  not arbitrary GitHub commits. **[NOW]** (CRAN submission in progress)
+- **Point-of-use verification (strongest):** because the package is open source *and ships the
+  no-network self-test*, a user/IT can run the trap test against the exact installed version and
+  confirm it makes zero network calls — no need to trust the maintainer or supply chain. A
+  closed binary cannot offer this. **[PLANNED]** Phase 6 (ship the test).
+- **Honest limit:** a sophisticated backdoor in a transitive dependency, crafted to evade these
+  specific checks, could in theory slip through — no project is immune. But the layered posture
+  above means data theft cannot be *silent*: it must break a test someone can run.
+
 ## 3. Summary table
 
 | Property | Mechanism | Status |
