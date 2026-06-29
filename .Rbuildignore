@@ -21,3 +21,4 @@
 ^vignettes/articles$
 ^pkgdown$
 ^dev$
+^CRAN-SUBMISSION$

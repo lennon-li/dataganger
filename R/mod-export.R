@@ -12,7 +12,7 @@ mod_export_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 07 \u00b7 Export"),
+        shiny::tags$span(class = "eyebrow", "Step 06 \u00b7 Export"),
         shiny::tags$h1("Export your data"),
         shiny::tags$p(
           class = "subtitle",
