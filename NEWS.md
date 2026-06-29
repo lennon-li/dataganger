@@ -25,6 +25,9 @@ Configure redesign around two intrinsic privacy questions.
     variable at a time while reviewing the Configure step.
 *   `export_synthetic(compact = )` supports two bundle variants: the compact app
     download and the full CLI / agent bundle.
+*   Comparison stats are now inference-aware for numeric variables: the Compare
+    view shows mean SMD, SD ratio, and median standardized difference, each
+    coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.
 
 # dataganger 0.3.5
 

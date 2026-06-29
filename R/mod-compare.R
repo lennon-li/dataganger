@@ -55,6 +55,95 @@ mod_compare_ui <- function(id) {
   )
 }
 
+compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
+  if (is.null(num_cmp) || nrow(num_cmp) == 0L) {
+    return(shiny::tags$p(
+      style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin-top:8px;",
+      "No numeric comparison available."
+    ))
+  }
+
+  row <- num_cmp[1, , drop = FALSE]
+
+  fmt_val <- function(x) {
+    if (length(x) == 0L || is.na(x)) return("\u2014")
+    if (abs(x) >= 1000) formatC(x, format = "f", digits = 0, big.mark = ",")
+    else sprintf("%.2f", x)
+  }
+
+  fidelity_style <- function(band) {
+    switch(
+      band,
+      good = "display:inline-block; padding:2px 8px; border-radius:999px; background:var(--real-50); color:var(--real-700); border:1px solid var(--real-100);",
+      warn = "display:inline-block; padding:2px 8px; border-radius:999px; background:var(--risk-50); color:var(--risk-700); border:1px solid #F2B36A;",
+      bad = "display:inline-block; padding:2px 8px; border-radius:999px; background:var(--risk-50); color:var(--risk-500); border:1px solid var(--risk-500);",
+      "display:inline-block; padding:2px 8px; border-radius:999px; background:var(--paper-200); color:var(--fg-muted); border:1px solid var(--paper-200);"
+    )
+  }
+
+  effect_cell <- function(value, p, label, infer = TRUE) {
+    band <- if (infer) fidelity_color(p) else "none"
+    shiny::tags$span(
+      class = paste("fidelity-band", paste0("fidelity-", band)),
+      style = fidelity_style(band),
+      title = if (infer && !is.na(p)) sprintf("%s p = %.3g", label, p) else label,
+      fmt_val(value)
+    )
+  }
+
+  min_orig <- if ("min_orig" %in% names(row)) row$min_orig else if (!is.null(orig_vec)) suppressWarnings(min(orig_vec, na.rm = TRUE)) else NA_real_
+  min_syn <- if ("min_syn" %in% names(row)) row$min_syn else if (!is.null(synth_vec)) suppressWarnings(min(synth_vec, na.rm = TRUE)) else NA_real_
+  max_orig <- if ("max_orig" %in% names(row)) row$max_orig else if (!is.null(orig_vec)) suppressWarnings(max(orig_vec, na.rm = TRUE)) else NA_real_
+  max_syn <- if ("max_syn" %in% names(row)) row$max_syn else if (!is.null(synth_vec)) suppressWarnings(max(synth_vec, na.rm = TRUE)) else NA_real_
+
+  fix_inf <- function(x) if (is.infinite(x)) NA_real_ else x
+
+  rows_html <- list(
+    shiny::tags$tr(
+      shiny::tags$td(class = "name", "Mean (SMD)"),
+      shiny::tags$td(class = "num", fmt_val(row$mean_orig)),
+      shiny::tags$td(class = "num", fmt_val(row$mean_syn)),
+      shiny::tags$td(class = "num", effect_cell(row$std_diff, row$mean_p, "SMD"))
+    ),
+    shiny::tags$tr(
+      shiny::tags$td(class = "name", "SD (ratio)"),
+      shiny::tags$td(class = "num", fmt_val(row$sd_orig)),
+      shiny::tags$td(class = "num", fmt_val(row$sd_syn)),
+      shiny::tags$td(class = "num", effect_cell(row$sd_ratio, row$sd_p, "SD ratio"))
+    ),
+    shiny::tags$tr(
+      shiny::tags$td(class = "name", "Median (std diff)"),
+      shiny::tags$td(class = "num", fmt_val(row$median_orig)),
+      shiny::tags$td(class = "num", fmt_val(row$median_syn)),
+      shiny::tags$td(class = "num", effect_cell(row$median_std_diff, row$median_p, "Median standardized difference"))
+    ),
+    shiny::tags$tr(
+      shiny::tags$td(class = "name", "Min"),
+      shiny::tags$td(class = "num", fmt_val(fix_inf(min_orig))),
+      shiny::tags$td(class = "num", fmt_val(fix_inf(min_syn))),
+      shiny::tags$td(class = "num", effect_cell(NA_real_, NA_real_, "No inference", infer = FALSE))
+    ),
+    shiny::tags$tr(
+      shiny::tags$td(class = "name", "Max"),
+      shiny::tags$td(class = "num", fmt_val(fix_inf(max_orig))),
+      shiny::tags$td(class = "num", fmt_val(fix_inf(max_syn))),
+      shiny::tags$td(class = "num", effect_cell(NA_real_, NA_real_, "No inference", infer = FALSE))
+    )
+  )
+
+  shiny::tags$table(
+    class = "data",
+    style = "margin-top:8px;",
+    shiny::tags$thead(shiny::tags$tr(
+      shiny::tags$th("statistic"),
+      shiny::tags$th(class = "real", style = "text-align:right;", "original"),
+      shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
+      shiny::tags$th(style = "text-align:right;", "effect")
+    )),
+    shiny::tags$tbody(rows_html)
+  )
+}
+
 mod_compare_server <- function(id, state) {
   rlang::check_installed(
     c("shiny", "plotly"),
@@ -521,48 +610,11 @@ mod_compare_server <- function(id, state) {
       } else {
         orig_vec  <- as.numeric(orig[[var]])
         synth_vec <- as.numeric(synth[[var]])
-        fmt_val <- function(x) {
-          if (is.na(x)) return("\u2014")
-          if (abs(x) >= 1000) formatC(x, format = "f", digits = 0, big.mark = ",")
-          else sprintf("%.2f", x)
-        }
-        fmt_delta <- function(o, s) {
-          d <- s - o
-          paste0(if (d >= 0) "+" else "", fmt_val(d))
-        }
-        stats_rows <- list(
-          list("mean",   mean(orig_vec, na.rm = TRUE),            mean(synth_vec, na.rm = TRUE)),
-          list("sd",     stats::sd(orig_vec, na.rm = TRUE),       stats::sd(synth_vec, na.rm = TRUE)),
-          list("median", stats::median(orig_vec, na.rm = TRUE),   stats::median(synth_vec, na.rm = TRUE)),
-          list("min",    min(orig_vec, na.rm = TRUE),             min(synth_vec, na.rm = TRUE)),
-          list("max",    max(orig_vec, na.rm = TRUE),             max(synth_vec, na.rm = TRUE))
+        num_cmp <- compare_numeric(
+          stats::setNames(data.frame(orig_vec), var),
+          stats::setNames(data.frame(synth_vec), var)
         )
-        rows_html <- lapply(stats_rows, function(r) {
-          o     <- as.numeric(r[[2]])
-          s     <- as.numeric(r[[3]])
-          delta <- s - o
-          ok    <- abs(delta) / max(1, abs(o)) < 0.1
-          shiny::tags$tr(
-            shiny::tags$td(class = "name", r[[1]]),
-            shiny::tags$td(class = "num",  fmt_val(o)),
-            shiny::tags$td(class = "num",  fmt_val(s)),
-            shiny::tags$td(class = "num",
-              style = sprintf("color:%s;", if (ok) "var(--real-700)" else "var(--risk-500)"),
-              fmt_delta(o, s)
-            )
-          )
-        })
-        shiny::tags$table(
-          class = "data",
-          style = "margin-top:8px;",
-          shiny::tags$thead(shiny::tags$tr(
-            shiny::tags$th("statistic"),
-            shiny::tags$th(class = "real",  style = "text-align:right;", "original"),
-            shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
-            shiny::tags$th(style = "text-align:right;", "\u0394")
-          )),
-          shiny::tags$tbody(rows_html)
-        )
+        compare_numeric_table(num_cmp, orig_vec = orig_vec, synth_vec = synth_vec)
       }
     })
 

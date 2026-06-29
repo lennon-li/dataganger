@@ -225,3 +225,17 @@ test_that("compare publishes selected variable to shared state", {
     expect_equal(state$compare_selected_var, "a")
   })
 })
+
+test_that("numeric comparison renders SMD/ratio labels and a p-value colour class", {
+  cmp <- structure(list(numeric = data.frame(
+    variable = "x", mean_orig = 10, mean_syn = 14, sd_orig = 2, sd_syn = 2,
+    median_orig = 10, median_syn = 14, iqr_orig = 3, iqr_syn = 3,
+    missing_orig_pct = 0, missing_syn_pct = 0, std_diff = 2,
+    sd_ratio = 1, median_std_diff = 1.33, mean_p = 0.001, sd_p = 0.9, median_p = 0.001
+  )), class = "dataganger_comparison")
+  ui <- compare_numeric_table(cmp$numeric)
+  html <- paste(as.character(ui), collapse = "\n")
+  expect_match(html, "SMD|Std. diff", ignore.case = TRUE)
+  expect_match(html, "ratio", ignore.case = TRUE)
+  expect_match(html, "bad")
+})
