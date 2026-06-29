@@ -41,15 +41,24 @@ test_that("the full pipeline and app UI construction make no network calls", {
   ))
 
   app_env <- new.env(parent = globalenv())
-  app_path <- testthat::test_path("..", "..", "inst", "app", "app.R")
+  # Resolve via system.file so this works both from source (load_all) and from
+  # the installed package under R CMD check.
+  app_path <- system.file("app", "app.R", package = "dataganger")
+  skip_if(!nzchar(app_path) || !file.exists(app_path), "app.R not found")
   expect_no_error(sys.source(app_path, envir = app_env))
   expect_true(exists("ui", envir = app_env, inherits = FALSE))
   expect_true(exists("server", envir = app_env, inherits = FALSE))
 })
 
 test_that("package source contains no network primitives", {
+  # Source-level guard: only meaningful when the R/ source tree is present
+  # (dev / test_local / the from-source CI jobs). Installed-package test runs
+  # under R CMD check have no R/ sources, so skip honestly rather than pass
+  # vacuously.
+  r_dir <- testthat::test_path("..", "..", "R")
+  skip_if(!dir.exists(r_dir), "R/ source not available (installed package)")
   files <- list.files(
-    testthat::test_path("..", "..", "R"),
+    r_dir,
     pattern = "\\.[Rr]$",
     full.names = TRUE
   )
