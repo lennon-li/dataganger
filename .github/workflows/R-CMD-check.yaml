@@ -107,4 +107,10 @@ jobs:
           needs: check
 
       - name: Run tests without a network namespace
-        run: unshare -rn Rscript -e 'Sys.setenv(NOT_CRAN="true"); testthat::test_local(".")'
+        # GitHub's Ubuntu (noble) runners block unprivileged user namespaces, so
+        # `unshare -rn` fails writing uid_map. Allow it for this step, then run
+        # the suite in a network-less namespace (loopback brought up so any
+        # localhost use still works; nothing in the suite reaches the network).
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          unshare -rn bash -c 'ip link set lo up 2>/dev/null || true; Rscript -e "Sys.setenv(NOT_CRAN=\"true\"); testthat::test_local(\".\")"'
