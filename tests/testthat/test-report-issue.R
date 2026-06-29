@@ -45,3 +45,40 @@ test_that(".build_issue_url() handles NULL message and context", {
   expect_match(decoded, "<!-- Describe the issue or suggestion here -->", fixed = TRUE)
   expect_false(grepl("\\*\\*Context:\\*\\*", decoded))
 })
+
+test_that("report_issue() prints a copyable GitHub issue and never calls browseURL", {
+  called <- FALSE
+  trace(
+    what = "browseURL",
+    tracer = quote({
+      called <<- TRUE
+      stop("browseURL should not be called", call. = FALSE)
+    }),
+    where = asNamespace("utils"),
+    print = FALSE
+  )
+  on.exit(untrace("browseURL", where = asNamespace("utils")), add = TRUE)
+
+  out <- testthat::capture_output_lines(
+    url <- dataganger::report_issue(
+      message = "Generation failed on step 4",
+      context = "Shiny app",
+      type = "bug"
+    )
+  )
+
+  expect_false(called)
+  expect_identical(
+    url,
+    dataganger:::.build_issue_url(
+      message = "Generation failed on step 4",
+      context = "Shiny app",
+      type = "bug"
+    )
+  )
+
+  printed <- paste(out, collapse = "\n")
+  expect_match(printed, "## App bug", fixed = TRUE)
+  expect_match(printed, "| dataganger | `", fixed = TRUE)
+  expect_match(printed, "https://github.com/lennon-li/dataganger/issues/new", fixed = TRUE)
+})

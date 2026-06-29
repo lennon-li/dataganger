@@ -77,6 +77,39 @@ step_item <- function(num, label, input_id) {
   )
 }
 
+report_issue_modal <- function(url, body) {
+  shiny::modalDialog(
+    title = "Report a problem",
+    shiny::tags$p(
+      "Nothing is sent automatically. Copy the pre-filled URL or issue body into your browser."
+    ),
+    shiny::tags$label(`for` = "report_issue_url", "GitHub issue URL"),
+    shiny::tags$textarea(
+      id = "report_issue_url",
+      class = "form-control",
+      readonly = "readonly",
+      onclick = "this.select();",
+      onfocus = "this.select();",
+      style = "width:100%; min-height:96px; font-family:var(--font-mono, monospace);",
+      url
+    ),
+    shiny::tags$div(style = "height:12px;"),
+    shiny::tags$label(`for` = "report_issue_body", "Issue body"),
+    shiny::tags$textarea(
+      id = "report_issue_body",
+      class = "form-control",
+      readonly = "readonly",
+      onclick = "this.select();",
+      onfocus = "this.select();",
+      style = "width:100%; min-height:260px; font-family:var(--font-mono, monospace); white-space:pre;",
+      body
+    ),
+    footer = shiny::modalButton("Close"),
+    easyClose = TRUE,
+    size = "l"
+  )
+}
+
 sidebar_content <- tags$nav(
   class = "sidebar",
   tags$head(
@@ -300,7 +333,9 @@ server <- function(input, output, session) {
   app_guardrail_server("guardrail", state)
 
   shiny::observeEvent(input$report_issue, ignoreNULL = TRUE, {
-    dataganger::report_issue(context = "Shiny app")
+    url <- dataganger:::.build_issue_url(context = "Shiny app")
+    body <- dataganger:::.issue_body_from_url(url)
+    shiny::showModal(report_issue_modal(url, body))
   })
 
   shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {

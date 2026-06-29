@@ -36,6 +36,7 @@ Configure redesign around two intrinsic privacy questions.
     direct identifiers before Objective / Configure. Once attested, Configure's
     first question collapses to `none` / `combination`.
 *   Added an agents-only packaged `SKILL.md` plus `dataganger skill [--out <file>]`, and fixed `ai-readme.md` so dropped columns are not listed as `NA (NA)` in the Variables section.
+*   Report a problem now stays in-app: `report_issue()` prints a copy-paste GitHub issue instead of opening a browser, the Shiny button shows a copyable modal, and CI now includes a Linux `unshare -rn` no-network proof job.
 
 # dataganger 0.3.5
 
