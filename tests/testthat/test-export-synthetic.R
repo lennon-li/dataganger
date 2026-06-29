@@ -232,6 +232,35 @@ test_that("export_synthetic() manifest records synthpop engine and citation", {
   expect_match(manifest$synthesis_citation, "10.18637/jss.v074.i11", fixed = TRUE)
 })
 
+test_that("export_synthetic() does not list dropped variables as NA (NA) in ai-readme", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = 1:12,
+    keep = rep(c("a", "b", "c"), each = 4),
+    note = sprintf("free text %02d", 1:12)
+  )
+  roles <- detect_roles(original)
+  roles$simulation[roles$variable == "note"] <- "drop"
+  spec <- synth_spec(purpose = "demo", seed = 9)
+  syn <- synthesize_data(original, spec, roles = roles)
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  export_synthetic(
+    syn,
+    original = original,
+    roles = roles,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  ai_readme <- paste(readLines(file.path(out_dir, "ai-readme.md"), warn = FALSE), collapse = "\n")
+
+  expect_false(grepl("NA \\(NA\\)", ai_readme))
+  expect_match(ai_readme, "`note`: dropped", fixed = TRUE)
+})
+
 test_that("export_synthetic() omits original_variable when name_strategy is dictionary_only", {
   tmp <- withr::local_tempdir()
   data("example_health_survey", package = "dataganger")

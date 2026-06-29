@@ -143,6 +143,7 @@ quarto render dataganger_bundle/analysis.qmd \
 ```
 
 For the full command list, run `dataganger::dataganger_cli(c("--help"))`.
+Agents can print or copy the packaged workflow guide with `dataganger skill [--out <file>]`.
 
 ## Synthesis engines
 

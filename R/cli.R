@@ -38,6 +38,7 @@ cli_dispatch <- function(args) {
         spec = cli_cmd_spec(rest),
         synthesize = cli_cmd_synthesize(rest),
         inspect = cli_cmd_inspect(rest),
+        skill = cli_cmd_skill(rest),
         "make-agent-bundle" = cli_cmd_make_agent_bundle(rest),
         "export-diagnostic" = cli_cmd_export_diagnostic(rest),
         {
@@ -68,6 +69,7 @@ cli_print_help <- function() {
       "  spec --purpose <purpose> --out <spec.yaml> [--acknowledge-risk true|false]",
       "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--roles <roles.yaml>] [--engine <internal|synthpop>]",
       "  inspect <synthetic_bundle.zip>",
+      "  skill [--out <file>]",
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
       "  export-diagnostic <data-file> --out <diagnostic_view.json>",
       sep = "\n"
@@ -429,6 +431,32 @@ cli_cmd_inspect <- function(args) {
   bundle <- cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")[[1]]
   summary <- cli_read_bundle_summary(bundle)
   cli_print_bundle_summary(summary)
+  cli_status_ok()
+}
+
+cli_skill_path <- function() {
+  path <- system.file("agent-skill", "SKILL.md", package = "dataganger")
+  if (!nzchar(path) || !file.exists(path)) {
+    stop("Packaged skill file not found", call. = FALSE)
+  }
+  path
+}
+
+cli_cmd_skill <- function(args) {
+  parsed <- cli_parse_options(args, allowed = c("out"))
+  cli_require_n_positionals(parsed, 0L, "skill", "data file")
+  skill_path <- cli_skill_path()
+  out <- parsed$options[["out"]]
+
+  if (is.null(out)) {
+    cat(paste(readLines(skill_path, warn = FALSE), collapse = "\n"), "\n", sep = "")
+    return(cli_status_ok())
+  }
+
+  if (!isTRUE(file.copy(skill_path, out, overwrite = TRUE))) {
+    stop(sprintf("Failed to write skill file: %s", out), call. = FALSE)
+  }
+  cli::cli_alert_success("Wrote skill file: {out}")
   cli_status_ok()
 }
 

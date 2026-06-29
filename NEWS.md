@@ -31,6 +31,7 @@ Configure redesign around two intrinsic privacy questions.
 *   UI export bundles now include `spec.yaml` and `roles.yaml`, and CLI
     `synthesize --roles` can reuse the full role matrix so UI and CLI runs
     reproduce byte-identical output with the same seed.
+*   Added an agents-only packaged `SKILL.md` plus `dataganger skill [--out <file>]`, and fixed `ai-readme.md` so dropped columns are not listed as `NA (NA)` in the Variables section.
 
 # dataganger 0.3.5
 

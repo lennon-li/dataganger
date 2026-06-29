@@ -759,6 +759,17 @@ render_ai_readme <- function(synthetic, dictionary, purpose, spec, privacy, role
 }
 
 build_variable_table <- function(dictionary) {
+  dictionary <- dictionary[
+    !(dictionary$treatment %in% c("dropped", "free_text_dropped", "masked_or_dropped")) &
+      !is.na(dictionary$synthetic_variable) &
+      nzchar(dictionary$synthetic_variable),
+    ,
+    drop = FALSE
+  ]
+  if (nrow(dictionary) == 0) {
+    return("- None")
+  }
+
   lines <- sprintf(
     "- `%s` (%s)",
     dictionary$synthetic_variable,
