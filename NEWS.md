@@ -28,6 +28,9 @@ Configure redesign around two intrinsic privacy questions.
 *   Comparison stats are now inference-aware for numeric variables: the Compare
     view shows mean SMD, SD ratio, and median standardized difference, each
     coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.
+*   UI export bundles now include `spec.yaml` and `roles.yaml`, and CLI
+    `synthesize --roles` can reuse the full role matrix so UI and CLI runs
+    reproduce byte-identical output with the same seed.
 
 # dataganger 0.3.5
 

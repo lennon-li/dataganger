@@ -47,7 +47,9 @@ mod_export_ui <- function(id) {
         shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types"),
         shiny::tags$li(shiny::tags$strong("analysis.qmd"), " \u2014 Quarto report with the R-only reproduction pipeline and comparison workflow"),
         shiny::tags$li(shiny::tags$strong("comparison_report.html"), " \u2014 fidelity + privacy comparison"),
-        shiny::tags$li(shiny::tags$strong("manifest.json"), " \u2014 provenance and disclosure metrics")
+        shiny::tags$li(shiny::tags$strong("manifest.json"), " \u2014 provenance and disclosure metrics"),
+        shiny::tags$li(shiny::tags$strong("spec.yaml"), " \u2014 synthesis settings, including the seed used"),
+        shiny::tags$li(shiny::tags$strong("roles.yaml"), " \u2014 full per-column role decisions for CLI reproduction")
       ),
       shiny::tags$p(
         class = "help",
@@ -142,7 +144,12 @@ mod_export_server <- function(id, state) {
     # (synthetic data CSV + dictionary + analysis.qmd + report + manifest +
     # privacy report + helpers).
     build_export <- function(bundle_dir) {
-      shiny::req(state$synthetic)
+      shiny::req(state$synthetic, state$spec)
+
+      export_roles <- shiny::isolate(state$roles)
+      if (is.null(export_roles) && !is.null(state$raw_data)) {
+        export_roles <- detect_roles(state$raw_data)
+      }
 
       export_synthetic(
         synthetic = state$synthetic,
@@ -156,8 +163,16 @@ mod_export_server <- function(id, state) {
         include_dictionary = FALSE,
         compact = TRUE,
         fail_on_exact_match = FALSE,
-        roles = shiny::isolate(state$roles),
+        roles = export_roles,
         include_original_names = use_original_names()
+      )
+
+      export_spec <- shiny::isolate(state$spec)
+      export_spec$seed <- shiny::isolate(state$seed_used) %||% export_spec$seed
+      cli_write_yaml(cli_spec_to_list(export_spec), file.path(bundle_dir, "spec.yaml"))
+      cli_write_yaml(
+        roles_to_yaml_list(export_roles),
+        file.path(bundle_dir, "roles.yaml")
       )
 
       zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))
