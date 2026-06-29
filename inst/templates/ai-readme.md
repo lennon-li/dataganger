@@ -1,6 +1,6 @@
 # Synthetic Data Bundle
 
-This is synthetic data generated for prototyping and development. It is not intended to contain real records, but synthetic data can still preserve sensitive patterns. Review the comparison and privacy warnings before sharing externally.
+This is synthetic data generated for prototyping and development. It is designed to reduce direct disclosure risk, but synthetic data can still preserve sensitive patterns. Review the comparison and privacy warnings before sharing externally.
 
 ## Dataset summary
 

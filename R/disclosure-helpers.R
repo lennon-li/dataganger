@@ -214,6 +214,47 @@ dg_seed_disclosure <- function(roles) {
 
 #' @keywords internal
 #' @noRd
+roles_generation_eligible <- function(roles) {
+  if (is.null(roles) || !nrow(roles)) {
+    return(logical(0))
+  }
+
+  eligible <- rep(TRUE, nrow(roles))
+  if ("simulation" %in% names(roles)) {
+    eligible <- !(roles$simulation %in% c("drop", "pass_through"))
+    eligible[is.na(eligible)] <- TRUE
+  }
+  eligible
+}
+
+#' @keywords internal
+#' @noRd
+roles_generation_pending <- function(roles) {
+  if (is.null(roles) || !nrow(roles)) {
+    return(integer(0))
+  }
+
+  roles <- dg_seed_disclosure(roles)
+  if (!"identifies" %in% names(roles)) {
+    return(seq_len(nrow(roles)))
+  }
+
+  eligible <- roles_generation_eligible(roles)
+  pending <- (is.na(roles$identifies) | !nzchar(roles$identifies)) & eligible
+  which(pending)
+}
+
+#' @keywords internal
+#' @noRd
+roles_ready_for_generation <- function(roles) {
+  if (is.null(roles) || !nrow(roles)) {
+    return(FALSE)
+  }
+  length(roles_generation_pending(roles)) == 0L
+}
+
+#' @keywords internal
+#' @noRd
 isTRUE_vec <- function(x) {
   if (is.logical(x)) {
     return(!is.na(x) & x)

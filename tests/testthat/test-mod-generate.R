@@ -3,10 +3,17 @@
 # result without driving an async poll loop. Reset after this file.
 withr::local_options(dataganger.synthesis_async = FALSE, .local_envir = testthat::teardown_env())
 
+generate_ready_roles <- function(data) {
+  roles <- dg_seed_disclosure(detect_roles(data))
+  blank <- is.na(roles$identifies) | !nzchar(roles$identifies)
+  roles$identifies[blank] <- "none"
+  dg_sync_roles_axes(roles)
+}
+
 generate_test_state <- function(data = NULL, spec = NULL) {
   shiny::reactiveValues(
     raw_data = data,
-    roles = NULL,
+    roles = if (!is.null(data)) generate_ready_roles(data) else NULL,
     spec = spec,
     synthetic = NULL,
     comparison = NULL,
@@ -381,4 +388,32 @@ test_that("decision recap renders the revised review columns", {
     expect_match(html, "Pass through")
     expect_match(html, "Use .* Adjust settings to change any of these")
   })
+})
+
+
+test_that("generate blocks when column privacy questions are incomplete", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(id = c("P1", "P2"), zip = c("100", "200"), stringsAsFactors = FALSE),
+    spec = synth_spec(purpose = "development", seed = 1L)
+  )
+  shiny::isolate({
+    roles <- state$roles
+    roles$identifies[roles$variable == "zip"] <- ""
+    state$roles <- dg_sync_roles_axes(roles)
+  })
+
+  recorder <- capture_notifications()
+  withr::local_options(recorder$options)
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+  })
+
+  notifications <- recorder$get()
+  expect_length(notifications, 1)
+  expect_match(notifications[[1]]$ui, "Finish the column privacy questions")
+  expect_null(shiny::isolate(state$synthetic))
 })

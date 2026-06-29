@@ -9,7 +9,7 @@
 #' @param synthetic Optional; the synthetic data frame (required for
 #'   `stage = "post"`).
 #' @param roles Optional; a `dataganger_roles` object from [detect_roles()].
-#'   Required for pre-stage flag detection.
+#'   Recommended for pre-stage flag detection. When omitted, fallback name/type heuristics are used.
 #' @param stage Character. `"pre"` or `"post"`.
 #' @param spec Optional; a `dataganger_spec` object. When provided at
 #'   `stage = "post"`, cross-checks that synthesis parameters were applied

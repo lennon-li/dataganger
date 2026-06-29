@@ -413,3 +413,23 @@ test_that("agg_warning banner stays empty for individual-level microdata", {
     expect_false(grepl("aggregated data", html))
   })
 })
+
+
+test_that("roles confirm is blocked until every generated column has an answer", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  state <- roles_test_state_with_unset()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(confirm = 1L)
+    session$flushReact()
+    expect_identical(state$roles_confirmed %||% 0L, 0L)
+
+    session$setInputs(identifies_change = list(row = 3L, value = "none"))
+    session$flushReact()
+    session$setInputs(confirm = 2L)
+    session$flushReact()
+    expect_identical(state$roles_confirmed, 1L)
+  })
+})

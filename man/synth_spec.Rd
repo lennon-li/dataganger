@@ -35,7 +35,7 @@ removed).}
 
 \item{name_strategy}{Character or \code{NULL}. How synthetic column names are
 handled: \code{"preserve"} keeps your original column names, \code{"generic"}
-replaces them with neutral names (\code{var1}, \code{var2}, ...), and
+replaces them with neutral names (\code{col_1}, \code{col_2}, ...), and
 \code{"dictionary_only"} anonymizes the names but records the mapping in the
 exported data dictionary. If \code{NULL}, derived from the preset.}
 

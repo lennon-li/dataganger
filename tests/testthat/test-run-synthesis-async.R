@@ -38,3 +38,20 @@ test_that("start_synthesis_process runs the pipeline in a background process", {
   expect_named(result, c("synthetic", "comparison", "privacy"))
   expect_s3_class(result$synthetic, "dataganger_synthetic")
 })
+
+
+test_that("run_synthesis_pipeline blocks incomplete role answers", {
+  spec <- synth_spec(purpose = "development", seed = 1)
+  roles <- data.frame(
+    variable = c("zip", "score"),
+    identifies = c("", "none"),
+    sensitive = c(FALSE, FALSE),
+    simulation = c("synthesize", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+
+  expect_error(
+    run_synthesis_pipeline(data.frame(zip = c("100", "200"), score = c(1, 2)), spec, roles = roles),
+    "privacy questions"
+  )
+})

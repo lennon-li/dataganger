@@ -19,6 +19,12 @@
 #' @keywords internal
 #' @noRd
 run_synthesis_pipeline <- function(data, spec, roles = NULL) {
+  if (!is.null(roles) && !roles_ready_for_generation(roles)) {
+    cli::cli_abort(
+      "Finish the column privacy questions before running the synthesis pipeline."
+    )
+  }
+
   synthetic <- synthesize_data(data, spec, roles = roles)
   comparison <- compare_synthetic(data, synthetic, roles = roles)
   privacy <- privacy_check(

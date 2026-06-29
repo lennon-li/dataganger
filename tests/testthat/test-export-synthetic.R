@@ -351,3 +351,63 @@ test_that("export_synthetic() writes the same reproduction pipeline into bundle 
   expect_match(ai_readme, "synthesize_data\\(")
   expect_match(ai_readme, "read_input\\(")
 })
+
+
+test_that("bundle README and AI README avoid overclaiming privacy safety", {
+  tmp <- withr::local_tempdir()
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 1)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  export_synthetic(syn, path = out_dir, format = "dir", include_report = FALSE)
+
+  readme <- paste(readLines(file.path(out_dir, "README.md"), warn = FALSE), collapse = "\n")
+  ai_readme <- paste(readLines(file.path(out_dir, "ai-readme.md"), warn = FALSE), collapse = "\n")
+
+  expect_false(grepl("safe to share", readme, fixed = TRUE))
+  expect_match(readme, "reduce direct disclosure risk")
+  expect_match(ai_readme, "reduce direct disclosure risk")
+})
+
+test_that("manifest booleans and dictionary reflect dropped and pass-through columns", {
+  tmp <- withr::local_tempdir()
+  original <- tibble::tibble(id = c("P1", "P2", "P3"), note = c("a", "b", "c"), score = c(1, 2, 3))
+  syn <- tibble::tibble(id = c("P1", "P2", "P3"), score = c(1.1, 2.1, 3.1))
+  spec <- synth_spec(purpose = "development", seed = 1)
+  attr(syn, "spec") <- spec
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  roles <- tibble::tibble(
+    variable = c("id", "note", "score"),
+    recommended_role = c("ID candidate", "free text", "numeric"),
+    user_role = c(NA_character_, NA_character_, NA_character_),
+    class = c("ID candidate", "free text", "numeric"),
+    identifies = c("direct", "direct", "none"),
+    sensitive = c(FALSE, FALSE, FALSE),
+    disclosure_role = c("direct", "direct", "none"),
+    simulation = c("pass_through", "drop", "synthesize"),
+    reason = c("", "", ""),
+    disclosure_reason = c("", "", "")
+  )
+
+  out_dir <- file.path(tmp, "bundle-dir")
+  export_synthetic(
+    syn,
+    original = original,
+    roles = roles,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  dictionary <- readr::read_csv(file.path(out_dir, "data_dictionary.csv"), show_col_types = FALSE)
+  readme <- paste(readLines(file.path(out_dir, "README.md"), warn = FALSE), collapse = "\n")
+
+  expect_true(isTRUE(manifest$raw_rows_included))
+  expect_true(isTRUE(manifest$ids_included))
+  expect_false(isTRUE(manifest$free_text_included))
+  expect_true(any(dictionary$original_variable == "note" & dictionary$treatment == "dropped"))
+  expect_match(readme, "`note`: dropped")
+})

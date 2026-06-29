@@ -669,12 +669,7 @@ mod_roles_server <- function(id, state) {
     output$disclosure_gate <- shiny::renderUI({
       roles <- roles_local()
       if (is.null(roles) || !"identifies" %in% names(roles)) return(NULL)
-      eligible <- rep(TRUE, nrow(roles))
-      if ("simulation" %in% names(roles)) {
-        eligible <- !(roles$simulation %in% c("drop", "pass_through"))
-        eligible[is.na(eligible)] <- TRUE
-      }
-      unset <- sum((is.na(roles$identifies) | !nzchar(roles$identifies)) & eligible)
+      unset <- length(roles_generation_pending(roles))
       if (unset == 0L) {
         shiny::tags$div(
           class = "banner", style = "margin-top:12px; color:var(--real-700);",
@@ -778,6 +773,13 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
       roles <- ensure_simulation_column(roles)
+      if (!roles_ready_for_generation(roles)) {
+        shiny::showNotification(
+          "Answer the privacy questions for every generated column before continuing.",
+          type = "warning"
+        )
+        return(invisible(NULL))
+      }
       state$roles <- roles
       state$roles_confirmed <- (state$roles_confirmed %||% 0L) + 1L
       invisible(NULL)

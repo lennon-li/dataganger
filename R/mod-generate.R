@@ -261,6 +261,14 @@ mod_generate_server <- function(id, state) {
     # Start a run. Prefers the cancellable background process; falls back to a
     # synchronous run when callr is not installed.
     run_synthesis <- function(seed) {
+      if (!roles_ready_for_generation(state$roles)) {
+        generate_notification(
+          "Finish the column privacy questions in Configure before generating.",
+          type = "warning"
+        )
+        return(invisible(NULL))
+      }
+
       spec_with_seed <- state$spec
       spec_with_seed$seed <- seed
       run_started_at(Sys.time())

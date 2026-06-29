@@ -33,8 +33,8 @@ reference:
     desc: >
       Detect each column's two intrinsic disclosure axes — whether it identifies
       a person (none / combination / direct) and whether it is sensitive — plus
-      synthesis roles. Used on the Configure page and in the CLI
-      `disclosure_roles:` spec.
+      synthesis roles. The app treats these two axes as the source of truth;
+      the CLI still accepts `disclosure_roles:` as a compatibility mapping.
     contents:
       - detect_roles
       - suggest_min_rows

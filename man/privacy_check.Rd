@@ -19,7 +19,7 @@ privacy_check(
 \code{stage = "post"}).}
 
 \item{roles}{Optional; a \code{dataganger_roles} object from \code{\link[=detect_roles]{detect_roles()}}.
-Required for pre-stage flag detection.}
+Recommended for pre-stage flag detection. When omitted, fallback name/type heuristics are used.}
 
 \item{stage}{Character. \code{"pre"} or \code{"post"}.}
 

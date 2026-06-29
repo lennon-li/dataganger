@@ -161,3 +161,21 @@ test_that("dg_decision_recap_table is robust to missing columns", {
   expect_match(out$type[[1]], "numeric")
   expect_match(out$type[[2]], "date")
 })
+
+
+test_that("roles_ready_for_generation only requires answered eligible columns", {
+  expect_false(roles_ready_for_generation(NULL))
+
+  roles <- data.frame(
+    variable = c("id", "zip", "notes"),
+    identifies = c("direct", "combination", ""),
+    sensitive = c(FALSE, FALSE, FALSE),
+    simulation = c("drop", "synthesize", "drop"),
+    stringsAsFactors = FALSE
+  )
+  expect_true(roles_ready_for_generation(roles))
+
+  roles$simulation[3] <- "synthesize"
+  expect_false(roles_ready_for_generation(roles))
+  expect_equal(roles_generation_pending(roles), 3L)
+})

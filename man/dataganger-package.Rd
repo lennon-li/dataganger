@@ -20,6 +20,7 @@ Statistical Software}, 74(11), 1-26. doi:10.18637/jss.v074.i11
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://lennon-li.github.io/dataganger/}
   \item \url{https://github.com/lennon-li/dataganger}
   \item Report bugs at \url{https://github.com/lennon-li/dataganger/issues}
 }

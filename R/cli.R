@@ -65,7 +65,7 @@ cli_print_help <- function() {
       "Commands:",
       "  profile <data-file> --out <profile.json>",
       "  roles <data-file> --out <roles.yaml>",
-      "  spec --purpose <purpose> --out <spec.yaml>",
+      "  spec --purpose <purpose> --out <spec.yaml> [--acknowledge-risk true|false]",
       "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--engine <internal|synthpop>]",
       "  inspect <synthetic_bundle.zip>",
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
@@ -124,6 +124,22 @@ cli_require_n_positionals <- function(parsed, n, command, label) {
     stop(cli_usage_error(sprintf("%s requires exactly %s %s", command, if (identical(n, 1L)) "one" else as.character(n), label)))
   }
   parsed$positionals
+}
+
+cli_parse_bool <- function(value, option_name) {
+  if (is.logical(value) && length(value) == 1L) {
+    return(isTRUE(value))
+  }
+
+  value_chr <- tolower(trimws(as.character(value %||% "")))
+  if (value_chr %in% c("true", "t", "1", "yes", "y")) {
+    return(TRUE)
+  }
+  if (value_chr %in% c("false", "f", "0", "no", "n")) {
+    return(FALSE)
+  }
+
+  stop(cli_usage_error(sprintf("Option --%s must be true or false", option_name)))
 }
 
 cli_assert_existing_file <- function(path) {
@@ -193,12 +209,17 @@ cli_spec_to_list <- function(spec) {
 }
 
 cli_cmd_spec <- function(args) {
-  parsed <- cli_parse_options(args, allowed = c("purpose", "out"))
+  parsed <- cli_parse_options(args, allowed = c("purpose", "out", "acknowledge-risk"))
   cli_require_n_positionals(parsed, 0L, "spec", "data file")
   purpose <- cli_require_option(parsed, "purpose")
   out <- cli_require_option(parsed, "out")
+  acknowledge_risk <- if (!is.null(parsed$options[["acknowledge-risk"]])) {
+    cli_parse_bool(parsed$options[["acknowledge-risk"]], "acknowledge-risk")
+  } else {
+    FALSE
+  }
 
-  spec <- synth_spec(purpose = purpose)
+  spec <- synth_spec(purpose = purpose, acknowledge_risk = acknowledge_risk)
   cli_write_yaml(cli_spec_to_list(spec), out)
   cli::cli_alert_success("Wrote spec YAML: {out}")
   cli_status_ok()
@@ -213,13 +234,16 @@ cli_read_spec_yaml <- function(path) {
   }
 
   allowed <- c(
-    "level", "n", "name_strategy", "seed", "preserve_correlations",
-    "coarsen_dates", "merge_rare", "free_text_strategy",
-    "rare_level_min_n", "preserve_missingness",
-    "k_anon"
+    "level", "n", "name_strategy", "seed", "engine", "preserve_correlations",
+    "coarsen_dates", "merge_rare", "free_text_strategy", "geography_strategy",
+    "rare_level_min_n", "preserve_missingness", "k_anon"
   )
   override <- raw[intersect(names(raw), allowed)]
-  spec <- do.call(synth_spec, c(list(purpose = raw$purpose), override))
+  acknowledge_risk <- raw$acknowledge_risk %||% raw$acknowledged_risk %||% FALSE
+  spec <- do.call(
+    synth_spec,
+    c(list(purpose = raw$purpose, acknowledge_risk = cli_parse_bool(acknowledge_risk, "acknowledge-risk")), override)
+  )
   if (!is.null(raw$disclosure_roles)) {
     if (!is.list(raw$disclosure_roles)) {
       stop("Spec YAML 'disclosure_roles' must be a mapping of column -> role", call. = FALSE)
@@ -250,10 +274,13 @@ cli_cmd_synthesize <- function(args) {
     privacy = pre_privacy,
     name_strategy = spec$name_strategy,
     seed = spec$seed,
+    engine = spec$engine,
+    acknowledge_risk = isTRUE(spec$acknowledged_risk),
     preserve_correlations = spec$preserve_correlations,
     coarsen_dates = spec$coarsen_dates,
     merge_rare = spec$merge_rare,
     free_text_strategy = spec$free_text_strategy,
+    geography_strategy = spec$geography_strategy,
     rare_level_min_n = spec$rare_level_min_n,
     preserve_missingness = spec$preserve_missingness,
     k_anon = spec$k_anon

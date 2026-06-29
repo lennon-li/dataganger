@@ -17,7 +17,7 @@
 #'   removed).
 #' @param name_strategy Character or `NULL`. How synthetic column names are
 #'   handled: `"preserve"` keeps your original column names, `"generic"`
-#'   replaces them with neutral names (`var1`, `var2`, ...), and
+#'   replaces them with neutral names (`col_1`, `col_2`, ...), and
 #'   `"dictionary_only"` anonymizes the names but records the mapping in the
 #'   exported data dictionary. If `NULL`, derived from the preset.
 #' @param seed Integer or `NULL`. Reproducibility seed. Fixes the random draw
@@ -128,7 +128,7 @@ preset_table <- function(purpose) {
     demo = list(
       level               = "marginal",
       n                   = NULL,
-      preserve_correlations = "low",
+      preserve_correlations = "none",
       coarsen_dates       = TRUE,
       merge_rare          = TRUE,
       free_text_strategy  = "drop",
@@ -284,7 +284,7 @@ apply_privacy_hardening <- function(spec, privacy, roles) {
 
 engine_for <- function(level, purpose) {
   if (level == "hifi" || purpose == "analytics") {
-    return("hifi")
+    return("synthpop")
   }
   "internal"
 }

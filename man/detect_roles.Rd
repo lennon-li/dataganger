@@ -32,9 +32,11 @@ only values auto-assigned (confident identifier / known-sensitive name).
 }
 \description{
 Applies heuristic-based role detection to every column in a data frame.
-Roles include ID candidate, date, label_check (labelled vectors),
-categorical candidate, free text, and unknown. All assignments
-are overridable by passing a \code{user_role} column in a supplied roles tibble.
+Roles include a recommended synthesis role plus the two primary disclosure
+axes used by the Configure step: whether a column points to a person
+(\code{identifies}) and whether it is sensitive. The legacy single
+\code{disclosure_role} value is retained as derived compatibility metadata for
+existing synthesis/export/CLI paths.
 }
 \examples{
 df <- data.frame(

@@ -294,3 +294,50 @@ test_that("synthesize records internal engine and no synthpop citation for demo"
   expect_equal(manifest$engine, "internal")
   expect_null(manifest$synthesis_citation)
 })
+
+
+test_that("spec command supports analytics acknowledgement", {
+  tmp <- withr::local_tempdir()
+  out_path <- file.path(tmp, "analytics-spec.yaml")
+
+  result <- run_cli(c(
+    "spec", "--purpose", "analytics", "--acknowledge-risk", "true", "--out", out_path
+  ))
+
+  expect_identical(result$code, 0L)
+  spec <- yaml::read_yaml(out_path)
+  expect_equal(spec$purpose, "analytics")
+  expect_true(isTRUE(spec$acknowledged_risk))
+  expect_equal(spec$engine_required, "synthpop")
+})
+
+test_that("cli_read_spec_yaml accepts engine and acknowledgement fields", {
+  tmp <- tempfile(fileext = ".yaml")
+  writeLines(c(
+    "purpose: analytics",
+    "acknowledge_risk: true",
+    "engine: internal"
+  ), tmp)
+  spec <- cli_read_spec_yaml(tmp)
+  expect_true(isTRUE(spec$acknowledged_risk))
+  expect_equal(spec$engine, "internal")
+})
+
+test_that("yaml engine is honored unless CLI --engine overrides it", {
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path <- file.path(tmp, "bundle.zip")
+  yaml::write_yaml(list(purpose = "demo", n = 5, seed = 123, engine = "synthpop"), spec_path)
+
+  result <- suppressWarnings(
+    run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path, "--engine", "internal"))
+  )
+  expect_identical(result$code, 0L)
+
+  extract_dir <- file.path(tmp, "extracted")
+  dir.create(extract_dir)
+  utils::unzip(out_path, exdir = extract_dir)
+  manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  expect_equal(manifest$engine, "internal")
+})

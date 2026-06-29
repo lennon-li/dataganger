@@ -155,7 +155,7 @@ export_synthetic <- function(synthetic,
     handle_exact_row_matches(exact_row_matches, fail_on_exact_match)
   }
 
-  dictionary <- build_data_dictionary(original, synthetic, spec, include_original_names)
+  dictionary <- build_data_dictionary(original, synthetic, spec, roles = roles, include_original_names = include_original_names)
 
   csv_data <- synthetic
   if (isTRUE(sanitize_for_spreadsheets)) {
@@ -236,7 +236,8 @@ export_synthetic <- function(synthetic,
     purpose                = purpose,
     exact_row_matches      = exact_row_matches,
     include_original_names = include_original_names,
-    original               = original
+    original               = original,
+    roles                  = roles
   )
 
   if (!is.null(code_readiness)) {
@@ -357,18 +358,41 @@ sanitize_text_values <- function(x) {
   x
 }
 
-build_data_dictionary <- function(original, synthetic, spec, include_original_names = TRUE) {
+build_data_dictionary <- function(original, synthetic, spec, roles = NULL,
+                                  include_original_names = TRUE) {
   spec <- spec %||% list()
   name_map <- spec$name_map %||% stats::setNames(names(synthetic), names(synthetic))
-  original_names <- names(name_map)
-  synthetic_names <- unname(name_map)
+  role_index <- if (!is.null(roles) && "variable" %in% names(roles)) {
+    stats::setNames(seq_len(nrow(roles)), roles$variable)
+  } else {
+    NULL
+  }
 
-  rows <- lapply(seq_along(original_names), function(i) {
-    syn_name <- synthetic_names[[i]]
-    orig_name <- original_names[[i]]
+  original_names <- if (!is.null(original)) names(original) else names(name_map)
+  if (length(original_names) == 0L) {
+    original_names <- names(name_map)
+  }
 
-    syn_col <- synthetic[[syn_name]]
+  rows <- lapply(original_names, function(orig_name) {
+    syn_name <- if (orig_name %in% names(name_map)) {
+      unname(name_map[[orig_name]])
+    } else if (orig_name %in% names(synthetic)) {
+      orig_name
+    } else {
+      NA_character_
+    }
+
+    syn_col <- if (!is.na(syn_name) && nzchar(syn_name) && syn_name %in% names(synthetic)) {
+      synthetic[[syn_name]]
+    } else {
+      NULL
+    }
     orig_col <- if (!is.null(original) && orig_name %in% names(original)) original[[orig_name]] else NULL
+    role_row <- if (!is.null(role_index) && orig_name %in% names(role_index)) {
+      roles[role_index[[orig_name]], , drop = FALSE]
+    } else {
+      NULL
+    }
 
     label_meta <- extract_label_metadata(orig_col %||% syn_col)
 
@@ -379,7 +403,7 @@ build_data_dictionary <- function(original, synthetic, spec, include_original_na
       synthetic_class = class_string(syn_col),
       label_names = label_meta$label_names,
       label_values = label_meta$label_values,
-      treatment = infer_treatment(orig_col, syn_col, syn_name, orig_name, spec)
+      treatment = infer_treatment(orig_col, syn_col, syn_name, orig_name, spec, role_row = role_row)
     )
   })
 
@@ -409,16 +433,32 @@ class_string <- function(x) {
   paste(class(x), collapse = "/")
 }
 
-infer_treatment <- function(original_col, synthetic_col, synthetic_name, original_name, spec) {
+infer_treatment <- function(original_col, synthetic_col, synthetic_name, original_name, spec,
+                            role_row = NULL) {
   if (identical(spec$level, "schema")) {
     return("schema_only")
+  }
+
+  role_treatment <- if (!is.null(role_row) && nrow(role_row) == 1L) {
+    dg_role_treatment(role_row)[[1]]
+  } else {
+    NULL
+  }
+
+  if (identical(role_treatment, "drop") || is.na(synthetic_name) || !nzchar(synthetic_name)) {
+    return("dropped")
+  }
+
+  if (identical(role_treatment, "pass_through")) {
+    return("pass_through")
   }
 
   if (!identical(synthetic_name, original_name)) {
     return("renamed")
   }
 
-  if (!is.null(original_col) && isTRUE(all(is.na(synthetic_col))) && !all(is.na(original_col))) {
+  if (!is.null(original_col) && !is.null(synthetic_col) &&
+      isTRUE(all(is.na(synthetic_col))) && !all(is.na(original_col))) {
     if (is.character(original_col) && any(nchar(stats::na.omit(original_col)) > 50)) {
       return("free_text_dropped")
     }
@@ -736,13 +776,21 @@ build_missingness_table <- function(synthetic) {
 }
 
 build_dropped_variables_text <- function(dictionary) {
-  dropped <- dictionary[dictionary$treatment %in% c("free_text_dropped", "masked_or_dropped"), , drop = FALSE]
+  dropped <- dictionary[dictionary$treatment %in% c("dropped", "free_text_dropped", "masked_or_dropped"), , drop = FALSE]
   if (nrow(dropped) == 0) {
     return("- None")
   }
 
+  label <- if ("original_variable" %in% names(dropped)) {
+    dropped$original_variable
+  } else {
+    dropped$synthetic_variable
+  }
+  label[is.na(label) | !nzchar(label)] <- dropped$synthetic_variable[is.na(label) | !nzchar(label)]
+  label[is.na(label) | !nzchar(label)] <- "dropped column"
+
   paste(
-    sprintf("- `%s`: %s", dropped$synthetic_variable, dropped$treatment),
+    sprintf("- `%s`: %s", label, dropped$treatment),
     collapse = "\n"
   )
 }
@@ -792,8 +840,8 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
       "This bundle contains a synthetic copy of a dataset, generated for the ",
       sprintf("`%s` objective. ", purpose),
       "It is meant to share the structure and behaviour of the original data ",
-      "without sharing the original records. Synthetic data can still leak ",
-      "patterns, so review the Privacy section below before sharing externally."
+      "without sharing the original records. Synthetic data can still preserve ",
+      "sensitive patterns, so review the Privacy section below before sharing externally."
     ),
     "",
     sprintf("Rows: %s | Columns: %s", nrow(synthetic), ncol(synthetic)),
@@ -804,7 +852,7 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
     "",
     "## How each column was treated",
     "",
-    paste(sprintf("- `%s`: %s", dictionary$synthetic_variable, dictionary$treatment), collapse = "\n"),
+    paste(sprintf("- `%s`: %s", ifelse(is.na(dictionary$synthetic_variable) | !nzchar(dictionary$synthetic_variable), if ("original_variable" %in% names(dictionary)) dictionary$original_variable else "dropped column", dictionary$synthetic_variable), dictionary$treatment), collapse = "\n"),
     "",
     "## Privacy",
     "",
@@ -831,7 +879,7 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
     "## For AI assistants",
     "",
     paste0(
-      "This is synthetic data, safe to share with AI coding tools. Use it to build ",
+      "This is synthetic data designed to reduce direct disclosure risk for AI coding workflows. Use it to build ",
       "and test code, then run the same pipeline on the real data. To reproduce the ",
       "exact synthetic output, run the command above; for a full analysis and ",
       "fidelity check, render `analysis.qmd` against the original file."
@@ -968,7 +1016,7 @@ html_escape <- function(x) {
 }
 
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
-                           include_original_names = TRUE, original = NULL) {
+                           include_original_names = TRUE, original = NULL, roles = NULL) {
   files <- list.files(bundle_dir, full.names = TRUE, all.files = FALSE, no.. = TRUE)
   files <- files[basename(files) != "manifest.json"]
   spec_for_manifest <- unclass(spec %||% list())
@@ -980,6 +1028,24 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
   spec_hash <- hash_text(spec_json)
   file_hashes <- as.list(hash_files(files))
   names(file_hashes) <- basename(files)
+
+  role_treatment <- if (!is.null(roles) && nrow(roles)) dg_role_treatment(roles) else character(0)
+  pass_through_cols <- names(role_treatment)[role_treatment %in% "pass_through"]
+  pass_through_rows <- if (length(pass_through_cols) > 0L && !is.null(roles) && "variable" %in% names(roles)) {
+    roles[roles$variable %in% pass_through_cols, , drop = FALSE]
+  } else {
+    NULL
+  }
+  raw_rows_included <- length(pass_through_cols) > 0L
+  ids_included <- !is.null(pass_through_rows) && any(
+    pass_through_rows$identifies %in% "direct" |
+      pass_through_rows$recommended_role %in% "ID candidate",
+    na.rm = TRUE
+  )
+  free_text_included <- !is.null(pass_through_rows) && any(
+    pass_through_rows$recommended_role %in% "free text",
+    na.rm = TRUE
+  )
 
   manifest <- list(
     dataganger_version = as.character(utils::packageVersion("dataganger")),
@@ -1000,9 +1066,9 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     source                  = "dataganger",
     original_rows_bucket    = if (!is.null(original)) bucket_nrows(nrow(original)) else NULL,
     original_columns_count  = if (!is.null(original)) ncol(original) else NULL,
-    raw_rows_included       = FALSE,
-    free_text_included      = FALSE,
-    ids_included            = FALSE,
+    raw_rows_included       = raw_rows_included,
+    free_text_included      = free_text_included,
+    ids_included            = ids_included,
     plots_included          = FALSE,
     original_names_included = isTRUE(include_original_names),
     factor_levels_included  = isTRUE(spec$level %in% c("marginal", "hifi")),
