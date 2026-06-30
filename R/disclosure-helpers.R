@@ -309,36 +309,37 @@ app_fail_safe_token <- function(state) {
 #' @keywords internal
 #' @noRd
 app_attestation_modal <- function(ns = shiny::NS(NULL)) {
-  shiny::modalDialog(
-    title = shiny::tags$div(
-      style = "display:flex; align-items:center; gap:10px;",
-      shiny::tags$span(
-        style = "font-size:24px; line-height:1;",
-        "\u26a0\ufe0f"
-      ),
-      shiny::tags$span(
-        style = "color:var(--risk-700, #B45309); font-weight:700;",
-        "Stop \u2014 read before you continue"
-      )
-    ),
-    shiny::tags$p(
-      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Feel free to disable your internet connection while using this package."
-    ),
+  box_style <- paste(
+    "margin-top:12px; padding:12px 14px; border-radius:6px;",
+    "background:var(--risk-50, #FEF3C7);",
+    "border:1px solid var(--risk-500, #F59E0B);",
+    "border-left:4px solid var(--risk-500, #F59E0B);"
+  )
+  callout <- function(icon, text) {
     shiny::tags$div(
-      style = paste(
-        "margin-top:12px; padding:12px 14px; border-radius:6px;",
-        "background:var(--risk-50, #FEF3C7);",
-        "border:1px solid var(--risk-500, #F59E0B);",
-        "border-left:4px solid var(--risk-500, #F59E0B);"
-      ),
+      style = box_style,
       shiny::tags$div(
         style = "display:flex; gap:10px; align-items:flex-start;",
-        shiny::tags$span(style = "font-size:18px; line-height:1.3;", "\u26a0\ufe0f"),
+        shiny::tags$span(style = "font-size:18px; line-height:1.3;", icon),
         shiny::tags$span(
           style = "color:var(--risk-700, #B45309); font-weight:600;",
-          "By using this app I confirm there are no direct identifiers \u2014 including institutional identifiers \u2014 in this dataset (for example: name, email, healthcare/medical record number, national ID, phone, address)."
+          text
         )
       )
+    )
+  }
+  shiny::modalDialog(
+    title = shiny::tags$span(
+      style = "color:var(--risk-700, #B45309); font-weight:700;",
+      "Read before you continue"
+    ),
+    callout(
+      "\u2139\ufe0f",
+      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Feel free to disable your internet connection while using this package."
+    ),
+    callout(
+      "\u26a0\ufe0f",
+      "By using this app I confirm there are no direct identifiers \u2014 including institutional identifiers \u2014 in this dataset (for example: name, email, healthcare/medical record number, national ID, phone, address)."
     ),
     footer = shiny::tagList(
       shiny::actionButton(ns("refuse"), "I do not agree", class = "btn btn-secondary"),
@@ -367,13 +368,9 @@ app_fail_safe_modal <- function(flagged, ns = shiny::NS(NULL)) {
     ),
     shiny::tags$ul(lines),
     footer = shiny::tagList(
-      shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-secondary"),
-      shiny::actionButton(
-        ns("drop_flagged"), "Drop these columns",
-        class = "btn btn-secondary",
-        style = "background:var(--paper-100, #f6f5f1); border-color:var(--paper-200, #e7e5df); color:var(--fg-muted, #6E716A); font-weight:400;"
-      ),
-      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm and keep", class = "btn btn-primary")
+      shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-danger"),
+      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-warning"),
+      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm and keep", class = "btn btn-success")
     ),
     easyClose = FALSE
   )

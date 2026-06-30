@@ -177,11 +177,6 @@ mod_generate_server <- function(id, state) {
 
       shiny::tags$div(
         style = "margin-top:12px;",
-        shiny::tags$div(
-          class = "card-header",
-          shiny::tags$span(class = "title", "Column decisions"),
-          shiny::tags$span(class = "sub", "what will happen to each column")
-        ),
         shiny::tags$p(
           class = "help",
           style = "margin:4px 0 8px;",

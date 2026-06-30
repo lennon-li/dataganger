@@ -169,6 +169,59 @@ button.btn-default:hover {
   border-color: var(--paper-400) !important;
 }
 
+/* Semantic button colours (used in the fail-safe modal):
+   danger = red, success = green, warning = amber (recessive). */
+.btn.btn-danger,
+button.btn-danger {
+  background: var(--danger-500) !important;
+  border-color: var(--danger-500) !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+}
+.btn.btn-danger:hover,
+button.btn-danger:hover {
+  background: #93281A !important;
+  border-color: #93281A !important;
+}
+
+.btn.btn-success,
+button.btn-success {
+  background: var(--success-500) !important;
+  border-color: var(--success-500) !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+}
+.btn.btn-success:hover,
+button.btn-success:hover {
+  background: #25602F !important;
+  border-color: #25602F !important;
+}
+
+.btn.btn-warning,
+button.btn-warning {
+  background: var(--risk-500) !important;
+  border-color: var(--risk-500) !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+}
+.btn.btn-warning:hover,
+button.btn-warning:hover {
+  background: var(--risk-700) !important;
+  border-color: var(--risk-700) !important;
+}
+
 .btn[disabled],
 .btn.disabled {
   opacity: 0.45 !important;
