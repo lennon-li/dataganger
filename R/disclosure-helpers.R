@@ -368,7 +368,11 @@ app_fail_safe_modal <- function(flagged, ns = shiny::NS(NULL)) {
     shiny::tags$ul(lines),
     footer = shiny::tagList(
       shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-secondary"),
-      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-secondary"),
+      shiny::actionButton(
+        ns("drop_flagged"), "Drop these columns",
+        class = "btn btn-secondary",
+        style = "background:var(--paper-100, #f6f5f1); border-color:var(--paper-200, #e7e5df); color:var(--fg-muted, #6E716A); font-weight:400;"
+      ),
       shiny::actionButton(ns("confirm_keep_flagged"), "Confirm and keep", class = "btn btn-primary")
     ),
     easyClose = FALSE

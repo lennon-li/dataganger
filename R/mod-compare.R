@@ -28,7 +28,9 @@ mod_compare_ui <- function(id) {
             class = "compare-explainer-defs",
             shiny::tags$p(
               shiny::tags$strong("\u0394 (delta)"),
-              " is the gap between an original and synthetic statistic \u2014 bigger means more drift."
+              " is the gap between an original and synthetic statistic \u2014 bigger means more drift. ",
+              shiny::tags$strong("SMD"),
+              " (standardized mean difference) is that \u0394 between the means divided by the original SD \u2014 a scale-free measure of drift."
             ),
             shiny::tags$p(
               shiny::tags$strong("TVD (total variation distance)"),
@@ -128,12 +130,18 @@ compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
     )
   }
 
-  effect_cell <- function(value, p, label, infer = TRUE) {
+  effect_cell <- function(value, p, label, infer = TRUE, metric = NULL) {
     band <- if (infer) fidelity_color(p) else "none"
     shiny::tags$span(
       class = paste("fidelity-band", paste0("fidelity-", band)),
       style = fidelity_style(band),
       title = if (infer && !is.na(p)) sprintf("%s p = %.3g", label, p) else label,
+      if (!is.null(metric)) {
+        shiny::tags$span(
+          style = "opacity:0.65; font-size:10px; margin-right:5px; text-transform:uppercase; letter-spacing:.03em;",
+          metric
+        )
+      },
       fmt_val(value)
     )
   }
@@ -147,22 +155,22 @@ compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
 
   rows_html <- list(
     shiny::tags$tr(
-      shiny::tags$td(class = "name", "Mean (SMD)"),
+      shiny::tags$td(class = "name", "Mean"),
       shiny::tags$td(class = "num", fmt_val(row$mean_orig)),
       shiny::tags$td(class = "num", fmt_val(row$mean_syn)),
-      shiny::tags$td(class = "num", effect_cell(row$std_diff, row$mean_p, "SMD"))
+      shiny::tags$td(class = "num", effect_cell(row$std_diff, row$mean_p, "SMD", metric = "SMD"))
     ),
     shiny::tags$tr(
-      shiny::tags$td(class = "name", "SD (ratio)"),
+      shiny::tags$td(class = "name", "SD"),
       shiny::tags$td(class = "num", fmt_val(row$sd_orig)),
       shiny::tags$td(class = "num", fmt_val(row$sd_syn)),
-      shiny::tags$td(class = "num", effect_cell(row$sd_ratio, row$sd_p, "SD ratio"))
+      shiny::tags$td(class = "num", effect_cell(row$sd_ratio, row$sd_p, "SD ratio", metric = "ratio"))
     ),
     shiny::tags$tr(
-      shiny::tags$td(class = "name", "Median (std diff)"),
+      shiny::tags$td(class = "name", "Median"),
       shiny::tags$td(class = "num", fmt_val(row$median_orig)),
       shiny::tags$td(class = "num", fmt_val(row$median_syn)),
-      shiny::tags$td(class = "num", effect_cell(row$median_std_diff, row$median_p, "Median standardized difference"))
+      shiny::tags$td(class = "num", effect_cell(row$median_std_diff, row$median_p, "Median standardized difference", metric = "diff"))
     ),
     shiny::tags$tr(
       shiny::tags$td(class = "name", "Min"),
@@ -190,16 +198,10 @@ compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
       )),
       shiny::tags$tbody(rows_html)
     ),
-    shiny::tags$p(
-      style = "font-family:var(--font-sans); font-size:11px; color:var(--fg-muted); margin:8px 0 0;",
-      shiny::tags$b("SMD"),
-      " (standardized mean difference) is the \u0394 between the original and synthetic means, ",
-      "divided by the original SD \u2014 a scale-free measure of drift; bigger means more drift."
-    ),
     fidelity_legend(tests = c(
-      "Mean (SMD)"        = "Welch t-test",
-      "SD (ratio)"        = "F-test",
-      "Median (std diff)" = "Wilcoxon rank-sum test"
+      "Mean / SMD"    = "Welch t-test",
+      "SD / ratio"    = "F-test",
+      "Median / diff" = "Wilcoxon rank-sum test"
     ))
   )
 }
