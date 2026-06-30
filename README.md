@@ -9,6 +9,7 @@
 [![No network calls](https://img.shields.io/badge/network-none-2ea44f?style=flat-square)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
 [![Human-gated privacy](https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&logo=shield&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
 [![Open &amp; auditable](https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&logo=github&logoColor=white)](https://github.com/lennon-li/dataganger)
+[![Agent-friendly](https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&logo=robotframework&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
 
 **DataGangeR** creates synthetic data doubles from real datasets so you can
 prototype code, build Shiny apps, teach, and work with coding **Agents** without
