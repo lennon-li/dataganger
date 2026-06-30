@@ -5,6 +5,11 @@
 [![pkgdown](https://github.com/lennon-li/dataganger/actions/workflows/pkgdown.yaml/badge.svg)](https://lennon-li.github.io/dataganger/)
 <!-- badges: end -->
 
+[![Your data stays local](https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&logo=lock&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
+[![No network calls](https://img.shields.io/badge/network-none-2ea44f?style=flat-square)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
+[![Human-gated privacy](https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&logo=shield&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
+[![Open &amp; auditable](https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&logo=github&logoColor=white)](https://github.com/lennon-li/dataganger)
+
 **DataGangeR** creates synthetic data doubles from real datasets so you can
 prototype code, build Shiny apps, teach, and work with coding **Agents** without
 sharing the original dataset.
@@ -42,6 +47,14 @@ flowchart LR
   G -->|Path A| Bun[Synthetic bundle] --> AG1[Agent builds on safe data]
   G -->|Path B| Rec[Saved recipe<br/>spec + roles + seed] --> CLI[Agent runs the package] --> AG2[Agent regenerates safe data<br/>never reads the real data]
 ```
+
+> [!TIP]
+> ### 🔒 Safe to try — your data never leaves your machine
+> ✅ Processed **locally, in memory only** — never uploaded, never written to disk by the app, gone when you close it.
+> ✅ **No network calls** and **no browser launch** — proven by a shipped self-test and a no-network CI job.
+> ✅ **Open source** — you (or your IT team) can verify your own copy.
+>
+> No account. No upload. No cloud. Point it at a sample dataset and see for yourself.
 
 ## Overview
 
