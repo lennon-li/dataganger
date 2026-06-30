@@ -3,7 +3,8 @@ pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
   articles/getting-started: getting-started.html
-last_built: 2026-06-29T14:40Z
+  privacy-and-ai-workflow: privacy-and-ai-workflow.html
+last_built: 2026-06-30T00:40Z
 urls:
   reference: https://lennon-li.github.io/dataganger/reference
   article: https://lennon-li.github.io/dataganger/articles

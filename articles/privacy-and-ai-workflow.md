@@ -1,0 +1,242 @@
+# Privacy gating and AI workflows
+
+## The promise
+
+DataGangeR’s spine is simple: you set the privacy rules once; then the
+AI only ever gets safe synthetic data or a reproducible recipe for
+generating it, and nothing leaves your machine.
+
+That supports two real workflows:
+
+- Path A: you hand the AI the synthetic bundle.
+- Path B: you save the config and let the AI call DataGangeR to
+  reproduce or vary the synthetic data without ever reading the real
+  data.
+
+Either way, the human makes the privacy decisions first.
+
+## The privacy gating ladder
+
+The app’s privacy story is a ladder, not a single checkbox. Each step
+exists for a different reason.
+
+### 1. Entry attestation: direct identifiers
+
+Before anything else, the app opens with a hard attestation about direct
+identifiers. This is the first gate because names, emails, phone
+numbers, institutional IDs, record numbers, and similar columns are the
+obvious category that should not enter the workflow.
+
+Why it exists: it makes the user explicitly confirm the basic rule up
+front, and it gives that rule downstream consequences.
+
+### 2. Upload
+
+Once the user attests, they upload the file.
+
+Why it exists: the package has to read the data into memory to profile
+it and look for risks. The honest claim is not “we don’t read”. The
+honest claim is: we scan locally to find and drop direct identifiers; we
+never upload; we never keep.
+
+### 3. Early soft fail-safe
+
+Right after upload, DataGangeR scans for columns that look like direct
+identifiers and surfaces suspected matches with reasons. The user can
+confirm and proceed, drop the flagged columns, or abort.
+
+Why it exists: the attestation is informed consent, but the detector is
+an assistive safety net. It is there to catch problems early, before
+objective selection or column-by-column decisions.
+
+This is intentionally a soft checkpoint, not a claim that the package
+can catch everything. It reduces direct disclosure risk; it is not a
+guarantee.
+
+### 4. Objective
+
+Next, the user picks the objective: demo, development, or analytics.
+
+Why it exists: the objective sets the default disclosure posture and
+fidelity trade-offs before synthesis. It tells the package what kind of
+sharing job the synthetic data needs to support.
+
+### 5. Configure: two questions per column
+
+After the no-direct-identifiers attestation, Configure narrows to the
+two remaining risks. The lead-in copy is:
+
+> You’ve confirmed there are no direct identifiers. Two risks remain for
+> each column:
+>
+> - Q1: Could this column, combined with others, help single out a
+>   person?
+> - Q2: Is this column sensitive — would it be harmful if revealed?
+
+Why it exists: this is where the human defines the actual privacy rules,
+column by column, and the app hard-gates progress until every column is
+answered.
+
+Q1 maps to quasi-identifiers: whether a column contributes to singling
+someone out in combination with other columns. Q2 maps to sensitive
+attributes: whether the column would be harmful if revealed even if it
+is not identifying by itself.
+
+### 6. Synthesis enforcement
+
+Once the roles are set, DataGangeR enforces them during synthesis:
+k-anonymity on quasi-identifiers, treatment of sensitive columns, and
+drops where required.
+
+Why it exists: the answers are not just labels for documentation. They
+become executable rules that shape the synthetic output.
+
+### 7. Compare plus privacy report
+
+After generation, the app shows fidelity comparisons and a privacy
+report.
+
+Why it exists: the package should not ask the user to trust the
+synthetic output blindly. The compare step shows how closely the
+synthetic data tracks the original, and the privacy report shows the
+disclosure controls and warnings that matter for sharing.
+
+### 8. Export
+
+Finally, the user exports either the synthetic bundle, the
+reproducibility config, or both.
+
+Why it exists: export is where the two AI workflows split. You can hand
+off safe synthetic artifacts directly, or save the recipe that lets an
+agent reproduce the same synthetic data later without touching the real
+data.
+
+## What the two questions reinforce
+
+The two Configure questions matter because removing names is not the
+whole job.
+
+- Q1 reinforces linkage risk: a column can be safe on its own but risky
+  in combination with others.
+- Q2 reinforces that harm is not the same thing as identification: a
+  column can be non-identifying and still be sensitive.
+
+Mapped to the three disclosure-control categories, the ladder works like
+this:
+
+- Entry attestation plus the early fail-safe: direct identifiers.
+- Q1: quasi-identifiers.
+- Q2: sensitive attributes.
+
+That is the point of the sequence. After the user confirms there are no
+direct identifiers, the app keeps the two subtler risks visible so the
+user does not falsely feel “done” after removing names.
+
+## Two ways to use it with AI
+
+### Path A: hand off the synthetic bundle
+
+In the first workflow, the human uses the app, reviews the compare and
+privacy outputs, and exports the synthetic bundle. The AI gets
+`synthetic_data.csv`, the data dictionary, the privacy report, and the
+rest of the bundle artifacts - but not the real data.
+
+This is the simplest trust story: the AI only sees safe synthetic
+artifacts.
+
+### Path B: save the recipe and let the AI reproduce
+
+In the second workflow, the human uses the app once, then saves the
+reproducibility artifacts: `spec.yaml`, `roles.yaml`, and the seed in
+the exported spec. An AI agent can then run DataGangeR itself, for
+example:
+
+``` sh
+dataganger synthesize <real-data> --spec spec.yaml --roles roles.yaml --out check.zip
+```
+
+That path is paired with the packaged agent workflow guide.
+`dataganger skill` prints or copies the installed agent `SKILL.md`,
+whose first rule is: the agent is not allowed to read the original data.
+
+The shipped agent workflow starts by reproducing the UI-generated
+synthetic CSV byte-for-byte before doing anything else. After that, the
+agent can vary approved settings and ask DataGangeR to synthesize again,
+but it still never opens the real data itself.
+
+In both paths, the AI is structurally kept on synthetic artifacts or a
+reproducible recipe. It does not inspect the real dataset.
+
+## The no-network guarantee
+
+The package’s no-network claim rests on two locks.
+
+### Lock 1: no network code
+
+The package contains no outbound network code in the data path. It does
+not use network primitives to send data out, and the Shiny app serves
+locally.
+
+This now includes the trust edges around the app itself:
+
+- web fonts are self-hosted, so there is no CDN request
+- [`report_issue()`](https://lennon-li.github.io/dataganger/reference/report_issue.md)
+  prints a copyable GitHub issue URL and body instead of opening a
+  browser
+- the Shiny “Report a problem” button shows a copyable modal instead of
+  launching anything
+
+### Lock 2: nothing is persisted
+
+Real data is read into memory only. The app does not write the real
+dataset to disk, and nothing is retained after the app closes unless the
+user explicitly exports a synthetic bundle.
+
+Together, those locks answer the “what if the internet comes back
+later?” concern: there is no code to send data, and no retained real
+data to send later.
+
+### How it is proven
+
+The guarantee is not just a claim in prose. The shipped branch includes
+several proofs:
+
+1.  a runtime trap test that errors if network primitives are called
+    while the full pipeline and app UI are exercised
+2.  a source-grep guard that fails if network-related symbols appear in
+    package source
+3.  an offline CI job that runs the test suite under `unshare -rn` on
+    Linux
+4.  open-source audit, so anyone can inspect the code and run the checks
+    themselves
+
+That is stronger than “it works with the network turned off”.
+Disconnecting proves offline operation. These checks are meant to prove
+there is no hidden network path in the shipped source.
+
+### Verify it yourself offline
+
+If you want your own local proof, you can run the package offline
+yourself.
+
+- Any OS: disconnect the machine from the network and run the workflow.
+- Linux: `unshare -rn Rscript -e 'dataganger::run_app()'`
+- Windows: disable the network adapter, use an outbound firewall block
+  on `R.exe` / `Rscript.exe`, or run inside Windows Sandbox with
+  networking disabled.
+
+Those are extra demonstrations. The main guarantee still comes from the
+source-level and test-level proofs above.
+
+## Supply-chain note
+
+Open source is a trust advantage, but it is not magic. A malicious
+change or dependency compromise is still possible in theory.
+
+What the shipped no-network self-test changes is this: data theft cannot
+be silent. If someone adds a hidden way to send data out, it should
+break an automated test that anyone can run against the installed
+version.
+
+That is the honest limit and the honest promise. DataGangeR is built to
+reduce direct disclosure risk, not to offer a blanket privacy guarantee.

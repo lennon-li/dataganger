@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,6 +42,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/getting-started.html">Getting started with the app</a></li>
+    <li><a class="dropdown-item" href="articles/privacy-and-ai-workflow.html">Privacy gating and AI workflows</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -102,7 +103,8 @@
 <div class="section level2">
 <h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
-<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button that opens a pre-filled GitHub issue in your browser.</p>
+<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button with a copyable issue report.</p>
+<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported AI workflow. See the <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html">Privacy gating and AI workflows vignette</a>.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
@@ -181,7 +183,7 @@
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">quarto</span> render dataganger_bundle/analysis.qmd <span class="dt">\</span></span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">-P</span> original_path:my-data.csv <span class="dt">\</span></span>
 <span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">-P</span> synthetic_path:dataganger_bundle/synthetic_data.csv</span></code></pre></div>
-<p>For the full command list, run <code>dataganger::dataganger_cli(c("--help"))</code>.</p>
+<p>For the full command list, run <code>dataganger::dataganger_cli(c("--help"))</code>. Agents can print or copy the packaged workflow guide with <code>dataganger skill [--out &lt;file&gt;]</code>.</p>
 </div>
 </div>
 <div class="section level2">

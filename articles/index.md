@@ -7,3 +7,6 @@
 
   A screenshot walkthrough of the six-step DataGangeR workflow, from
   picking an objective to exporting a synthetic data bundle.
+
+- [Privacy gating and AI
+  workflows](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.md):

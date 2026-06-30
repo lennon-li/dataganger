@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with the app</a></li>
+    <li><a class="dropdown-item" href="../articles/privacy-and-ai-workflow.html">Privacy gating and AI workflows</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="nav-link" href="../articles/getting-started.html">Get started</a></li>
@@ -37,6 +38,16 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.5.0" id="dataganger-050">dataganger 0.5.0<a class="anchor" aria-label="anchor" href="#dataganger-050"></a></h2>
+<p>Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarantee.</p>
+<ul><li>Comparison stats are now inference-aware for numeric variables: the Compare view shows mean SMD, SD ratio, and median standardized difference, each coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.</li>
+<li>UI export bundles now include <code>spec.yaml</code> and <code>roles.yaml</code>, and CLI <code>synthesize --roles</code> can reuse the full role matrix so UI and CLI runs reproduce byte-identical output with the same seed.</li>
+<li>The app now opens with a hard no-direct-identifiers attestation gate, then runs an early assistive fail-safe immediately after upload to flag possible direct identifiers before Objective / Configure. Once attested, Configure’s first question collapses to <code>none</code> / <code>combination</code>. The two questions are framed as the remaining risks after direct identifiers: linkage (combination) and sensitivity.</li>
+<li>Added an agents-only packaged <code>SKILL.md</code> plus <code>dataganger skill [--out &lt;file&gt;]</code> so an AI can drive the package to generate synthetic data without ever reading the real data; fixed <code>ai-readme.md</code> so dropped columns are not listed as <code>NA (NA)</code>.</li>
+<li>No-network guarantee: web fonts are now self-hosted (no Google Fonts CDN), so the app makes no external requests; <code><a href="../reference/report_issue.html">report_issue()</a></code> prints a copy-paste GitHub issue instead of opening a browser (the Shiny button shows a copyable modal). A shipped runtime trap test and source guard prove the package makes no network calls, and a Linux <code>unshare -rn</code> CI job runs the suite with no network at all.</li>
+<li>New <code><a href="../articles/privacy-and-ai-workflow.html">vignette("privacy-and-ai-workflow")</a></code> documents the privacy gating ladder, the two ways to use the package with AI, and the no-network guarantee.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.0" id="dataganger-040">dataganger 0.4.0<a class="anchor" aria-label="anchor" href="#dataganger-040"></a></h2>
 <p>Configure redesign around two intrinsic privacy questions.</p>
 <ul><li>The Configure step now classifies each column by answering two independent questions — does it point to a person (<code>identifies</code>: none / combination / direct) and is it sensitive (<code>sensitive</code>) — and <strong>derives</strong> the treatment rather than asking the user to pick it. The two questions are shown prominently above the per-column table.</li>
@@ -47,11 +58,8 @@
 <li>Synthesis Settings labels are more human-readable, with matching <code><a href="../reference/synth_spec.html">synth_spec()</a></code> documentation for the current settings surface.</li>
 <li>The per-column data preview includes a filter so you can inspect one variable at a time while reviewing the Configure step.</li>
 <li>
-<code>export_synthetic(compact = )</code> supports two bundle variants: the compact app download and the full CLI / agent bundle.</li>
-</ul></div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.3.5" id="dataganger-035">dataganger 0.3.5<a class="anchor" aria-label="anchor" href="#dataganger-035"></a></h2>
-<p>Generation, comparison, and export clarity pass:</p>
+<code>export_synthetic(compact = )</code> supports two bundle variants: the compact app download and the full CLI / agent bundle. # dataganger 0.3.5</li>
+</ul><p>Generation, comparison, and export clarity pass:</p>
 <ul><li>Generate page now shows a read-only “Column decisions” snapshot (the Configure table as final, non-editable values) so choices can be reviewed before generating.</li>
 <li>New <code><a href="../reference/report_issue.html">report_issue()</a></code> helper plus an in-app <strong>Report a problem</strong> button open a pre-filled GitHub issue with environment details, without sending anything automatically.</li>
 <li>The engine recap resolves to the engine actually used (e.g. <code>synthpop (auto)</code>) after generation, instead of always showing <code>auto</code>.</li>

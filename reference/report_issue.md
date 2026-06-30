@@ -1,6 +1,6 @@
 # Report a problem or share feedback
 
-Opens a pre-filled GitHub issue form in your browser for the
+Prints a pre-filled GitHub issue you can copy into your browser for the
 `lennon-li/dataganger` repository, with package and R environment
 details already populated. Use this to report a bug, suggest a feature,
 or send general feedback without copying session details by hand.
@@ -33,7 +33,7 @@ report_issue(
 
 ## Value
 
-Invisibly, the GitHub issue URL that was opened.
+Invisibly, the GitHub issue URL that was printed.
 
 ## Examples
 
