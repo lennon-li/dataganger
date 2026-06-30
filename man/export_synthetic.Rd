@@ -52,10 +52,10 @@ purpose recorded in \code{attr(synthetic, "spec")} when available.}
 frame. When supplied, the export bundle includes the exact column
 decisions needed to reproduce the same synthetic output.}
 
-\item{include_original_names}{Logical or \code{NULL}. Controls whether
-\code{data_dictionary.csv} includes original variable names. When \code{NULL}, this
-defaults to \code{TRUE} unless \code{name_strategy = "dictionary_only"}, in which
-case it defaults to \code{FALSE}.}
+\item{include_original_names}{Logical or \code{NULL}. Controls whether the human
+guide and manifest recipe preserve original variable names. When \code{NULL},
+this defaults to \code{TRUE} unless \code{name_strategy = "dictionary_only"}, in
+which case it defaults to \code{FALSE}.}
 
 \item{fail_on_exact_match}{Logical. When \code{TRUE}, abort export if exact-row
 matches are detected for \code{nrow(original) >= 20}. When \code{FALSE} (the
@@ -63,23 +63,15 @@ default), exact-row matches are recorded in the privacy report and
 manifest, and a warning is emitted instead.}
 
 \item{include_report}{Logical. When \code{TRUE} (the default), write
-\code{comparison_report.html}. If \code{rmarkdown}/\code{knitr} are unavailable, the
-report is skipped with a message instead of an error.}
+\code{human/comparison_report.html}. If \code{rmarkdown}/\code{knitr} are unavailable,
+the report is skipped with a message instead of an error.}
 
-\item{include_dictionary}{Logical. When \code{TRUE} (the default), write
-\code{data_dictionary.csv} into the bundle. The dictionary is always computed
-in memory for the load helper and README; this only controls whether the
-standalone CSV is written.}
+\item{include_dictionary}{Deprecated no-op kept for compatibility.}
 
 \item{code_readiness}{Optional \code{dataganger_code_readiness} object from
-\code{\link[=check_code_readiness]{check_code_readiness()}}. When supplied, writes
-\code{code_readiness_report.json} into the bundle.}
+\code{\link[=check_code_readiness]{check_code_readiness()}}.}
 
-\item{compact}{Logical. When \code{TRUE}, produce a smaller bundle by folding the
-AI summary and privacy report into \code{README.md} instead of also writing the
-standalone \code{ai-readme.md} and \code{privacy_report.txt}. The README always
-contains this information; this only controls the extra files. Defaults to
-\code{FALSE} (full bundle).}
+\item{compact}{Deprecated no-op kept for compatibility.}
 
 \item{overwrite}{Logical. When \code{FALSE} (the default), existing output paths
 are refused.}
@@ -88,12 +80,10 @@ are refused.}
 Invisibly, the written bundle path.
 }
 \description{
-Writes a reviewable export bundle containing the synthetic data, data
-dictionary, comparison report, privacy report, manifest, an \code{analysis.qmd}
-Quarto report (R code to compare the synthetic data against the original),
-and helper files for re-loading the bundle. The standalone data dictionary
-file is optional via \code{include_dictionary}. By default the bundle is written
-as a zip archive.
+Writes a reviewable export bundle containing the synthetic data, a human
+guide, an optional comparison report, a combined agent recipe, the packaged
+agent instructions, and a manifest. By default the bundle is written as a
+zip archive.
 }
 \examples{
 dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))

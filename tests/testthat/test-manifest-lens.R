@@ -17,7 +17,7 @@ make_manifest_for_test <- function(purpose = "development", seed = 42L,
   extract_dir <- file.path(tmp, "extracted")
   dir.create(extract_dir)
   utils::unzip(out, exdir = extract_dir)
-  jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
 }
 
 test_that("manifest.json contains Lens source field", {
@@ -79,7 +79,7 @@ test_that("manifest.json factor_levels_included is false for schema synthesis", 
   extract_dir <- file.path(tmp, "ext")
   dir.create(extract_dir)
   utils::unzip(out, exdir = extract_dir)
-  m <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  m <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_false(isTRUE(m$factor_levels_included))
 })
 
@@ -104,7 +104,7 @@ test_that("manifest.json original_rows_bucket is null when original not supplied
   extract_dir <- file.path(tmp, "ext")
   dir.create(extract_dir)
   utils::unzip(out, exdir = extract_dir)
-  m <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  m <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_null(m$original_rows_bucket)
   expect_null(m$original_columns_count)
 })

@@ -69,7 +69,7 @@ test_that("synthesize reports processing error when spec file is missing", {
   expect_false(file.exists(out_path))
 })
 
-test_that("synthesize command writes standard bundle zip", {
+test_that("synthesize command writes the restructured bundle zip", {
   tmp <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)
   spec_path <- file.path(tmp, "spec.yaml")
@@ -86,14 +86,11 @@ test_that("synthesize command writes standard bundle zip", {
     listing$Name,
     c(
       "synthetic_data.csv",
-      "data_dictionary.csv",
-      "comparison_report.html",
-      "privacy_report.txt",
-      "load_data.R",
-      "analysis.qmd",
-      "ai-readme.md",
-      "README.md",
-      "manifest.json"
+      "human/human.md",
+      "human/comparison_report.html",
+      "agent/recipe.yaml",
+      "agent/AGENT.md",
+      "agent/manifest.json"
     )
   )
 })
@@ -129,7 +126,7 @@ test_that("exec shim prints help through Rscript", {
   expect_true(any(grepl("Usage: dataganger", result, fixed = TRUE)))
 })
 
-test_that("make-agent-bundle command writes a valid bundle zip", {
+test_that("make-agent-bundle command writes the restructured bundle zip", {
   tmp       <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)
   out_path  <- file.path(tmp, "agent.zip")
@@ -140,7 +137,9 @@ test_that("make-agent-bundle command writes a valid bundle zip", {
   expect_true(file.exists(out_path))
   listing <- utils::unzip(out_path, list = TRUE)$Name
   expect_true("synthetic_data.csv"   %in% listing)
-  expect_true("diagnostic_view.json" %in% listing)
+  expect_true("human/human.md" %in% listing)
+  expect_true("agent/recipe.yaml" %in% listing)
+  expect_true("agent/manifest.json" %in% listing)
 })
 
 test_that("make-agent-bundle exits 2 when --out is missing", {
@@ -162,8 +161,8 @@ test_that("make-agent-bundle uses development as default purpose", {
   extract_dir <- file.path(tmp, "extracted")
   dir.create(extract_dir)
   utils::unzip(out_path, exdir = extract_dir)
-  diag <- jsonlite::read_json(file.path(extract_dir, "diagnostic_view.json"))
-  expect_equal(diag$purpose, "development")
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
+  expect_equal(manifest$purpose, "development")
 })
 
 test_that("export-diagnostic command writes valid diagnostic JSON", {
@@ -239,7 +238,7 @@ test_that("synthesize routes development to synthpop and records provenance (no 
   dir.create(extract_dir)
   utils::unzip(out_path, exdir = extract_dir)
 
-  manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_equal(manifest$engine, "synthpop")
   expect_match(manifest$synthesis_citation, "synthpop", ignore.case = TRUE)
 
@@ -275,6 +274,30 @@ test_that("cli_read_spec_yaml carries a disclosure_roles map", {
   expect_equal(attr(spec, "disclosure_roles"), list(age = "quasi", diagnosis = "sensitive"))
 })
 
+test_that("cli_read_spec_yaml and cli_read_roles_yaml read a combined recipe", {
+  df <- data.frame(age = 1:5, token = letters[1:5], stringsAsFactors = FALSE)
+  tmp <- tempfile(fileext = ".yaml")
+  writeLines(c(
+    "purpose: development",
+    "seed: 11",
+    "roles:",
+    "  - variable: age",
+    "    identifies: none",
+    "    sensitive: true",
+    "  - variable: token",
+    "    identifies: direct",
+    "    simulation: drop"
+  ), tmp)
+
+  spec <- cli_read_spec_yaml(tmp)
+  roles <- cli_read_roles_yaml(tmp, df)
+
+  expect_equal(spec$purpose, "development")
+  expect_equal(spec$seed, 11)
+  expect_equal(roles$simulation[roles$variable == "token"], "drop")
+  expect_true(roles$sensitive[roles$variable == "age"])
+})
+
 test_that("synthesize records internal engine and no synthpop citation for demo", {
   tmp       <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)
@@ -290,7 +313,7 @@ test_that("synthesize records internal engine and no synthpop citation for demo"
   extract_dir <- file.path(tmp, "extracted")
   dir.create(extract_dir)
   utils::unzip(out_path, exdir = extract_dir)
-  manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_equal(manifest$engine, "internal")
   expect_null(manifest$synthesis_citation)
 })
@@ -338,8 +361,44 @@ test_that("yaml engine is honored unless CLI --engine overrides it", {
   extract_dir <- file.path(tmp, "extracted")
   dir.create(extract_dir)
   utils::unzip(out_path, exdir = extract_dir)
-  manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_equal(manifest$engine, "internal")
+})
+
+test_that("synthesize --recipe reads combined spec and roles", {
+  skip_if_no_synthpop()
+  tmp <- withr::local_tempdir()
+  data_path <- file.path(tmp, "d.csv")
+  recipe_path <- file.path(tmp, "recipe.yaml")
+  out_path <- file.path(tmp, "bundle.zip")
+
+  df <- data.frame(
+    age = sample(20:80, 60, TRUE),
+    token = sprintf("T%04d", 1:60),
+    grp = rep(c("a", "b"), length.out = 60),
+    stringsAsFactors = FALSE
+  )
+  readr::write_csv(df, data_path)
+  writeLines(c(
+    "purpose: development",
+    "n: 60",
+    "seed: 7",
+    "roles:",
+    "  - variable: token",
+    "    identifies: direct",
+    "    simulation: drop"
+  ), recipe_path)
+
+  res <- suppressWarnings(run_cli(c(
+    "synthesize", data_path, "--recipe", recipe_path, "--out", out_path
+  )))
+  expect_identical(res$code, 0L)
+
+  ex <- file.path(tmp, "ex")
+  dir.create(ex)
+  utils::unzip(out_path, exdir = ex)
+  syn <- readr::read_csv(file.path(ex, "synthetic_data.csv"), show_col_types = FALSE)
+  expect_false("token" %in% names(syn))
 })
 
 test_that("synthesize --roles reproduces the supplied roles (drops a column marked direct)", {

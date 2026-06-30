@@ -1,8 +1,7 @@
 #' Create a one-command agent-ready bundle from a raw data file
 #'
 #' Reads a data file, profiles it, detects column roles, synthesizes data, and
-#' exports a zip bundle suitable for passing to an AI agent. Includes a
-#' \code{diagnostic_view.json} that describes column roles and what was blocked.
+#' exports a zip bundle suitable for passing to an AI agent.
 #'
 #' @param file Path to the input data file. Passed to [read_input()].
 #' @param out Path for the output zip file.
@@ -61,8 +60,6 @@ make_agent_bundle <- function(file, out, purpose = "development",
   comparison     <- compare_synthetic(data, synthetic, roles = roles)
   post_privacy   <- privacy_check(data, synthetic, roles = roles,
                                   stage = "post", spec = spec)
-  code_readiness <- check_code_readiness(data, synthetic, roles = roles)
-
   tmp_dir <- tempfile("dataganger-bundle-")
   on.exit(unlink(tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
   dir.create(tmp_dir, recursive = TRUE)
@@ -73,34 +70,15 @@ make_agent_bundle <- function(file, out, purpose = "development",
     roles          = roles,
     comparison     = comparison,
     privacy        = post_privacy,
-    code_readiness = code_readiness,
     path           = tmp_dir,
     format         = "dir",
     include_report = FALSE,
     overwrite      = TRUE
   )
 
-  dictionary <- readr::read_csv(
-    file.path(tmp_dir, "data_dictionary.csv"),
-    show_col_types = FALSE
-  )
-
-  diag_view <- build_diagnostic_view(roles, dictionary, synthetic, purpose)
-  jsonlite::write_json(
-    diag_view,
-    path       = file.path(tmp_dir, "diagnostic_view.json"),
-    auto_unbox = TRUE,
-    pretty     = TRUE,
-    null       = "null"
-  )
-
   if (file.exists(out) && isTRUE(overwrite)) unlink(out, force = TRUE)
 
-  zip::zip(
-    zipfile = out,
-    files   = list.files(tmp_dir, all.files = FALSE, no.. = TRUE),
-    root    = tmp_dir
-  )
+  zip_bundle(tmp_dir, out)
 
   invisible(out)
 }

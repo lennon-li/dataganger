@@ -1,4 +1,4 @@
-test_that("make_agent_bundle() produces a valid zip with all required files", {
+test_that("make_agent_bundle() produces a valid zip with the restructured layout", {
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "agent.zip")
 
@@ -12,17 +12,14 @@ test_that("make_agent_bundle() produces a valid zip with all required files", {
   expect_true(file.exists(out))
   listing <- utils::unzip(out, list = TRUE)$Name
   expect_true("synthetic_data.csv"   %in% listing)
-  expect_true("data_dictionary.csv"  %in% listing)
-  expect_true("ai-readme.md"         %in% listing)
-  expect_true("privacy_report.txt"   %in% listing)
-  expect_true("manifest.json"        %in% listing)
-  expect_true("load_data.R"          %in% listing)
-  expect_true("diagnostic_view.json" %in% listing)
-  expect_true("code_readiness_report.json" %in% listing)
+  expect_true("human/human.md"       %in% listing)
+  expect_true("agent/recipe.yaml"    %in% listing)
+  expect_true("agent/AGENT.md"       %in% listing)
+  expect_true("agent/manifest.json"  %in% listing)
   expect_false("comparison_report.html" %in% listing)
 })
 
-test_that("make_agent_bundle() diagnostic_view.json has valid shape", {
+test_that("make_agent_bundle() writes recipe and manifest metadata", {
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "agent.zip")
 
@@ -36,18 +33,15 @@ test_that("make_agent_bundle() diagnostic_view.json has valid shape", {
   extract_dir <- file.path(tmp, "extracted")
   dir.create(extract_dir)
   utils::unzip(out, exdir = extract_dir)
-  diag <- jsonlite::read_json(file.path(extract_dir, "diagnostic_view.json"))
+  recipe <- yaml::read_yaml(file.path(extract_dir, "agent", "recipe.yaml"))
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
 
-  expect_equal(diag$source,  "dataganger")
-  expect_equal(diag$purpose, "demo")
-  expect_equal(diag$engine,  "internal")
-  expect_null(diag$synthesis_citation)
-  expect_type(diag$dataganger_version,      "character")
-  expect_type(diag$dataset$n_rows_bucket,   "character")
-  expect_type(diag$dataset$n_cols,          "integer")
-  expect_true(length(diag$columns) > 0L)
-  expect_true(isTRUE(diag$blocked$raw_rows))
-  expect_true(isTRUE(diag$blocked$plots))
+  expect_equal(recipe$purpose, "demo")
+  expect_true(is.list(recipe$roles))
+  expect_equal(manifest$source, "dataganger")
+  expect_equal(manifest$purpose, "demo")
+  expect_equal(manifest$engine, "internal")
+  expect_null(manifest$synthesis_citation)
 })
 
 test_that("make_agent_bundle() aborts when out parent directory does not exist", {
