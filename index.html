@@ -42,7 +42,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/getting-started.html">Getting started with the app</a></li>
-    <li><a class="dropdown-item" href="articles/privacy-and-ai-workflow.html">Privacy gating and AI workflows</a></li>
+    <li><a class="dropdown-item" href="articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -67,27 +67,36 @@
 </div>
 <!-- badges: start -->
 
-<p><strong>DataGangeR</strong> creates synthetic data doubles from real datasets so you can prototype code, build Shiny apps, teach, and collaborate with AI tools without sharing the original dataset.</p>
+<p><a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&amp;logo=lock&amp;logoColor=white" alt="Your data stays local"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/network-none-2ea44f?style=flat-square" alt="No network calls"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&amp;logo=shield&amp;logoColor=white" alt="Human-gated privacy"></a> <a href="https://github.com/lennon-li/dataganger" class="external-link"><img src="https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Open &amp; auditable"></a></p>
+<p><strong>DataGangeR</strong> creates synthetic data doubles from real datasets so you can prototype code, build Shiny apps, teach, and work with coding <strong>Agents</strong> without sharing the original dataset.</p>
 <p>📖 <strong>Documentation:</strong> <a href="https://lennon-li.github.io/dataganger/" class="uri">https://lennon-li.github.io/dataganger/</a></p>
 <div class="float">
 <img src="reference/figures/hero.gif" alt="DataGangeR walks you through objective, upload, configure, generate, compare, and export"><div class="figcaption">DataGangeR walks you through objective, upload, configure, generate, compare, and export</div>
 </div>
 <div class="section level2">
-<h2 id="want-ai-to-prototype-on-your-data--without-handing-over-the-real-thing">Want AI to prototype on your data — without handing over the real thing?<a class="anchor" aria-label="anchor" href="#want-ai-to-prototype-on-your-data--without-handing-over-the-real-thing"></a>
+<h2 id="want-an-agent-to-build-on-your-data--without-ever-handing-it-over">Want an Agent to build on your data — without ever handing it over?<a class="anchor" aria-label="anchor" href="#want-an-agent-to-build-on-your-data--without-ever-handing-it-over"></a>
 </h2>
-<p>DataGangeR turns sensitive datasets into synthetic stand-ins that reduce direct disclosure risk. Your AI assistant prototypes at full speed while the real people in your data stay out of the shared bundle.</p>
+<p>Let a coding <strong>Agent</strong> work at full speed on a synthetic stand-in for your dataset. You decide the privacy rules once; the Agent gets safe synthetic data — or a reproducible recipe to make it — and <strong>never reads the real data</strong>. And the package makes <strong>no network calls</strong>, so nothing ever leaves your machine.</p>
 <ul>
-<li>🤖 <strong>Harness AI, keep your privacy</strong> — feed agents realistic synthetic data via a built-in CLI, not your production records.</li>
-<li>🧭 <strong>Human in control</strong> — a guided UI lets you decide what’s identifying, sensitive, or not sensitive, column by column.</li>
-<li>⚙️ <strong>Real synthesis</strong> — synthpop + k-anonymity: faithful enough to build on, with disclosure controls you can inspect and review.</li>
-<li>🔁 <strong>Reproducible &amp; human-gated</strong> — every export is a one-click bundle with an R script to regenerate the exact result.</li>
+<li>🔒 <strong>The Agent never touches the real data</strong> — it gets a synthetic bundle, or a saved recipe (<code>spec</code> + <code>roles</code> + <code>seed</code>) it runs back through the package to regenerate safe data itself. The real records stay out of the shared bundle.</li>
+<li>🧭 <strong>The human gates privacy once</strong> — attest there are no direct identifiers, then answer two questions per column (does it point to a person? is it sensitive?). Those answers drive the synthesis.</li>
+<li>📴 <strong>Provably offline</strong> — the package makes no network calls and launches no browser; a shipped self-test and a no-network CI job prove it. Open source, so you can verify your own copy.</li>
+<li>⚙️ <strong>Real synthesis</strong> — synthpop + k-anonymity for relationship-aware, disclosure-controlled output you can inspect (with a dependency-free internal engine as the automatic fallback).</li>
 </ul>
-<p>Prototype with AI. Protect your data. Both.</p>
+<p>Let an Agent build on your data. Keep your data. Both.</p>
+<pre class="mermaid"><code>flowchart LR
+  R[(Your real data)] --&gt; G{Human gates privacy&lt;br/&gt;once, in the UI}
+  G --&gt;|Path A| Bun[Synthetic bundle] --&gt; AG1[Agent builds on safe data]
+  G --&gt;|Path B| Rec[Saved recipe&lt;br/&gt;spec + roles + seed] --&gt; CLI[Agent runs the package] --&gt; AG2[Agent regenerates safe data&lt;br/&gt;never reads the real data]</code></pre>
+<blockquote>
+<p>[!TIP] ### 🔒 Safe to try — your data never leaves your machine ✅ Processed <strong>locally, in memory only</strong> — never uploaded, never written to disk by the app, gone when you close it. ✅ <strong>No network calls</strong> and <strong>no browser launch</strong> — proven by a shipped self-test and a no-network CI job. ✅ <strong>Open source</strong> — you (or your IT team) can verify your own copy.</p>
+<p>No account. No upload. No cloud. Point it at a sample dataset and see for yourself.</p>
+</blockquote>
 </div>
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>Analysts often need to share data structure with teammates, students, or AI assistants. Sharing the original data is not always possible. DataGangeR generates a synthetic “doppelganger” that preserves the structure, distributions, and relationships you need for development while reducing the need to expose original records.</p>
+<p>Analysts often need to share data structure with teammates, students, or coding Agents. Sharing the original data is not always possible. DataGangeR generates a synthetic “doppelganger” that preserves the structure, distributions, and relationships you need for development while reducing the need to expose original records.</p>
 <blockquote>
 <p><strong>Important:</strong> Synthetic data is intended to reduce direct disclosure risk, not to replace a formal privacy assessment. Review the comparison and privacy warnings before sharing any output externally.</p>
 </blockquote>
@@ -95,17 +104,18 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Development version from GitHub:</span></span>
 <span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"lennon-li/dataganger"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lennon-li/dataganger"</span>, <span class="st">"synthpop"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Strongly recommended: install <code>synthpop</code></strong> (above) for full-fidelity, relationship-aware synthesis. It is optional — without it, DataGangeR automatically falls back to the dependency-free <strong>internal</strong> engine (with a warning), so nothing breaks; the synthetic data is just marginal rather than relationship-preserving.</p>
 </div>
 <div class="section level2">
 <h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
 <p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button with a copyable issue report.</p>
-<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported AI workflow. See the <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html">Privacy gating and AI workflows vignette</a>.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported Agent workflow. See the <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows vignette</a>.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
@@ -136,7 +146,7 @@
 <code>analytics</code> — highest fidelity, with more emphasis on preserving relationships</li>
 </ul>
 <p>An end-to-end reproducible pipeline looks like this:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">dat</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_input.html">read_input</a></span><span class="op">(</span><span class="st">"my-data.csv"</span><span class="op">)</span>          <span class="co"># or: individual_sample</span></span>
@@ -169,27 +179,27 @@
 <h3 id="cli--agent-workflow">CLI / agent workflow<a class="anchor" aria-label="anchor" href="#cli--agent-workflow"></a>
 </h3>
 <p>The CLI follows the same spec-first pipeline an agent would use:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">dataganger</span> profile my-data.csv <span class="at">--out</span> profile.json</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">dataganger</span> roles my-data.csv <span class="at">--out</span> roles.yaml</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="ex">dataganger</span> spec <span class="at">--purpose</span> development <span class="at">--out</span> spec.yaml</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co"># Edit spec.yaml if needed: set seed, engine/name_strategy overrides,</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co"># acknowledge_risk: true for analytics, and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co"># disclosure_roles is the compatibility YAML form; the app uses identifies + sensitive as the primary model.</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">dataganger</span> profile my-data.csv <span class="at">--out</span> profile.json</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">dataganger</span> roles my-data.csv <span class="at">--out</span> roles.yaml</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="ex">dataganger</span> spec <span class="at">--purpose</span> development <span class="at">--out</span> spec.yaml</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co"># Edit spec.yaml if needed: set seed, engine/name_strategy overrides,</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co"># acknowledge_risk: true for analytics, and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co"># disclosure_roles is the compatibility YAML form; the app uses identifies + sensitive as the primary model.</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
 <p>Then unzip the full bundle and render the included notebook against the real input file to reproduce and review the same-seed result:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">unzip</span> dataganger_bundle.zip <span class="at">-d</span> dataganger_bundle</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">quarto</span> render dataganger_bundle/analysis.qmd <span class="dt">\</span></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">-P</span> original_path:my-data.csv <span class="dt">\</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">-P</span> synthetic_path:dataganger_bundle/synthetic_data.csv</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">unzip</span> dataganger_bundle.zip <span class="at">-d</span> dataganger_bundle</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">quarto</span> render dataganger_bundle/analysis.qmd <span class="dt">\</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">-P</span> original_path:my-data.csv <span class="dt">\</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">-P</span> synthetic_path:dataganger_bundle/synthetic_data.csv</span></code></pre></div>
 <p>For the full command list, run <code>dataganger::dataganger_cli(c("--help"))</code>. Agents can print or copy the packaged workflow guide with <code>dataganger skill [--out &lt;file&gt;]</code>.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="synthesis-engines">Synthesis engines<a class="anchor" aria-label="anchor" href="#synthesis-engines"></a>
 </h2>
-<p>DataGangeR uses two synthesis engines. By default the engine is chosen automatically by your objective: <code>demo</code> uses the dependency-free internal marginal engine by default, <code>development</code> requests moderate relationship preservation and therefore routes to <code>synthpop</code> when it is installed (otherwise falling back to the internal engine with a warning), and <code>analytics</code> is the high-fidelity path that requires explicit risk acknowledgement. In the Shiny app and CLI spec you can also choose the engine explicitly (<code>auto</code>, <code>internal</code>, or <code>synthpop</code>). Install it with <code>install.packages("synthpop")</code> to enable relationship-preserving synthesis when requested.</p>
+<p>DataGangeR uses two synthesis engines. By default the engine is chosen automatically by your objective: <code>demo</code> uses the dependency-free internal marginal engine by default, <code>development</code> requests moderate relationship preservation and therefore routes to <code>synthpop</code> when it is installed (otherwise falling back to the internal engine with a warning), and <code>analytics</code> is the high-fidelity path that requires explicit risk acknowledgement. In the Shiny app and CLI spec you can also choose the engine explicitly (<code>auto</code>, <code>internal</code>, or <code>synthpop</code>). <strong>Installing <code>synthpop</code> is strongly recommended</strong> (<code>install.packages("synthpop")</code>) for relationship-preserving synthesis; the internal engine is the dependency-free fail-safe used automatically when synthpop is absent.</p>
 <p>Please cite synthpop when you use that engine:</p>
 <p>Nowok B, Raab GM, Dibben C (2016). “synthpop: Bespoke Creation of Synthetic Data in R.” <em>Journal of Statistical Software</em>, 74(11), 1-26. <a href="doi:10.18637/jss.v074.i11" class="uri">doi:10.18637/jss.v074.i11</a></p>
 </div>

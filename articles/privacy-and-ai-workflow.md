@@ -1,4 +1,4 @@
-# Privacy gating and AI workflows
+# Privacy gating and Agent workflows
 
 ## The promise
 
