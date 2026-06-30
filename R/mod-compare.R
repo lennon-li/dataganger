@@ -55,6 +55,53 @@ mod_compare_ui <- function(id) {
   )
 }
 
+# Shared explainer for the effect column: what the colour bands mean and which
+# test produced each p-value. `tests` is an optional named character vector of
+# "statistic" -> "test name" lines appended below the colour key.
+fidelity_legend <- function(tests = NULL) {
+  swatch <- function(bg, border, label) {
+    shiny::tags$span(
+      style = "display:inline-flex; align-items:center; gap:5px; margin-right:14px;",
+      shiny::tags$span(style = sprintf(
+        "display:inline-block; width:11px; height:11px; border-radius:3px; background:%s; border:1px solid %s;",
+        bg, border
+      )),
+      shiny::tags$span(label)
+    )
+  }
+  shiny::tags$div(
+    class = "fidelity-legend",
+    style = paste(
+      "margin-top:10px; padding:8px 10px; border:1px solid var(--paper-200);",
+      "border-radius:4px; background:rgba(251,250,246,0.6);",
+      "font-family:var(--font-sans); font-size:11px; line-height:1.7; color:var(--fg-muted);"
+    ),
+    shiny::tags$div(
+      style = "margin-bottom:4px;",
+      shiny::tags$strong("Effect colour = how confidently the two distributions differ "),
+      "(from the test's p-value):"
+    ),
+    shiny::tags$div(
+      swatch("var(--real-50)", "var(--real-100)", "consistent (p \u2265 0.05)"),
+      swatch("var(--risk-50)", "#F2B36A", "some difference (p < 0.05)"),
+      swatch("var(--risk-50)", "var(--risk-500)", "strong difference (p < 0.01)"),
+      swatch("var(--paper-200)", "var(--paper-200)", "no inference (\u2014)")
+    ),
+    if (!is.null(tests) && length(tests)) {
+      shiny::tags$div(
+        style = "margin-top:6px;",
+        shiny::tags$strong("Tests: "),
+        do.call(shiny::tagList, lapply(seq_along(tests), function(i) {
+          shiny::tagList(
+            if (i > 1L) " \u00b7 ",
+            shiny::tags$span(shiny::tags$b(names(tests)[[i]]), " ", tests[[i]])
+          )
+        }))
+      )
+    }
+  )
+}
+
 compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
   if (is.null(num_cmp) || nrow(num_cmp) == 0L) {
     return(shiny::tags$p(
@@ -131,16 +178,29 @@ compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
     )
   )
 
-  shiny::tags$table(
-    class = "data",
-    style = "margin-top:8px;",
-    shiny::tags$thead(shiny::tags$tr(
-      shiny::tags$th("statistic"),
-      shiny::tags$th(class = "real", style = "text-align:right;", "original"),
-      shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
-      shiny::tags$th(style = "text-align:right;", "effect")
-    )),
-    shiny::tags$tbody(rows_html)
+  shiny::tagList(
+    shiny::tags$table(
+      class = "data",
+      style = "margin-top:8px;",
+      shiny::tags$thead(shiny::tags$tr(
+        shiny::tags$th("statistic"),
+        shiny::tags$th(class = "real", style = "text-align:right;", "original"),
+        shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
+        shiny::tags$th(style = "text-align:right;", "effect")
+      )),
+      shiny::tags$tbody(rows_html)
+    ),
+    shiny::tags$p(
+      style = "font-family:var(--font-sans); font-size:11px; color:var(--fg-muted); margin:8px 0 0;",
+      shiny::tags$b("SMD"),
+      " (standardized mean difference) is the \u0394 between the original and synthetic means, ",
+      "divided by the original SD \u2014 a scale-free measure of drift; bigger means more drift."
+    ),
+    fidelity_legend(tests = c(
+      "Mean (SMD)"        = "Welch t-test",
+      "SD (ratio)"        = "F-test",
+      "Median (std diff)" = "Wilcoxon rank-sum test"
+    ))
   )
 }
 
@@ -553,16 +613,21 @@ mod_compare_server <- function(id, state) {
           bad  = " \u00b7 strong difference (p < 0.01) \u2014 review",
           " \u00b7 no inference available")
         p_txt <- if (is.na(p)) "p = \u2014" else sprintf("p = %.3g", p)
-        shiny::tags$div(
-          style = sprintf(
-            "margin-top:12px; padding:8px 12px; background:%s; border:1px solid %s; border-radius:4px; font-family:var(--font-sans); font-size:13px;",
-            band_bg, band_border
+        shiny::tagList(
+          shiny::tags$div(
+            style = sprintf(
+              "margin-top:12px; padding:8px 12px; background:%s; border:1px solid %s; border-radius:4px; font-family:var(--font-sans); font-size:13px;",
+              band_bg, band_border
+            ),
+            shiny::tags$b(
+              style = sprintf("font-family:var(--font-mono); color:%s;", band_fg),
+              sprintf("%s \u00b7 TVD = %.3f", p_txt, tvd)
+            ),
+            band_note
           ),
-          shiny::tags$b(
-            style = sprintf("font-family:var(--font-mono); color:%s;", band_fg),
-            sprintf("%s \u00b7 TVD = %.3f", p_txt, tvd)
-          ),
-          band_note
+          fidelity_legend(tests = c(
+            "Category counts" = "chi-square test (Fisher's exact test when cells are sparse)"
+          ))
         )
 
       } else if (kind == "date") {

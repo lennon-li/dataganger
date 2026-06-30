@@ -153,6 +153,14 @@ mod_generate_server <- function(id, state) {
       }
 
       recap <- dg_decision_recap_table(roles)
+
+      # Columns that actually go through the synthesis engine together. Their
+      # univariate shapes and their mutual (multivariate) relationships are the
+      # ones the engine reproduces; pass-through keeps real values, drop removes.
+      sim <- if ("simulation" %in% names(roles)) roles$simulation else rep("synthesize", nrow(roles))
+      sim[is.na(sim)] <- "synthesize"
+      synth_cols <- roles$variable[sim == "synthesize"]
+
       rows <- lapply(seq_len(nrow(recap)), function(i) {
         shiny::tags$tr(
           shiny::tags$td(
@@ -196,6 +204,53 @@ mod_generate_server <- function(id, state) {
             )
           ),
           shiny::tags$tbody(rows)
+        ),
+        shiny::tags$div(
+          style = paste(
+            "margin-top:12px; padding:10px 12px; border:1px solid var(--paper-200);",
+            "border-radius:4px; background:rgba(251,250,246,0.6);",
+            "font-family:var(--font-sans); font-size:12px; line-height:1.6; color:var(--fg-muted);"
+          ),
+          shiny::tags$div(
+            style = "margin-bottom:6px;",
+            shiny::tags$strong("What the synthetic data preserves")
+          ),
+          shiny::tags$div(
+            style = "margin-bottom:4px;",
+            shiny::tags$b("Univariate \u2014 each column's own shape. "),
+            "Every synthesised column reproduces its original distribution: ",
+            "category frequencies, spread, and percentiles match the real data."
+          ),
+          shiny::tags$div(
+            shiny::tags$b("Multivariate \u2014 relationships between columns. "),
+            if (length(synth_cols) >= 2L) {
+              shiny::tagList(
+                "The engine models these columns conditionally on one another, so ",
+                "correlations and joint patterns among them are carried into the output: ",
+                shiny::tags$span(
+                  style = "font-family:var(--font-mono); color:var(--fg-default);",
+                  paste(synth_cols, collapse = ", ")
+                ),
+                "."
+              )
+            } else if (length(synth_cols) == 1L) {
+              shiny::tagList(
+                "Only one column (",
+                shiny::tags$span(
+                  style = "font-family:var(--font-mono); color:var(--fg-default);",
+                  synth_cols
+                ),
+                ") is synthesised, so there are no cross-column relationships to preserve."
+              )
+            } else {
+              "No columns are being synthesised, so there are no relationships to preserve."
+            }
+          ),
+          shiny::tags$div(
+            style = "margin-top:6px; font-size:11px;",
+            "Pass-through columns keep their real values; dropped columns are removed. ",
+            "Verify both kinds of fidelity on the Compare step after generating."
+          )
         )
       )
     })
@@ -437,8 +492,10 @@ mod_generate_server <- function(id, state) {
         ),
         shiny::tags$div(
           class = "stats populated",
-          stat_cell("ROWS", as.character(nrow(state$synthetic))),
-          stat_cell("COLS", as.character(ncol(state$synthetic))),
+          stat_cell(
+            "ROWS \u00d7 COLS",
+            sprintf("%d \u00d7 %d", nrow(state$synthetic), ncol(state$synthetic))
+          ),
           stat_cell("SEED", seed_label),
           stat_cell("DURATION", dur_label),
           stat_cell("EXACT MATCHES", exact_row_matches)

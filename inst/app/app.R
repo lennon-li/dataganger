@@ -291,6 +291,19 @@ configure_ui <- function() {
           shiny::uiOutput("configure_summary_stats")
         )
       )
+    ),
+    shiny::tags$div(
+      class = "main-header-action",
+      style = "display:flex; justify-content:flex-end; margin-top:24px;",
+      shiny::tags$button(
+        type    = "button",
+        class   = "btn btn-primary",
+        onclick = sprintf(
+          "document.getElementById('%s').click();",
+          shiny::NS("synthesis_controls")("confirm")
+        ),
+        "Confirm and Continue \u2192"
+      )
     )
   )
 }

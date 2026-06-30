@@ -322,7 +322,7 @@ app_attestation_modal <- function(ns = shiny::NS(NULL)) {
       )
     ),
     shiny::tags$p(
-      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Feel free to disable your internet connection while using this package. Use at your own risk."
+      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Feel free to disable your internet connection while using this package."
     ),
     shiny::tags$div(
       style = paste(
