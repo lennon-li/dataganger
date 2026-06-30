@@ -34,8 +34,7 @@ Invisibly, the written bundle path.
 }
 \description{
 Reads a data file, profiles it, detects column roles, synthesizes data, and
-exports a zip bundle suitable for passing to an AI agent. Includes a
-\code{diagnostic_view.json} that describes column roles and what was blocked.
+exports a zip bundle suitable for passing to an AI agent.
 }
 \examples{
 \dontrun{

@@ -17,8 +17,7 @@ mod_export_ui <- function(id) {
         shiny::tags$p(
           class = "subtitle",
           "Download the full bundle: your synthetic data as CSV plus the ",
-          "documentation, comparison report, and an analysis notebook for ",
-          "checking the synthetic data against the original."
+          "human guide, comparison report, agent recipe, and manifest."
         )
       ),
       shiny::tags$div(
@@ -43,18 +42,16 @@ mod_export_ui <- function(id) {
       shiny::tags$ul(
         class = "bundle-contents",
         shiny::tags$li(shiny::tags$strong("synthetic_data.csv"), " \u2014 the synthetic dataset"),
-        shiny::tags$li(shiny::tags$strong("README.md"), " \u2014 start here; explains every file, the privacy report, and notes for AI assistants"),
-        shiny::tags$li(shiny::tags$strong("load_data.R"), " \u2014 helper to load the synthetic data with correct types"),
-        shiny::tags$li(shiny::tags$strong("analysis.qmd"), " \u2014 Quarto report with the R-only reproduction pipeline and comparison workflow"),
-        shiny::tags$li(shiny::tags$strong("comparison_report.html"), " \u2014 fidelity + privacy comparison"),
-        shiny::tags$li(shiny::tags$strong("manifest.json"), " \u2014 provenance and disclosure metrics"),
-        shiny::tags$li(shiny::tags$strong("spec.yaml"), " \u2014 synthesis settings, including the seed used"),
-        shiny::tags$li(shiny::tags$strong("roles.yaml"), " \u2014 full per-column role decisions for CLI reproduction")
+        shiny::tags$li(shiny::tags$strong("human/human.md"), " \u2014 start here; explains the bundle, privacy notes, and agent guidance"),
+        shiny::tags$li(shiny::tags$strong("human/comparison_report.html"), " \u2014 fidelity + privacy comparison"),
+        shiny::tags$li(shiny::tags$strong("agent/recipe.yaml"), " \u2014 synthesis settings plus per-column role decisions"),
+        shiny::tags$li(shiny::tags$strong("agent/AGENT.md"), " \u2014 packaged instructions for using the bundle safely"),
+        shiny::tags$li(shiny::tags$strong("agent/manifest.json"), " \u2014 provenance and disclosure metrics")
       ),
       shiny::tags$p(
         class = "help",
         "The bundle downloads to your browser's Downloads folder. ",
-        "See README.md inside it for what each file is for."
+        "See human/human.md inside it for what each file is for."
       )
     )
   )
@@ -140,9 +137,7 @@ mod_export_server <- function(id, state) {
       is.null(purpose) || !identical(purpose, "demo")
     }
 
-    # Build the full bundle into `bundle_dir` and return the path to the ZIP
-    # (synthetic data CSV + dictionary + analysis.qmd + report + manifest +
-    # privacy report + helpers).
+    # Build the full bundle into `bundle_dir` and return the path to the ZIP.
     build_export <- function(bundle_dir) {
       shiny::req(state$synthetic, state$spec)
 
@@ -169,17 +164,18 @@ mod_export_server <- function(id, state) {
 
       export_spec <- shiny::isolate(state$spec)
       export_spec$seed <- shiny::isolate(state$seed_used) %||% export_spec$seed
-      cli_write_yaml(cli_spec_to_list(export_spec), file.path(bundle_dir, "spec.yaml"))
       cli_write_yaml(
-        roles_to_yaml_list(export_roles),
-        file.path(bundle_dir, "roles.yaml")
+        recipe_to_yaml_list(export_spec, export_roles, include_original_names = use_original_names()),
+        file.path(bundle_dir, "agent", "recipe.yaml")
       )
 
       zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))
-      files <- list.files(bundle_dir, full.names = FALSE, recursive = TRUE)
+      files <- list.files(bundle_dir, full.names = TRUE, recursive = TRUE)
+      files <- files[!file.info(files)$isdir]
+      files <- sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE))
       # Avoid zipping the zip into itself.
       files <- files[files != basename(zip_path)]
-      zip::zipr(zipfile = zip_path, files = file.path(bundle_dir, files))
+      zip::zip(zipfile = zip_path, files = files, root = bundle_dir)
       zip_path
     }
 

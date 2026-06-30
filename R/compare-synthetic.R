@@ -1,3 +1,16 @@
+#' Map a fidelity p-value to a colour band.
+#'
+#' Lower p = a more significant original-vs-synthetic difference = poorer
+#' fidelity. `NA` means no inference was run (min/max) -> "none".
+#' @keywords internal
+#' @noRd
+fidelity_color <- function(p) {
+  if (length(p) != 1L || is.na(p)) return("none")
+  if (p < 0.01) return("bad")
+  if (p < 0.05) return("warn")
+  "good"
+}
+
 #' Compare original and synthetic datasets
 #'
 #' Compares an original dataset with its synthetic double across dataset-level
@@ -18,20 +31,6 @@
 #' spec <- synth_spec(purpose = "demo")
 #' syn <- synthesize_data(dat, spec)
 #' compare_synthetic(dat, syn)
-
-#' Map a fidelity p-value to a colour band.
-#'
-#' Lower p = a more significant original-vs-synthetic difference = poorer
-#' fidelity. `NA` means no inference was run (min/max) -> "none".
-#' @keywords internal
-#' @noRd
-fidelity_color <- function(p) {
-  if (length(p) != 1L || is.na(p)) return("none")
-  if (p < 0.01) return("bad")
-  if (p < 0.05) return("warn")
-  "good"
-}
-
 compare_synthetic <- function(original, synthetic, roles = NULL) {
   if (!is.data.frame(original)) {
     cli::cli_abort("{.arg original} must be a data frame")
@@ -107,6 +106,47 @@ compare_dataset <- function(orig, syn) {
 #' @noRd
 safe_test_p <- function(expr) {
   tryCatch(suppressWarnings(expr$p.value), error = function(e) NA_real_)
+}
+
+#' Distributional p-value for one categorical column (original vs synthetic).
+#'
+#' Tests whether the level frequencies differ between the two samples. Uses
+#' Pearson's chi-square on the 2 x k contingency table; when the table is small
+#' enough, falls back to Fisher's exact test (more reliable with sparse cells).
+#' Lower p = a more significant original-vs-synthetic difference. `NA` when there
+#' is nothing to test.
+#' @keywords internal
+#' @noRd
+safe_categorical_p <- function(x_obs, y_obs, all_levels) {
+  if (length(x_obs) < 1L || length(y_obs) < 1L || length(all_levels) < 2L) {
+    return(NA_real_)
+  }
+  cx <- as.numeric(table(factor(x_obs, levels = all_levels)))
+  cy <- as.numeric(table(factor(y_obs, levels = all_levels)))
+  tab <- rbind(cx, cy)
+  tab <- tab[, colSums(tab) > 0, drop = FALSE]
+  if (ncol(tab) < 2L) return(NA_real_)
+
+  # Fisher is more reliable on small/sparse tables; chi-square scales better.
+  small <- sum(tab) <= 200L && ncol(tab) <= 6L
+  if (small) {
+    p <- tryCatch(
+      suppressWarnings(stats::fisher.test(tab)$p.value),
+      error = function(e) NA_real_
+    )
+    if (!is.na(p)) return(p)
+  }
+  p <- tryCatch(
+    suppressWarnings(stats::chisq.test(tab)$p.value),
+    error = function(e) NA_real_
+  )
+  if (is.na(p)) {
+    p <- tryCatch(
+      suppressWarnings(stats::chisq.test(tab, simulate.p.value = TRUE, B = 2000)$p.value),
+      error = function(e) NA_real_
+    )
+  }
+  p
 }
 
 compare_numeric <- function(orig, syn) {
@@ -207,7 +247,7 @@ compare_categorical <- function(orig, syn) {
       variable = character(0), n_levels_orig = integer(0),
       n_levels_syn = integer(0), top_5_orig = character(0),
       top_5_syn = character(0), missing_orig_pct = double(0),
-      missing_syn_pct = double(0), tvd = double(0)
+      missing_syn_pct = double(0), tvd = double(0), dist_p = double(0)
     ))
   }
 
@@ -240,7 +280,8 @@ compare_categorical <- function(orig, syn) {
       top_5_syn       = top5_syn,
       missing_orig_pct = sum(is.na(x)) / length(x) * 100,
       missing_syn_pct  = sum(is.na(y)) / length(y) * 100,
-      tvd             = tvd
+      tvd             = tvd,
+      dist_p          = safe_categorical_p(x_obs, y_obs, all_levels)
     )
   })
 
@@ -348,15 +389,17 @@ print.dataganger_comparison <- function(x, ...) {
     }
   }
 
-  # Categorical -- top 3 by TVD
+  # Categorical -- top 3 by distributional significance (lowest p first)
   if (nrow(x$categorical) > 0) {
-    cli::cli_h2("Categorical -- top 3 by total variation distance")
+    cli::cli_h2("Categorical -- top 3 by distributional difference")
     cat <- x$categorical
-    cat <- cat[order(cat$tvd, decreasing = TRUE), ]
+    ord_p <- if ("dist_p" %in% names(cat)) cat$dist_p else rep(NA_real_, nrow(cat))
+    cat <- cat[order(ord_p, -cat$tvd, na.last = TRUE), ]
     n_show <- min(3, nrow(cat))
     for (i in seq_len(n_show)) {
       r <- cat[i, ]
-      cli::cli_li("{.field {r$variable}}: TVD = {round(r$tvd, 3)}")
+      p_txt <- if (!is.null(r$dist_p) && !is.na(r$dist_p)) sprintf("p = %.3g", r$dist_p) else "p = NA"
+      cli::cli_li("{.field {r$variable}}: {p_txt}, TVD = {round(r$tvd, 3)}")
       cli::cli_text("  Levels: {r$n_levels_orig} (orig) -> {r$n_levels_syn} (syn)")
     }
   }
@@ -445,14 +488,12 @@ plot_comparison <- function(comparison) {
   # Categorical plot
   if (nrow(comparison$categorical) > 0) {
     cat <- comparison$categorical
-    cat$color <- cut(cat$tvd,
-      breaks = c(-Inf, 0.1, 0.2, Inf),
-      labels = c("green", "yellow", "red")
-    )
+    p_vec <- if ("dist_p" %in% names(cat)) cat$dist_p else rep(NA_real_, nrow(cat))
+    cat$color <- vapply(p_vec, fidelity_color, character(1))
     cat <- cat[order(cat$tvd), ]
     cat$variable <- factor(cat$variable, levels = cat$variable)
 
-    color_map <- c(green = "#4CAF50", yellow = "#FFC107", red = "#F44336")
+    color_map <- c(good = "#4CAF50", warn = "#FFC107", bad = "#F44336", none = "#BDBDBD")
 
     plots$categorical <- ggplot2::ggplot(
       cat, ggplot2::aes(x = variable, y = tvd, fill = color)
@@ -460,7 +501,7 @@ plot_comparison <- function(comparison) {
       ggplot2::geom_col() +
       ggplot2::scale_fill_manual(values = color_map, guide = "none") +
       ggplot2::labs(
-        title = "Total variation distance (categorical columns)",
+        title = "Categorical columns (bar = TVD effect size, colour = chi-square/Fisher p)",
         x = "", y = "Total variation distance"
       ) +
       ggplot2::theme_minimal() +

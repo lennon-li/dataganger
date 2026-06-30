@@ -1,11 +1,9 @@
 #' Export a synthetic data bundle
 #'
-#' Writes a reviewable export bundle containing the synthetic data, data
-#' dictionary, comparison report, privacy report, manifest, an `analysis.qmd`
-#' Quarto report (R code to compare the synthetic data against the original),
-#' and helper files for re-loading the bundle. The standalone data dictionary
-#' file is optional via `include_dictionary`. By default the bundle is written
-#' as a zip archive.
+#' Writes a reviewable export bundle containing the synthetic data, a human
+#' guide, an optional comparison report, a combined agent recipe, the packaged
+#' agent instructions, and a manifest. By default the bundle is written as a
+#' zip archive.
 #'
 #' @param synthetic A synthetic data frame, typically from [synthesize_data()].
 #' @param original Optional original data frame. When provided, used for the
@@ -26,29 +24,22 @@
 #' @param roles Optional recorded role decisions as a `dataganger_roles` data
 #'   frame. When supplied, the export bundle includes the exact column
 #'   decisions needed to reproduce the same synthetic output.
-#' @param include_original_names Logical or `NULL`. Controls whether
-#'   `data_dictionary.csv` includes original variable names. When `NULL`, this
-#'   defaults to `TRUE` unless `name_strategy = "dictionary_only"`, in which
-#'   case it defaults to `FALSE`.
+#' @param include_original_names Logical or `NULL`. Controls whether the human
+#'   guide and manifest recipe preserve original variable names. When `NULL`,
+#'   this defaults to `TRUE` unless `name_strategy = "dictionary_only"`, in
+#'   which case it defaults to `FALSE`.
 #' @param fail_on_exact_match Logical. When `TRUE`, abort export if exact-row
 #'   matches are detected for `nrow(original) >= 20`. When `FALSE` (the
 #'   default), exact-row matches are recorded in the privacy report and
 #'   manifest, and a warning is emitted instead.
 #' @param include_report Logical. When `TRUE` (the default), write
-#'   `comparison_report.html`. If `rmarkdown`/`knitr` are unavailable, the
-#'   report is skipped with a message instead of an error.
-#' @param include_dictionary Logical. When `TRUE` (the default), write
-#'   `data_dictionary.csv` into the bundle. The dictionary is always computed
-#'   in memory for the load helper and README; this only controls whether the
-#'   standalone CSV is written.
+#'   `human/comparison_report.html`. If `rmarkdown`/`knitr` are unavailable,
+#'   the report is skipped with a message instead of an error.
+#' @param include_dictionary Deprecated no-op kept for compatibility.
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
 #'   `code_readiness_report.json` into the bundle.
-#' @param compact Logical. When `TRUE`, produce a smaller bundle by folding the
-#'   AI summary and privacy report into `README.md` instead of also writing the
-#'   standalone `ai-readme.md` and `privacy_report.txt`. The README always
-#'   contains this information; this only controls the extra files. Defaults to
-#'   `FALSE` (full bundle).
+#' @param compact Deprecated no-op kept for compatibility.
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
 #'
@@ -132,13 +123,17 @@ export_synthetic <- function(synthetic,
     purpose = purpose,
     spec = spec
   )
+  export_roles <- roles
+  if (is.null(export_roles) && !is.null(original)) {
+    export_roles <- detect_roles(original)
+  }
 
   if (is.null(comparison) && !is.null(original)) {
-    comparison <- compare_synthetic(original, synthetic)
+    comparison <- compare_synthetic(original, synthetic, roles = export_roles)
   }
 
   if (is.null(privacy) && !is.null(original)) {
-    privacy <- privacy_check(original, synthetic, stage = "post", spec = spec)
+    privacy <- privacy_check(original, synthetic, roles = export_roles, stage = "post", spec = spec)
   }
 
   export_target <- prepare_export_target(path, format, overwrite)
@@ -155,7 +150,7 @@ export_synthetic <- function(synthetic,
     handle_exact_row_matches(exact_row_matches, fail_on_exact_match)
   }
 
-  dictionary <- build_data_dictionary(original, synthetic, spec, roles = roles, include_original_names = include_original_names)
+  dictionary <- build_data_dictionary(original, synthetic, spec, roles = export_roles, include_original_names = include_original_names)
 
   csv_data <- synthetic
   if (isTRUE(sanitize_for_spreadsheets)) {
@@ -165,55 +160,29 @@ export_synthetic <- function(synthetic,
   synthetic_path <- file.path(bundle_dir, "synthetic_data.csv")
   readr::write_csv(csv_data, synthetic_path, na = "")
 
-  if (isTRUE(include_dictionary)) {
-    dictionary_path <- file.path(bundle_dir, "data_dictionary.csv")
-    readr::write_csv(dictionary, dictionary_path, na = "")
-  }
+  human_dir <- file.path(bundle_dir, "human")
+  agent_dir <- file.path(bundle_dir, "agent")
+  dir.create(human_dir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(agent_dir, recursive = TRUE, showWarnings = FALSE)
 
   writeLines(
-    render_load_data_template(synthetic, dictionary),
-    con = file.path(bundle_dir, "load_data.R"),
-    useBytes = TRUE
-  )
-
-  writeLines(
-    render_analysis_template(synthetic, spec = spec, roles = roles, purpose = purpose),
-    con = file.path(bundle_dir, "analysis.qmd"),
-    useBytes = TRUE
-  )
-
-  writeLines(
-    render_bundle_readme(
+    render_human_markdown(
       synthetic,
       dictionary,
       purpose,
       include_report,
-      include_dictionary,
       spec,
-      roles = roles,
+      roles = export_roles,
       privacy = privacy,
       exact_row_matches = exact_row_matches
     ),
-    con = file.path(bundle_dir, "README.md"),
+    con = file.path(human_dir, "human.md"),
     useBytes = TRUE
   )
 
-  # The compact bundle (app download) folds the AI summary and privacy report
-  # into README.md to keep the file count down. The full bundle (CLI / agent)
-  # also writes them as standalone files for tools that read them directly.
-  if (!isTRUE(compact)) {
-    writeLines(
-      render_ai_readme(synthetic, dictionary, purpose, spec, privacy, roles = roles),
-      con = file.path(bundle_dir, "ai-readme.md"),
-      useBytes = TRUE
-    )
-
-    writeLines(
-      render_privacy_report(privacy, exact_row_matches),
-      con = file.path(bundle_dir, "privacy_report.txt"),
-      useBytes = TRUE
-    )
-  }
+  recipe <- recipe_to_yaml_list(spec, export_roles, include_original_names = include_original_names)
+  cli_write_yaml(recipe, file.path(agent_dir, "recipe.yaml"))
+  file.copy(agent_skill_path(), file.path(agent_dir, "AGENT.md"), overwrite = TRUE)
 
   if (isTRUE(include_report)) {
     if (can_render_comparison_report()) {
@@ -222,7 +191,7 @@ export_synthetic <- function(synthetic,
         privacy = privacy,
         synthetic = synthetic,
         purpose = purpose,
-        output_file = file.path(bundle_dir, "comparison_report.html")
+        output_file = file.path(human_dir, "comparison_report.html")
       )
     } else {
       message("rmarkdown/knitr not available - skipping comparison report. Install with install.packages(c('rmarkdown', 'knitr')).")
@@ -237,31 +206,8 @@ export_synthetic <- function(synthetic,
     exact_row_matches      = exact_row_matches,
     include_original_names = include_original_names,
     original               = original,
-    roles                  = roles
+    roles                  = export_roles
   )
-
-  if (!is.null(code_readiness)) {
-    cr_list <- list(
-      summary = code_readiness$summary,
-      checks  = lapply(seq_len(nrow(code_readiness$checks)), function(i) {
-        as.list(code_readiness$checks[i, ])
-      }),
-      meta = list(
-        generated_at = format(code_readiness$meta$generated_at, usetz = TRUE),
-        nrow_orig    = code_readiness$meta$nrow_orig,
-        ncol_orig    = code_readiness$meta$ncol_orig,
-        nrow_syn     = code_readiness$meta$nrow_syn,
-        ncol_syn     = code_readiness$meta$ncol_syn
-      )
-    )
-    jsonlite::write_json(
-      cr_list,
-      path       = file.path(bundle_dir, "code_readiness_report.json"),
-      auto_unbox = TRUE,
-      pretty     = TRUE,
-      null       = "null"
-    )
-  }
 
   if (identical(format, "zip")) {
     zip_bundle(bundle_dir, output_path)
@@ -315,7 +261,7 @@ handle_exact_row_matches <- function(n_exact, fail_on_exact_match) {
   if (n_exact > 0) {
     msg <- c(
       "{n_exact} exact-row match{?es} detected between {.arg synthetic} and {.arg original}",
-      "i" = "The exact-row match count is recorded in {.file manifest.json} and the README Privacy section."
+      "i" = "The exact-row match count is recorded in {.file agent/manifest.json} and the human Privacy section."
     )
     if (isTRUE(fail_on_exact_match)) {
       cli::cli_abort(msg)
@@ -821,27 +767,21 @@ build_regeneration_command <- function(purpose, spec, roles = NULL) {
   build_reproduction_script(spec = spec, roles = roles, purpose = purpose)
 }
 
-render_bundle_readme <- function(synthetic, dictionary, purpose, include_report = TRUE,
-                                 include_dictionary = TRUE, spec = NULL, roles = NULL,
-                                 privacy = NULL, exact_row_matches = 0L) {
+render_human_markdown <- function(synthetic, dictionary, purpose, include_report = TRUE,
+                                  spec = NULL, roles = NULL, privacy = NULL,
+                                  exact_row_matches = 0L) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
-    "- `README.md` - this guide (for both humans and AI assistants).",
-    "- `load_data.R` - R helper that reads `synthetic_data.csv` with the correct column types.",
+    "- `human/human.md` - this guide, including privacy notes and agent-facing guidance.",
+    "- `agent/recipe.yaml` - the synthesis spec plus per-column role decisions for reproduction.",
+    "- `agent/AGENT.md` - the packaged agent instructions for using this bundle safely.",
     paste0(
-      "- `analysis.qmd` - Quarto report with an R-only reproduction pipeline and ",
-      "comparison workflow. Point it at your original file and render it."
+      "- `agent/manifest.json` - provenance: package version, synthesis engine, seed, the full ",
+      "spec, disclosure metrics, and a checksum of every bundled file."
     ),
     if (isTRUE(include_report)) {
-      "- `comparison_report.html` - a pre-rendered fidelity and privacy comparison; open it in a browser."
-    },
-    if (isTRUE(include_dictionary)) {
-      "- `data_dictionary.csv` - column-by-column schema and how each column was treated."
-    },
-    paste0(
-      "- `manifest.json` - provenance: package version, synthesis engine, seed, the full ",
-      "spec, disclosure metrics, and a checksum of every file."
-    )
+      "- `human/comparison_report.html` - a pre-rendered fidelity and privacy comparison; open it in a browser."
+    }
   )
 
   paste(
@@ -892,8 +832,7 @@ render_bundle_readme <- function(synthetic, dictionary, purpose, include_report 
     paste0(
       "This is synthetic data designed to reduce direct disclosure risk for AI coding workflows. Use it to build ",
       "and test code, then run the same pipeline on the real data. To reproduce the ",
-      "exact synthetic output, run the command above; for a full analysis and ",
-      "fidelity check, render `analysis.qmd` against the original file."
+      "exact synthetic output, use `agent/recipe.yaml` with DataGangeR or run the command above."
     ),
     "",
     "Columns dropped from the synthetic output:",
@@ -1047,8 +986,11 @@ html_escape <- function(x) {
 
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
                            include_original_names = TRUE, original = NULL, roles = NULL) {
-  files <- list.files(bundle_dir, full.names = TRUE, all.files = FALSE, no.. = TRUE)
-  files <- files[basename(files) != "manifest.json"]
+  files <- list.files(bundle_dir, full.names = TRUE, recursive = TRUE, all.files = FALSE, no.. = TRUE)
+  rel_files <- sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE))
+  keep <- rel_files != "agent/manifest.json"
+  files <- files[keep]
+  rel_files <- rel_files[keep]
   spec_for_manifest <- unclass(spec %||% list())
   if (!isTRUE(include_original_names)) {
     spec_for_manifest$name_map <- NULL
@@ -1057,7 +999,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
   spec_json <- jsonlite::toJSON(spec_for_manifest, auto_unbox = TRUE, null = "null", pretty = TRUE)
   spec_hash <- hash_text(spec_json)
   file_hashes <- as.list(hash_files(files))
-  names(file_hashes) <- basename(files)
+  names(file_hashes) <- rel_files
 
   role_treatment <- if (!is.null(roles) && nrow(roles)) dg_role_treatment(roles) else character(0)
   pass_through_cols <- names(role_treatment)[role_treatment %in% "pass_through"]
@@ -1078,7 +1020,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
   )
   # The comparison report is the only bundle artifact that embeds plots
   # (distribution charts). Reflect its actual presence rather than hard-coding.
-  plots_included <- any(basename(files) == "comparison_report.html")
+  plots_included <- any(rel_files == "human/comparison_report.html")
 
   manifest <- list(
     dataganger_version = as.character(utils::packageVersion("dataganger")),
@@ -1111,11 +1053,28 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
 
   jsonlite::write_json(
     manifest,
-    path = file.path(bundle_dir, "manifest.json"),
+    path = file.path(bundle_dir, "agent", "manifest.json"),
     auto_unbox = TRUE,
     pretty = TRUE,
     null = "null"
   )
+}
+
+recipe_to_yaml_list <- function(spec, roles, include_original_names = TRUE) {
+  recipe <- cli_spec_to_list(spec)
+  if (!isTRUE(include_original_names)) {
+    recipe$name_map <- NULL
+  }
+  recipe$roles <- if (is.null(roles)) list() else roles_to_yaml_list(roles)
+  recipe
+}
+
+agent_skill_path <- function() {
+  path <- system.file("agent-skill", "SKILL.md", package = "dataganger")
+  if (!nzchar(path) || !file.exists(path)) {
+    cli::cli_abort("Packaged skill file not found")
+  }
+  path
 }
 
 resolve_include_original_names <- function(include_original_names, purpose, spec) {
@@ -1147,9 +1106,11 @@ hash_files <- function(files) {
 }
 
 zip_bundle <- function(bundle_dir, output_path) {
+  files <- list.files(bundle_dir, recursive = TRUE, all.files = FALSE, no.. = TRUE, full.names = TRUE)
+  files <- files[!file.info(files)$isdir]
   zip::zip(
     zipfile = output_path,
-    files = list.files(bundle_dir, all.files = FALSE, no.. = TRUE),
+    files = sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE)),
     root = bundle_dir
   )
 

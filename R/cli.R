@@ -67,7 +67,7 @@ cli_print_help <- function() {
       "  profile <data-file> --out <profile.json>",
       "  roles <data-file> --out <roles.yaml>",
       "  spec --purpose <purpose> --out <spec.yaml> [--acknowledge-risk true|false]",
-      "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--roles <roles.yaml>] [--engine <internal|synthpop>]",
+      "  synthesize <data-file> (--spec <spec.yaml> [--roles <roles.yaml>] | --recipe <recipe.yaml>) --out <synthetic_bundle.zip> [--engine <internal|synthpop>]",
       "  inspect <synthetic_bundle.zip>",
       "  skill [--out <file>]",
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
@@ -296,22 +296,36 @@ cli_read_spec_yaml <- function(path) {
 }
 
 cli_cmd_synthesize <- function(args) {
-  parsed <- cli_parse_options(args, allowed = c("spec", "out", "roles", "engine"))
+  parsed <- cli_parse_options(args, allowed = c("spec", "recipe", "out", "roles", "engine"))
   input <- cli_require_n_positionals(parsed, 1L, "synthesize", "data file")[[1]]
-  spec_path <- cli_require_option(parsed, "spec")
   out <- cli_require_option(parsed, "out")
-  cli_assert_existing_file(input)
 
+  recipe_path <- parsed$options[["recipe"]]
+  spec_path <- parsed$options[["spec"]]
+  if (is.null(recipe_path) == is.null(spec_path)) {
+    stop(cli_usage_error("Provide exactly one of --spec or --recipe"))
+  }
+  if (!is.null(recipe_path) && !is.null(parsed$options[["roles"]])) {
+    stop(cli_usage_error("Option --roles cannot be combined with --recipe"))
+  }
+
+  cli_assert_existing_file(input)
   data <- read_input(input)
-  spec <- cli_read_spec_yaml(spec_path)
   profile <- profile_data(data)
-  roles_path <- parsed$options[["roles"]]
-  roles <- if (!is.null(roles_path)) {
-    cli_assert_existing_file(roles_path)
-    cli_read_roles_yaml(roles_path, data)
+
+  config_path <- recipe_path %||% spec_path
+  spec <- cli_read_spec_yaml(config_path)
+  roles <- if (!is.null(recipe_path)) {
+    cli_read_roles_yaml(recipe_path, data)
   } else {
-    detected_roles <- detect_roles(data, profile = profile)
-    apply_disclosure_overrides(detected_roles, attr(spec, "disclosure_roles"))
+    roles_path <- parsed$options[["roles"]]
+    if (!is.null(roles_path)) {
+      cli_assert_existing_file(roles_path)
+      cli_read_roles_yaml(roles_path, data)
+    } else {
+      detected_roles <- detect_roles(data, profile = profile)
+      apply_disclosure_overrides(detected_roles, attr(spec, "disclosure_roles"))
+    }
   }
   pre_privacy <- privacy_check(data, roles = roles, stage = "pre")
   hardened_spec <- synth_spec(
@@ -362,7 +376,7 @@ cli_unpack_bundle_file <- function(zip_path, member, tmp) {
 cli_read_bundle_summary <- function(zip_path) {
   cli_assert_existing_file(zip_path)
   listing <- utils::unzip(zip_path, list = TRUE)
-  required <- c("manifest.json", "data_dictionary.csv", "privacy_report.txt")
+  required <- c("agent/manifest.json", "human/human.md")
   missing <- setdiff(required, listing$Name)
   if (length(missing) > 0L) {
     stop(sprintf("Bundle is missing required file: %s", paste(missing, collapse = ", ")), call. = FALSE)
@@ -372,47 +386,33 @@ cli_read_bundle_summary <- function(zip_path) {
   dir.create(tmp)
   on.exit(unlink(tmp, recursive = TRUE, force = TRUE), add = TRUE)
 
-  manifest_path <- cli_unpack_bundle_file(zip_path, "manifest.json", tmp)
-  dictionary_path <- cli_unpack_bundle_file(zip_path, "data_dictionary.csv", tmp)
-  privacy_path <- cli_unpack_bundle_file(zip_path, "privacy_report.txt", tmp)
+  manifest_path <- cli_unpack_bundle_file(zip_path, "agent/manifest.json", tmp)
+  human_path <- cli_unpack_bundle_file(zip_path, "human/human.md", tmp)
 
   manifest <- jsonlite::read_json(manifest_path, simplifyVector = TRUE)
-  dictionary <- readr::read_csv(dictionary_path, show_col_types = FALSE)
-  privacy <- readLines(privacy_path, warn = FALSE)
+  human <- readLines(human_path, warn = FALSE)
 
   list(
     manifest = manifest,
-    dictionary = dictionary,
-    privacy = privacy,
+    human = human,
     files = listing$Name
   )
 }
 
 cli_print_bundle_summary <- function(summary) {
   manifest <- summary$manifest
-  dictionary <- summary$dictionary
-  privacy <- summary$privacy
+  human <- summary$human
 
   cat("Synthetic bundle
 ")
   cat(sprintf("Purpose: %s
 ", manifest$purpose %||% "unknown"))
   cat(sprintf("Variables: %d
-", nrow(dictionary)))
+", manifest$synthetic_dims$ncol %||% NA_integer_))
   cat(sprintf("Files: %d
 ", length(summary$files)))
 
-  if ("type" %in% names(dictionary)) {
-    type_counts <- sort(table(dictionary$type), decreasing = TRUE)
-    cat("Schema types:
-")
-    for (nm in names(type_counts)) {
-      cat(sprintf("  - %s: %d
-", nm, unname(type_counts[[nm]])))
-    }
-  }
-
-  privacy_lines <- privacy[nzchar(privacy)]
+  privacy_lines <- grep("Exact row matches:|^\\[[^]]+\\]", human, value = TRUE)
   cat("Privacy exposure ratings:
 ")
   if (length(privacy_lines) == 0L) {
@@ -435,11 +435,7 @@ cli_cmd_inspect <- function(args) {
 }
 
 cli_skill_path <- function() {
-  path <- system.file("agent-skill", "SKILL.md", package = "dataganger")
-  if (!nzchar(path) || !file.exists(path)) {
-    stop("Packaged skill file not found", call. = FALSE)
-  }
-  path
+  agent_skill_path()
 }
 
 cli_cmd_skill <- function(args) {

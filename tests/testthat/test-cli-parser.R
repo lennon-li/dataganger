@@ -33,10 +33,10 @@ test_that("spec requires purpose and out", {
   expect_true(any(grepl("Missing required option --purpose", err, fixed = TRUE)))
 })
 
-test_that("synthesize requires input spec and out", {
+test_that("synthesize requires exactly one config source and out", {
   err <- capture.output(code <- dataganger_cli(c("synthesize", "data.csv", "--out", "bundle.zip"), quit = FALSE), type = "message")
   expect_identical(code, 2L)
-  expect_true(any(grepl("Missing required option --spec", err, fixed = TRUE)))
+  expect_true(any(grepl("Provide exactly one of --spec or --recipe", err, fixed = TRUE)))
 })
 
 test_that("unknown options are syntax errors", {

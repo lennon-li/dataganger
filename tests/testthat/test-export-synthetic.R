@@ -30,43 +30,39 @@ test_that("export_synthetic() writes the full bundle file set", {
   )
 
   expect_setequal(
-    list.files(out_dir),
+    list.files(out_dir, recursive = TRUE),
     c(
       "synthetic_data.csv",
-      "data_dictionary.csv",
-      "comparison_report.html",
-      "privacy_report.txt",
-      "load_data.R",
-      "analysis.qmd",
-      "ai-readme.md",
-      "README.md",
-      "manifest.json"
+      "human/human.md",
+      "human/comparison_report.html",
+      "agent/recipe.yaml",
+      "agent/AGENT.md",
+      "agent/manifest.json"
     )
   )
 
-  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
   expect_equal(manifest$seed, 1)
   expect_true(nzchar(manifest$spec_hash))
 
-  dictionary <- readr::read_csv(file.path(out_dir, "data_dictionary.csv"), show_col_types = FALSE)
-  expect_true("original_variable" %in% names(dictionary))
+  recipe <- yaml::read_yaml(file.path(out_dir, "agent", "recipe.yaml"))
+  expect_equal(recipe$purpose, "development")
+  expect_true(is.list(recipe$roles))
+  expect_true(length(recipe$roles) > 0L)
 
   expect_setequal(
     names(manifest$file_sha256),
     c(
       "synthetic_data.csv",
-      "data_dictionary.csv",
-      "comparison_report.html",
-      "privacy_report.txt",
-      "load_data.R",
-      "analysis.qmd",
-      "ai-readme.md",
-      "README.md"
+      "human/human.md",
+      "human/comparison_report.html",
+      "agent/recipe.yaml",
+      "agent/AGENT.md"
     )
   )
 })
 
-test_that("export_synthetic(compact = TRUE) folds extras into README", {
+test_that("export_synthetic() folds guidance and privacy text into human/human.md", {
   tmp <- withr::local_tempdir()
   data("example_health_survey", package = "dataganger")
 
@@ -86,17 +82,16 @@ test_that("export_synthetic(compact = TRUE) folds extras into README", {
     compact = TRUE
   )
 
-  listing <- list.files(out_dir)
-  # The two standalone files are gone in compact mode.
+  listing <- list.files(out_dir, recursive = TRUE)
   expect_false("ai-readme.md" %in% listing)
   expect_false("privacy_report.txt" %in% listing)
-  expect_true("README.md" %in% listing)
+  expect_false("README.md" %in% listing)
+  expect_true("human/human.md" %in% listing)
 
-  # Their content lives in the consolidated README instead.
-  readme <- paste(readLines(file.path(out_dir, "README.md"), warn = FALSE), collapse = "\n")
-  expect_match(readme, "## Privacy")
-  expect_match(readme, "## For AI assistants")
-  expect_match(readme, "Exact row matches")
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
+  expect_match(human_md, "## Privacy")
+  expect_match(human_md, "## For AI assistants")
+  expect_match(human_md, "Exact row matches")
 })
 
 test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {
@@ -136,11 +131,11 @@ test_that("export_synthetic() warns but succeeds on exact-row matches by default
     "exact-row"
   )
 
-  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
   expect_true(manifest$exact_row_matches > 0)
 
-  privacy_report <- readLines(file.path(out_dir, "privacy_report.txt"), warn = FALSE)
-  expect_true(any(privacy_report == sprintf("Exact row matches: %s", manifest$exact_row_matches)))
+  human_md <- readLines(file.path(out_dir, "human", "human.md"), warn = FALSE)
+  expect_true(any(human_md == sprintf("Exact row matches: %s", manifest$exact_row_matches)))
 })
 
 test_that("export_synthetic() errors on exact-row matches when fail_on_exact_match = TRUE", {
@@ -204,14 +199,11 @@ test_that("export_synthetic() writes zip output", {
     zip_listing$Name,
     c(
       "synthetic_data.csv",
-      "data_dictionary.csv",
-      "comparison_report.html",
-      "privacy_report.txt",
-      "load_data.R",
-      "analysis.qmd",
-      "ai-readme.md",
-      "README.md",
-      "manifest.json"
+      "human/human.md",
+      "human/comparison_report.html",
+      "agent/recipe.yaml",
+      "agent/AGENT.md",
+      "agent/manifest.json"
     )
   )
 })
@@ -226,13 +218,13 @@ test_that("export_synthetic() manifest records synthpop engine and citation", {
   out_dir <- file.path(tmp, "synthpop-bundle")
   export_synthetic(syn, path = out_dir, format = "dir", include_report = FALSE)
 
-  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
   expect_equal(manifest$engine, "synthpop")
   expect_match(manifest$synthesis_citation, "Nowok B, Raab GM, Dibben C")
   expect_match(manifest$synthesis_citation, "10.18637/jss.v074.i11", fixed = TRUE)
 })
 
-test_that("export_synthetic() does not list dropped variables as NA (NA) in ai-readme", {
+test_that("export_synthetic() does not list dropped variables as NA (NA) in human markdown", {
   tmp <- withr::local_tempdir()
 
   original <- tibble::tibble(
@@ -255,10 +247,10 @@ test_that("export_synthetic() does not list dropped variables as NA (NA) in ai-r
     include_report = FALSE
   )
 
-  ai_readme <- paste(readLines(file.path(out_dir, "ai-readme.md"), warn = FALSE), collapse = "\n")
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
 
-  expect_false(grepl("NA \\(NA\\)", ai_readme))
-  expect_match(ai_readme, "`note`: dropped", fixed = TRUE)
+  expect_false(grepl("NA \\(NA\\)", human_md))
+  expect_match(human_md, "`note`: dropped", fixed = TRUE)
 })
 
 test_that("export_synthetic() omits original_variable when name_strategy is dictionary_only", {
@@ -279,10 +271,10 @@ test_that("export_synthetic() omits original_variable when name_strategy is dict
     include_report = FALSE
   )
 
-  dictionary <- readr::read_csv(file.path(out_dir, "data_dictionary.csv"), show_col_types = FALSE)
-  expect_false("original_variable" %in% names(dictionary))
+  recipe <- yaml::read_yaml(file.path(out_dir, "agent", "recipe.yaml"))
+  expect_false(any(vapply(recipe$roles, function(x) identical(x$variable, "original_variable"), logical(1))))
 
-  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
   expect_null(manifest$spec$name_map)
 })
 
@@ -299,8 +291,8 @@ test_that("export_synthetic() skips report gracefully when report deps are unava
     "skipping comparison report"
   )
 
-  expect_false(file.exists(file.path(out_dir, "comparison_report.html")))
-  expect_true(file.exists(file.path(out_dir, "manifest.json")))
+  expect_false(file.exists(file.path(out_dir, "human", "comparison_report.html")))
+  expect_true(file.exists(file.path(out_dir, "agent", "manifest.json")))
 })
 
 test_that("build_reproduction_script() emits a runnable R-only pipeline", {
@@ -366,20 +358,18 @@ test_that("export_synthetic() writes the same reproduction pipeline into bundle 
     include_report = FALSE
   )
 
-  analysis <- paste(readLines(file.path(out_dir, "analysis.qmd"), warn = FALSE), collapse = "\n")
-  ai_readme <- paste(readLines(file.path(out_dir, "ai-readme.md"), warn = FALSE), collapse = "\n")
+  recipe <- paste(readLines(file.path(out_dir, "agent", "recipe.yaml"), warn = FALSE), collapse = "\n")
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
 
-  expect_match(analysis, "synthesize_data\\(")
-  expect_match(analysis, "read_input\\(")
-  expect_match(analysis, "detect_roles\\(")
-  expect_no_match(analysis, "```\\{python\\}")
-  expect_no_match(analysis, "import ")
-  expect_match(ai_readme, "synthesize_data\\(")
-  expect_match(ai_readme, "read_input\\(")
+  expect_match(recipe, "purpose: development")
+  expect_match(recipe, "seed: 99")
+  expect_match(recipe, "roles:")
+  expect_match(human_md, "synthesize_data\\(")
+  expect_match(human_md, "read_input\\(")
 })
 
 
-test_that("bundle README and AI README avoid overclaiming privacy safety", {
+test_that("bundle human markdown avoids overclaiming privacy safety", {
   tmp <- withr::local_tempdir()
   syn <- tibble::tibble(x = 1:3)
   attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 1)
@@ -388,12 +378,10 @@ test_that("bundle README and AI README avoid overclaiming privacy safety", {
   out_dir <- file.path(tmp, "bundle-dir")
   export_synthetic(syn, path = out_dir, format = "dir", include_report = FALSE)
 
-  readme <- paste(readLines(file.path(out_dir, "README.md"), warn = FALSE), collapse = "\n")
-  ai_readme <- paste(readLines(file.path(out_dir, "ai-readme.md"), warn = FALSE), collapse = "\n")
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
 
-  expect_false(grepl("safe to share", readme, fixed = TRUE))
-  expect_match(readme, "reduce direct disclosure risk")
-  expect_match(ai_readme, "reduce direct disclosure risk")
+  expect_false(grepl("safe to share", human_md, fixed = TRUE))
+  expect_match(human_md, "reduce direct disclosure risk")
 })
 
 test_that("manifest booleans and dictionary reflect dropped and pass-through columns", {
@@ -427,13 +415,11 @@ test_that("manifest booleans and dictionary reflect dropped and pass-through col
     include_report = FALSE
   )
 
-  manifest <- jsonlite::read_json(file.path(out_dir, "manifest.json"), simplifyVector = TRUE)
-  dictionary <- readr::read_csv(file.path(out_dir, "data_dictionary.csv"), show_col_types = FALSE)
-  readme <- paste(readLines(file.path(out_dir, "README.md"), warn = FALSE), collapse = "\n")
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
 
   expect_true(isTRUE(manifest$raw_rows_included))
   expect_true(isTRUE(manifest$ids_included))
   expect_false(isTRUE(manifest$free_text_included))
-  expect_true(any(dictionary$original_variable == "note" & dictionary$treatment == "dropped"))
-  expect_match(readme, "`note`: dropped")
+  expect_match(human_md, "`note`: dropped")
 })

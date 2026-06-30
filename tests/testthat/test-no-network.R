@@ -39,6 +39,8 @@ test_that("the full pipeline and app UI construction make no network calls", {
       include_report = FALSE
     )
   ))
+  expect_true(file.exists(file.path(out_dir, "human", "human.md")))
+  expect_true(file.exists(file.path(out_dir, "agent", "manifest.json")))
 
   app_env <- new.env(parent = globalenv())
   # Resolve via system.file so this works both from source (load_all) and from

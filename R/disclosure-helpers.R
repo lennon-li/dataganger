@@ -12,17 +12,17 @@ dg_identifies_option_meta <- function() {
   list(
     list(
       value = "none",
-      label = "No",
-      examples = "blood pressure, lab value, score, price, outcome"
+      label = "No \u2014 not a person-level identifier",
+      examples = "blood pressure, lab value, score, price, row number, record index"
     ),
     list(
       value = "combination",
-      label = "Only combined with other columns",
+      label = "Only in combination with other columns",
       examples = "age, sex, ZIP/postcode, birth date, job title"
     ),
     list(
       value = "direct",
-      label = "Yes, directly",
+      label = "Yes \u2014 it identifies a person on its own",
       examples = "name, email, phone, address, SSN, record/account number"
     )
   )
@@ -139,9 +139,10 @@ dg_sync_roles_axes <- function(roles) {
     roles$identifies <- NA_character_
   }
   if (!"sensitive" %in% names(roles)) {
-    roles$sensitive <- FALSE
+    roles$sensitive <- NA
   }
-  roles$sensitive <- isTRUE_vec(roles$sensitive)
+  non_na_s <- !is.na(roles$sensitive)
+  roles$sensitive[non_na_s] <- isTRUE_vec(roles$sensitive[non_na_s])
   roles$disclosure_role <- vapply(
     seq_len(nrow(roles)),
     function(i) dg_axes_to_role(roles$identifies[i], roles$sensitive[i]),
@@ -189,10 +190,20 @@ dg_seed_disclosure <- function(roles) {
     roles$identifies <- NA_character_
   }
   if (!"sensitive" %in% names(roles)) {
-    roles$sensitive <- FALSE
+    roles$sensitive <- NA
   }
   if (!"disclosure_role" %in% names(roles)) {
     roles$disclosure_role <- ""
+  }
+  # user_identifies/user_sensitive track explicit user selections in the
+  # Configure UI.  Auto-detected values land in identifies/sensitive so the
+  # synthesis engine can use them, but the dropdowns only show a pre-selected
+  # value when the user has explicitly confirmed it.
+  if (!"user_identifies" %in% names(roles)) {
+    roles$user_identifies <- NA_character_
+  }
+  if (!"user_sensitive" %in% names(roles)) {
+    roles$user_sensitive <- NA
   }
 
   blank <- is.na(roles$identifies) | !nzchar(roles$identifies)
@@ -240,7 +251,19 @@ roles_generation_pending <- function(roles) {
   }
 
   eligible <- roles_generation_eligible(roles)
-  pending <- (is.na(roles$identifies) | !nzchar(roles$identifies)) & eligible
+
+  # When user_identifies column contains empty strings (set by ensure_simulation_column
+  # in the Shiny Configure module), use the user-confirmed fields so that
+  # auto-detected values don't count as answers.  CLI paths leave user_identifies
+  # as all-NA and take the old branch.
+  if ("user_identifies" %in% names(roles) && "user_sensitive" %in% names(roles) &&
+      any(!is.na(roles$user_identifies))) {
+    pending <- (!nzchar(roles$user_identifies %||% "")) | is.na(roles$user_sensitive)
+    pending <- pending & eligible
+    return(which(pending))
+  }
+
+  pending <- ((is.na(roles$identifies) | !nzchar(roles$identifies)) | is.na(roles$sensitive)) & eligible
   which(pending)
 }
 
@@ -286,12 +309,36 @@ app_fail_safe_token <- function(state) {
 #' @keywords internal
 #' @noRd
 app_attestation_modal <- function(ns = shiny::NS(NULL)) {
+  box_style <- paste(
+    "margin-top:12px; padding:12px 14px; border-radius:6px;",
+    "background:var(--risk-50, #FEF3C7);",
+    "border:1px solid var(--risk-500, #F59E0B);",
+    "border-left:4px solid var(--risk-500, #F59E0B);"
+  )
+  callout <- function(icon, text) {
+    shiny::tags$div(
+      style = box_style,
+      shiny::tags$div(
+        style = "display:flex; gap:10px; align-items:flex-start;",
+        shiny::tags$span(style = "font-size:18px; line-height:1.3;", icon),
+        shiny::tags$span(
+          style = "color:var(--risk-700, #B45309); font-weight:600;",
+          text
+        )
+      )
+    )
+  }
   shiny::modalDialog(
-    title = "Before you continue",
-    shiny::tags$p(
-      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Use at your own risk."
+    title = shiny::tags$span(
+      style = "color:var(--risk-700, #B45309); font-weight:700;",
+      "Read before you continue"
     ),
-    shiny::tags$p(
+    callout(
+      "\u2139\ufe0f",
+      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Feel free to disable your internet connection while using this package."
+    ),
+    callout(
+      "\u26a0\ufe0f",
       "By using this app I confirm there are no direct identifiers \u2014 including institutional identifiers \u2014 in this dataset (for example: name, email, healthcare/medical record number, national ID, phone, address)."
     ),
     footer = shiny::tagList(
@@ -306,18 +353,24 @@ app_attestation_modal <- function(ns = shiny::NS(NULL)) {
 #' @noRd
 app_fail_safe_modal <- function(flagged, ns = shiny::NS(NULL)) {
   lines <- apply(flagged, 1L, function(row) {
-    shiny::tags$li(shiny::tags$code(row[["variable"]]), ": ", row[["reason"]])
+    shiny::tags$li(
+      shiny::tags$code(row[["variable"]]),
+      shiny::tags$span(
+        style = "margin-left:6px; font-size:11px; padding:1px 6px; border-radius:999px; background:var(--risk-50); color:var(--risk-700); border:1px solid var(--risk-200);",
+        "potential identifier"
+      )
+    )
   })
   shiny::modalDialog(
     title = "Possible direct identifiers flagged",
     shiny::tags$p(
-      "We flagged columns that might point to a person. You are still responsible for confirming."
+      "We detected columns that might point to a person. You are still responsible for confirming."
     ),
     shiny::tags$ul(lines),
     footer = shiny::tagList(
-      shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-secondary"),
-      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm-keep", class = "btn btn-secondary"),
-      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-primary")
+      shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-danger"),
+      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-warning"),
+      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm and keep", class = "btn btn-success")
     ),
     easyClose = FALSE
   )
@@ -456,8 +509,6 @@ suspected_direct_identifiers <- function(roles) {
     "looks like an ID (high-cardinality / ID-shaped)"
   reason[is.na(reason) & recommended_role %in% "free text"] <-
     "free text may contain names or identifying details"
-  reason[is.na(reason) & vapply(variables, is_sensitive_name, logical(1))] <-
-    "column name suggests sensitive personal information"
 
   keep <- !is.na(reason)
   data.frame(

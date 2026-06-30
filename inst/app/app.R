@@ -291,6 +291,19 @@ configure_ui <- function() {
           shiny::uiOutput("configure_summary_stats")
         )
       )
+    ),
+    shiny::tags$div(
+      class = "main-header-action",
+      style = "display:flex; justify-content:flex-end; margin-top:24px;",
+      shiny::tags$button(
+        type    = "button",
+        class   = "btn btn-primary",
+        onclick = sprintf(
+          "document.getElementById('%s').click();",
+          shiny::NS("synthesis_controls")("confirm")
+        ),
+        "Confirm and Continue \u2192"
+      )
     )
   )
 }
@@ -355,6 +368,9 @@ server <- function(input, output, session) {
     state$fail_safe_status    <- "idle"
     state$fail_safe_flagged   <- app_fail_safe_empty()
     state$fail_safe_upload_token <- NULL
+    # Attestation is a claim about a specific dataset; a true "Start over" drops
+    # the data, so the no-direct-identifier gate must re-fire before the new one.
+    state$attested_no_direct  <- FALSE
     state$active_step         <- "upload"
     bslib::nav_select("app_tabs", "upload")
     send_step_state(0L)

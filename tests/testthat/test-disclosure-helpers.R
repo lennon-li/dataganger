@@ -1,8 +1,8 @@
 test_that("dg_identifies_option_meta returns the three identifies options in order", {
   m <- dg_identifies_option_meta()
   expect_equal(vapply(m, `[[`, "", "value"), c("none", "combination", "direct"))
-  expect_match(m[[2]]$label, "combined")
-  expect_match(m[[3]]$label, "directly")
+  expect_match(m[[2]]$label, "combination")
+  expect_match(m[[3]]$label, "identifies a person")
 })
 
 test_that("axes project to legacy disclosure_role", {
@@ -135,7 +135,7 @@ test_that("dg_decision_recap_table builds the generate recap rows", {
   out <- dg_decision_recap_table(roles)
 
   expect_equal(out$variable, c("name", "zip", "bp"))
-  expect_equal(out$points_to_person, c("Yes, directly", "Only combined with other columns", "No"))
+  expect_equal(out$points_to_person, c("Yes \u2014 it identifies a person on its own", "Only in combination with other columns", "No \u2014 not a person-level identifier"))
   expect_equal(out$sensitive, c("No", "Yes", "No"))
   expect_equal(out$action, c("Drop", "Pass through", "Synthesize"))
   expect_match(out$what_we_do[[1]], "Removed")
@@ -154,7 +154,7 @@ test_that("dg_decision_recap_table is robust to missing columns", {
 
   out <- dg_decision_recap_table(roles)
 
-  expect_equal(out$points_to_person, c("—", "—"))
+  expect_equal(out$points_to_person, c("\u2014", "\u2014"))
   expect_equal(out$sensitive, c("No", "No"))
   expect_equal(out$action, c("Synthesize", "Synthesize"))
   expect_match(out$what_we_do[[1]], "needs an answer")
