@@ -58,8 +58,14 @@ built-in sample), **configure** by answering two questions per column (does it
 point to a person? is it sensitive?) and reviewing what DataGangeR will do,
 **generate** the synthetic double,
 **compare** real vs. synthetic distributions, and **export** the bundle. The
-sidebar also includes a **Report a problem** button that opens a pre-filled
-GitHub issue in your browser.
+sidebar also includes a **Report a problem** button with a copyable issue
+report.
+
+**How privacy gating works.** DataGangeR starts with a no-direct-identifiers
+attestation, runs an early local fail-safe scan, then hard-gates Configure
+until you answer two privacy questions for every column. Those answers drive
+the synthesis rules and the exported AI workflow. See the
+[Privacy gating and AI workflows vignette](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html).
 
 ```r
 library(dataganger)
@@ -143,6 +149,7 @@ quarto render dataganger_bundle/analysis.qmd \
 ```
 
 For the full command list, run `dataganger::dataganger_cli(c("--help"))`.
+Agents can print or copy the packaged workflow guide with `dataganger skill [--out <file>]`.
 
 ## Synthesis engines
 

@@ -38,6 +38,7 @@ cli_dispatch <- function(args) {
         spec = cli_cmd_spec(rest),
         synthesize = cli_cmd_synthesize(rest),
         inspect = cli_cmd_inspect(rest),
+        skill = cli_cmd_skill(rest),
         "make-agent-bundle" = cli_cmd_make_agent_bundle(rest),
         "export-diagnostic" = cli_cmd_export_diagnostic(rest),
         {
@@ -66,8 +67,9 @@ cli_print_help <- function() {
       "  profile <data-file> --out <profile.json>",
       "  roles <data-file> --out <roles.yaml>",
       "  spec --purpose <purpose> --out <spec.yaml> [--acknowledge-risk true|false]",
-      "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--engine <internal|synthpop>]",
+      "  synthesize <data-file> --spec <spec.yaml> --out <synthetic_bundle.zip> [--roles <roles.yaml>] [--engine <internal|synthpop>]",
       "  inspect <synthetic_bundle.zip>",
+      "  skill [--out <file>]",
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
       "  export-diagnostic <data-file> --out <diagnostic_view.json>",
       sep = "\n"
@@ -183,8 +185,48 @@ cli_write_yaml <- function(x, path) {
   invisible(path)
 }
 
-cli_roles_to_list <- function(roles) {
-  list(roles = lapply(seq_len(nrow(roles)), function(i) as.list(roles[i, , drop = FALSE])))
+#' @keywords internal
+#' @noRd
+roles_to_yaml_list <- function(roles) {
+  keep <- intersect(
+    c(
+      "variable", "identifies", "sensitive", "simulation",
+      "disclosure_role", "user_role"
+    ),
+    names(roles)
+  )
+
+  lapply(seq_len(nrow(roles)), function(i) {
+    as.list(roles[i, keep, drop = FALSE])
+  })
+}
+
+#' @keywords internal
+#' @noRd
+cli_read_roles_yaml <- function(path, data) {
+  cli_assert_existing_file(path)
+  raw <- yaml::read_yaml(path)
+  entries <- raw$roles %||% raw
+  base <- detect_roles(data)
+
+  for (entry in entries) {
+    idx <- which(base$variable == entry$variable)
+    if (!length(idx)) {
+      next
+    }
+
+    for (field in c("identifies", "simulation", "disclosure_role", "user_role")) {
+      if (!is.null(entry[[field]])) {
+        base[[field]][idx] <- entry[[field]]
+      }
+    }
+
+    if (!is.null(entry$sensitive)) {
+      base$sensitive[idx] <- isTRUE(entry$sensitive)
+    }
+  }
+
+  dg_sync_roles_axes(base)
 }
 
 cli_cmd_roles <- function(args) {
@@ -196,7 +238,7 @@ cli_cmd_roles <- function(args) {
   data <- read_input(input)
   profile <- profile_data(data)
   roles <- detect_roles(data, profile = profile)
-  cli_write_yaml(cli_roles_to_list(roles), out)
+  cli_write_yaml(roles_to_yaml_list(roles), out)
   cli::cli_alert_success("Wrote roles YAML: {out}")
   cli_status_ok()
 }
@@ -254,7 +296,7 @@ cli_read_spec_yaml <- function(path) {
 }
 
 cli_cmd_synthesize <- function(args) {
-  parsed <- cli_parse_options(args, allowed = c("spec", "out", "engine"))
+  parsed <- cli_parse_options(args, allowed = c("spec", "out", "roles", "engine"))
   input <- cli_require_n_positionals(parsed, 1L, "synthesize", "data file")[[1]]
   spec_path <- cli_require_option(parsed, "spec")
   out <- cli_require_option(parsed, "out")
@@ -263,8 +305,14 @@ cli_cmd_synthesize <- function(args) {
   data <- read_input(input)
   spec <- cli_read_spec_yaml(spec_path)
   profile <- profile_data(data)
-  roles <- detect_roles(data, profile = profile)
-  roles <- apply_disclosure_overrides(roles, attr(spec, "disclosure_roles"))
+  roles_path <- parsed$options[["roles"]]
+  roles <- if (!is.null(roles_path)) {
+    cli_assert_existing_file(roles_path)
+    cli_read_roles_yaml(roles_path, data)
+  } else {
+    detected_roles <- detect_roles(data, profile = profile)
+    apply_disclosure_overrides(detected_roles, attr(spec, "disclosure_roles"))
+  }
   pre_privacy <- privacy_check(data, roles = roles, stage = "pre")
   hardened_spec <- synth_spec(
     purpose = spec$purpose,
@@ -383,6 +431,32 @@ cli_cmd_inspect <- function(args) {
   bundle <- cli_require_n_positionals(parsed, 1L, "inspect", "bundle file")[[1]]
   summary <- cli_read_bundle_summary(bundle)
   cli_print_bundle_summary(summary)
+  cli_status_ok()
+}
+
+cli_skill_path <- function() {
+  path <- system.file("agent-skill", "SKILL.md", package = "dataganger")
+  if (!nzchar(path) || !file.exists(path)) {
+    stop("Packaged skill file not found", call. = FALSE)
+  }
+  path
+}
+
+cli_cmd_skill <- function(args) {
+  parsed <- cli_parse_options(args, allowed = c("out"))
+  cli_require_n_positionals(parsed, 0L, "skill", "data file")
+  skill_path <- cli_skill_path()
+  out <- parsed$options[["out"]]
+
+  if (is.null(out)) {
+    cat(paste(readLines(skill_path, warn = FALSE), collapse = "\n"), "\n", sep = "")
+    return(cli_status_ok())
+  }
+
+  if (!isTRUE(file.copy(skill_path, out, overwrite = TRUE))) {
+    stop(sprintf("Failed to write skill file: %s", out), call. = FALSE)
+  }
+  cli::cli_alert_success("Wrote skill file: {out}")
   cli_status_ok()
 }
 

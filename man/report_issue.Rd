@@ -20,10 +20,10 @@ such as \code{"Shiny app"} or \code{"export_synthetic()"}.}
 \item{type}{Character. One of \code{"feedback"}, \code{"bug"}, or \code{"feature"}.}
 }
 \value{
-Invisibly, the GitHub issue URL that was opened.
+Invisibly, the GitHub issue URL that was printed.
 }
 \description{
-Opens a pre-filled GitHub issue form in your browser for the
+Prints a pre-filled GitHub issue you can copy into your browser for the
 \code{lennon-li/dataganger} repository, with package and R environment details
 already populated. Use this to report a bug, suggest a feature, or send
 general feedback without copying session details by hand.

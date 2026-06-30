@@ -27,9 +27,9 @@ test_that("roles command writes roles YAML", {
   expect_true(file.exists(out_path))
 
   roles <- yaml::read_yaml(out_path)
-  expect_true("roles" %in% names(roles))
-  expect_true(any(vapply(roles$roles, function(x) identical(x$variable, "id"), logical(1))))
-  expect_true(any(vapply(roles$roles, function(x) identical(x$variable, "score"), logical(1))))
+  expect_true(is.list(roles))
+  expect_true(any(vapply(roles, function(x) identical(x$variable, "id"), logical(1))))
+  expect_true(any(vapply(roles, function(x) identical(x$variable, "score"), logical(1))))
 })
 
 test_that("spec command writes synth spec YAML", {
@@ -340,4 +340,38 @@ test_that("yaml engine is honored unless CLI --engine overrides it", {
   utils::unzip(out_path, exdir = extract_dir)
   manifest <- jsonlite::read_json(file.path(extract_dir, "manifest.json"))
   expect_equal(manifest$engine, "internal")
+})
+
+test_that("synthesize --roles reproduces the supplied roles (drops a column marked direct)", {
+  skip_if_no_synthpop()
+  tmp <- withr::local_tempdir()
+  dp <- file.path(tmp, "d.csv")
+  rp <- file.path(tmp, "r.yaml")
+  sp <- file.path(tmp, "s.yaml")
+  op <- file.path(tmp, "b.zip")
+  df <- data.frame(
+    age = sample(20:80, 60, TRUE),
+    token = sprintf("T%04d", 1:60),
+    grp = rep(c("a", "b"), length.out = 60),
+    stringsAsFactors = FALSE
+  )
+  readr::write_csv(df, dp)
+
+  roles <- detect_roles(df)
+  roles$identifies[roles$variable == "token"] <- "direct"
+  roles$identifies[roles$variable == "age"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+  cli_write_yaml(roles_to_yaml_list(roles), rp)
+  yaml::write_yaml(list(purpose = "development", n = 60, seed = 7L), sp)
+
+  res <- suppressWarnings(run_cli(c(
+    "synthesize", dp, "--spec", sp,
+    "--roles", rp, "--out", op
+  )))
+  expect_identical(res$code, 0L)
+  ex <- file.path(tmp, "ex")
+  dir.create(ex)
+  utils::unzip(op, exdir = ex)
+  syn <- readr::read_csv(file.path(ex, "synthetic_data.csv"), show_col_types = FALSE)
+  expect_false("token" %in% names(syn))
 })

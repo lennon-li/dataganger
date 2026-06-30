@@ -1,6 +1,13 @@
 
 # Tests for privacy_check() — [3.6]-[3.8]
 
+# Bind the real exports explicitly so these tests are insulated from any mocked
+# bindings left by earlier Shiny module tests under testthat::test_local().
+privacy_check <- dataganger::privacy_check
+detect_roles <- dataganger::detect_roles
+synthesize_data <- dataganger::synthesize_data
+synth_spec <- dataganger::synth_spec
+
 # ---- Pre-stage ----
 
 test_that("privacy_check() pre returns correct S3 class", {

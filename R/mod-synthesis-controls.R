@@ -18,7 +18,7 @@ mod_synthesis_controls_objective_ui <- function(id) {
       class = "main-header",
       shiny::tags$div(
         class = "main-header-text",
-        shiny::tags$span(class = "eyebrow", "Step 01 \u00b7 Objective"),
+        shiny::tags$span(class = "eyebrow", "Step 02 \u00b7 Objective"),
         shiny::tags$h1("Objective"),
         shiny::tags$p(
           class = "subtitle",
@@ -36,13 +36,13 @@ mod_synthesis_controls_objective_ui <- function(id) {
             type = "button",
             class = "btn btn-secondary action-button",
             disabled = "disabled",
-            "Continue to Upload \u2192"
+            "Continue to Configure \u2192"
           )
         ),
         shiny::conditionalPanel(
           condition = "input.purpose_group !== 'analytics' || input.acknowledge_risk",
           ns = ns,
-          shiny::actionButton(ns("confirm_objective"), "Continue to Upload \u2192", class = "btn-primary")
+          shiny::actionButton(ns("confirm_objective"), "Continue to Configure \u2192", class = "btn-primary")
         )
       )
     ),
@@ -201,7 +201,7 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
       shiny::tags$div(
         class = "card-header",
         shiny::tags$span(class = "title", "Objective"),
-        shiny::tags$span(class = "sub", "set in Step 01")
+        shiny::tags$span(class = "sub", "set in Step 02")
       ),
       shiny::uiOutput(ns("purpose_recap"))
     ),

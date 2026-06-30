@@ -1,6 +1,6 @@
 # DataGangeR Shiny App
 # Loaded by run_app() via shiny::runApp(system.file("app", package = "dataganger"))
-# Do not add roxygen tags — this is not a package source file.
+# Do not add roxygen tags -- this is not a package source file.
 
 pkgload_available <- requireNamespace("pkgload", quietly = TRUE)
 if (pkgload_available && pkgload::is_dev_package("dataganger")) {
@@ -42,6 +42,10 @@ mod_upload_server             <- dataganger:::mod_upload_server
 mod_upload_ui                 <- dataganger:::mod_upload_ui
 mod_data_panel_server         <- dataganger:::mod_data_panel_server
 mod_data_panel_ui             <- dataganger:::mod_data_panel_ui
+dg_sync_roles_axes            <- dataganger:::dg_sync_roles_axes
+suspected_direct_identifiers  <- dataganger:::suspected_direct_identifiers
+app_fail_safe_empty           <- dataganger:::app_fail_safe_empty
+app_guardrail_server          <- dataganger:::app_guardrail_server
 
 dg_theme <- bslib::bs_theme(
   version = 5,
@@ -68,8 +72,41 @@ step_item <- function(num, label, input_id) {
     ),
     tags$span(class = "num", sprintf("%02d", num)),
     tags$span(class = "label", label),
-    tags$span(class = "check", "✓"),
+    tags$span(class = "check", "\u2713"),
     tags$span(class = "lock-icon", "\U0001F512")
+  )
+}
+
+report_issue_modal <- function(url, body) {
+  shiny::modalDialog(
+    title = "Report a problem",
+    shiny::tags$p(
+      "Nothing is sent automatically. Copy the pre-filled URL or issue body into your browser."
+    ),
+    shiny::tags$label(`for` = "report_issue_url", "GitHub issue URL"),
+    shiny::tags$textarea(
+      id = "report_issue_url",
+      class = "form-control",
+      readonly = "readonly",
+      onclick = "this.select();",
+      onfocus = "this.select();",
+      style = "width:100%; min-height:96px; font-family:var(--font-mono, monospace);",
+      url
+    ),
+    shiny::tags$div(style = "height:12px;"),
+    shiny::tags$label(`for` = "report_issue_body", "Issue body"),
+    shiny::tags$textarea(
+      id = "report_issue_body",
+      class = "form-control",
+      readonly = "readonly",
+      onclick = "this.select();",
+      onfocus = "this.select();",
+      style = "width:100%; min-height:260px; font-family:var(--font-mono, monospace); white-space:pre;",
+      body
+    ),
+    footer = shiny::modalButton("Close"),
+    easyClose = TRUE,
+    size = "l"
   )
 }
 
@@ -105,8 +142,8 @@ sidebar_content <- tags$nav(
       }
       window.DGsetPurpose = DGsetPurpose;
 
-      // k±1 navigation: only adjacent steps are clickable
-      var STEP_ORDER = ['objective','upload','configure','generate','compare','export'];
+      // k+/-1 navigation: only adjacent steps are clickable
+      var STEP_ORDER = ['upload','objective','configure','generate','compare','export'];
       Shiny.addCustomMessageHandler('setCurrentStep', function(data) {
         var cur = data.current;   // 0-based index into STEP_ORDER
         var max = data.max;       // 0-based furthest reached
@@ -165,8 +202,8 @@ sidebar_content <- tags$nav(
   tags$div(class = "section-label", "Workflow"),
   tags$ul(
     class = "steps",
-    step_item(1, "Objective",       "objective"),
-    step_item(2, "Upload data",     "upload"),
+    step_item(1, "Upload data",     "upload"),
+    step_item(2, "Objective",       "objective"),
     step_item(3, "Configuration",   "configure"),
     step_item(4, "Generation",      "generate"),
     step_item(5, "Comparison",      "compare"),
@@ -273,8 +310,8 @@ ui <- bslib::page(
       class = "main",
       bslib::navset_hidden(
         id = "app_tabs",
-        bslib::nav_panel_hidden("objective", mod_synthesis_controls_objective_ui("synthesis_controls")),
         bslib::nav_panel_hidden("upload",    mod_upload_ui("upload")),
+        bslib::nav_panel_hidden("objective", mod_synthesis_controls_objective_ui("synthesis_controls")),
         bslib::nav_panel_hidden("configure", configure_ui()),
         bslib::nav_panel_hidden("generate",  mod_generate_ui("generate")),
         bslib::nav_panel_hidden("compare",   mod_compare_ui("compare")),
@@ -293,9 +330,12 @@ ui <- bslib::page(
 
 server <- function(input, output, session) {
   state <- mod_state_server("state")
+  app_guardrail_server("guardrail", state)
 
   shiny::observeEvent(input$report_issue, ignoreNULL = TRUE, {
-    dataganger::report_issue(context = "Shiny app")
+    url <- dataganger:::.build_issue_url(context = "Shiny app")
+    body <- dataganger:::.issue_body_from_url(url)
+    shiny::showModal(report_issue_modal(url, body))
   })
 
   shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {
@@ -312,8 +352,11 @@ server <- function(input, output, session) {
     state$privacy             <- NULL
     state$seed_used           <- NULL
     state$nav_request         <- NULL
-    state$active_step         <- "objective"
-    bslib::nav_select("app_tabs", "objective")
+    state$fail_safe_status    <- "idle"
+    state$fail_safe_flagged   <- app_fail_safe_empty()
+    state$fail_safe_upload_token <- NULL
+    state$active_step         <- "upload"
+    bslib::nav_select("app_tabs", "upload")
     send_step_state(0L)
   })
 
@@ -330,14 +373,15 @@ server <- function(input, output, session) {
     send_step_state(0L)
   }, once = TRUE)
 
-  STEP_IDS  <- c("objective", "upload", "configure", "generate", "compare", "export")
+  STEP_IDS  <- c("upload", "objective", "configure", "generate", "compare", "export")
 
   # Compute the furthest step reached (0-based index into STEP_IDS)
   max_step_reached <- shiny::reactive({
     if (!is.null(state$synthetic))                      return(5L)
     if (isTRUE(state$spec_confirmed > 0L))              return(3L)
-    if (!is.null(state$raw_data))                       return(2L)
-    if (isTRUE(state$objective_confirmed > 0L))         return(1L)
+    if (isTRUE(state$objective_confirmed > 0L))         return(2L)
+    if (!is.null(state$raw_data) &&
+        identical(state$fail_safe_status, "ready"))     return(1L)
     0L
   })
 
@@ -369,7 +413,7 @@ server <- function(input, output, session) {
   observe({
     req(state$raw_data, state$profile)
     if (is.null(state$roles)) {
-      shiny::withProgress(message = "Detecting column roles…", value = 0.5, {
+      shiny::withProgress(message = "Detecting column roles\u2026", value = 0.5, {
         state$roles <- dg_timeit(
           "configure: detect_roles",
           detect_roles(state$raw_data, profile = state$profile)
@@ -379,18 +423,20 @@ server <- function(input, output, session) {
     }
   })
 
-  # Auto-advance to upload once objective is confirmed
+  # Auto-advance to configure once objective is confirmed
   observeEvent(state$objective_confirmed, ignoreNULL = TRUE, ignoreInit = TRUE, {
     if (isTRUE(state$objective_confirmed > 0L)) {
-      bslib::nav_select("app_tabs", "upload")
-      send_step_state(1L)
+      bslib::nav_select("app_tabs", "configure")
+      send_step_state(2L)
     }
   })
 
-  # Auto-advance to Configure once data is uploaded
-  observeEvent(state$roles, ignoreNULL = TRUE, once = TRUE, {
-    bslib::nav_select("app_tabs", "configure")
-    send_step_state(2L)
+  # Auto-advance to objective once upload and the fail-safe are complete
+  observeEvent(state$fail_safe_status, ignoreNULL = TRUE, ignoreInit = TRUE, {
+    if (identical(state$fail_safe_status, "ready")) {
+      bslib::nav_select("app_tabs", "objective")
+      send_step_state(1L)
+    }
   })
 
   # Auto-advance to generate once spec is confirmed
@@ -445,13 +491,13 @@ server <- function(input, output, session) {
     td_style   <- "padding:4px 8px; font-size:12px; font-family:var(--font-mono);"
     td0_style  <- "padding:4px 8px; font-size:12px; font-weight:600;"
 
-    # Numeric summary table — cool teal header
+    # Numeric summary table - cool teal header
     num_section <- if (length(num_cols) > 0L) {
       num_th <- paste0(th_style, " background:#1a6b6b; color:#e8f5f5;")
       num_rows <- lapply(seq_along(num_cols), function(i) {
         cn  <- num_cols[[i]]
         r   <- prof[prof$variable == cn, ]
-        fmt <- function(x) if (!is.null(x) && length(x) == 1L && !is.na(x)) sprintf("%.2f", as.numeric(x)) else "—"
+        fmt <- function(x) if (!is.null(x) && length(x) == 1L && !is.na(x)) sprintf("%.2f", as.numeric(x)) else "\u2014"
         row_bg <- if (i %% 2 == 0) "background:#f0f7f7;" else "background:#ffffff;"
         shiny::tags$tr(
           style = row_bg,
@@ -468,7 +514,7 @@ server <- function(input, output, session) {
       shiny::tagList(
         shiny::tags$p(
           style = "font-family:var(--font-sans); font-size:12px; color:#1a6b6b; font-weight:700; margin:0 0 6px; text-transform:uppercase; letter-spacing:.05em;",
-          "■ Continuous columns"
+          "\u25a0 Continuous columns"
         ),
         shiny::tags$div(
           style = "overflow-x:auto; border:1px solid #b2d8d8; border-radius:4px;",
@@ -490,7 +536,7 @@ server <- function(input, output, session) {
       )
     }
 
-    # Categorical frequency tables — warm amber, one card per column
+    # Categorical frequency tables - warm amber, one card per column
     cat_section <- if (length(cat_cols) > 0L) {
       cat_th <- paste0(th_style, " background:#7a4419; color:#fff3e0;")
       cat_tables <- lapply(cat_cols, function(cn) {
@@ -543,7 +589,7 @@ server <- function(input, output, session) {
       shiny::tagList(
         shiny::tags$p(
           style = "font-family:var(--font-sans); font-size:12px; color:#7a4419; font-weight:700; margin:16px 0 8px; text-transform:uppercase; letter-spacing:.05em;",
-          "■ Categorical columns (top 5 values)"
+          "\u25a0 Categorical columns (top 5 values)"
         ),
         cat_tables
       )
@@ -558,7 +604,7 @@ server <- function(input, output, session) {
     send_step_state(current_step_num())
   })
 
-  # Module navigation requests (e.g. "← Adjust settings", "Continue to Export →")
+  # Module navigation requests (e.g. "\u2190 Adjust settings", "Continue to Export \u2192")
   observeEvent(state$nav_request, ignoreNULL = TRUE, {
     target  <- state$nav_request
     if (identical(target, "purpose") || identical(target, "spec") || identical(target, "roles")) {

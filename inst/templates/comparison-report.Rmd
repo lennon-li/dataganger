@@ -66,10 +66,11 @@ if (is.null(comparison) || nrow(comparison$categorical) == 0) {
 ## Relationship Comparison
 
 ```{r relationship-metrics, echo=FALSE}
-if (is.null(comparison) || nrow(comparison$relationship) == 0) {
+relationship_rows <- if (is.null(comparison)) NULL else comparison$relationship
+if (is.null(relationship_rows) || !is.data.frame(relationship_rows) || nrow(relationship_rows) == 0) {
   cat("No relationship comparison rows available.\n")
 } else {
-  knitr::kable(comparison$relationship)
+  knitr::kable(relationship_rows)
 }
 ```
 

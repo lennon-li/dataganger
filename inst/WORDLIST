@@ -13,6 +13,7 @@ POSIXct
 QI
 README
 Raab
+SMD
 UI
 WORDLIST
 XPT
@@ -26,6 +27,7 @@ anonymizes
 biomarker
 cancellable
 categoricals
+coloured
 dev
 doi
 entrypoint
@@ -50,5 +52,10 @@ synthesizable
 synthpop
 synthpop's
 tibble
+unzip
 unselected
+workflow
 ️
+CDN
+Configure's
+copyable

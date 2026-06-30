@@ -18,6 +18,20 @@
 #' spec <- synth_spec(purpose = "demo")
 #' syn <- synthesize_data(dat, spec)
 #' compare_synthetic(dat, syn)
+
+#' Map a fidelity p-value to a colour band.
+#'
+#' Lower p = a more significant original-vs-synthetic difference = poorer
+#' fidelity. `NA` means no inference was run (min/max) -> "none".
+#' @keywords internal
+#' @noRd
+fidelity_color <- function(p) {
+  if (length(p) != 1L || is.na(p)) return("none")
+  if (p < 0.01) return("bad")
+  if (p < 0.05) return("warn")
+  "good"
+}
+
 compare_synthetic <- function(original, synthetic, roles = NULL) {
   if (!is.data.frame(original)) {
     cli::cli_abort("{.arg original} must be a data frame")
@@ -86,6 +100,15 @@ compare_dataset <- function(orig, syn) {
 # Numeric comparison
 # ===========================================================================
 
+#' Safe two-sample test p-value.
+#'
+#' Returns `NA_real_` instead of erroring on degenerate input.
+#' @keywords internal
+#' @noRd
+safe_test_p <- function(expr) {
+  tryCatch(suppressWarnings(expr$p.value), error = function(e) NA_real_)
+}
+
 compare_numeric <- function(orig, syn) {
   num_cols <- names(orig)[vapply(orig, function(x) {
     is.numeric(x) && !haven::is.labelled(x)
@@ -100,7 +123,9 @@ compare_numeric <- function(orig, syn) {
       median_orig = double(0), median_syn = double(0),
       iqr_orig = double(0), iqr_syn = double(0),
       missing_orig_pct = double(0), missing_syn_pct = double(0),
-      std_diff = double(0)
+      std_diff = double(0), sd_ratio = double(0),
+      median_std_diff = double(0),
+      mean_p = double(0), sd_p = double(0), median_p = double(0)
     ))
   }
 
@@ -118,7 +143,9 @@ compare_numeric <- function(orig, syn) {
         median_orig = NA_real_, median_syn = stats::median(y_obs),
         iqr_orig = NA_real_, iqr_syn = stats::IQR(y_obs),
         missing_orig_pct = 100, missing_syn_pct = sum(is.na(y)) / length(y) * 100,
-        std_diff = NA_real_
+        std_diff = NA_real_, sd_ratio = NA_real_,
+        median_std_diff = NA_real_,
+        mean_p = NA_real_, sd_p = NA_real_, median_p = NA_real_
       ))
     }
 
@@ -129,6 +156,13 @@ compare_numeric <- function(orig, syn) {
 
     std_diff <- if (sd_o > 0 && length(y_obs) > 0) {
       (mean_s - mean_o) / sd_o
+    } else {
+      NA_real_
+    }
+
+    iqr_o <- stats::IQR(x_obs)
+    median_std_diff <- if (iqr_o > 0 && length(y_obs) > 0) {
+      (stats::median(y_obs) - stats::median(x_obs)) / iqr_o
     } else {
       NA_real_
     }
@@ -145,7 +179,12 @@ compare_numeric <- function(orig, syn) {
       iqr_syn        = if (length(y_obs) > 0) stats::IQR(y_obs) else NA_real_,
       missing_orig_pct = sum(is.na(x)) / length(x) * 100,
       missing_syn_pct  = sum(is.na(y)) / length(y) * 100,
-      std_diff       = std_diff
+      std_diff       = std_diff,
+      sd_ratio       = if (!is.na(sd_o) && sd_o > 0 && length(y_obs) > 0) sd_s / sd_o else NA_real_,
+      median_std_diff = median_std_diff,
+      mean_p         = if (length(y_obs) > 1 && length(x_obs) > 1) safe_test_p(stats::t.test(x_obs, y_obs)) else NA_real_,
+      sd_p           = if (length(y_obs) > 1 && length(x_obs) > 1) safe_test_p(stats::var.test(x_obs, y_obs)) else NA_real_,
+      median_p       = if (length(y_obs) > 1 && length(x_obs) > 1) safe_test_p(stats::wilcox.test(x_obs, y_obs)) else NA_real_
     )
   })
 

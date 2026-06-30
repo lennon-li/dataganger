@@ -1,6 +1,6 @@
 #' Report a problem or share feedback
 #'
-#' Opens a pre-filled GitHub issue form in your browser for the
+#' Prints a pre-filled GitHub issue you can copy into your browser for the
 #' `lennon-li/dataganger` repository, with package and R environment details
 #' already populated. Use this to report a bug, suggest a feature, or send
 #' general feedback without copying session details by hand.
@@ -11,7 +11,7 @@
 #'   such as `"Shiny app"` or `"export_synthetic()"`.
 #' @param type Character. One of `"feedback"`, `"bug"`, or `"feature"`.
 #'
-#' @return Invisibly, the GitHub issue URL that was opened.
+#' @return Invisibly, the GitHub issue URL that was printed.
 #' @export
 #'
 #' @examples
@@ -24,8 +24,20 @@
 #' }
 report_issue <- function(message = NULL, context = NULL, type = c("feedback", "bug", "feature")) {
   url <- .build_issue_url(message = message, context = context, type = type)
-  utils::browseURL(url)
+  body <- .issue_body_from_url(url)
+
+  cli::cli_h2("Pre-filled GitHub issue")
+  cli::cli_text("GitHub issue URL:")
+  cat(url, "\n\n", sep = "")
+  cli::cli_text("Issue body:")
+  cat(body, "\n", sep = "")
+
   invisible(url)
+}
+
+.issue_body_from_url <- function(url) {
+  body <- sub("^.*[?&]body=([^&]+).*$", "\\1", url)
+  utils::URLdecode(body)
 }
 
 .build_issue_url <- function(message = NULL, context = NULL, type = c("feedback", "bug", "feature")) {

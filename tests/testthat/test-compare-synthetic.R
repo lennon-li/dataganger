@@ -110,6 +110,30 @@ test_that("compare_synthetic() handles no categorical columns", {
   expect_equal(nrow(cmp$categorical), 0)
 })
 
+test_that("compare_numeric emits sd_ratio, median_std_diff, and test p-values", {
+  set.seed(1)
+  orig <- data.frame(x = rnorm(200, 10, 2))
+  syn  <- data.frame(x = rnorm(200, 10, 2))
+  cn <- compare_numeric(orig, syn)
+
+  expect_true(all(c("sd_ratio", "median_std_diff",
+                    "mean_p", "sd_p", "median_p") %in% names(cn)))
+  expect_equal(cn$sd_ratio, cn$sd_syn / cn$sd_orig)
+  expect_equal(cn$median_std_diff,
+               (cn$median_syn - cn$median_orig) / cn$iqr_orig)
+  expect_gt(cn$mean_p, 0.05)
+  expect_gt(cn$sd_p, 0.05)
+  expect_gt(cn$median_p, 0.05)
+
+  syn2 <- data.frame(x = rnorm(200, 14, 2))
+  cn2 <- compare_numeric(orig, syn2)
+  expect_lt(cn2$mean_p, 0.05)
+
+  cn3 <- compare_numeric(data.frame(x = rep(5, 3)), data.frame(x = rep(5, 3)))
+  expect_true(is.na(cn3$sd_ratio) || is.finite(cn3$sd_ratio))
+  expect_true(is.na(cn3$mean_p))
+})
+
 test_that("compare_synthetic() rejects non-data-frame", {
   expect_error(
     compare_synthetic("not a df", data.frame(x = 1:3)),
