@@ -6,7 +6,7 @@
 <!-- badges: end -->
 
 **DataGangeR** creates synthetic data doubles from real datasets so you can
-prototype code, build Shiny apps, teach, and collaborate with AI tools without
+prototype code, build Shiny apps, teach, and work with coding **Agents** without
 sharing the original dataset.
 
 📖 **Documentation:** <https://lennon-li.github.io/dataganger/>
@@ -14,26 +14,39 @@ sharing the original dataset.
 ![DataGangeR walks you through objective, upload, configure, generate, compare,
 and export](man/figures/hero.gif)
 
-## Want AI to prototype on your data — without handing over the real thing?
+## Want an Agent to build on your data — without ever handing it over?
 
-DataGangeR turns sensitive datasets into synthetic stand-ins that reduce direct disclosure risk. Your AI
-assistant prototypes at full speed while the real people in your data stay out of the shared bundle.
+Let a coding **Agent** work at full speed on a synthetic stand-in for your
+dataset. You decide the privacy rules once; the Agent gets safe synthetic data —
+or a reproducible recipe to make it — and **never reads the real data**. And the
+package makes **no network calls**, so nothing ever leaves your machine.
 
-- 🤖 **Harness AI, keep your privacy** — feed agents realistic synthetic data
-  via a built-in CLI, not your production records.
-- 🧭 **Human in control** — a guided UI lets you decide what's identifying,
-  sensitive, or not sensitive, column by column.
-- ⚙️ **Real synthesis** — synthpop + k-anonymity: faithful enough to build on,
-  with disclosure controls you can inspect and review.
-- 🔁 **Reproducible & human-gated** — every export is a one-click bundle with an
-  R script to regenerate the exact result.
+- 🔒 **The Agent never touches the real data** — it gets a synthetic bundle, or a
+  saved recipe (`spec` + `roles` + `seed`) it runs back through the package to
+  regenerate safe data itself. The real records stay out of the shared bundle.
+- 🧭 **The human gates privacy once** — attest there are no direct identifiers,
+  then answer two questions per column (does it point to a person? is it
+  sensitive?). Those answers drive the synthesis.
+- 📴 **Provably offline** — the package makes no network calls and launches no
+  browser; a shipped self-test and a no-network CI job prove it. Open source, so
+  you can verify your own copy.
+- ⚙️ **Real synthesis** — synthpop + k-anonymity for relationship-aware,
+  disclosure-controlled output you can inspect (with a dependency-free internal
+  engine as the automatic fallback).
 
-Prototype with AI. Protect your data. Both.
+Let an Agent build on your data. Keep your data. Both.
+
+```mermaid
+flowchart LR
+  R[(Your real data)] --> G{Human gates privacy<br/>once, in the UI}
+  G -->|Path A| Bun[Synthetic bundle] --> AG1[Agent builds on safe data]
+  G -->|Path B| Rec[Saved recipe<br/>spec + roles + seed] --> CLI[Agent runs the package] --> AG2[Agent regenerates safe data<br/>never reads the real data]
+```
 
 ## Overview
 
-Analysts often need to share data structure with teammates, students, or AI
-assistants. Sharing the original data is not always possible. DataGangeR
+Analysts often need to share data structure with teammates, students, or coding
+Agents. Sharing the original data is not always possible. DataGangeR
 generates a synthetic "doppelganger" that preserves the structure,
 distributions, and relationships you need for development while reducing the
 need to expose original records.
@@ -47,8 +60,14 @@ need to expose original records.
 ```r
 # Development version from GitHub:
 # install.packages("pak")
-pak::pak("lennon-li/dataganger")
+pak::pak(c("lennon-li/dataganger", "synthpop"))
 ```
+
+**Strongly recommended: install `synthpop`** (above) for full-fidelity,
+relationship-aware synthesis. It is optional — without it, DataGangeR
+automatically falls back to the dependency-free **internal** engine (with a
+warning), so nothing breaks; the synthetic data is just marginal rather than
+relationship-preserving.
 
 ## The interactive app
 
@@ -64,8 +83,8 @@ report.
 **How privacy gating works.** DataGangeR starts with a no-direct-identifiers
 attestation, runs an early local fail-safe scan, then hard-gates Configure
 until you answer two privacy questions for every column. Those answers drive
-the synthesis rules and the exported AI workflow. See the
-[Privacy gating and AI workflows vignette](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html).
+the synthesis rules and the exported Agent workflow. See the
+[Privacy gating and Agent workflows vignette](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html).
 
 ```r
 library(dataganger)
@@ -160,8 +179,10 @@ preservation and therefore routes to `synthpop` when it is installed (otherwise
 falling back to the internal engine with a warning), and `analytics` is the
 high-fidelity path that requires explicit risk acknowledgement. In the Shiny
 app and CLI spec you can also choose the engine explicitly (`auto`, `internal`,
-or `synthpop`). Install it with `install.packages("synthpop")` to enable
-relationship-preserving synthesis when requested.
+or `synthpop`). **Installing `synthpop` is strongly recommended**
+(`install.packages("synthpop")`) for relationship-preserving synthesis; the
+internal engine is the dependency-free fail-safe used automatically when
+synthpop is absent.
 
 Please cite synthpop when you use that engine:
 

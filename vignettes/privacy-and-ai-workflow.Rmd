@@ -1,8 +1,8 @@
 ---
-title: "Privacy gating and AI workflows"
+title: "Privacy gating and Agent workflows"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Privacy gating and AI workflows}
+  %\VignetteIndexEntry{Privacy gating and Agent workflows}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
