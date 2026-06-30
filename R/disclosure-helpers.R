@@ -195,6 +195,16 @@ dg_seed_disclosure <- function(roles) {
   if (!"disclosure_role" %in% names(roles)) {
     roles$disclosure_role <- ""
   }
+  # user_identifies/user_sensitive track explicit user selections in the
+  # Configure UI.  Auto-detected values land in identifies/sensitive so the
+  # synthesis engine can use them, but the dropdowns only show a pre-selected
+  # value when the user has explicitly confirmed it.
+  if (!"user_identifies" %in% names(roles)) {
+    roles$user_identifies <- NA_character_
+  }
+  if (!"user_sensitive" %in% names(roles)) {
+    roles$user_sensitive <- NA
+  }
 
   blank <- is.na(roles$identifies) | !nzchar(roles$identifies)
   if (!any(blank)) {
@@ -241,6 +251,18 @@ roles_generation_pending <- function(roles) {
   }
 
   eligible <- roles_generation_eligible(roles)
+
+  # When user_identifies column contains empty strings (set by ensure_simulation_column
+  # in the Shiny Configure module), use the user-confirmed fields so that
+  # auto-detected values don't count as answers.  CLI paths leave user_identifies
+  # as all-NA and take the old branch.
+  if ("user_identifies" %in% names(roles) && "user_sensitive" %in% names(roles) &&
+      any(!is.na(roles$user_identifies))) {
+    pending <- (!nzchar(roles$user_identifies %||% "")) | is.na(roles$user_sensitive)
+    pending <- pending & eligible
+    return(which(pending))
+  }
+
   pending <- ((is.na(roles$identifies) | !nzchar(roles$identifies)) | is.na(roles$sensitive)) & eligible
   which(pending)
 }
@@ -300,7 +322,7 @@ app_attestation_modal <- function(ns = shiny::NS(NULL)) {
       )
     ),
     shiny::tags$p(
-      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Use at your own risk."
+      "Your data is processed locally on your machine, in memory only. It is never uploaded, never sent anywhere, and never written to disk by this app. Nothing is retained after you close it. Feel free to disable your internet connection while using this package. Use at your own risk."
     ),
     shiny::tags$div(
       style = paste(
@@ -330,18 +352,24 @@ app_attestation_modal <- function(ns = shiny::NS(NULL)) {
 #' @noRd
 app_fail_safe_modal <- function(flagged, ns = shiny::NS(NULL)) {
   lines <- apply(flagged, 1L, function(row) {
-    shiny::tags$li(shiny::tags$code(row[["variable"]]), ": ", row[["reason"]])
+    shiny::tags$li(
+      shiny::tags$code(row[["variable"]]),
+      shiny::tags$span(
+        style = "margin-left:6px; font-size:11px; padding:1px 6px; border-radius:999px; background:var(--risk-50); color:var(--risk-700); border:1px solid var(--risk-200);",
+        "potential identifier"
+      )
+    )
   })
   shiny::modalDialog(
     title = "Possible direct identifiers flagged",
     shiny::tags$p(
-      "We flagged columns that might point to a person. You are still responsible for confirming."
+      "We detected columns that might point to a person. You are still responsible for confirming."
     ),
     shiny::tags$ul(lines),
     footer = shiny::tagList(
       shiny::actionButton(ns("abort_flagged"), "Abort", class = "btn btn-secondary"),
-      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm-keep", class = "btn btn-secondary"),
-      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-primary")
+      shiny::actionButton(ns("drop_flagged"), "Drop these columns", class = "btn btn-secondary"),
+      shiny::actionButton(ns("confirm_keep_flagged"), "Confirm and keep", class = "btn btn-primary")
     ),
     easyClose = FALSE
   )

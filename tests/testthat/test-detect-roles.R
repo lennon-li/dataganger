@@ -7,7 +7,8 @@ test_that("detect_roles() returns correct S3 class and columns", {
     r,
     c(
       "variable", "class", "recommended_role", "user_role", "simulation",
-      "reason", "identifies", "sensitive", "disclosure_role", "disclosure_reason"
+      "reason", "identifies", "sensitive", "disclosure_role", "disclosure_reason",
+      "user_identifies", "user_sensitive"
     )
   )
   expect_equal(r$variable, c("x", "y"))

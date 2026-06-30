@@ -181,7 +181,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
 #'
 #' @keywords internal
 #' @noRd
-disclosure_help_ui <- function(attested = FALSE, ns = NULL) {
+disclosure_help_ui <- function(attested = FALSE) {
   identifies_meta <- dg_identifies_option_meta()
   identifies_meta <- identifies_meta[vapply(
     identifies_meta,
@@ -195,38 +195,6 @@ disclosure_help_ui <- function(attested = FALSE, ns = NULL) {
       shiny::tags$span(class = "dq-opt-ex", paste0(" \u2014 ", meta$examples))
     )
   })
-
-  q1_select <- if (!is.null(ns)) {
-    q1_opts <- lapply(identifies_meta, function(meta) {
-      shiny::tags$option(value = meta$value, paste0(meta$label, " \u2014 ", meta$examples))
-    })
-    shiny::tags$select(
-      style = "margin-top:10px; font-family:var(--font-mono); font-size:12px; padding:4px 8px; width:100%; max-width:480px;",
-      onchange = sprintf(
-        "Shiny.setInputValue('%s', this.value, {priority:'event'})",
-        ns("q1_global")
-      ),
-      c(
-        list(shiny::tags$option(value = "", disabled = "disabled", selected = "selected",
-                                "Apply answer to all columns\u2026")),
-        q1_opts
-      )
-    )
-  }
-
-  q2_select <- if (!is.null(ns)) {
-    shiny::tags$select(
-      style = "margin-top:10px; font-family:var(--font-mono); font-size:12px; padding:4px 8px; width:100%; max-width:480px;",
-      onchange = sprintf(
-        "Shiny.setInputValue('%s', this.value, {priority:'event'})",
-        ns("q2_global")
-      ),
-      shiny::tags$option(value = "", disabled = "disabled", selected = "selected",
-                         "Apply answer to all columns\u2026"),
-      shiny::tags$option(value = "no", "No \u2014 not sensitive"),
-      shiny::tags$option(value = "yes", "Yes \u2014 sensitive")
-    )
-  }
 
   shiny::tags$div(
     class = "disclosure-help",
@@ -252,8 +220,7 @@ disclosure_help_ui <- function(attested = FALSE, ns = NULL) {
           "Could a value point to a specific person \u2014 on its own, or combined with other columns?"
         }
       ),
-      shiny::tags$div(class = "dq-opts", q1_options),
-      q1_select
+      shiny::tags$div(class = "dq-opts", q1_options)
     ),
     shiny::tags$div(
       class = "dq",
@@ -264,16 +231,15 @@ disclosure_help_ui <- function(attested = FALSE, ns = NULL) {
       shiny::tags$p(
         class = "dq-q",
         if (isTRUE(attested)) {
-          "Is this column sensitive - would it be harmful if revealed?"
+          "Is this column sensitive \u2014 would it be considered private or intrusive if linked to a person?"
         } else {
-          "Would it harm someone if this value were linked back to them?"
+          "Would it be considered private or intrusive if this value were linked back to someone?"
         }
       ),
       shiny::tags$p(
         class = "dq-ex",
         "Examples: diagnosis, income, religion, mental health, immigration."
-      ),
-      q2_select
+      )
     )
   )
 }
@@ -296,6 +262,12 @@ mod_roles_server <- function(id, state) {
         return(roles)
       }
       roles <- dg_seed_disclosure(roles)
+      # Initialise user_identifies to "" (not NA) so roles_generation_pending
+      # knows this is a UI session where every column needs explicit confirmation.
+      if ("user_identifies" %in% names(roles)) {
+        blank_ui <- is.na(roles$user_identifies)
+        if (any(blank_ui)) roles$user_identifies[blank_ui] <- ""
+      }
       dg_sync_roles_axes(roles)
     }
 
@@ -319,7 +291,7 @@ mod_roles_server <- function(id, state) {
     })
 
     output$disclosure_help <- shiny::renderUI({
-      disclosure_help_ui(isTRUE(state$attested_no_direct), ns = session$ns)
+      disclosure_help_ui(isTRUE(state$attested_no_direct))
     })
 
     visible_roles <- shiny::reactive({
@@ -585,7 +557,7 @@ mod_roles_server <- function(id, state) {
           shiny::tags$option(
             value = meta$value,
             selected = if (!is_unset && meta$value == current) "selected" else NULL,
-            paste0(meta$label, " - ", meta$examples)
+            meta$label
           )
         })
         shiny::tags$select(
@@ -596,7 +568,7 @@ mod_roles_server <- function(id, state) {
           ),
           style = sprintf(
             "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s",
-            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else ""
+            if (is_unset) "border-color:#e53e3e; background:#fff5f5; color:#c53030;" else ""
           ),
           c(list(placeholder), opts)
         )
@@ -613,7 +585,7 @@ mod_roles_server <- function(id, state) {
           ),
           style = sprintf(
             "font-family:var(--font-mono); font-size:11px; padding:3px 6px; width:100%%; %s",
-            if (is_unset) "border-color:var(--synth-400); background:var(--synth-50);" else ""
+            if (is_unset) "border-color:#e53e3e; background:#fff5f5; color:#c53030;" else ""
           ),
           shiny::tags$option(
             value = "", disabled = "disabled",
@@ -678,11 +650,11 @@ mod_roles_server <- function(id, state) {
           ),
           shiny::tags$td(
             style = "min-width:260px; padding:4px 8px;",
-            make_identifies_select(orig_row, r$identifies[[1]], session$ns)
+            make_identifies_select(orig_row, r$user_identifies[[1]], session$ns)
           ),
           shiny::tags$td(
             style = "min-width:120px; padding:4px 8px;",
-            make_sensitive_select(orig_row, r$sensitive[[1]], session$ns)
+            make_sensitive_select(orig_row, r$user_sensitive[[1]], session$ns)
           ),
           shiny::tags$td(
             style = "min-width:320px; padding:6px 8px;",
@@ -697,8 +669,8 @@ mod_roles_server <- function(id, state) {
         shiny::tags$thead(
           shiny::tags$tr(
             shiny::tags$th(style = "width:22%; padding:6px 8px;", "Column"),
-            shiny::tags$th(style = "width:27%; padding:6px 8px;", "Points to a person?"),
-            shiny::tags$th(style = "width:12%; padding:6px 8px;", "Sensitive?"),
+            shiny::tags$th(style = "width:27%; padding:6px 8px;", "Points to a person? (Q1)"),
+            shiny::tags$th(style = "width:12%; padding:6px 8px;", "Sensitive? (Q2)"),
             shiny::tags$th(style = "width:39%; padding:6px 8px;", "Action override")
           )
         ),
@@ -817,7 +789,8 @@ mod_roles_server <- function(id, state) {
       if (!val %in% q1_identifies_choices(isTRUE(state$attested_no_direct))) {
         return(invisible(NULL))
       }
-      roles$identifies[[orig_row]] <- val
+      roles$user_identifies[[orig_row]] <- val
+      roles$identifies[[orig_row]]      <- val
       roles <- dg_sync_roles_axes(roles)
       roles$simulation[[orig_row]] <- dg_derived_action_axes(
         roles$identifies[[orig_row]],
@@ -836,41 +809,14 @@ mod_roles_server <- function(id, state) {
       val <- as.character(change$value)
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
       if (!val %in% c("yes", "no")) return(invisible(NULL))
-      roles$sensitive[[orig_row]] <- identical(val, "yes")
+      val_bool <- identical(val, "yes")
+      roles$user_sensitive[[orig_row]] <- val_bool
+      roles$sensitive[[orig_row]]      <- val_bool
       roles <- dg_sync_roles_axes(roles)
       roles$simulation[[orig_row]] <- dg_derived_action_axes(
         roles$identifies[[orig_row]],
         roles$sensitive[[orig_row]]
       )
-      roles_local(roles)
-      state$roles <- roles
-      invisible(NULL)
-    })
-
-    shiny::observeEvent(input$q1_global, ignoreNULL = TRUE, {
-      val   <- as.character(input$q1_global)
-      roles <- roles_local()
-      if (is.null(roles) || !nzchar(val)) return(invisible(NULL))
-      if (!val %in% q1_identifies_choices(isTRUE(state$attested_no_direct))) return(invisible(NULL))
-      roles$identifies <- val
-      roles <- dg_sync_roles_axes(roles)
-      roles$simulation <- vapply(
-        seq_len(nrow(roles)),
-        function(i) dg_derived_action_axes(roles$identifies[[i]], roles$sensitive[[i]]),
-        character(1)
-      )
-      roles_local(roles)
-      state$roles <- roles
-      invisible(NULL)
-    })
-
-    shiny::observeEvent(input$q2_global, ignoreNULL = TRUE, {
-      val   <- as.character(input$q2_global)
-      roles <- roles_local()
-      if (is.null(roles) || !nzchar(val)) return(invisible(NULL))
-      if (!val %in% c("yes", "no")) return(invisible(NULL))
-      roles$sensitive <- identical(val, "yes")
-      roles <- dg_sync_roles_axes(roles)
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)
