@@ -213,25 +213,25 @@ the user does not falsely feel “done” after removing names.</p>
 <h3 id="path-a-hand-off-the-synthetic-bundle">Path A: hand off the synthetic bundle<a class="anchor" aria-label="anchor" href="#path-a-hand-off-the-synthetic-bundle"></a>
 </h3>
 <p>In the first workflow, the human uses the app, reviews the compare
-and privacy outputs, and exports the synthetic bundle. The AI gets
-<code>synthetic_data.csv</code>, the data dictionary, the privacy
-report, and the rest of the bundle artifacts - but not the real
-data.</p>
+and privacy outputs, and exports the bundle. The AI gets the bundle’s
+<code>synthetic_data.csv</code> plus the <code>agent/</code> folder
+(<code>recipe.yaml</code>, <code>AGENT.md</code>,
+<code>manifest.json</code>) — but not the real data.</p>
 <p>This is the simplest trust story: the AI only sees safe synthetic
 artifacts.</p>
 </div>
 <div class="section level3">
 <h3 id="path-b-save-the-recipe-and-let-the-ai-reproduce">Path B: save the recipe and let the AI reproduce<a class="anchor" aria-label="anchor" href="#path-b-save-the-recipe-and-let-the-ai-reproduce"></a>
 </h3>
-<p>In the second workflow, the human uses the app once, then saves the
-reproducibility artifacts: <code>spec.yaml</code>,
-<code>roles.yaml</code>, and the seed in the exported spec. An AI agent
-can then run DataGangeR itself, for example:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">dataganger</span> synthesize <span class="op">&lt;</span>real-data<span class="op">&gt;</span> --spec spec.yaml <span class="at">--roles</span> roles.yaml <span class="at">--out</span> check.zip</span></code></pre></div>
+<p>In the second workflow, the human uses the app once. The exported
+bundle’s <code>agent/recipe.yaml</code> records everything needed to
+regenerate the synthetic data: the spec, the per-column roles, and the
+seed. An AI agent can then run DataGangeR itself, for example:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">dataganger</span> synthesize <span class="op">&lt;</span>real-data<span class="op">&gt;</span> --recipe agent/recipe.yaml <span class="at">--out</span> check.zip</span></code></pre></div>
 <p>That path is paired with the packaged agent workflow guide.
-<code>dataganger skill</code> prints or copies the installed agent
-<code>SKILL.md</code>, whose first rule is: the agent is not allowed to
-read the original data.</p>
+<code>dataganger skill</code> prints or copies the installed agent guide
+(shipped in the bundle as <code>agent/AGENT.md</code>), whose first rule
+is: the agent is not allowed to read the original data.</p>
 <p>The shipped agent workflow starts by reproducing the UI-generated
 synthetic CSV byte-for-byte before doing anything else. After that, the
 agent can vary approved settings and ask DataGangeR to synthesize again,

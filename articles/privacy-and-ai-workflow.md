@@ -137,27 +137,28 @@ user does not falsely feel “done” after removing names.
 ### Path A: hand off the synthetic bundle
 
 In the first workflow, the human uses the app, reviews the compare and
-privacy outputs, and exports the synthetic bundle. The AI gets
-`synthetic_data.csv`, the data dictionary, the privacy report, and the
-rest of the bundle artifacts - but not the real data.
+privacy outputs, and exports the bundle. The AI gets the bundle’s
+`synthetic_data.csv` plus the `agent/` folder (`recipe.yaml`,
+`AGENT.md`, `manifest.json`) — but not the real data.
 
 This is the simplest trust story: the AI only sees safe synthetic
 artifacts.
 
 ### Path B: save the recipe and let the AI reproduce
 
-In the second workflow, the human uses the app once, then saves the
-reproducibility artifacts: `spec.yaml`, `roles.yaml`, and the seed in
-the exported spec. An AI agent can then run DataGangeR itself, for
-example:
+In the second workflow, the human uses the app once. The exported
+bundle’s `agent/recipe.yaml` records everything needed to regenerate the
+synthetic data: the spec, the per-column roles, and the seed. An AI
+agent can then run DataGangeR itself, for example:
 
 ``` sh
-dataganger synthesize <real-data> --spec spec.yaml --roles roles.yaml --out check.zip
+dataganger synthesize <real-data> --recipe agent/recipe.yaml --out check.zip
 ```
 
 That path is paired with the packaged agent workflow guide.
-`dataganger skill` prints or copies the installed agent `SKILL.md`,
-whose first rule is: the agent is not allowed to read the original data.
+`dataganger skill` prints or copies the installed agent guide (shipped
+in the bundle as `agent/AGENT.md`), whose first rule is: the agent is
+not allowed to read the original data.
 
 The shipped agent workflow starts by reproducing the UI-generated
 synthetic CSV byte-for-byte before doing anything else. After that, the

@@ -9,9 +9,12 @@ guarantee.
   Compare view shows mean SMD, SD ratio, and median standardized
   difference, each coloured by their t/F/Wilcoxon p-value bands; min/max
   remain value-only.
-- UI export bundles now include `spec.yaml` and `roles.yaml`, and CLI
-  `synthesize --roles` can reuse the full role matrix so UI and CLI runs
-  reproduce byte-identical output with the same seed.
+- Export bundles now use the restructured layout: `synthetic_data.csv`
+  at the root, `human/human.md` plus optional
+  `human/comparison_report.html`, and an `agent/` folder containing
+  `recipe.yaml`, `AGENT.md`, and `manifest.json`. CLI `synthesize` also
+  accepts `--recipe` for the combined spec-plus-roles file, while
+  `--spec` and `--roles` remain supported.
 - The app now opens with a hard no-direct-identifiers attestation gate,
   then runs an early assistive fail-safe immediately after upload to
   flag possible direct identifiers before Objective / Configure. Once
@@ -20,8 +23,9 @@ guarantee.
   after direct identifiers: linkage (combination) and sensitivity.
 - Added an agents-only packaged `SKILL.md` plus
   `dataganger skill [--out <file>]` so an AI can drive the package to
-  generate synthetic data without ever reading the real data; fixed
-  `ai-readme.md` so dropped columns are not listed as `NA (NA)`.
+  generate synthetic data without ever reading the real data; the
+  bundled human guide now folds in the privacy report and agent guidance
+  text.
 - No-network guarantee: web fonts are now self-hosted (no Google Fonts
   CDN), so the app makes no external requests;
   [`report_issue()`](https://lennon-li.github.io/dataganger/reference/report_issue.md)

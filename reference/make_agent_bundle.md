@@ -1,8 +1,7 @@
 # Create a one-command agent-ready bundle from a raw data file
 
 Reads a data file, profiles it, detects column roles, synthesizes data,
-and exports a zip bundle suitable for passing to an AI agent. Includes a
-`diagnostic_view.json` that describes column roles and what was blocked.
+and exports a zip bundle suitable for passing to an AI agent.
 
 ## Usage
 

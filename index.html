@@ -67,7 +67,7 @@
 </div>
 <!-- badges: start -->
 
-<p><a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&amp;logo=lock&amp;logoColor=white" alt="Your data stays local"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/network-none-2ea44f?style=flat-square" alt="No network calls"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&amp;logo=shield&amp;logoColor=white" alt="Human-gated privacy"></a> <a href="https://github.com/lennon-li/dataganger" class="external-link"><img src="https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Open &amp; auditable"></a></p>
+<p><a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&amp;logo=lock&amp;logoColor=white" alt="Your data stays local"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/network-none-2ea44f?style=flat-square" alt="No network calls"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&amp;logo=shield&amp;logoColor=white" alt="Human-gated privacy"></a> <a href="https://github.com/lennon-li/dataganger" class="external-link"><img src="https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Open &amp; auditable"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&amp;logo=robotframework&amp;logoColor=white" alt="Agent-friendly"></a></p>
 <p><strong>DataGangeR</strong> creates synthetic data doubles from real datasets so you can prototype code, build Shiny apps, teach, and work with coding <strong>Agents</strong> without sharing the original dataset.</p>
 <p>📖 <strong>Documentation:</strong> <a href="https://lennon-li.github.io/dataganger/" class="uri">https://lennon-li.github.io/dataganger/</a></p>
 <div class="float">
@@ -154,45 +154,38 @@
 <span><span class="va">roles</span>   <span class="op">&lt;-</span> <span class="fu"><a href="reference/detect_roles.html">detect_roles</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">profile</span><span class="op">)</span></span>
 <span><span class="va">spec</span>    <span class="op">&lt;-</span> <span class="fu"><a href="reference/synth_spec.html">synth_spec</a></span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"development"</span>, roles <span class="op">=</span> <span class="va">roles</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">syn</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/synthesize_data.html">synthesize_data</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">spec</span>, <span class="va">roles</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span></span>
-<span>  <span class="va">syn</span>,</span>
-<span>  original <span class="op">=</span> <span class="va">dat</span>,</span>
-<span>  path <span class="op">=</span> <span class="st">"dataganger_bundle.zip"</span>,</span>
-<span>  compact <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/export_synthetic.html">export_synthetic</a></span><span class="op">(</span><span class="va">syn</span>, original <span class="op">=</span> <span class="va">dat</span>, path <span class="op">=</span> <span class="st">"dataganger_bundle.zip"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/unzip.html" class="external-link">unzip</a></span><span class="op">(</span><span class="st">"dataganger_bundle.zip"</span>, exdir <span class="op">=</span> <span class="st">"dataganger_bundle"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Re-run the same-seed audit/comparison notebook against the exported bundle.</span></span>
-<span><span class="fu">quarto</span><span class="fu">::</span><span class="fu">quarto_render</span><span class="op">(</span></span>
-<span>  <span class="st">"dataganger_bundle/analysis.qmd"</span>,</span>
-<span>  execute_params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    original_path <span class="op">=</span> <span class="st">"my-data.csv"</span>,</span>
-<span>    synthetic_path <span class="op">=</span> <span class="st">"dataganger_bundle/synthetic_data.csv"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
+<span><span class="co"># Or do the whole thing in one call, straight from the raw file:</span></span>
+<span><span class="fu"><a href="reference/make_agent_bundle.html">make_agent_bundle</a></span><span class="op">(</span><span class="st">"my-data.csv"</span>, out <span class="op">=</span> <span class="st">"dataganger_bundle.zip"</span>, seed <span class="op">=</span> <span class="fl">42</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Open a pre-filled issue for bugs, feedback, or feature requests</span></span>
 <span><span class="fu"><a href="reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The compare step was hard to interpret"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
-<p>The Shiny app downloads a compact bundle for humans. For CLI or agent workflows, use the full bundle (<code>compact = FALSE</code>, or <code><a href="reference/make_agent_bundle.html">make_agent_bundle()</a></code>) so the standalone <code>ai-readme.md</code>, <code>privacy_report.txt</code>, and other diagnostics are included alongside <code>analysis.qmd</code>.</p>
+<p>The export is a single bundle: the synthetic CSV at the root, plus one folder for the human and one for the agent.</p>
+<pre><code><span><span class="va">synthetic_data.csv</span>            <span class="co"># the synthetic stand-in — the product</span></span>
+<span><span class="va">human</span><span class="op">/</span><span class="va">human.md</span>                <span class="co"># what was done, plus the privacy notes</span></span>
+<span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># real vs. synthetic fidelity</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate safe data</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">AGENT.md</span>                <span class="co"># the agent workflow guide (never read the real data)</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">manifest.json</span></span></code></pre>
 <div class="section level3">
 <h3 id="cli--agent-workflow">CLI / agent workflow<a class="anchor" aria-label="anchor" href="#cli--agent-workflow"></a>
 </h3>
 <p>The CLI follows the same spec-first pipeline an agent would use:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="ex">dataganger</span> profile my-data.csv <span class="at">--out</span> profile.json</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="ex">dataganger</span> roles my-data.csv <span class="at">--out</span> roles.yaml</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="ex">dataganger</span> spec <span class="at">--purpose</span> development <span class="at">--out</span> spec.yaml</span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co"># Edit spec.yaml if needed: set seed, engine/name_strategy overrides,</span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co"># acknowledge_risk: true for analytics, and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co"># disclosure_roles is the compatibility YAML form; the app uses identifies + sensitive as the primary model.</span></span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
-<p>Then unzip the full bundle and render the included notebook against the real input file to reproduce and review the same-seed result:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">unzip</span> dataganger_bundle.zip <span class="at">-d</span> dataganger_bundle</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">quarto</span> render dataganger_bundle/analysis.qmd <span class="dt">\</span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">-P</span> original_path:my-data.csv <span class="dt">\</span></span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">-P</span> synthetic_path:dataganger_bundle/synthetic_data.csv</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="ex">dataganger</span> profile my-data.csv <span class="at">--out</span> profile.json</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">dataganger</span> roles my-data.csv <span class="at">--out</span> roles.yaml</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="ex">dataganger</span> spec <span class="at">--purpose</span> development <span class="at">--out</span> spec.yaml</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># Edit spec.yaml if needed: set seed, engine/name_strategy overrides,</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co"># acknowledge_risk: true for analytics, and disclosure_roles: &lt;column&gt;: &lt;direct|quasi|sensitive|none&gt;.</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># disclosure_roles is the compatibility YAML form; the app uses identifies + sensitive as the primary model.</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="at">--spec</span> spec.yaml <span class="at">--out</span> dataganger_bundle.zip</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="ex">dataganger</span> inspect dataganger_bundle.zip</span></code></pre></div>
+<p>The bundle’s <code>agent/recipe.yaml</code> captures the spec, roles, and seed. To reproduce or vary the synthetic data later, an agent runs the package against that recipe — no notebook, and without ever opening the real data:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">unzip</span> dataganger_bundle.zip <span class="at">-d</span> dataganger_bundle</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="ex">dataganger</span> synthesize my-data.csv <span class="dt">\</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">--recipe</span> dataganger_bundle/agent/recipe.yaml <span class="dt">\</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">--out</span> check.zip</span></code></pre></div>
 <p>For the full command list, run <code>dataganger::dataganger_cli(c("--help"))</code>. Agents can print or copy the packaged workflow guide with <code>dataganger skill [--out &lt;file&gt;]</code>.</p>
 </div>
 </div>

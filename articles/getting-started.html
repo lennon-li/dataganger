@@ -212,7 +212,7 @@ fidelity).</td>
 <tr class="even">
 <td><strong>Column name handling</strong></td>
 <td>Keep original names, replace with generic names, or anonymize names
-and keep the mapping in the data dictionary.</td>
+and keep the mapping.</td>
 </tr>
 <tr class="odd">
 <td><strong>Rare category threshold</strong></td>
@@ -275,25 +275,20 @@ with the delta between them.</p>
 <div class="section level2">
 <h2 id="export">6. Export<a class="anchor" aria-label="anchor" href="#export"></a>
 </h2>
-<p>The in-app download is the <strong>compact</strong> bundle: a small,
-shareable package built around six files:</p>
-<ul>
-<li><code>synthetic_data.csv</code></li>
-<li><code>README.md</code></li>
-<li><code>load_data.R</code></li>
-<li><code>analysis.qmd</code></li>
-<li><code>data_dictionary.csv</code></li>
-<li><code>manifest.json</code></li>
-</ul>
-<p>If a rendered comparison is included, you also get
-<code>comparison_report.html</code>.</p>
-<p>In the compact bundle, <code>README.md</code> is consolidated: it
-includes the privacy summary and a <strong>For AI assistants</strong>
-section, so there is no separate <code>ai-readme.md</code> or
-<code>privacy_report.txt</code>. Those standalone files stay in the
-<strong>full</strong> CLI / agent bundle (<code>compact = FALSE</code>
-or <code><a href="../reference/make_agent_bundle.html">make_agent_bundle()</a></code>), along with the extra diagnostics
-used in agent workflows.</p>
+<p>The download is a single bundle: the synthetic CSV at the root, plus
+one folder for the human and one for the agent.</p>
+<pre><code><span><span class="va">synthetic_data.csv</span>            <span class="co"># the synthetic stand-in — the product</span></span>
+<span><span class="va">human</span><span class="op">/</span><span class="va">human.md</span>                <span class="co"># what was done, plus the privacy notes</span></span>
+<span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># real vs. synthetic fidelity (if generated)</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate safe data</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">AGENT.md</span>                <span class="co"># the agent workflow guide</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">manifest.json</span></span></code></pre>
+<p><code>human/human.md</code> is consolidated: it folds in the privacy
+summary, so there is no separate privacy file.
+<code>agent/recipe.yaml</code> records the spec, the per-column roles,
+and the seed, so an agent can regenerate or vary the synthetic data
+without ever reading the real data — see the <a href="privacy-and-ai-workflow.html">Privacy gating and Agent
+workflows</a> article.</p>
 <p><img src="step-6-export.png"><!-- --></p>
 <blockquote>
 <p><strong>Remember:</strong> synthetic data reduces direct disclosure
@@ -307,7 +302,7 @@ externally.</p>
 </h2>
 <p>If something feels off, you can open a pre-filled GitHub issue
 straight from R:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The export summary was confusing"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
 <p>The Shiny app also includes a <strong>Report a problem</strong>
 button in the sidebar. Both paths open your browser with environment

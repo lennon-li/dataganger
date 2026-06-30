@@ -57,8 +57,8 @@ compare_synthetic(dat, syn)
 #> • x: std diff = -0.727
 #> Orig mean (SD): 5.5 (3.03)
 #> 
-#> ── Categorical -- top 3 by total variation distance ──
+#> ── Categorical -- top 3 by distributional difference ──
 #> 
-#> • y: TVD = 1
+#> • y: p = 0.0293, TVD = 1
 #> Levels: 10 (orig) -> 1 (syn)
 ```
