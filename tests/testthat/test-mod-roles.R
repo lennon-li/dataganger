@@ -281,7 +281,7 @@ test_that("Configure table shows both axis selects, examples, and inline overrid
     html <- paste(as.character(output$roles_table), collapse = "\n")
     expect_match(html, "identifies_change")
     expect_match(html, "sensitive_change")
-    expect_match(html, "Only combined with other columns")
+    expect_match(html, "Only in combination with other columns")
     expect_match(html, "email")
     expect_match(html, "Action override")
     expect_match(html, "Data type override")
@@ -327,7 +327,7 @@ test_that("disclosure help leads with the two questions and is not wrapped in de
   html <- as.character(disclosure_help_ui())
   expect_match(html, "Could a value point to a specific person")
   expect_match(html, "Would it harm someone")
-  expect_match(html, "Only combined with other columns")
+  expect_match(html, "Only in combination with other columns")
   expect_false(grepl("<details", html, fixed = TRUE))
 })
 

@@ -34,6 +34,9 @@ mod_generate_ui <- function(id) {
     ),
     stale_banner_ui("synthesis", ns = ns),
     shiny::uiOutput(ns("gen_status")),
+    # When synthetic data exists, the success banner + KPI panels pin to the top,
+    # above the configuration recap.
+    shiny::uiOutput(ns("result_stats")),
     shiny::div(
       class = "card",
       shiny::tags$div(
@@ -44,7 +47,6 @@ mod_generate_ui <- function(id) {
       shiny::uiOutput(ns("config_recap")),
       shiny::uiOutput(ns("decision_recap"))
     ),
-    shiny::uiOutput(ns("result_stats")),
     shiny::uiOutput(ns("generate_actions"))
   )
 }

@@ -158,7 +158,18 @@ mod_roles_ui <- function(id, embedded = FALSE) {
       shiny::uiOutput(ns("roles_table")),
       shiny::uiOutput(ns("kanon_readout")),
       shiny::uiOutput(ns("disclosure_gate"))
-    )
+    ),
+    if (!isTRUE(embedded)) {
+      shiny::tags$div(
+        class = "main-header-action",
+        style = "display:flex; justify-content:flex-end; margin-top:16px;",
+        shiny::actionButton(
+          ns("confirm_bottom"),
+          "Confirm and Continue \u2192",
+          class = "btn btn-primary"
+        )
+      )
+    }
   )
 }
 
@@ -196,7 +207,10 @@ disclosure_help_ui <- function(attested = FALSE) {
     ),
     shiny::tags$div(
       class = "dq",
-      shiny::tags$div(class = "dq-eyebrow", "Question 1"),
+      shiny::tags$div(
+        class = "dq-eyebrow",
+        "Question 1 \u00b7 the \u201cPoints to a person?\u201d column"
+      ),
       shiny::tags$p(
         class = "dq-q",
         if (isTRUE(attested)) {
@@ -209,7 +223,10 @@ disclosure_help_ui <- function(attested = FALSE) {
     ),
     shiny::tags$div(
       class = "dq",
-      shiny::tags$div(class = "dq-eyebrow", "Question 2"),
+      shiny::tags$div(
+        class = "dq-eyebrow",
+        "Question 2 \u00b7 the \u201cSensitive?\u201d column"
+      ),
       shiny::tags$p(
         class = "dq-q",
         if (isTRUE(attested)) {
@@ -809,7 +826,7 @@ mod_roles_server <- function(id, state) {
       invisible(NULL)
     })
 
-    shiny::observeEvent(input$confirm, ignoreNULL = TRUE, {
+    do_confirm <- function() {
       roles <- roles_local()
       shiny::req(roles)
       roles <- ensure_simulation_column(roles)
@@ -823,7 +840,10 @@ mod_roles_server <- function(id, state) {
       state$roles <- roles
       state$roles_confirmed <- (state$roles_confirmed %||% 0L) + 1L
       invisible(NULL)
-    })
+    }
+
+    shiny::observeEvent(input$confirm, ignoreNULL = TRUE, do_confirm())
+    shiny::observeEvent(input$confirm_bottom, ignoreNULL = TRUE, do_confirm())
 
     invisible(NULL)
   })

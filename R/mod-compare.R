@@ -535,20 +535,34 @@ mod_compare_server <- function(id, state) {
         lvls <- sort(unique(c(orig_vals, synth_vals)))
         orig_prop  <- prop_by_level(orig_vals, lvls)
         synth_prop <- prop_by_level(synth_vals, lvls)
-        tvd    <- 0.5 * sum(abs(orig_prop - synth_prop))
-        tvd_ok <- tvd < 0.05
+        tvd  <- 0.5 * sum(abs(orig_prop - synth_prop))
+        p    <- safe_categorical_p(orig_vals, synth_vals, lvls)
+        band <- fidelity_color(p)
+        band_bg <- switch(band,
+          good = "var(--real-50)", warn = "var(--risk-50)",
+          bad = "var(--risk-50)", "var(--paper-200)")
+        band_border <- switch(band,
+          good = "var(--real-100)", warn = "#F2B36A",
+          bad = "var(--risk-500)", "var(--paper-200)")
+        band_fg <- switch(band,
+          good = "var(--real-700)", warn = "var(--risk-700)",
+          bad = "var(--risk-500)", "var(--fg-muted)")
+        band_note <- switch(band,
+          good = " \u00b7 distributions consistent (p \u2265 0.05)",
+          warn = " \u00b7 some difference (p < 0.05) \u2014 review",
+          bad  = " \u00b7 strong difference (p < 0.01) \u2014 review",
+          " \u00b7 no inference available")
+        p_txt <- if (is.na(p)) "p = \u2014" else sprintf("p = %.3g", p)
         shiny::tags$div(
           style = sprintf(
             "margin-top:12px; padding:8px 12px; background:%s; border:1px solid %s; border-radius:4px; font-family:var(--font-sans); font-size:13px;",
-            if (tvd_ok) "var(--real-50)" else "var(--risk-50)",
-            if (tvd_ok) "var(--real-100)" else "#F2B36A"
+            band_bg, band_border
           ),
           shiny::tags$b(
-            style = sprintf("font-family:var(--font-mono); color:%s;",
-                            if (tvd_ok) "var(--real-700)" else "var(--risk-700)"),
-            sprintf("TVD = %.3f", tvd)
+            style = sprintf("font-family:var(--font-mono); color:%s;", band_fg),
+            sprintf("%s \u00b7 TVD = %.3f", p_txt, tvd)
           ),
-          if (tvd_ok) " \u00b7 within tolerance (< 0.05)" else " \u00b7 beyond tolerance \u2014 review"
+          band_note
         )
 
       } else if (kind == "date") {

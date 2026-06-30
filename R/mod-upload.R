@@ -34,14 +34,6 @@ mod_upload_ui <- function(id) {
         shiny::uiOutput(ns("header_cta"))
       )
     ),
-    shiny::tags$div(
-      class = "banner info",
-      shiny::tags$span(class = "icon", "i"),
-      shiny::tags$div(
-        shiny::tags$b("Sharing original data?"),
-        " Synthetic data reduces direct disclosure risk. It is not a substitute for a formal privacy assessment. Review the comparison and privacy warnings before sharing externally."
-      )
-    ),
     shiny::div(
       class = "upload",
       shiny::tags$span(class = "icon", "\u2191"),

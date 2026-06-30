@@ -384,7 +384,7 @@ test_that("decision recap renders the revised review columns", {
     expect_false(grepl("<th[^>]*>TYPE<", html, perl = TRUE))
     expect_false(grepl("<th[^>]*>DISCLOSURE<", html, perl = TRUE))
     expect_match(html, 'title="Modelled as: date"')
-    expect_match(html, "Only combined with other columns")
+    expect_match(html, "Only in combination with other columns")
     expect_match(html, "Pass through")
     expect_match(html, "Use .* Adjust settings to change any of these")
   })
