@@ -95,7 +95,7 @@ can override any of these:
 | **Row count (n)** | How many synthetic rows to generate. |
 | **Seed** | Fixes the random draw so the same settings reproduce the exact same data. |
 | **Engine** | *Auto* (from objective), *Internal* (per-column, fast, ignores relationships), or *synthpop* (relationship-aware, higher fidelity). |
-| **Column name handling** | Keep original names, replace with generic names, or anonymize names and keep the mapping in the data dictionary. |
+| **Column name handling** | Keep original names, replace with generic names, or anonymize names and keep the mapping. |
 | **Rare category threshold** | Values seen fewer than this many times count as rare, so they can be merged or suppressed. |
 | **Coarsen dates** | Round dates (e.g. to month/year) so an exact date can't single out an individual. |
 | **Merge rare categories** | Combine infrequent values into an "other" group to reduce re-identification risk. |
@@ -136,23 +136,23 @@ fig("step-5-compare.png")
 
 ## 6. Export
 
-The in-app download is the **compact** bundle: a small, shareable package built
-around six files:
+The download is a single bundle: the synthetic CSV at the root, plus one folder
+for the human and one for the agent.
 
-- `synthetic_data.csv`
-- `README.md`
-- `load_data.R`
-- `analysis.qmd`
-- `data_dictionary.csv`
-- `manifest.json`
+```
+synthetic_data.csv            # the synthetic stand-in — the product
+human/human.md                # what was done, plus the privacy notes
+human/comparison_report.html  # real vs. synthetic fidelity (if generated)
+agent/recipe.yaml             # spec + roles + seed — regenerate safe data
+agent/AGENT.md                # the agent workflow guide
+agent/manifest.json
+```
 
-If a rendered comparison is included, you also get `comparison_report.html`.
-
-In the compact bundle, `README.md` is consolidated: it includes the privacy
-summary and a **For AI assistants** section, so there is no separate
-`ai-readme.md` or `privacy_report.txt`. Those standalone files stay in the
-**full** CLI / agent bundle (`compact = FALSE` or `make_agent_bundle()`), along
-with the extra diagnostics used in agent workflows.
+`human/human.md` is consolidated: it folds in the privacy summary, so there is no
+separate privacy file. `agent/recipe.yaml` records the spec, the per-column roles,
+and the seed, so an agent can regenerate or vary the synthetic data without ever
+reading the real data — see the
+[Privacy gating and Agent workflows](privacy-and-ai-workflow.html) article.
 
 ```{r, echo = FALSE}
 fig("step-6-export.png")

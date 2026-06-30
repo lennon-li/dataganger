@@ -1,3 +1,16 @@
+#' Map a fidelity p-value to a colour band.
+#'
+#' Lower p = a more significant original-vs-synthetic difference = poorer
+#' fidelity. `NA` means no inference was run (min/max) -> "none".
+#' @keywords internal
+#' @noRd
+fidelity_color <- function(p) {
+  if (length(p) != 1L || is.na(p)) return("none")
+  if (p < 0.01) return("bad")
+  if (p < 0.05) return("warn")
+  "good"
+}
+
 #' Compare original and synthetic datasets
 #'
 #' Compares an original dataset with its synthetic double across dataset-level
@@ -18,20 +31,6 @@
 #' spec <- synth_spec(purpose = "demo")
 #' syn <- synthesize_data(dat, spec)
 #' compare_synthetic(dat, syn)
-
-#' Map a fidelity p-value to a colour band.
-#'
-#' Lower p = a more significant original-vs-synthetic difference = poorer
-#' fidelity. `NA` means no inference was run (min/max) -> "none".
-#' @keywords internal
-#' @noRd
-fidelity_color <- function(p) {
-  if (length(p) != 1L || is.na(p)) return("none")
-  if (p < 0.01) return("bad")
-  if (p < 0.05) return("warn")
-  "good"
-}
-
 compare_synthetic <- function(original, synthetic, roles = NULL) {
   if (!is.data.frame(original)) {
     cli::cli_abort("{.arg original} must be a data frame")

@@ -69,7 +69,8 @@ the report is skipped with a message instead of an error.}
 \item{include_dictionary}{Deprecated no-op kept for compatibility.}
 
 \item{code_readiness}{Optional \code{dataganger_code_readiness} object from
-\code{\link[=check_code_readiness]{check_code_readiness()}}.}
+\code{\link[=check_code_readiness]{check_code_readiness()}}. When supplied, writes
+\code{code_readiness_report.json} into the bundle.}
 
 \item{compact}{Deprecated no-op kept for compatibility.}
 

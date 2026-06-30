@@ -127,32 +127,26 @@ profile <- profile_data(dat)
 roles   <- detect_roles(dat, profile)
 spec    <- synth_spec(purpose = "development", roles = roles, seed = 42)
 syn     <- synthesize_data(dat, spec, roles)
-export_synthetic(
-  syn,
-  original = dat,
-  path = "dataganger_bundle.zip",
-  compact = FALSE
-)
+export_synthetic(syn, original = dat, path = "dataganger_bundle.zip")
 
-unzip("dataganger_bundle.zip", exdir = "dataganger_bundle")
-
-# Re-run the same-seed audit/comparison notebook against the exported bundle.
-quarto::quarto_render(
-  "dataganger_bundle/analysis.qmd",
-  execute_params = list(
-    original_path = "my-data.csv",
-    synthetic_path = "dataganger_bundle/synthetic_data.csv"
-  )
-)
+# Or do the whole thing in one call, straight from the raw file:
+make_agent_bundle("my-data.csv", out = "dataganger_bundle.zip", seed = 42)
 
 # Open a pre-filled issue for bugs, feedback, or feature requests
 report_issue("The compare step was hard to interpret", context = "Shiny app")
 ```
 
-The Shiny app downloads a compact bundle for humans. For CLI or agent workflows,
-use the full bundle (`compact = FALSE`, or `make_agent_bundle()`) so the
-standalone `ai-readme.md`, `privacy_report.txt`, and other diagnostics are
-included alongside `analysis.qmd`.
+The export is a single bundle: the synthetic CSV at the root, plus one folder for
+the human and one for the agent.
+
+```
+synthetic_data.csv            # the synthetic stand-in — the product
+human/human.md                # what was done, plus the privacy notes
+human/comparison_report.html  # real vs. synthetic fidelity
+agent/recipe.yaml             # spec + roles + seed — regenerate safe data
+agent/AGENT.md                # the agent workflow guide (never read the real data)
+agent/manifest.json
+```
 
 ### CLI / agent workflow
 
@@ -170,14 +164,15 @@ dataganger synthesize my-data.csv --spec spec.yaml --out dataganger_bundle.zip
 dataganger inspect dataganger_bundle.zip
 ```
 
-Then unzip the full bundle and render the included notebook against the real
-input file to reproduce and review the same-seed result:
+The bundle's `agent/recipe.yaml` captures the spec, roles, and seed. To reproduce
+or vary the synthetic data later, an agent runs the package against that recipe —
+no notebook, and without ever opening the real data:
 
 ```sh
 unzip dataganger_bundle.zip -d dataganger_bundle
-quarto render dataganger_bundle/analysis.qmd \
-  -P original_path:my-data.csv \
-  -P synthetic_path:dataganger_bundle/synthetic_data.csv
+dataganger synthesize my-data.csv \
+  --recipe dataganger_bundle/agent/recipe.yaml \
+  --out check.zip
 ```
 
 For the full command list, run `dataganger::dataganger_cli(c("--help"))`.
