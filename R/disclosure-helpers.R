@@ -139,9 +139,10 @@ dg_sync_roles_axes <- function(roles) {
     roles$identifies <- NA_character_
   }
   if (!"sensitive" %in% names(roles)) {
-    roles$sensitive <- FALSE
+    roles$sensitive <- NA
   }
-  roles$sensitive <- isTRUE_vec(roles$sensitive)
+  non_na_s <- !is.na(roles$sensitive)
+  roles$sensitive[non_na_s] <- isTRUE_vec(roles$sensitive[non_na_s])
   roles$disclosure_role <- vapply(
     seq_len(nrow(roles)),
     function(i) dg_axes_to_role(roles$identifies[i], roles$sensitive[i]),
@@ -189,7 +190,7 @@ dg_seed_disclosure <- function(roles) {
     roles$identifies <- NA_character_
   }
   if (!"sensitive" %in% names(roles)) {
-    roles$sensitive <- FALSE
+    roles$sensitive <- NA
   }
   if (!"disclosure_role" %in% names(roles)) {
     roles$disclosure_role <- ""
@@ -240,7 +241,7 @@ roles_generation_pending <- function(roles) {
   }
 
   eligible <- roles_generation_eligible(roles)
-  pending <- (is.na(roles$identifies) | !nzchar(roles$identifies)) & eligible
+  pending <- ((is.na(roles$identifies) | !nzchar(roles$identifies)) | is.na(roles$sensitive)) & eligible
   which(pending)
 }
 
