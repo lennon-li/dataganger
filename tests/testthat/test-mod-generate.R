@@ -35,6 +35,18 @@ test_that("generate UI exposes a configuration recap output", {
   expect_match(html, "generate-decision_recap")
 })
 
+test_that("generate stale banner uses friendly guidance", {
+  html <- as.character(mod_generate_ui("generate"))
+
+  expect_match(
+    html,
+    "Review the config, press Generate when ready, or go back to adjust settings.",
+    fixed = TRUE
+  )
+  expect_no_match(html, "Results stale", fixed = TRUE)
+  expect_no_match(html, "Re-generate before trusting", fixed = TRUE)
+})
+
 capture_notifications <- function() {
   notifications <- list()
 

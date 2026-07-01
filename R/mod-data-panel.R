@@ -54,7 +54,7 @@ mod_data_panel_server <- function(id, state) {
       active_tab(input$active_tab)
     })
 
-    shiny::observeEvent(state$synthetic, ignoreNULL = TRUE, once = TRUE, {
+    shiny::observeEvent(state$synthetic, ignoreNULL = TRUE, {
       active_tab("synth")
     })
 

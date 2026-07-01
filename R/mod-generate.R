@@ -32,7 +32,12 @@ mod_generate_ui <- function(id) {
         shiny::uiOutput(ns("header_cta"))
       )
     ),
-    stale_banner_ui("synthesis", ns = ns),
+    stale_banner_ui(
+      "synthesis",
+      ns = ns,
+      title = NULL,
+      message = "Review the config, press Generate when ready, or go back to adjust settings."
+    ),
     shiny::uiOutput(ns("gen_status")),
     # When synthetic data exists, the success banner + KPI panels pin to the top,
     # above the configuration recap.

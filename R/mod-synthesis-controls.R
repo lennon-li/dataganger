@@ -207,16 +207,14 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
     ),
     shiny::tags$div(
       class = "card",
-      shiny::tags$div(
-        class = "card-header",
-        shiny::tags$span(class = "title", "Synthesis Settings"),
-        shiny::tags$span(class = "sub", "expanded by default")
-      ),
       shiny::tags$p(
         style = "margin:0 0 12px; color:var(--fg-muted); font-family:var(--font-sans); font-size:13px;",
         "Defaults are safe \u2014 leave unchanged unless you have a reason."
       ),
-      shiny::uiOutput(ns("advanced_settings"))
+      shiny::tags$details(
+        shiny::tags$summary("Advanced settings"),
+        shiny::uiOutput(ns("advanced_settings"))
+      )
     ),
     shiny::tags$div(
       class = "card",
@@ -490,6 +488,7 @@ mod_synthesis_controls_server <- function(id, state) {
         setting_hint("How closely to reproduce the pattern of missing (NA) values from the original data.")
       )
     })
+    shiny::outputOptions(output, "advanced_settings", suspendWhenHidden = FALSE)
 
     shiny::observeEvent(input$rows_n, ignoreNULL = TRUE, {
       if (!is.null(input$rows_n) && isTRUE(input$rows_n > 500000)) {

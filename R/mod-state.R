@@ -167,7 +167,12 @@ mod_state_server <- function(id) {
 
 #' @keywords internal
 #' @noRd
-stale_banner_ui <- function(flag_name, ns = shiny::NS(NULL)) {
+stale_banner_ui <- function(
+  flag_name,
+  ns = shiny::NS(NULL),
+  title = "Results stale",
+  message = "Re-generate before trusting downstream outputs."
+) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   output_id <- ns(paste0("stale__", flag_name))
@@ -178,8 +183,8 @@ stale_banner_ui <- function(flag_name, ns = shiny::NS(NULL)) {
       class = "banner info",
       shiny::tags$span(class = "icon", "i"),
       shiny::div(
-        shiny::tags$b("Results stale"),
-        " Re-generate before trusting downstream outputs."
+        if (!is.null(title)) shiny::tags$b(title),
+        if (!is.null(title)) paste0(" ", message) else message
       )
     )
   )
