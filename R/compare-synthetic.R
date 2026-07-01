@@ -292,6 +292,89 @@ compare_categorical <- function(orig, syn) {
 # Relationship comparison (Pearson correlations)
 # ===========================================================================
 
+#' Calculate Cram\u00e9r's V for two categorical variables.
+#'
+#' @param x,y Vectors containing categorical observations.
+#' @return A single numeric association value, or `NA_real_` when the
+#'   contingency table is degenerate.
+#' @keywords internal
+#' @noRd
+cramers_v <- function(x, y) {
+  tab <- table(x, y)
+  n <- sum(tab)
+  denom_dim <- min(nrow(tab) - 1L, ncol(tab) - 1L)
+  if (n == 0L || denom_dim < 1L) return(NA_real_)
+
+  chi2 <- tryCatch(
+    suppressWarnings(as.numeric(stats::chisq.test(tab)$statistic)),
+    error = function(e) NA_real_
+  )
+  if (is.na(chi2)) return(NA_real_)
+  sqrt(chi2 / (n * denom_dim))
+}
+
+#' Calculate the correlation ratio for numeric values by group.
+#'
+#' @param num A numeric vector.
+#' @param grp A categorical grouping vector.
+#' @return A single numeric eta value, or `NA_real_` for a degenerate input.
+#' @keywords internal
+#' @noRd
+correlation_ratio <- function(num, grp) {
+  keep <- !is.na(num) & !is.na(grp)
+  num <- as.numeric(num[keep])
+  grp <- droplevels(factor(grp[keep]))
+  if (length(num) == 0L || nlevels(grp) < 2L) return(NA_real_)
+
+  grand_mean <- mean(num)
+  ss_total <- sum((num - grand_mean)^2)
+  if (!is.finite(ss_total) || ss_total == 0) return(NA_real_)
+
+  group_n <- as.numeric(table(grp))
+  group_means <- as.numeric(tapply(num, grp, mean))
+  ss_between <- sum(group_n * (group_means - grand_mean)^2)
+  sqrt(ss_between / ss_total)
+}
+
+#' Calculate the association appropriate for a pair of variable kinds.
+#'
+#' @param x,y Vectors containing paired observations.
+#' @param kind_x,kind_y Effective variable kinds. Dates are treated as numeric
+#'   and logical variables as categorical.
+#' @return A list with character `metric` and numeric `value` elements.
+#' @keywords internal
+#' @noRd
+pair_association <- function(x, y, kind_x, kind_y) {
+  normalize_kind <- function(kind) {
+    if (identical(kind, "date")) return("numeric")
+    if (identical(kind, "logical")) return("categorical")
+    kind
+  }
+  kind_x <- normalize_kind(kind_x)
+  kind_y <- normalize_kind(kind_y)
+  if (kind_x == "numeric") x <- as.numeric(x)
+  if (kind_y == "numeric") y <- as.numeric(y)
+
+  if (kind_x == "numeric" && kind_y == "numeric") {
+    value <- tryCatch(
+      suppressWarnings(stats::cor(x, y, use = "pairwise.complete.obs")),
+      error = function(e) NA_real_
+    )
+    return(list(metric = "Pearson r", value = as.numeric(value)))
+  }
+  if (kind_x == "categorical" && kind_y == "categorical") {
+    return(list(metric = "Cram\u00e9r's V", value = cramers_v(x, y)))
+  }
+  if (kind_x == "numeric" && kind_y == "categorical") {
+    return(list(metric = "\u03b7 (correlation ratio)", value = correlation_ratio(x, y)))
+  }
+  if (kind_x == "categorical" && kind_y == "numeric") {
+    return(list(metric = "\u03b7 (correlation ratio)", value = correlation_ratio(y, x)))
+  }
+
+  list(metric = "Association", value = NA_real_)
+}
+
 compare_relationship <- function(orig, syn) {
   num_cols <- names(orig)[vapply(orig, function(x) {
     is.numeric(x) && !haven::is.labelled(x)

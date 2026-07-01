@@ -214,6 +214,40 @@ mod_compare_server <- function(id, state) {
 
   shiny::moduleServer(id, function(input, output, session) {
     selected_var <- shiny::reactiveVal(NULL)
+    selected_rel_x <- shiny::reactiveVal(NULL)
+    selected_rel_y <- shiny::reactiveVal(NULL)
+
+    empty_plot <- function(label) {
+      plotly::plot_ly(type = "scatter", mode = "markers") |>
+        plotly::layout(
+          xaxis = list(visible = FALSE),
+          yaxis = list(visible = FALSE),
+          annotations = list(list(
+            text = label, x = 0.5, y = 0.5,
+            xref = "paper", yref = "paper", showarrow = FALSE,
+            font = list(color = "#6E716A", size = 14)
+          )),
+          paper_bgcolor = "rgba(0,0,0,0)",
+          plot_bgcolor = "rgba(0,0,0,0)"
+        )
+    }
+
+    plotly_common <- function(p, showlegend = TRUE) {
+      plotly::layout(
+        p,
+        showlegend = showlegend,
+        legend = list(
+          orientation = "v", x = 1, y = 1,
+          xanchor = "right", yanchor = "top",
+          bgcolor = "rgba(251,250,246,0.72)",
+          bordercolor = "rgba(0,0,0,0.08)", borderwidth = 1,
+          font = list(size = 11)
+        ),
+        paper_bgcolor = "rgba(0,0,0,0)",
+        plot_bgcolor = "rgba(0,0,0,0)",
+        margin = list(l = 48, r = 16, t = 36, b = 36)
+      )
+    }
 
     # Derive the kind used for plot/stats: user_role > recommended_role > column class
     role_to_kind <- function(role) {
@@ -279,6 +313,14 @@ mod_compare_server <- function(id, state) {
       selected_var(input$var_select)
     })
 
+    shiny::observeEvent(input$rel_x, ignoreNULL = TRUE, {
+      selected_rel_x(input$rel_x)
+    })
+
+    shiny::observeEvent(input$rel_y, ignoreNULL = TRUE, {
+      selected_rel_y(input$rel_y)
+    })
+
     # Effective selected variable, derived synchronously from comparable_vars()
     # rather than relying on the observe above having fired. On first transition
     # into Compare the observe can run *after* the renderers paint, leaving
@@ -290,6 +332,27 @@ mod_compare_server <- function(id, state) {
       shiny::req(length(vars) > 0L)
       sel <- selected_var()
       if (!is.null(sel) && sel %in% vars) sel else vars[[1L]]
+    })
+
+    current_rel_vars <- shiny::reactive({
+      vars <- comparable_vars()
+      if (length(vars) < 2L) return(c(NA_character_, NA_character_))
+      x <- selected_rel_x()
+      y <- selected_rel_y()
+      if (is.null(x) || !(x %in% vars)) x <- vars[[1L]]
+      if (is.null(y) || !(y %in% vars)) {
+        y <- setdiff(vars, x)[[1L]]
+      }
+      c(x, y)
+    })
+
+    shiny::observe({
+      vars <- comparable_vars()
+      if (length(vars) >= 2L) {
+        pair <- current_rel_vars()
+        selected_rel_x(pair[[1L]])
+        selected_rel_y(pair[[2L]])
+      }
     })
 
     shiny::observe({
@@ -372,7 +435,7 @@ mod_compare_server <- function(id, state) {
         shiny::uiOutput(session$ns("var_stats"))
       )
 
-      shiny::tags$div(
+      univariate <- shiny::tags$div(
         class = "compare-layout compare-layout-tabs",
         shiny::tags$div(
           class = "var-rail var-tab-nav",
@@ -380,6 +443,55 @@ mod_compare_server <- function(id, state) {
           shiny::tags$div(class = "var-matrix", rail_btns)
         ),
         var_detail
+      )
+
+      pair <- if (length(vars) >= 2L) current_rel_vars() else c(NA_character_, NA_character_)
+      bivariate_body <- if (length(vars) < 2L) {
+        shiny::tags$div(
+          class = "card",
+          shiny::tags$p(
+            style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin:0;",
+            "Pick two different variables"
+          )
+        )
+      } else {
+        shiny::tags$div(
+          class = "card",
+          shiny::tags$div(
+            style = "display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px;",
+            shiny::tags$div(
+              style = "flex:1 1 220px;",
+              shiny::selectInput(session$ns("rel_x"), "Variable X", choices = vars, selected = pair[[1L]])
+            ),
+            shiny::tags$div(
+              style = "flex:1 1 220px;",
+              shiny::selectInput(session$ns("rel_y"), "Variable Y", choices = vars, selected = pair[[2L]])
+            )
+          ),
+          plotly::plotlyOutput(session$ns("rel_plot"), height = "360px"),
+          shiny::uiOutput(session$ns("rel_stats"))
+        )
+      }
+
+      section_heading <- function(title, description) {
+        shiny::tags$div(
+          style = "margin:22px 0 10px;",
+          shiny::tags$h2(
+            style = "font-family:var(--font-mono); font-size:16px; letter-spacing:.02em; margin:0 0 4px;",
+            title
+          ),
+          shiny::tags$p(
+            style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); margin:0;",
+            description
+          )
+        )
+      }
+
+      shiny::tagList(
+        section_heading("Univariate", "Compare each variable's original and synthetic marginal distribution."),
+        univariate,
+        section_heading("Bivariate", "Compare how a two-variable relationship is preserved."),
+        bivariate_body
       )
     })
 
@@ -392,44 +504,6 @@ mod_compare_server <- function(id, state) {
       shiny::req(var %in% names(orig), var %in% names(synth))
 
       kind <- eff_kind(var, roles, orig[[var]])
-
-      empty_plot <- function(label) {
-        plotly::plot_ly(type = "scatter", mode = "markers") |>
-          plotly::layout(
-            xaxis = list(visible = FALSE),
-            yaxis = list(visible = FALSE),
-            annotations = list(list(
-              text = label,
-              x = 0.5,
-              y = 0.5,
-              xref = "paper",
-              yref = "paper",
-              showarrow = FALSE,
-              font = list(color = "#6E716A", size = 14)
-            )),
-            paper_bgcolor = "rgba(0,0,0,0)",
-            plot_bgcolor = "rgba(0,0,0,0)"
-          )
-      }
-
-      plotly_common <- function(p) {
-        plotly::layout(
-          p,
-          showlegend = TRUE,
-          legend = list(
-            orientation = "v",
-            x = 1, y = 1,
-            xanchor = "right", yanchor = "top",
-            bgcolor = "rgba(251,250,246,0.72)",
-            bordercolor = "rgba(0,0,0,0.08)",
-            borderwidth = 1,
-            font = list(size = 11)
-          ),
-          paper_bgcolor = "rgba(0,0,0,0)",
-          plot_bgcolor = "rgba(0,0,0,0)",
-          margin = list(l = 48, r = 16, t = 36, b = 36)
-        )
-      }
 
       explicit_missing <- function(x) {
         vals <- as.character(x)
@@ -697,6 +771,209 @@ mod_compare_server <- function(id, state) {
         )
         compare_numeric_table(num_cmp, orig_vec = orig_vec, synth_vec = synth_vec)
       }
+    })
+
+    output$rel_plot <- plotly::renderPlotly({
+      shiny::req(state$raw_data, state$synthetic)
+      vars <- comparable_vars()
+      if (length(vars) < 2L) return(empty_plot("Pick two different variables"))
+
+      pair <- current_rel_vars()
+      var_x <- pair[[1L]]
+      var_y <- pair[[2L]]
+      orig <- state$raw_data
+      synth <- state$synthetic
+      if (is.na(var_x) || is.na(var_y) || identical(var_x, var_y) ||
+          !all(c(var_x, var_y) %in% names(orig)) ||
+          !all(c(var_x, var_y) %in% names(synth))) {
+        return(empty_plot("Pick two different variables"))
+      }
+
+      kind_x <- eff_kind(var_x, state$roles, orig[[var_x]])
+      kind_y <- eff_kind(var_y, state$roles, orig[[var_y]])
+      normalize_kind <- function(kind) {
+        if (kind == "date") return("numeric")
+        if (kind == "logical") return("categorical")
+        kind
+      }
+      plot_kind_x <- normalize_kind(kind_x)
+      plot_kind_y <- normalize_kind(kind_y)
+      if (!plot_kind_x %in% c("numeric", "categorical") ||
+          !plot_kind_y %in% c("numeric", "categorical")) {
+        return(empty_plot("These variable roles do not support relationship plotting"))
+      }
+
+      pair_frame <- function(dat) {
+        data.frame(x = dat[[var_x]], y = dat[[var_y]], stringsAsFactors = FALSE)
+      }
+      orig_pair <- pair_frame(orig)
+      synth_pair <- pair_frame(synth)
+      orig_pair <- orig_pair[stats::complete.cases(orig_pair), , drop = FALSE]
+      synth_pair <- synth_pair[stats::complete.cases(synth_pair), , drop = FALSE]
+      if (nrow(orig_pair) == 0L || nrow(synth_pair) == 0L) {
+        return(empty_plot("No complete variable pairs to plot"))
+      }
+
+      panel_title <- function(p, title) plotly::layout(p, title = list(text = title, font = list(size = 13)))
+
+      if (plot_kind_x == "numeric" && plot_kind_y == "numeric") {
+        make_scatter <- function(dat, title, color) {
+          dat$x <- as.numeric(dat$x)
+          dat$y <- as.numeric(dat$y)
+          panel_title(
+            plotly::plot_ly(dat, x = ~x, y = ~y) |>
+              plotly::add_markers(
+                marker = list(color = color, opacity = 0.5, size = 7),
+                hovertemplate = paste0(var_x, ": %{x}<br>", var_y, ": %{y}<extra></extra>")
+              ) |>
+              plotly::layout(
+                xaxis = list(title = var_x),
+                yaxis = list(title = var_y)
+              ),
+            title
+          )
+        }
+        p_orig <- make_scatter(orig_pair, "Original", "#4F7D32")
+        p_synth <- make_scatter(synth_pair, "Synthetic", "#D43A8A")
+
+      } else if (plot_kind_x == "categorical" && plot_kind_y == "categorical") {
+        levels_x <- sort(unique(c(as.character(orig_pair$x), as.character(synth_pair$x))))
+        levels_y <- sort(unique(c(as.character(orig_pair$y), as.character(synth_pair$y))))
+        if (length(levels_x) < 2L || length(levels_y) < 2L) {
+          return(empty_plot("Both categorical variables need at least two levels"))
+        }
+        if (length(levels_x) > 30L || length(levels_y) > 30L) {
+          return(empty_plot("Categorical variables are limited to 30 levels"))
+        }
+        heat_data <- function(dat) {
+          tab <- table(
+            factor(as.character(dat$x), levels = levels_x),
+            factor(as.character(dat$y), levels = levels_y)
+          )
+          props <- sweep(tab, 2L, colSums(tab), "/")
+          props[!is.finite(props)] <- 0
+          t(props)
+        }
+        z_orig <- heat_data(orig_pair)
+        z_synth <- heat_data(synth_pair)
+        zmax <- max(c(z_orig, z_synth), na.rm = TRUE)
+        make_heatmap <- function(z, title, color) {
+          panel_title(
+            plotly::plot_ly(
+              x = levels_x, y = levels_y, z = z,
+              type = "heatmap", zmin = 0, zmax = zmax,
+              colorscale = list(c(0, "#FBFAF6"), c(1, color)),
+              showscale = FALSE,
+              hovertemplate = paste0(var_x, ": %{x}<br>", var_y, ": %{y}<br>column proportion: %{z:.1%}<extra></extra>")
+            ) |>
+              plotly::layout(
+                xaxis = list(title = var_x),
+                yaxis = list(title = var_y)
+              ),
+            title
+          )
+        }
+        p_orig <- make_heatmap(z_orig, "Original", "#4F7D32")
+        p_synth <- make_heatmap(z_synth, "Synthetic", "#D43A8A")
+
+      } else {
+        numeric_is_x <- plot_kind_x == "numeric"
+        numeric_name <- if (numeric_is_x) var_x else var_y
+        category_name <- if (numeric_is_x) var_y else var_x
+        prepare_mixed <- function(dat) {
+          data.frame(
+            category = as.character(if (numeric_is_x) dat$y else dat$x),
+            value = as.numeric(if (numeric_is_x) dat$x else dat$y),
+            stringsAsFactors = FALSE
+          )
+        }
+        orig_mixed <- prepare_mixed(orig_pair)
+        synth_mixed <- prepare_mixed(synth_pair)
+        categories <- sort(unique(c(orig_mixed$category, synth_mixed$category)))
+        if (length(categories) < 2L) return(empty_plot("The categorical variable needs at least two groups"))
+        if (length(categories) > 30L) return(empty_plot("Categorical variables are limited to 30 levels"))
+        make_box <- function(dat, title, color) {
+          dat$category <- factor(dat$category, levels = categories)
+          panel_title(
+            plotly::plot_ly(dat, x = ~category, y = ~value) |>
+              plotly::add_boxplot(
+                marker = list(color = color), line = list(color = color),
+                fillcolor = color, opacity = 0.55,
+                boxpoints = "outliers", name = title,
+                hovertemplate = paste0(category_name, ": %{x}<br>", numeric_name, ": %{y}<extra></extra>")
+              ) |>
+              plotly::layout(
+                xaxis = list(title = category_name),
+                yaxis = list(title = numeric_name)
+              ),
+            title
+          )
+        }
+        p_orig <- make_box(orig_mixed, "Original", "#4F7D32")
+        p_synth <- make_box(synth_mixed, "Synthetic", "#D43A8A")
+      }
+
+      combined <- plotly::subplot(
+        p_orig, p_synth, nrows = 1, shareY = TRUE, titleX = TRUE, margin = 0.08
+      )
+      plotly_common(combined, showlegend = FALSE)
+    })
+
+    output$rel_stats <- shiny::renderUI({
+      shiny::req(state$raw_data, state$synthetic)
+      vars <- comparable_vars()
+      if (length(vars) < 2L) return(NULL)
+      pair <- current_rel_vars()
+      var_x <- pair[[1L]]
+      var_y <- pair[[2L]]
+      if (is.na(var_x) || is.na(var_y) || identical(var_x, var_y) ||
+          !all(c(var_x, var_y) %in% names(state$raw_data)) ||
+          !all(c(var_x, var_y) %in% names(state$synthetic))) return(NULL)
+
+      kind_x <- eff_kind(var_x, state$roles, state$raw_data[[var_x]])
+      kind_y <- eff_kind(var_y, state$roles, state$raw_data[[var_y]])
+      original <- pair_association(
+        state$raw_data[[var_x]], state$raw_data[[var_y]], kind_x, kind_y
+      )
+      synthetic <- pair_association(
+        state$synthetic[[var_x]], state$synthetic[[var_y]], kind_x, kind_y
+      )
+      delta <- synthetic$value - original$value
+      abs_delta <- abs(delta)
+      raw_band <- fidelity_color(abs_delta)
+      band <- switch(raw_band, bad = "good", warn = "warn", good = "bad", "none")
+      band_style <- switch(
+        band,
+        good = "background:var(--real-50); color:var(--real-700); border:1px solid var(--real-100);",
+        warn = "background:var(--risk-50); color:var(--risk-700); border:1px solid #F2B36A;",
+        bad = "background:var(--risk-50); color:var(--risk-500); border:1px solid var(--risk-500);",
+        "background:var(--paper-200); color:var(--fg-muted); border:1px solid var(--paper-200);"
+      )
+      fmt <- function(value) if (length(value) == 0L || is.na(value)) "\u2014" else sprintf("%.3f", value)
+
+      shiny::tags$table(
+        class = "data",
+        style = "margin-top:8px;",
+        shiny::tags$thead(shiny::tags$tr(
+          shiny::tags$th("metric"),
+          shiny::tags$th(class = "real", style = "text-align:right;", "original"),
+          shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
+          shiny::tags$th(style = "text-align:right;", "\u0394")
+        )),
+        shiny::tags$tbody(shiny::tags$tr(
+          shiny::tags$td(class = "name", original$metric),
+          shiny::tags$td(class = "num", fmt(original$value)),
+          shiny::tags$td(class = "num", fmt(synthetic$value)),
+          shiny::tags$td(
+            class = "num",
+            shiny::tags$span(
+              class = paste("fidelity-band", paste0("fidelity-", band)),
+              style = paste("display:inline-block; padding:2px 8px; border-radius:999px;", band_style),
+              fmt(delta)
+            )
+          )
+        ))
+      )
     })
 
     invisible(NULL)
