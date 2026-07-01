@@ -22,7 +22,7 @@ fidelity_color <- function(p) {
 #' @param roles Optional; a `dataganger_roles` object from [detect_roles()].
 #'
 #' @return An S3 object of class `dataganger_comparison`, a list with
-#'   components `dataset`, `numeric`, `categorical`, `relationship`,
+#'   components `dataset`, `numeric`, `categorical`, `relationship`, `interaction`,
 #'   `privacy_flags`, and `meta`.
 #' @export
 #'
@@ -51,11 +51,15 @@ compare_synthetic <- function(original, synthetic, roles = NULL) {
   # -- relationship (correlation) --
   rel_cmp <- compare_relationship(original, synthetic)
 
+  # -- relationship modification (interaction) --
+  int_cmp <- compare_relationship_interaction(original, synthetic, roles)
+
   out <- list(
     dataset       = ds,
     numeric       = num_cmp,
     categorical   = cat_cmp,
     relationship  = rel_cmp,
+    interaction   = int_cmp,
     privacy_flags = NULL,
     meta          = list(
       generated_at = Sys.time(),
@@ -446,6 +450,85 @@ relationship_interaction <- function(x_orig, y_orig, x_synth, y_synth,
     p_value = as.numeric(p_value), n_terms = as.integer(n_terms),
     n = nrow(dat), note = ""
   )
+}
+
+#' Compare relationship modification across all eligible variable pairs.
+#'
+#' Pairs follow original data order. For each unordered pair, the earlier
+#' column is the predictor and the later column is the outcome.
+#'
+#' @param original,synthetic Original and synthetic data frames.
+#' @param roles Optional `dataganger_roles` object.
+#' @return A tibble with one interaction-test row per comparable pair.
+#' @keywords internal
+#' @noRd
+compare_relationship_interaction <- function(original, synthetic, roles = NULL) {
+  empty <- function() {
+    tibble::tibble(
+      predictor = character(0), outcome = character(0), family = character(0),
+      effect_label = character(0), estimate = double(0), null_value = double(0),
+      p_value = double(0), n_terms = integer(0), note = character(0)
+    )
+  }
+  role_to_kind <- function(role) {
+    if (length(role) == 0L || is.na(role) || !nzchar(role)) return(NA_character_)
+    lc <- tolower(role)
+    if (grepl("id\\b|identifier", lc)) return("identifier")
+    if (grepl("categor", lc)) return("categorical")
+    if (grepl("\\bdate\\b", lc)) return("date")
+    if (grepl("logic|boolean", lc)) return("logical")
+    if (grepl("free.text|free_text", lc)) return("free_text")
+    if (grepl("geograph", lc)) return("categorical")
+    if (grepl("numeric", lc)) return("numeric")
+    if (grepl("drop", lc)) return("drop")
+    role
+  }
+  effective_kind <- function(variable, column) {
+    if (!is.null(roles) && "variable" %in% names(roles)) {
+      idx <- match(variable, roles$variable)
+      if (!is.na(idx)) {
+        user <- if ("user_role" %in% names(roles)) roles$user_role[[idx]] else NA_character_
+        recommended <- if ("recommended_role" %in% names(roles)) {
+          roles$recommended_role[[idx]]
+        } else {
+          NA_character_
+        }
+        user_kind <- role_to_kind(user)
+        if (!is.na(user_kind)) return(user_kind)
+        recommended_kind <- role_to_kind(recommended)
+        if (!is.na(recommended_kind)) return(recommended_kind)
+      }
+    }
+    if (is.logical(column)) return("logical")
+    if (inherits(column, c("Date", "POSIXct", "POSIXt"))) return("date")
+    if (is.character(column) || is.factor(column)) return("categorical")
+    "numeric"
+  }
+
+  variables <- intersect(names(original), names(synthetic))
+  kinds <- stats::setNames(vapply(
+    variables,
+    function(variable) effective_kind(variable, original[[variable]]),
+    character(1)
+  ), variables)
+  variables <- variables[!kinds %in% c("identifier", "free_text", "drop")]
+  if (length(variables) < 2L) return(empty())
+
+  pairs <- utils::combn(variables, 2L, simplify = FALSE)
+  rows <- lapply(pairs, function(pair) {
+    result <- relationship_interaction(
+      original[[pair[[1L]]]], original[[pair[[2L]]]],
+      synthetic[[pair[[1L]]]], synthetic[[pair[[2L]]]],
+      kinds[[pair[[1L]]]], kinds[[pair[[2L]]]]
+    )
+    tibble::tibble(
+      predictor = pair[[1L]], outcome = pair[[2L]], family = result$family,
+      effect_label = result$effect_label, estimate = result$estimate,
+      null_value = result$null_value, p_value = result$p_value,
+      n_terms = result$n_terms, note = result$note
+    )
+  })
+  dplyr::bind_rows(rows)
 }
 
 compare_relationship <- function(orig, syn) {

@@ -53,7 +53,8 @@ reference:
 
   - title: "Comparison"
     desc: >
-      Compare a synthetic dataset against its original to assess fidelity.
+      Compare a synthetic dataset against its original using distribution and
+      relationship-interaction tests to assess fidelity.
     contents:
       - compare_synthetic
       - plot_comparison

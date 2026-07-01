@@ -124,3 +124,33 @@ test_that("degenerate relationships return notes instead of errors", {
   expect_true(is.na(too_few$p_value))
   expect_true(nzchar(too_few$note))
 })
+
+test_that("relationship comparison detects modified and preserved relationships", {
+  set.seed(107)
+  x <- seq(-2, 2, length.out = 300)
+  original <- data.frame(x = x, y = 2 * x + stats::rnorm(300, sd = 0.25))
+  preserved <- data.frame(x = x, y = 2 * x + stats::rnorm(300, sd = 0.25))
+  modified <- data.frame(x = x, y = -2 * x + stats::rnorm(300, sd = 0.25))
+
+  preserved_result <- compare_relationship_interaction(original, preserved)
+  modified_result <- compare_relationship_interaction(original, modified)
+
+  expect_gt(preserved_result$p_value[[1]], 0.1)
+  expect_lt(modified_result$p_value[[1]], 1e-10)
+  expect_identical(modified_result$predictor[[1]], "x")
+  expect_identical(modified_result$outcome[[1]], "y")
+})
+
+test_that("relationship comparison excludes non-comparable roles", {
+  original <- data.frame(id = 1:20, text = rep(c("long note a", "long note b"), 10))
+  roles <- detect_roles(original)
+  roles$user_role <- c("identifier", "free_text")
+
+  result <- compare_relationship_interaction(original, original, roles)
+
+  expect_equal(nrow(result), 0)
+  expect_named(result, c(
+    "predictor", "outcome", "family", "effect_label", "estimate",
+    "null_value", "p_value", "n_terms", "note"
+  ))
+})

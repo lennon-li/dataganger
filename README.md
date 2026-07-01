@@ -97,8 +97,18 @@ report.
 **How privacy gating works.** DataGangeR starts with a no-direct-identifiers
 attestation, runs an early local fail-safe scan, then hard-gates Configure
 until you answer two privacy questions for every column. Those answers drive
-the synthesis rules and the exported Agent workflow. See the
+the synthesis rules and the exported Agent workflow. When `synthpop` is not
+installed, the attestation also recommends it for correlation-aware synthesis.
+See the
 [Privacy gating and Agent workflows vignette](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html).
+
+The Compare step separates **Univariate** distribution checks from
+**Bivariate** relationship checks. Bivariate tests fit an original-versus-
+synthetic interaction: low p-values mean the predictor-to-outcome relationship
+was modified (poorer fidelity), using the same fidelity colours as other tests.
+Effect sizes are odds ratios for binary outcomes, slope ratios for counts, and
+differences in slope for continuous outcomes; multi-level categorical outcomes
+receive a joint interaction test.
 
 ```r
 library(dataganger)
@@ -143,7 +153,7 @@ the human and one for the agent.
 ```
 synthetic_data.csv            # the synthetic stand-in — the product
 human/human.md                # what was done, plus the privacy notes
-human/comparison_report.html  # real vs. synthetic fidelity
+human/comparison_report.html  # fidelity, including relationship interactions
 agent/recipe.yaml             # spec + roles + seed — regenerate safe data
 agent/AGENT.md                # the agent workflow guide (never read the real data)
 agent/manifest.json
@@ -207,8 +217,8 @@ doi:10.18637/jss.v074.i11
   `demo`, `analytics`, etc.) applies appropriate defaults for coarsening,
   name handling, and rare-level treatment.
 - **Honest comparisons.** The comparison report quantifies how closely the
-  synthetic data mirrors the original so you can make an informed sharing
-  decision.
+  synthetic data mirrors the original, including a relationship-interaction
+  table, so you can make an informed sharing decision.
 - **No overclaims.** DataGangeR will not tell you the output is safe for
   public release. That determination depends on your data, context, and
   applicable regulations.
