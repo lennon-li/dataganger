@@ -74,6 +74,34 @@ if (is.null(relationship_rows) || !is.data.frame(relationship_rows) || nrow(rela
 }
 ```
 
+### Relationship-Interaction Tests
+
+For each unordered pair in data-column order, the first column is predictor X
+and the second is outcome Y. The interaction tests whether the X-to-Y
+relationship changed in synthetic data; a low interaction p-value indicates a
+modified relationship and poorer fidelity.
+
+```{r interaction-metrics, echo=FALSE}
+interaction_rows <- if (is.null(comparison)) NULL else comparison$interaction
+no_interactions <- is.null(interaction_rows) ||
+  !is.data.frame(interaction_rows) || nrow(interaction_rows) == 0 ||
+  (all(is.na(interaction_rows$estimate)) && all(is.na(interaction_rows$p_value)))
+if (no_interactions) {
+  cat("No estimable relationship interactions.\n")
+} else {
+  display_rows <- interaction_rows
+  display_rows$estimate <- ifelse(
+    is.na(display_rows$estimate), "",
+    format(signif(display_rows$estimate, 4), trim = TRUE, scientific = FALSE)
+  )
+  display_rows$p_value <- ifelse(
+    is.na(display_rows$p_value), "",
+    format(signif(display_rows$p_value, 3), trim = TRUE)
+  )
+  knitr::kable(display_rows)
+}
+```
+
 ## Privacy Flags
 
 ```{r privacy-flags, echo=FALSE}

@@ -32,7 +32,12 @@ mod_generate_ui <- function(id) {
         shiny::uiOutput(ns("header_cta"))
       )
     ),
-    stale_banner_ui("synthesis", ns = ns),
+    stale_banner_ui(
+      "synthesis",
+      ns = ns,
+      title = NULL,
+      message = "Review the config, press Generate when ready, or go back to adjust settings."
+    ),
     shiny::uiOutput(ns("gen_status")),
     # When synthetic data exists, the success banner + KPI panels pin to the top,
     # above the configuration recap.
@@ -81,10 +86,23 @@ mod_generate_server <- function(id, state) {
           class = "btn btn-danger"
         )
       } else if (!is.null(state$synthetic)) {
-        shiny::actionButton(
-          session$ns("go_compare"),
-          "Continue to Compare \u2192",
-          class = "btn btn-primary"
+        shiny::div(
+          class = "generate-header-actions",
+          shiny::actionButton(
+            session$ns("adjust_settings"),
+            "\u2190 Back to settings",
+            class = "btn btn-secondary"
+          ),
+          shiny::actionButton(
+            session$ns("try_new_seed"),
+            "Regenerate",
+            class = "btn btn-regenerate"
+          ),
+          shiny::actionButton(
+            session$ns("go_compare"),
+            "Continue to Compare \u2192",
+            class = "btn btn-primary"
+          )
         )
       } else {
         shiny::actionButton(
@@ -204,7 +222,7 @@ mod_generate_server <- function(id, state) {
           style = paste(
             "margin-top:12px; padding:10px 12px; border:1px solid var(--paper-200);",
             "border-radius:4px; background:rgba(251,250,246,0.6);",
-            "font-family:var(--font-sans); font-size:12px; line-height:1.6; color:var(--fg-muted);"
+            "font-family:var(--font-sans); font-size:14px; line-height:1.6; color:var(--fg-muted);"
           ),
           shiny::tags$div(
             style = "margin-bottom:6px;",
@@ -242,7 +260,7 @@ mod_generate_server <- function(id, state) {
             }
           ),
           shiny::tags$div(
-            style = "margin-top:6px; font-size:11px;",
+          style = "margin-top:6px;",
             "Pass-through columns keep their real values; dropped columns are removed. ",
             "Verify both kinds of fidelity on the Compare step after generating."
           )
@@ -499,26 +517,7 @@ mod_generate_server <- function(id, state) {
     })
 
     output$generate_actions <- shiny::renderUI({
-      has_synthetic <- !is.null(state$synthetic)
-      shiny::div(
-        class = "btn-row",
-        style = "margin-top:16px;",
-        if (has_synthetic) {
-          shiny::actionButton(
-            session$ns("try_new_seed"),
-            "Regenerate",
-            class = "btn btn-primary"
-          )
-        } else {
-          shiny::tags$button(
-            type = "button",
-            class = "btn btn-primary",
-            disabled = "disabled",
-            "Regenerate"
-          )
-        },
-        shiny::actionButton(session$ns("adjust_settings"), "\u2190 Adjust settings", class = "btn btn-secondary")
-      )
+      NULL
     })
 
     shiny::observeEvent(input$generate, ignoreNULL = TRUE, {

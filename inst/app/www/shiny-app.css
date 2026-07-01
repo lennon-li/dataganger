@@ -1028,3 +1028,23 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
   cursor: pointer;
 }
 .pc-ack input { accent-color: var(--risk-500); margin-top: 2px; }
+
+/* Keep post-generation choices together in the header. */
+.generate-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.btn.btn-regenerate,
+button.btn-regenerate {
+  background: var(--synth-50) !important;
+  border-color: var(--synth-100) !important;
+  color: var(--synth-700) !important;
+}
+.btn.btn-regenerate:hover,
+button.btn-regenerate:hover {
+  background: var(--synth-100) !important;
+  border-color: var(--synth-300) !important;
+}

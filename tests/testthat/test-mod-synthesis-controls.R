@@ -6,6 +6,16 @@ synth_controls_host_server <- function(id) {
   })
 }
 
+test_that("advanced settings use a collapsed disclosure", {
+  html <- as.character(mod_synthesis_controls_ui("controls"))
+
+  expect_match(html, "<details>", fixed = TRUE)
+  expect_match(html, "<summary>Advanced settings</summary>", fixed = TRUE)
+  expect_match(html, "Defaults are safe")
+  expect_no_match(html, "expanded by default", fixed = TRUE)
+  expect_no_match(html, "<details open", fixed = TRUE)
+})
+
 test_that("A1 confirm writes development spec", {
   testthat::skip_if_not_installed("shiny")
 

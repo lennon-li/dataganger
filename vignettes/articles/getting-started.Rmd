@@ -87,8 +87,9 @@ Direct identifiers always drop. Everything non-direct is synthesized. Every
 column still needs an explicit answer to the first question before you can
 generate.
 
-**Synthesis settings.** The objective you picked presets safe defaults, but you
-can override any of these:
+**Synthesis settings.** The objective you picked presets safe defaults. The app
+keeps overrides in a collapsed **Advanced settings** disclosure; open it only
+when you need to change one of these:
 
 | Setting | What you are deciding |
 |---|---|
@@ -116,8 +117,10 @@ answered (*Points to a person?* and *Sensitive?*), the resulting **Action**
 (synthesize, pass through, or drop), and a plain-English **What we'll do** for
 each column. Hover a column name to see how it will be modelled. If anything
 looks wrong, use **← Adjust settings** to go back; otherwise generate the
-synthetic double. The summary then reports row and column counts, the engine
-used, and the elapsed time, and the right panel previews the synthetic records.
+synthetic double. The banner reinforces those choices rather than implying that
+generation has already started. The summary then reports row and column counts,
+the engine used, and the elapsed time, and the right panel automatically
+previews the synthetic records after every generation.
 
 ```{r, echo = FALSE}
 fig("step-4-generate.png")
@@ -126,9 +129,15 @@ fig("step-4-generate.png")
 ## 5. Compare
 
 Inspect how faithfully the synthetic data mirrors the original. Pick any
-variable to see overlaid distributions (green is your original data, magenta is
-synthetic), a Q–Q plot, and a side-by-side statistics table with the delta
-between them.
+variable in **Univariate** to see overlaid distributions (green is your original
+data, magenta is synthetic), a Q–Q plot, and a side-by-side statistics table.
+Use **Bivariate** to select a predictor X and outcome Y. DataGangeR pools the
+original and synthetic rows and tests the X-by-synthetic interaction, so a low
+p-value means that relationship was modified and has poorer fidelity. The
+effect is an odds ratio for binary outcomes, slope ratio for counts, difference
+in slope for continuous outcomes, or a joint test for multi-level categorical
+outcomes. The exported comparison report includes the same interaction results
+for every eligible unordered pair, with the earlier data column used as X.
 
 ```{r, echo = FALSE}
 fig("step-5-compare.png")
