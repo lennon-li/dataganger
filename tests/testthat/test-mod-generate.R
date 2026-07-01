@@ -265,6 +265,23 @@ test_that("engine label resolves to the generated engine after synthesis", {
   })
 })
 
+test_that("preservation note uses readable body text", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:6, y = 7:12),
+    spec = synth_spec(purpose = "development", seed = 99L)
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$flushReact()
+    recap_html <- paste(as.character(output$decision_recap), collapse = "\n")
+    expect_match(recap_html, "What the synthetic data preserves")
+    expect_match(recap_html, "font-size:14px", fixed = TRUE)
+    expect_no_match(recap_html, "font-size:11px", fixed = TRUE)
+  })
+})
+
 test_that("regenerate is disabled before generation and enabled after", {
   testthat::skip_if_not_installed("shiny")
 
@@ -280,16 +297,26 @@ test_that("regenerate is disabled before generation and enabled after", {
   )
 
   shiny::testServer(mod_generate_server, args = list(state = state), {
-    before_html <- paste(as.character(output$generate_actions), collapse = "\n")
-    expect_match(before_html, "Regenerate")
-    expect_match(before_html, "disabled")
+    before_html <- paste(as.character(output$header_cta), collapse = "\n")
+    expect_match(before_html, "Generate Synthetic Data")
+    expect_no_match(before_html, "Regenerate")
 
     session$setInputs(generate = 1L)
     session$flushReact()
 
-    after_html <- paste(as.character(output$generate_actions), collapse = "\n")
+    after_html <- paste(as.character(output$header_cta), collapse = "\n")
     expect_match(after_html, "Regenerate")
     expect_no_match(after_html, "disabled")
+    expect_match(after_html, "generate-header-actions")
+    expect_match(after_html, "btn-regenerate")
+    expect_no_match(after_html, "regenerate-box")
+    positions <- vapply(
+      c("adjust_settings", "try_new_seed", "go_compare"),
+      function(id) regexpr(id, after_html, fixed = TRUE)[[1]],
+      integer(1)
+    )
+    expect_true(all(positions > 0L))
+    expect_true(all(diff(positions) > 0L))
   })
 })
 

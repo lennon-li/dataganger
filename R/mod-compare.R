@@ -488,6 +488,17 @@ mod_compare_server <- function(id, state) {
       }
 
       shiny::tagList(
+        shiny::tags$div(
+          class = "banner info compare-exploratory-note",
+          shiny::tags$span(class = "icon", "i"),
+          shiny::tags$div(
+            shiny::tags$b("Exploratory comparison"),
+            paste(
+              "These summaries highlight possible differences between the original and synthetic data.",
+              "For deeper analysis, download the synthetic data and apply methods suited to your use case."
+            )
+          )
+        ),
         section_heading("Univariate", "Compare each variable's original and synthetic marginal distribution."),
         univariate,
         section_heading("Bivariate", "Compare how a two-variable relationship is preserved."),
@@ -820,12 +831,40 @@ mod_compare_server <- function(id, state) {
         make_scatter <- function(dat, title, color) {
           dat$x <- as.numeric(dat$x)
           dat$y <- as.numeric(dat$y)
-          panel_title(
-            plotly::plot_ly(dat, x = ~x, y = ~y) |>
-              plotly::add_markers(
-                marker = list(color = color, opacity = 0.5, size = 7),
-                hovertemplate = paste0(var_x, ": %{x}<br>", var_y, ": %{y}<extra></extra>")
+          smooth <- tryCatch({
+            if (length(unique(dat$x)) < 4L) stop("too few distinct x values")
+            fit <- stats::loess(y ~ x, data = dat)
+            grid <- seq(min(dat$x), max(dat$x), length.out = 100L)
+            pred <- stats::predict(fit, newdata = data.frame(x = grid), se = TRUE)
+            keep <- is.finite(pred$fit) & is.finite(pred$se.fit)
+            data.frame(
+              x = grid[keep], fit = pred$fit[keep],
+              lower = pred$fit[keep] - 1.96 * pred$se.fit[keep],
+              upper = pred$fit[keep] + 1.96 * pred$se.fit[keep]
+            )
+          }, error = function(e) NULL)
+          p <- plotly::plot_ly(dat, x = ~x, y = ~y) |>
+            plotly::add_markers(
+              marker = list(color = color, opacity = 0.5, size = 7),
+              hovertemplate = paste0(var_x, ": %{x}<br>", var_y, ": %{y}<extra></extra>")
+            )
+          if (!is.null(smooth) && nrow(smooth) > 1L) {
+            p <- p |>
+              plotly::add_ribbons(
+                data = smooth, x = ~x, ymin = ~lower, ymax = ~upper,
+                fillcolor = paste0(color, "26"), line = list(color = "transparent"),
+                name = "LOESS 95% CI", hoverinfo = "skip", showlegend = FALSE,
+                inherit = FALSE
               ) |>
+              plotly::add_lines(
+                data = smooth, x = ~x, y = ~fit,
+                line = list(color = color, width = 2), name = "LOESS smooth",
+                hovertemplate = "LOESS: %{y:.3g}<extra></extra>",
+                showlegend = FALSE, inherit = FALSE
+              )
+          }
+          panel_title(
+            p |>
               plotly::layout(
                 xaxis = list(title = var_x),
                 yaxis = list(title = var_y)
@@ -955,8 +994,10 @@ mod_compare_server <- function(id, state) {
         }
         sprintf("%s %s (null %g)", result$effect_label, estimate, result$null_value)
       }
-      p_text <- if (is.na(result$p_value)) "Interaction p-value = \u2014" else
-        sprintf("Interaction p-value = %.3g", result$p_value)
+      is_correlation <- identical(result$effect_label, "Difference in correlation")
+      p_label <- if (is_correlation) "Correlation difference p-value" else "Interaction p-value"
+      p_text <- if (is.na(result$p_value)) paste0(p_label, " = \u2014") else
+        sprintf("%s = %.3g", p_label, result$p_value)
       model_name <- switch(
         result$family,
         binary = "Logistic",
@@ -979,10 +1020,18 @@ mod_compare_server <- function(id, state) {
         ),
         shiny::tags$p(
           style = "font-family:var(--font-sans); font-size:11px; color:var(--fg-muted); margin:6px 0 0;",
-          paste0(model_name, " interaction Y ~ X \u00d7 synthetic", note_text)
+          paste0(
+            if (is_correlation) "Fisher correlation comparison" else
+              paste0(model_name, " interaction Y ~ X \u00d7 synthetic"),
+            note_text
+          )
         ),
         fidelity_legend(tests = c(
-          "Relationship" = "joint interaction test comparing Y ~ X + synthetic with Y ~ X * synthetic"
+          "Relationship" = if (is_correlation) {
+            "Fisher comparison of original and synthetic Pearson correlations"
+          } else {
+            "joint interaction test comparing Y ~ X + synthetic with Y ~ X * synthetic"
+          }
         ))
       )
     })

@@ -315,6 +315,40 @@ relationship_interaction <- function(x_orig, y_orig, x_synth, y_synth,
   kind_x <- normalize_kind(kind_x)
   kind_y <- normalize_kind(kind_y)
 
+  if (kind_x == "numeric" && kind_y == "numeric") {
+    continuous_empty <- function(note, n = 0L) {
+      list(
+        family = "continuous", effect_label = "Difference in correlation",
+        estimate = NA_real_, null_value = 0, p_value = NA_real_,
+        n_terms = 0L, n = as.integer(n), note = note
+      )
+    }
+    pair_stats <- function(x, y) {
+      dat <- data.frame(x = as.numeric(x), y = as.numeric(y))
+      dat <- dat[stats::complete.cases(dat), , drop = FALSE]
+      if (nrow(dat) < 4L) return(NULL)
+      if (length(unique(dat$x)) < 2L || length(unique(dat$y)) < 2L) return(NULL)
+      list(n = nrow(dat), r = stats::cor(dat$x, dat$y))
+    }
+    orig <- pair_stats(x_orig, y_orig)
+    synth <- pair_stats(x_synth, y_synth)
+    n_total <- sum(vapply(list(orig, synth), function(z) z$n %||% 0L, integer(1)))
+    if (is.null(orig) || is.null(synth)) {
+      return(continuous_empty("too few complete rows or no variation", n_total))
+    }
+    limit <- 1 - sqrt(.Machine$double.eps)
+    r_orig <- max(-limit, min(limit, orig$r))
+    r_synth <- max(-limit, min(limit, synth$r))
+    z <- (atanh(r_synth) - atanh(r_orig)) /
+      sqrt(1 / (orig$n - 3) + 1 / (synth$n - 3))
+    return(list(
+      family = "continuous", effect_label = "Difference in correlation",
+      estimate = r_synth - r_orig, null_value = 0,
+      p_value = 2 * stats::pnorm(-abs(z)), n_terms = 1L,
+      n = as.integer(orig$n + synth$n), note = ""
+    ))
+  }
+
   x <- c(x_orig, x_synth)
   y <- c(y_orig, y_synth)
   s <- c(rep.int(0, length(x_orig)), rep.int(1, length(x_synth)))

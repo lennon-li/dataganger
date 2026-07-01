@@ -1,4 +1,4 @@
-test_that("continuous relationships report preserved and modified slopes", {
+test_that("continuous relationships report preserved and modified correlations", {
   set.seed(101)
   x <- seq(-2, 2, length.out = 300)
   noise_orig <- stats::rnorm(length(x), sd = 0.25)
@@ -9,7 +9,7 @@ test_that("continuous relationships report preserved and modified slopes", {
     "numeric", "numeric"
   )
   expect_identical(preserved$family, "continuous")
-  expect_identical(preserved$effect_label, "Difference in slope")
+  expect_identical(preserved$effect_label, "Difference in correlation")
   expect_equal(preserved$estimate, 0, tolerance = 0.08)
   expect_gt(preserved$p_value, 0.1)
 
@@ -18,8 +18,27 @@ test_that("continuous relationships report preserved and modified slopes", {
     "numeric", "numeric"
   )
   expect_identical(modified$family, "continuous")
-  expect_equal(modified$estimate, -4, tolerance = 0.08)
+  expect_equal(modified$estimate, -2, tolerance = 0.08)
   expect_lt(modified$p_value, 1e-10)
+})
+
+test_that("continuous relationship comparison is invariant to swapping variables", {
+  set.seed(108)
+  n <- 400
+  x_orig <- stats::rnorm(n)
+  y_orig <- 0.7 * x_orig + stats::rnorm(n, sd = 0.6)
+  x_synth <- stats::rnorm(n)
+  y_synth <- -0.3 * x_synth + stats::rnorm(n, sd = 0.9)
+
+  forward <- relationship_interaction(
+    x_orig, y_orig, x_synth, y_synth, "numeric", "numeric"
+  )
+  reverse <- relationship_interaction(
+    y_orig, x_orig, y_synth, x_synth, "numeric", "numeric"
+  )
+
+  expect_equal(reverse$estimate, forward$estimate, tolerance = 1e-12)
+  expect_equal(reverse$p_value, forward$p_value, tolerance = 1e-12)
 })
 
 test_that("binary relationships return an interaction odds ratio", {
@@ -35,7 +54,7 @@ test_that("binary relationships return an interaction odds ratio", {
   preserved <- relationship_interaction(
     x_orig, y_preserved,
     x_orig, y_preserved,
-    "numeric", "numeric"
+    "numeric", "categorical"
   )
   expect_identical(preserved$family, "binary")
   expect_identical(preserved$effect_label, "Odds ratio")
@@ -46,7 +65,7 @@ test_that("binary relationships return an interaction odds ratio", {
   modified <- relationship_interaction(
     x_orig, make_binary(x_orig, 1),
     x_synth, make_binary(x_synth, -1),
-    "numeric", "numeric"
+    "numeric", "categorical"
   )
   expect_identical(modified$family, "binary")
   expect_gt(abs(log(modified$estimate)), 1)
@@ -56,13 +75,13 @@ test_that("binary relationships return an interaction odds ratio", {
 test_that("count relationships return a slope ratio", {
   set.seed(104)
   n <- 1800
-  x_orig <- stats::runif(n, -1, 1)
-  x_synth <- stats::runif(n, -1, 1)
-  y_orig <- stats::rpois(n, exp(1 + 0.7 * x_orig))
-  y_synth <- stats::rpois(n, exp(1 + 0.7 * x_synth))
+  x_orig <- factor(rep(c("a", "b"), length.out = n))
+  x_synth <- factor(rep(c("a", "b"), length.out = n))
+  y_orig <- stats::rpois(n, exp(1 + 0.7 * (x_orig == "b")))
+  y_synth <- stats::rpois(n, exp(1 + 0.7 * (x_synth == "b")))
 
   result <- relationship_interaction(
-    x_orig, y_orig, x_synth, y_synth, "numeric", "numeric"
+    x_orig, y_orig, x_synth, y_synth, "categorical", "numeric"
   )
   expect_identical(result$family, "count")
   expect_identical(result$effect_label, "Slope ratio")

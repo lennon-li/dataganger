@@ -94,6 +94,9 @@ test_that("compare_body renders var-rail and var-detail when data is present", {
     expect_match(body_html, "Bivariate")
     expect_match(body_html, "Predictor (X)", fixed = TRUE)
     expect_match(body_html, "Outcome (Y)", fixed = TRUE)
+    expect_match(body_html, "Exploratory comparison")
+    expect_match(body_html, "compare-exploratory-note")
+    expect_match(body_html, "download the synthetic data", ignore.case = TRUE)
   })
 })
 
@@ -123,9 +126,18 @@ test_that("bivariate outputs render all supported pair types", {
       session$flushReact()
 
       expect_no_error(output$rel_plot)
+      if (identical(pair, c("x", "y"))) {
+        plot_html <- paste(as.character(output$rel_plot), collapse = "\n")
+        expect_match(plot_html, "LOESS smooth")
+      }
       stats_html <- paste(as.character(output$rel_stats), collapse = "\n")
-      expect_match(stats_html, "interaction p-value", ignore.case = TRUE)
-      expect_match(stats_html, "(Difference in slope|Slope ratio|Odds ratio)")
+      expect_match(stats_html, "(Difference in correlation|Slope ratio|Odds ratio)")
+      if (identical(pair, c("x", "y"))) {
+        expect_match(stats_html, "Correlation difference p-value")
+        expect_match(stats_html, "Fisher correlation comparison")
+      } else {
+        expect_match(stats_html, "interaction p-value", ignore.case = TRUE)
+      }
       expect_match(stats_html, "fidelity-band")
     }
   })
