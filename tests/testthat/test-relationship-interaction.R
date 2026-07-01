@@ -1,0 +1,126 @@
+test_that("continuous relationships report preserved and modified slopes", {
+  set.seed(101)
+  x <- seq(-2, 2, length.out = 300)
+  noise_orig <- stats::rnorm(length(x), sd = 0.25)
+  noise_synth <- stats::rnorm(length(x), sd = 0.25)
+
+  preserved <- relationship_interaction(
+    x, 2 * x + noise_orig, x, 2 * x + noise_synth,
+    "numeric", "numeric"
+  )
+  expect_identical(preserved$family, "continuous")
+  expect_identical(preserved$effect_label, "Difference in slope")
+  expect_equal(preserved$estimate, 0, tolerance = 0.08)
+  expect_gt(preserved$p_value, 0.1)
+
+  modified <- relationship_interaction(
+    x, 2 * x + noise_orig, x, -2 * x + noise_synth,
+    "numeric", "numeric"
+  )
+  expect_identical(modified$family, "continuous")
+  expect_equal(modified$estimate, -4, tolerance = 0.08)
+  expect_lt(modified$p_value, 1e-10)
+})
+
+test_that("binary relationships return an interaction odds ratio", {
+  set.seed(102)
+  n <- 2500
+  x_orig <- stats::rnorm(n)
+  x_synth <- stats::rnorm(n)
+  make_binary <- function(x, slope) {
+    stats::rbinom(length(x), 1, stats::plogis(-0.2 + slope * x))
+  }
+
+  y_preserved <- make_binary(x_orig, 1)
+  preserved <- relationship_interaction(
+    x_orig, y_preserved,
+    x_orig, y_preserved,
+    "numeric", "numeric"
+  )
+  expect_identical(preserved$family, "binary")
+  expect_identical(preserved$effect_label, "Odds ratio")
+  expect_equal(preserved$estimate, 1, tolerance = 0.2)
+  expect_gt(preserved$p_value, 0.05)
+
+  set.seed(103)
+  modified <- relationship_interaction(
+    x_orig, make_binary(x_orig, 1),
+    x_synth, make_binary(x_synth, -1),
+    "numeric", "numeric"
+  )
+  expect_identical(modified$family, "binary")
+  expect_gt(abs(log(modified$estimate)), 1)
+  expect_lt(modified$p_value, 1e-10)
+})
+
+test_that("count relationships return a slope ratio", {
+  set.seed(104)
+  n <- 1800
+  x_orig <- stats::runif(n, -1, 1)
+  x_synth <- stats::runif(n, -1, 1)
+  y_orig <- stats::rpois(n, exp(1 + 0.7 * x_orig))
+  y_synth <- stats::rpois(n, exp(1 + 0.7 * x_synth))
+
+  result <- relationship_interaction(
+    x_orig, y_orig, x_synth, y_synth, "numeric", "numeric"
+  )
+  expect_identical(result$family, "count")
+  expect_identical(result$effect_label, "Slope ratio")
+  expect_equal(result$estimate, 1, tolerance = 0.2)
+  expect_gt(result$p_value, 0.05)
+})
+
+test_that("multi-level predictors use a joint interaction test", {
+  set.seed(105)
+  x_orig <- factor(rep(c("a", "b", "c"), each = 80))
+  x_synth <- factor(rep(c("a", "b", "c"), each = 80))
+  means <- c(a = 0, b = 1, c = 2)
+  y_orig <- unname(means[as.character(x_orig)]) + stats::rnorm(240)
+  y_synth <- unname(means[as.character(x_synth)]) + stats::rnorm(240)
+
+  result <- relationship_interaction(
+    x_orig, y_orig, x_synth, y_synth, "categorical", "numeric"
+  )
+  expect_identical(result$effect_label, "Joint interaction")
+  expect_true(is.na(result$estimate))
+  expect_gt(result$n_terms, 1L)
+  expect_true(is.finite(result$p_value))
+})
+
+test_that("multi-level outcomes use a multinomial joint interaction test", {
+  skip_if_not_installed("nnet")
+  set.seed(106)
+  n <- 500
+  x_orig <- stats::rnorm(n)
+  x_synth <- stats::rnorm(n)
+  sample_y <- function(x) {
+    score <- cbind(0, 0.5 + 0.7 * x, -0.3 - 0.5 * x)
+    prob <- exp(score) / rowSums(exp(score))
+    factor(apply(prob, 1, function(p) sample(c("a", "b", "c"), 1, prob = p)))
+  }
+  result <- relationship_interaction(
+    x_orig, sample_y(x_orig), x_synth, sample_y(x_synth),
+    "numeric", "categorical"
+  )
+  expect_identical(result$family, "multinomial")
+  expect_identical(result$effect_label, "Joint interaction")
+  expect_true(is.na(result$estimate))
+  expect_gt(result$n_terms, 1L)
+  expect_true(is.finite(result$p_value))
+})
+
+test_that("degenerate relationships return notes instead of errors", {
+  no_variation <- relationship_interaction(
+    rep(1, 20), 1:20, rep(1, 20), 1:20, "numeric", "numeric"
+  )
+  expect_true(is.na(no_variation$estimate))
+  expect_true(is.na(no_variation$p_value))
+  expect_true(nzchar(no_variation$note))
+
+  too_few <- relationship_interaction(
+    1:2, 1:2, 1:2, 1:2, "numeric", "numeric"
+  )
+  expect_true(is.na(too_few$estimate))
+  expect_true(is.na(too_few$p_value))
+  expect_true(nzchar(too_few$note))
+})

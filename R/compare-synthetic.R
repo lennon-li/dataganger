@@ -292,59 +292,17 @@ compare_categorical <- function(orig, syn) {
 # Relationship comparison (Pearson correlations)
 # ===========================================================================
 
-#' Calculate Cram\u00e9r's V for two categorical variables.
+#' Test whether a predictor-outcome relationship changes in synthetic data.
 #'
-#' @param x,y Vectors containing categorical observations.
-#' @return A single numeric association value, or `NA_real_` when the
-#'   contingency table is degenerate.
+#' @param x_orig,y_orig Predictor and outcome vectors from the original data.
+#' @param x_synth,y_synth Predictor and outcome vectors from the synthetic data.
+#' @param kind_x,kind_y Effective variable kinds. Dates are numeric and logical
+#'   variables are categorical.
+#' @return A list describing the interaction estimate and joint test.
 #' @keywords internal
 #' @noRd
-cramers_v <- function(x, y) {
-  tab <- table(x, y)
-  n <- sum(tab)
-  denom_dim <- min(nrow(tab) - 1L, ncol(tab) - 1L)
-  if (n == 0L || denom_dim < 1L) return(NA_real_)
-
-  chi2 <- tryCatch(
-    suppressWarnings(as.numeric(stats::chisq.test(tab)$statistic)),
-    error = function(e) NA_real_
-  )
-  if (is.na(chi2)) return(NA_real_)
-  sqrt(chi2 / (n * denom_dim))
-}
-
-#' Calculate the correlation ratio for numeric values by group.
-#'
-#' @param num A numeric vector.
-#' @param grp A categorical grouping vector.
-#' @return A single numeric eta value, or `NA_real_` for a degenerate input.
-#' @keywords internal
-#' @noRd
-correlation_ratio <- function(num, grp) {
-  keep <- !is.na(num) & !is.na(grp)
-  num <- as.numeric(num[keep])
-  grp <- droplevels(factor(grp[keep]))
-  if (length(num) == 0L || nlevels(grp) < 2L) return(NA_real_)
-
-  grand_mean <- mean(num)
-  ss_total <- sum((num - grand_mean)^2)
-  if (!is.finite(ss_total) || ss_total == 0) return(NA_real_)
-
-  group_n <- as.numeric(table(grp))
-  group_means <- as.numeric(tapply(num, grp, mean))
-  ss_between <- sum(group_n * (group_means - grand_mean)^2)
-  sqrt(ss_between / ss_total)
-}
-
-#' Calculate the association appropriate for a pair of variable kinds.
-#'
-#' @param x,y Vectors containing paired observations.
-#' @param kind_x,kind_y Effective variable kinds. Dates are treated as numeric
-#'   and logical variables as categorical.
-#' @return A list with character `metric` and numeric `value` elements.
-#' @keywords internal
-#' @noRd
-pair_association <- function(x, y, kind_x, kind_y) {
+relationship_interaction <- function(x_orig, y_orig, x_synth, y_synth,
+                                     kind_x, kind_y) {
   normalize_kind <- function(kind) {
     if (identical(kind, "date")) return("numeric")
     if (identical(kind, "logical")) return("categorical")
@@ -352,27 +310,142 @@ pair_association <- function(x, y, kind_x, kind_y) {
   }
   kind_x <- normalize_kind(kind_x)
   kind_y <- normalize_kind(kind_y)
-  if (kind_x == "numeric") x <- as.numeric(x)
-  if (kind_y == "numeric") y <- as.numeric(y)
 
-  if (kind_x == "numeric" && kind_y == "numeric") {
-    value <- tryCatch(
-      suppressWarnings(stats::cor(x, y, use = "pairwise.complete.obs")),
-      error = function(e) NA_real_
+  x <- c(x_orig, x_synth)
+  y <- c(y_orig, y_synth)
+  s <- c(rep.int(0, length(x_orig)), rep.int(1, length(x_synth)))
+  keep <- !is.na(x) & !is.na(y)
+  x <- x[keep]
+  y <- y[keep]
+  s <- s[keep]
+  if (kind_x == "numeric") x <- as.numeric(x) else x <- droplevels(factor(x))
+  if (kind_y == "numeric") y <- as.numeric(y) else y <- droplevels(factor(y))
+
+  y_values <- unique(y)
+  is_binary <- length(y_values) == 2L
+  is_count <- kind_y == "numeric" && length(y_values) > 0L &&
+    all(y >= 0 & y == round(y))
+  family <- if (is_binary) {
+    "binary"
+  } else if (kind_y != "numeric") {
+    "multinomial"
+  } else if (is_count) {
+    "count"
+  } else {
+    "continuous"
+  }
+  labels <- c(
+    binary = "Odds ratio", count = "Slope ratio",
+    continuous = "Difference in slope", multinomial = "Joint interaction"
+  )
+  nulls <- c(binary = 1, count = 1, continuous = 0, multinomial = NA_real_)
+  empty_result <- function(note, n_terms = 0L) {
+    list(
+      family = family, effect_label = unname(labels[[family]]),
+      estimate = NA_real_, null_value = unname(nulls[[family]]),
+      p_value = NA_real_, n_terms = as.integer(n_terms), n = length(y),
+      note = note
     )
-    return(list(metric = "Pearson r", value = as.numeric(value)))
-  }
-  if (kind_x == "categorical" && kind_y == "categorical") {
-    return(list(metric = "Cram\u00e9r's V", value = cramers_v(x, y)))
-  }
-  if (kind_x == "numeric" && kind_y == "categorical") {
-    return(list(metric = "\u03b7 (correlation ratio)", value = correlation_ratio(x, y)))
-  }
-  if (kind_x == "categorical" && kind_y == "numeric") {
-    return(list(metric = "\u03b7 (correlation ratio)", value = correlation_ratio(y, x)))
   }
 
-  list(metric = "Association", value = NA_real_)
+  if (length(y) < 10L || any(tabulate(s + 1L, nbins = 2L) < 4L)) {
+    return(empty_result("too few complete rows"))
+  }
+  if (length(unique(x)) < 2L) return(empty_result("predictor has no variation"))
+  if (length(y_values) < 2L) return(empty_result("outcome has no variation"))
+  for (group in 0:1) {
+    if (length(unique(x[s == group])) < 2L) {
+      return(empty_result("a data group has fewer than two predictor values"))
+    }
+    if (length(unique(y[s == group])) < 2L) {
+      return(empty_result("a data group has a degenerate outcome"))
+    }
+  }
+
+  if (family == "binary") y <- as.integer(factor(y)) - 1L
+  dat <- data.frame(Y = y, X = x, S = s)
+  warning_seen <- FALSE
+  guarded <- function(expr) {
+    tryCatch(
+      withCallingHandlers(
+        expr,
+        warning = function(w) {
+          warning_seen <<- TRUE
+          invokeRestart("muffleWarning")
+        }
+      ),
+      error = function(e) NULL
+    )
+  }
+
+  reduced_formula <- stats::as.formula("Y ~ X + S")
+  full_formula <- stats::as.formula("Y ~ X * S")
+  if (family == "multinomial") {
+    if (!requireNamespace("nnet", quietly = TRUE)) {
+      return(empty_result("not estimable (install nnet)"))
+    }
+    reduced <- guarded(nnet::multinom(reduced_formula, data = dat, trace = FALSE))
+    full <- guarded(nnet::multinom(full_formula, data = dat, trace = FALSE))
+    if (is.null(reduced) || is.null(full) || warning_seen ||
+        reduced$convergence != 0L || full$convergence != 0L) {
+      return(empty_result("multinomial model did not converge"))
+    }
+    df <- as.integer(attr(stats::logLik(full), "df") -
+                       attr(stats::logLik(reduced), "df"))
+    statistic <- 2 * (as.numeric(stats::logLik(full)) -
+                        as.numeric(stats::logLik(reduced)))
+    p_value <- stats::pchisq(statistic, df = df, lower.tail = FALSE)
+    if (!is.finite(p_value) || df < 1L) {
+      return(empty_result("multinomial interaction is not estimable", df))
+    }
+    return(list(
+      family = family, effect_label = "Joint interaction",
+      estimate = NA_real_, null_value = NA_real_, p_value = p_value,
+      n_terms = df, n = nrow(dat), note = ""
+    ))
+  }
+
+  if (family == "continuous") {
+    reduced <- guarded(stats::lm(reduced_formula, data = dat))
+    full <- guarded(stats::lm(full_formula, data = dat))
+    test <- guarded(stats::anova(reduced, full))
+    p_value <- if (is.null(test)) NA_real_ else test$`Pr(>F)`[[2L]]
+  } else {
+    model_family <- if (family == "binary") stats::binomial() else stats::poisson()
+    reduced <- guarded(stats::glm(reduced_formula, data = dat, family = model_family))
+    full <- guarded(stats::glm(full_formula, data = dat, family = model_family))
+    if (is.null(reduced) || is.null(full) || !isTRUE(reduced$converged) ||
+        !isTRUE(full$converged)) {
+      return(empty_result("interaction model did not converge"))
+    }
+    test <- guarded(stats::anova(reduced, full, test = "LRT"))
+    p_value <- if (is.null(test)) NA_real_ else test$`Pr(>Chi)`[[2L]]
+  }
+  if (is.null(reduced) || is.null(full) || warning_seen || !is.finite(p_value)) {
+    return(empty_result("interaction model is not estimable"))
+  }
+
+  interaction_names <- grep(":S$", names(stats::coef(full)), value = TRUE)
+  n_terms <- length(interaction_names)
+  interaction_coef <- stats::coef(full)[interaction_names]
+  if (n_terms < 1L || any(!is.finite(interaction_coef))) {
+    return(empty_result("interaction coefficient is not estimable", n_terms))
+  }
+  scalar <- n_terms == 1L
+  estimate <- if (!scalar) {
+    NA_real_
+  } else if (family %in% c("binary", "count")) {
+    exp(unname(interaction_coef[[1L]]))
+  } else {
+    unname(interaction_coef[[1L]])
+  }
+  list(
+    family = family,
+    effect_label = if (scalar) unname(labels[[family]]) else "Joint interaction",
+    estimate = estimate, null_value = unname(nulls[[family]]),
+    p_value = as.numeric(p_value), n_terms = as.integer(n_terms),
+    n = nrow(dat), note = ""
+  )
 }
 
 compare_relationship <- function(orig, syn) {

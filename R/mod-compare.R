@@ -461,11 +461,11 @@ mod_compare_server <- function(id, state) {
             style = "display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px;",
             shiny::tags$div(
               style = "flex:1 1 220px;",
-              shiny::selectInput(session$ns("rel_x"), "Variable X", choices = vars, selected = pair[[1L]])
+              shiny::selectInput(session$ns("rel_x"), "Predictor (X)", choices = vars, selected = pair[[1L]])
             ),
             shiny::tags$div(
               style = "flex:1 1 220px;",
-              shiny::selectInput(session$ns("rel_y"), "Variable Y", choices = vars, selected = pair[[2L]])
+              shiny::selectInput(session$ns("rel_y"), "Outcome (Y)", choices = vars, selected = pair[[2L]])
             )
           ),
           plotly::plotlyOutput(session$ns("rel_plot"), height = "360px"),
@@ -932,16 +932,12 @@ mod_compare_server <- function(id, state) {
 
       kind_x <- eff_kind(var_x, state$roles, state$raw_data[[var_x]])
       kind_y <- eff_kind(var_y, state$roles, state$raw_data[[var_y]])
-      original <- pair_association(
-        state$raw_data[[var_x]], state$raw_data[[var_y]], kind_x, kind_y
+      result <- relationship_interaction(
+        state$raw_data[[var_x]], state$raw_data[[var_y]],
+        state$synthetic[[var_x]], state$synthetic[[var_y]],
+        kind_x, kind_y
       )
-      synthetic <- pair_association(
-        state$synthetic[[var_x]], state$synthetic[[var_y]], kind_x, kind_y
-      )
-      delta <- synthetic$value - original$value
-      abs_delta <- abs(delta)
-      raw_band <- fidelity_color(abs_delta)
-      band <- switch(raw_band, bad = "good", warn = "warn", good = "bad", "none")
+      band <- fidelity_color(result$p_value)
       band_style <- switch(
         band,
         good = "background:var(--real-50); color:var(--real-700); border:1px solid var(--real-100);",
@@ -949,29 +945,44 @@ mod_compare_server <- function(id, state) {
         bad = "background:var(--risk-50); color:var(--risk-500); border:1px solid var(--risk-500);",
         "background:var(--paper-200); color:var(--fg-muted); border:1px solid var(--paper-200);"
       )
-      fmt <- function(value) if (length(value) == 0L || is.na(value)) "\u2014" else sprintf("%.3f", value)
+      effect_text <- if (is.na(result$estimate)) {
+        sprintf("Joint interaction across %d terms", result$n_terms)
+      } else {
+        estimate <- if (result$family == "continuous") {
+          sprintf("%+.3f", result$estimate)
+        } else {
+          sprintf("%.3f", result$estimate)
+        }
+        sprintf("%s %s (null %g)", result$effect_label, estimate, result$null_value)
+      }
+      p_text <- if (is.na(result$p_value)) "Interaction p-value = \u2014" else
+        sprintf("Interaction p-value = %.3g", result$p_value)
+      model_name <- switch(
+        result$family,
+        binary = "Logistic",
+        count = "Poisson",
+        continuous = "Gaussian",
+        multinomial = "Multinomial"
+      )
+      note_text <- if (nzchar(result$note)) {
+        paste0(" \u00b7 not estimable \u2014 ", result$note)
+      } else {
+        ""
+      }
 
-      shiny::tags$table(
-        class = "data",
-        style = "margin-top:8px;",
-        shiny::tags$thead(shiny::tags$tr(
-          shiny::tags$th("metric"),
-          shiny::tags$th(class = "real", style = "text-align:right;", "original"),
-          shiny::tags$th(class = "synth", style = "text-align:right;", "synthetic"),
-          shiny::tags$th(style = "text-align:right;", "\u0394")
-        )),
-        shiny::tags$tbody(shiny::tags$tr(
-          shiny::tags$td(class = "name", original$metric),
-          shiny::tags$td(class = "num", fmt(original$value)),
-          shiny::tags$td(class = "num", fmt(synthetic$value)),
-          shiny::tags$td(
-            class = "num",
-            shiny::tags$span(
-              class = paste("fidelity-band", paste0("fidelity-", band)),
-              style = paste("display:inline-block; padding:2px 8px; border-radius:999px;", band_style),
-              fmt(delta)
-            )
-          )
+      shiny::tagList(
+        shiny::tags$div(
+          class = paste("fidelity-band", paste0("fidelity-", band)),
+          style = paste("margin-top:10px; padding:8px 12px; border-radius:4px;", band_style),
+          shiny::tags$strong(effect_text),
+          shiny::tags$span(style = "margin-left:12px;", p_text)
+        ),
+        shiny::tags$p(
+          style = "font-family:var(--font-sans); font-size:11px; color:var(--fg-muted); margin:6px 0 0;",
+          paste0(model_name, " interaction Y ~ X \u00d7 synthetic", note_text)
+        ),
+        fidelity_legend(tests = c(
+          "Relationship" = "joint interaction test comparing Y ~ X + synthetic with Y ~ X * synthetic"
         ))
       )
     })

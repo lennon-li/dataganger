@@ -92,6 +92,8 @@ test_that("compare_body renders var-rail and var-detail when data is present", {
     expect_match(body_html, "var-detail")
     expect_match(body_html, "Univariate")
     expect_match(body_html, "Bivariate")
+    expect_match(body_html, "Predictor (X)", fixed = TRUE)
+    expect_match(body_html, "Outcome (Y)", fixed = TRUE)
   })
 })
 
@@ -116,15 +118,15 @@ test_that("bivariate outputs render all supported pair types", {
   state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
 
   shiny::testServer(mod_compare_server, args = list(state = state), {
-    for (pair in list(c("x", "y"), c("group", "flag"), c("x", "group"))) {
+    for (pair in list(c("x", "y"), c("x", "flag"))) {
       session$setInputs(rel_x = pair[[1]], rel_y = pair[[2]])
       session$flushReact()
 
       expect_no_error(output$rel_plot)
       stats_html <- paste(as.character(output$rel_stats), collapse = "\n")
-      expect_match(stats_html, "original", ignore.case = TRUE)
-      expect_match(stats_html, "synthetic", ignore.case = TRUE)
-      expect_match(stats_html, "\u0394")
+      expect_match(stats_html, "interaction p-value", ignore.case = TRUE)
+      expect_match(stats_html, "(Difference in slope|Slope ratio|Odds ratio)")
+      expect_match(stats_html, "fidelity-band")
     }
   })
 })

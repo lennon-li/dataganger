@@ -42,6 +42,7 @@ Suggests:
     DT,
     ggplot2,
     knitr,
+    nnet,
     pkgdown,
     rmarkdown,
     shiny,
