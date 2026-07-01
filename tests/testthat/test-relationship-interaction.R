@@ -144,6 +144,53 @@ test_that("degenerate relationships return notes instead of errors", {
   expect_true(nzchar(too_few$note))
 })
 
+test_that("labelled original columns compare with plain synthetic columns", {
+  skip_if_not_installed("haven")
+
+  n <- 120
+  x_orig <- haven::labelled(
+    rep(c(10, 20, 30), length.out = n),
+    labels = c(low = 10, middle = 20, high = 30)
+  )
+  y_orig <- haven::labelled(
+    rep(c(0, 1), length.out = n),
+    labels = c(no = 0, yes = 1)
+  )
+  x_synth <- rep(c("low", "middle", "high"), length.out = n)
+  y_synth <- rep(c("no", "yes"), length.out = n)
+
+  expect_no_error(
+    result <- relationship_interaction(
+      x_orig, y_orig, x_synth, y_synth,
+      "categorical", "categorical"
+    )
+  )
+  expect_identical(result$family, "binary")
+  expect_true(is.finite(result$p_value))
+})
+
+test_that("non-numeric synthetic labels fall back to categorical comparison", {
+  skip_if_not_installed("haven")
+
+  n <- 200
+  x_orig <- stats::rnorm(n)
+  x_synth <- stats::rnorm(n)
+  y_orig <- haven::labelled(
+    rep(c(0, 1), length.out = n),
+    labels = c(no = 0, yes = 1)
+  )
+  y_synth <- rep(c("no", "yes"), length.out = n)
+
+  expect_no_warning(
+    result <- relationship_interaction(
+      x_orig, y_orig, x_synth, y_synth,
+      "numeric", "numeric"
+    )
+  )
+  expect_identical(result$family, "binary")
+  expect_true(is.finite(result$p_value))
+})
+
 test_that("relationship comparison detects modified and preserved relationships", {
   set.seed(107)
   x <- seq(-2, 2, length.out = 300)

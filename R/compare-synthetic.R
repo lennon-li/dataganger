@@ -315,6 +315,26 @@ relationship_interaction <- function(x_orig, y_orig, x_synth, y_synth,
   kind_x <- normalize_kind(kind_x)
   kind_y <- normalize_kind(kind_y)
 
+  numeric_base <- function(x) {
+    if (is.factor(x) || is.character(x)) {
+      suppressWarnings(as.numeric(as.character(x)))
+    } else {
+      suppressWarnings(as.numeric(x))
+    }
+  }
+  numeric_compatible <- function(x) {
+    converted <- numeric_base(x)
+    all(is.na(x) | !is.na(converted))
+  }
+  if (kind_x == "numeric" &&
+      (!numeric_compatible(x_orig) || !numeric_compatible(x_synth))) {
+    kind_x <- "categorical"
+  }
+  if (kind_y == "numeric" &&
+      (!numeric_compatible(y_orig) || !numeric_compatible(y_synth))) {
+    kind_y <- "categorical"
+  }
+
   if (kind_x == "numeric" && kind_y == "numeric") {
     continuous_empty <- function(note, n = 0L) {
       list(
@@ -324,7 +344,7 @@ relationship_interaction <- function(x_orig, y_orig, x_synth, y_synth,
       )
     }
     pair_stats <- function(x, y) {
-      dat <- data.frame(x = as.numeric(x), y = as.numeric(y))
+      dat <- data.frame(x = numeric_base(x), y = numeric_base(y))
       dat <- dat[stats::complete.cases(dat), , drop = FALSE]
       if (nrow(dat) < 4L) return(NULL)
       if (length(unique(dat$x)) < 2L || length(unique(dat$y)) < 2L) return(NULL)
@@ -349,8 +369,15 @@ relationship_interaction <- function(x_orig, y_orig, x_synth, y_synth,
     ))
   }
 
-  x <- c(x_orig, x_synth)
-  y <- c(y_orig, y_synth)
+  base_vector <- function(x, kind) {
+    if (kind == "numeric") return(numeric_base(x))
+    if (inherits(x, "haven_labelled") && requireNamespace("haven", quietly = TRUE)) {
+      return(as.character(haven::as_factor(x, levels = "labels")))
+    }
+    as.character(x)
+  }
+  x <- c(base_vector(x_orig, kind_x), base_vector(x_synth, kind_x))
+  y <- c(base_vector(y_orig, kind_y), base_vector(y_synth, kind_y))
   s <- c(rep.int(0, length(x_orig)), rep.int(1, length(x_synth)))
   keep <- !is.na(x) & !is.na(y)
   x <- x[keep]
