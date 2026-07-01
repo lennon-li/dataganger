@@ -114,7 +114,8 @@
 <h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
 <p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button with a copyable issue report.</p>
-<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported Agent workflow. See the <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows vignette</a>.</p>
+<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported Agent workflow. When <code>synthpop</code> is not installed, the attestation also recommends it for correlation-aware synthesis. See the <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows vignette</a>.</p>
+<p>The Compare step separates <strong>Univariate</strong> distribution checks from <strong>Bivariate</strong> relationship checks. Bivariate tests fit an original-versus- synthetic interaction: low p-values mean the predictor-to-outcome relationship was modified (poorer fidelity), using the same fidelity colours as other tests. Effect sizes are odds ratios for binary outcomes, slope ratios for counts, and differences in slope for continuous outcomes; multi-level categorical outcomes receive a joint interaction test.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
@@ -164,7 +165,7 @@
 <p>The export is a single bundle: the synthetic CSV at the root, plus one folder for the human and one for the agent.</p>
 <pre><code><span><span class="va">synthetic_data.csv</span>            <span class="co"># the synthetic stand-in — the product</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">human.md</span>                <span class="co"># what was done, plus the privacy notes</span></span>
-<span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># real vs. synthetic fidelity</span></span>
+<span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># fidelity, including relationship interactions</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate safe data</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">AGENT.md</span>                <span class="co"># the agent workflow guide (never read the real data)</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">manifest.json</span></span></code></pre>
@@ -205,7 +206,7 @@
 <li>
 <strong>Configurable disclosure posture.</strong> Each synthesis purpose (<code>development</code>, <code>demo</code>, <code>analytics</code>, etc.) applies appropriate defaults for coarsening, name handling, and rare-level treatment.</li>
 <li>
-<strong>Honest comparisons.</strong> The comparison report quantifies how closely the synthetic data mirrors the original so you can make an informed sharing decision.</li>
+<strong>Honest comparisons.</strong> The comparison report quantifies how closely the synthetic data mirrors the original, including a relationship-interaction table, so you can make an informed sharing decision.</li>
 <li>
 <strong>No overclaims.</strong> DataGangeR will not tell you the output is safe for public release. That determination depends on your data, context, and applicable regulations.</li>
 </ul>

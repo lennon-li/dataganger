@@ -27,6 +27,10 @@ identifiers. This is the first gate because names, emails, phone
 numbers, institutional IDs, record numbers, and similar columns are the
 obvious category that should not enter the workflow.
 
+If `synthpop` is not installed, this modal also recommends it for
+correlation-aware synthesis; the internal engine remains available as
+the dependency-free fallback.
+
 Why it exists: it makes the user explicitly confirm the basic rule up
 front, and it gives that rule downstream consequences.
 
@@ -93,13 +97,22 @@ become executable rules that shape the synthetic output.
 
 ### 7. Compare plus privacy report
 
-After generation, the app shows fidelity comparisons and a privacy
-report.
+After generation, the app splits fidelity checks into **Univariate** and
+**Bivariate** views, alongside a privacy report. Univariate checks
+compare each column’s distribution. Bivariate checks test whether a
+predictor-to-outcome relationship changes between original and synthetic
+data by fitting an X-by-synthetic interaction. Low interaction p-values
+indicate poorer fidelity; effect sizes are odds ratios for binary
+outcomes, slope ratios for counts, and differences in slope for
+continuous outcomes (with a joint test for multi-level categorical
+outcomes). The exported comparison report repeats these interaction
+tests for eligible unordered pairs in data-column order.
 
 Why it exists: the package should not ask the user to trust the
-synthetic output blindly. The compare step shows how closely the
-synthetic data tracks the original, and the privacy report shows the
-disclosure controls and warnings that matter for sharing.
+synthetic output blindly. The compare step shows how closely both
+distributions and relationships track the original, and the privacy
+report shows the disclosure controls and warnings that matter for
+sharing.
 
 ### 8. Export
 

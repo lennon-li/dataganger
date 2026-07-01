@@ -30,8 +30,8 @@ compare_synthetic(original, synthetic, roles = NULL)
 ## Value
 
 An S3 object of class `dataganger_comparison`, a list with components
-`dataset`, `numeric`, `categorical`, `relationship`, `privacy_flags`,
-and `meta`.
+`dataset`, `numeric`, `categorical`, `relationship`, `interaction`,
+`privacy_flags`, and `meta`.
 
 ## Examples
 

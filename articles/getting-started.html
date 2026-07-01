@@ -182,7 +182,9 @@ plain-English outcome is reviewed on the Generate step:</p>
 Every column still needs an explicit answer to the first question before
 you can generate.</p>
 <p><strong>Synthesis settings.</strong> The objective you picked presets
-safe defaults, but you can override any of these:</p>
+safe defaults. The app keeps overrides in a collapsed <strong>Advanced
+settings</strong> disclosure; open it only when you need to change one
+of these:</p>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -258,18 +260,29 @@ person?</em> and <em>Sensitive?</em>), the resulting
 plain-English <strong>What we’ll do</strong> for each column. Hover a
 column name to see how it will be modelled. If anything looks wrong, use
 <strong>← Adjust settings</strong> to go back; otherwise generate the
-synthetic double. The summary then reports row and column counts, the
-engine used, and the elapsed time, and the right panel previews the
-synthetic records.</p>
+synthetic double. The banner reinforces those choices rather than
+implying that generation has already started. The summary then reports
+row and column counts, the engine used, and the elapsed time, and the
+right panel automatically previews the synthetic records after every
+generation.</p>
 <p><img src="step-4-generate.png"><!-- --></p>
 </div>
 <div class="section level2">
 <h2 id="compare">5. Compare<a class="anchor" aria-label="anchor" href="#compare"></a>
 </h2>
 <p>Inspect how faithfully the synthetic data mirrors the original. Pick
-any variable to see overlaid distributions (green is your original data,
-magenta is synthetic), a Q–Q plot, and a side-by-side statistics table
-with the delta between them.</p>
+any variable in <strong>Univariate</strong> to see overlaid
+distributions (green is your original data, magenta is synthetic), a Q–Q
+plot, and a side-by-side statistics table. Use
+<strong>Bivariate</strong> to select a predictor X and outcome Y.
+DataGangeR pools the original and synthetic rows and tests the
+X-by-synthetic interaction, so a low p-value means that relationship was
+modified and has poorer fidelity. The effect is an odds ratio for binary
+outcomes, slope ratio for counts, difference in slope for continuous
+outcomes, or a joint test for multi-level categorical outcomes. The
+exported comparison report includes the same interaction results for
+every eligible unordered pair, with the earlier data column used as
+X.</p>
 <p><img src="step-5-compare.png"><!-- --></p>
 </div>
 <div class="section level2">

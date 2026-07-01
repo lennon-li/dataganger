@@ -9,6 +9,19 @@ guarantee.
   Compare view shows mean SMD, SD ratio, and median standardized
   difference, each coloured by their t/F/Wilcoxon p-value bands; min/max
   remain value-only.
+- Compare now separates Univariate and Bivariate views. The Bivariate
+  view uses an X-by-synthetic interaction test to show whether
+  predictor-outcome relationships changed, with outcome-specific effect
+  sizes and p-value fidelity colours.
+- Exported comparison reports now include the relationship-interaction
+  table, using data-column order to define predictor then outcome.
+- Synthesis controls are folded into collapsed **Advanced settings**,
+  keeping the generation review focused on the effective configuration.
+- Generation guidance now invites users to review, generate, or go back
+  to adjust settings, and the data panel automatically previews each
+  newly generated synthetic dataset.
+- When `synthpop` is unavailable, the upload attestation recommends
+  installing it for correlation-aware synthesis.
 - Export bundles now use the restructured layout: `synthetic_data.csv`
   at the root, `human/human.md` plus optional
   `human/comparison_report.html`, and an `agent/` folder containing

@@ -98,6 +98,9 @@ exists for a different reason.</p>
 direct identifiers. This is the first gate because names, emails, phone
 numbers, institutional IDs, record numbers, and similar columns are the
 obvious category that should not enter the workflow.</p>
+<p>If <code>synthpop</code> is not installed, this modal also recommends
+it for correlation-aware synthesis; the internal engine remains
+available as the dependency-free fallback.</p>
 <p>Why it exists: it makes the user explicitly confirm the basic rule up
 front, and it gives that rule downstream consequences.</p>
 </div>
@@ -166,12 +169,22 @@ They become executable rules that shape the synthetic output.</p>
 <div class="section level3">
 <h3 id="compare-plus-privacy-report">7. Compare plus privacy report<a class="anchor" aria-label="anchor" href="#compare-plus-privacy-report"></a>
 </h3>
-<p>After generation, the app shows fidelity comparisons and a privacy
-report.</p>
+<p>After generation, the app splits fidelity checks into
+<strong>Univariate</strong> and <strong>Bivariate</strong> views,
+alongside a privacy report. Univariate checks compare each column’s
+distribution. Bivariate checks test whether a predictor-to-outcome
+relationship changes between original and synthetic data by fitting an
+X-by-synthetic interaction. Low interaction p-values indicate poorer
+fidelity; effect sizes are odds ratios for binary outcomes, slope ratios
+for counts, and differences in slope for continuous outcomes (with a
+joint test for multi-level categorical outcomes). The exported
+comparison report repeats these interaction tests for eligible unordered
+pairs in data-column order.</p>
 <p>Why it exists: the package should not ask the user to trust the
-synthetic output blindly. The compare step shows how closely the
-synthetic data tracks the original, and the privacy report shows the
-disclosure controls and warnings that matter for sharing.</p>
+synthetic output blindly. The compare step shows how closely both
+distributions and relationships track the original, and the privacy
+report shows the disclosure controls and warnings that matter for
+sharing.</p>
 </div>
 <div class="section level3">
 <h3 id="export">8. Export<a class="anchor" aria-label="anchor" href="#export"></a>

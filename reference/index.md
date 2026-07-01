@@ -43,7 +43,8 @@ Synthesize a dataset from a real data frame.
 
 ## Comparison
 
-Compare a synthetic dataset against its original to assess fidelity.
+Compare a synthetic dataset against its original using distribution and
+relationship-interaction tests to assess fidelity.
 
 - [`compare_synthetic()`](https://lennon-li.github.io/dataganger/reference/compare_synthetic.md)
   : Compare original and synthetic datasets
