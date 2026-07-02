@@ -20,7 +20,12 @@ Sys.setenv(
 
 library(shinytest2)
 
-W <- 1280L; H <- 800L
+# H is set tall enough that every step's full content fits without scrolling
+# (Configure, the tallest, measures ~3058px) -- so a "viewport" screenshot is
+# a true full-page capture for every step, with one uniform frame size across
+# all six (no per-frame distortion when gifski assembles the GIF, and the two
+# frames reused in the README table stay the same size as each other).
+W <- 1280L; H <- 3150L
 fig <- function(...) file.path("man", "figures", ...)
 app_dir <- system.file("app", package = "dataganger")
 stopifnot(nzchar(app_dir))
@@ -34,11 +39,13 @@ on.exit(try(app$stop(), silent = TRUE), add = TRUE)
 shot <- function(file, pause = 0.6) {
   Sys.sleep(pause)
   unlink(fig(file))  # get_screenshot() refuses to overwrite
-  # selector = "viewport" clips to the WxH window set above; the default
-  # ("scrollable_area") captures the full scrollable page height instead,
-  # which made step-3-configure.png a 4182px-tall strip next to compare's
-  # 1264px square -- squished when placed side by side in the README table
-  # and squashed again when gifski force-scales every frame to WxH.
+  # selector = "viewport" clips to the WxH window set above. H is tall
+  # enough that this is a full-page capture for every step (see the H
+  # comment above) -- unlike the default ("scrollable_area"), which reads
+  # the *current* scrollable height and so produces a different-sized image
+  # per step (previously a 4182px-tall Configure next to a 1264px square
+  # Compare -- squished side by side in the README table, and squashed again
+  # when gifski force-scaled each differently-sized frame to one WxH).
   app$get_screenshot(fig(file), selector = "viewport")
   message("captured ", file, " (", file.info(fig(file))$size, " bytes)")
 }
