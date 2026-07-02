@@ -71,17 +71,6 @@ list_transpose_simple <- function(.l) {
   out
 }
 
-# Template string interpolator (lightweight, avoids depending on glue)
-# Uses `%s` style placeholder replacement
-interpolate <- function(template, ...) {
-  args <- list(...)
-  result <- template
-  for (nm in names(args)) {
-    result <- gsub(paste0("{%", nm, "}"), as.character(args[[nm]]), result, fixed = TRUE)
-  }
-  result
-}
-
 # ===========================================================================
 # Future-use stubs to satisfy R CMD check (referenced in later phases)
 # ===========================================================================

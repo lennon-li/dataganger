@@ -16,10 +16,11 @@ test_that("make_agent_bundle() produces a valid zip with the restructured layout
   expect_true("agent/recipe.yaml"    %in% listing)
   expect_true("agent/AGENT.md"       %in% listing)
   expect_true("agent/manifest.json"  %in% listing)
+  expect_true("agent/code_readiness_report.json" %in% listing)
   expect_false("comparison_report.html" %in% listing)
 })
 
-test_that("make_agent_bundle() writes recipe and manifest metadata", {
+test_that("make_agent_bundle() writes recipe, manifest, and code readiness metadata", {
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "agent.zip")
 
@@ -35,6 +36,7 @@ test_that("make_agent_bundle() writes recipe and manifest metadata", {
   utils::unzip(out, exdir = extract_dir)
   recipe <- yaml::read_yaml(file.path(extract_dir, "agent", "recipe.yaml"))
   manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
+  code_readiness <- jsonlite::read_json(file.path(extract_dir, "agent", "code_readiness_report.json"))
 
   expect_equal(recipe$purpose, "demo")
   expect_true(is.list(recipe$roles))
@@ -42,6 +44,7 @@ test_that("make_agent_bundle() writes recipe and manifest metadata", {
   expect_equal(manifest$purpose, "demo")
   expect_equal(manifest$engine, "internal")
   expect_null(manifest$synthesis_citation)
+  expect_true(is.logical(code_readiness$summary$ready))
 })
 
 test_that("make_agent_bundle() aborts when out parent directory does not exist", {

@@ -66,13 +66,13 @@ manifest, and a warning is emitted instead.}
 \code{human/comparison_report.html}. If \code{rmarkdown}/\code{knitr} are unavailable,
 the report is skipped with a message instead of an error.}
 
-\item{include_dictionary}{Deprecated no-op kept for compatibility.}
+\item{include_dictionary}{Deprecated, ignored.}
 
 \item{code_readiness}{Optional \code{dataganger_code_readiness} object from
 \code{\link[=check_code_readiness]{check_code_readiness()}}. When supplied, writes
-\code{code_readiness_report.json} into the bundle.}
+\code{agent/code_readiness_report.json} into the bundle.}
 
-\item{compact}{Deprecated no-op kept for compatibility.}
+\item{compact}{Deprecated, ignored.}
 
 \item{overwrite}{Logical. When \code{FALSE} (the default), existing output paths
 are refused.}

@@ -35,11 +35,11 @@
 #' @param include_report Logical. When `TRUE` (the default), write
 #'   `human/comparison_report.html`. If `rmarkdown`/`knitr` are unavailable,
 #'   the report is skipped with a message instead of an error.
-#' @param include_dictionary Deprecated no-op kept for compatibility.
+#' @param include_dictionary Deprecated, ignored.
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
-#'   `code_readiness_report.json` into the bundle.
-#' @param compact Deprecated no-op kept for compatibility.
+#'   `agent/code_readiness_report.json` into the bundle.
+#' @param compact Deprecated, ignored.
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
 #'
@@ -116,6 +116,13 @@ export_synthetic <- function(synthetic,
     cli::cli_abort("{.arg compact} must be TRUE or FALSE")
   }
 
+  if (!is.null(code_readiness) &&
+      !inherits(code_readiness, "dataganger_code_readiness")) {
+    cli::cli_abort(
+      "{.arg code_readiness} must be a dataganger_code_readiness object when supplied"
+    )
+  }
+
   spec <- attr(synthetic, "spec", exact = TRUE)
   purpose <- purpose %||% spec$purpose %||% "unspecified"
   include_original_names <- resolve_include_original_names(
@@ -170,6 +177,20 @@ export_synthetic <- function(synthetic,
   dir.create(human_dir, recursive = TRUE, showWarnings = FALSE)
   dir.create(agent_dir, recursive = TRUE, showWarnings = FALSE)
 
+  recipe <- recipe_to_yaml_list(spec, export_roles, include_original_names = include_original_names)
+  cli_write_yaml(recipe, file.path(agent_dir, "recipe.yaml"))
+  file.copy(agent_skill_path(), file.path(agent_dir, "AGENT.md"), overwrite = TRUE)
+
+  if (!is.null(code_readiness)) {
+    jsonlite::write_json(
+      code_readiness_to_json(code_readiness),
+      path = file.path(agent_dir, "code_readiness_report.json"),
+      auto_unbox = TRUE,
+      null = "null",
+      pretty = TRUE
+    )
+  }
+
   writeLines(
     render_human_markdown(
       synthetic,
@@ -179,15 +200,12 @@ export_synthetic <- function(synthetic,
       spec,
       roles = export_roles,
       privacy = privacy,
-      exact_row_matches = exact_row_matches
+      exact_row_matches = exact_row_matches,
+      has_code_readiness = !is.null(code_readiness)
     ),
     con = file.path(human_dir, "human.md"),
     useBytes = TRUE
   )
-
-  recipe <- recipe_to_yaml_list(spec, export_roles, include_original_names = include_original_names)
-  cli_write_yaml(recipe, file.path(agent_dir, "recipe.yaml"))
-  file.copy(agent_skill_path(), file.path(agent_dir, "AGENT.md"), overwrite = TRUE)
 
   if (isTRUE(include_report)) {
     if (can_render_comparison_report()) {
@@ -423,96 +441,6 @@ infer_treatment <- function(original_col, synthetic_col, synthetic_name, origina
   "synthesized"
 }
 
-render_load_data_template <- function(synthetic, dictionary) {
-  template <- paste(
-    readLines(system.file("templates", "load_data.R", package = "dataganger"), warn = FALSE),
-    collapse = "\n"
-  )
-
-  interpolate(
-    template,
-    schema_block = build_readr_schema_block(synthetic),
-    labelled_block = build_labelled_restore_block(synthetic, dictionary)
-  )
-}
-
-build_readr_schema_block <- function(synthetic) {
-  specs <- vapply(names(synthetic), function(nm) {
-    sprintf("  %s = %s", nm, readr_col_spec(synthetic[[nm]]))
-  }, character(1))
-
-  paste(specs, collapse = ",\n")
-}
-
-readr_col_spec <- function(x) {
-  if (haven::is.labelled(x) || is.numeric(x)) {
-    return("readr::col_double()")
-  }
-
-  if (is.factor(x)) {
-    levs <- levels(x)
-    lev_txt <- paste(sprintf('"%s"', escape_r_string(levs)), collapse = ", ")
-    return(sprintf("readr::col_factor(levels = c(%s), ordered = FALSE)", lev_txt))
-  }
-
-  if (inherits(x, "Date")) {
-    return('readr::col_date(format = "")')
-  }
-
-  if (inherits(x, "POSIXct")) {
-    return('readr::col_datetime(format = "")')
-  }
-
-  if (is.logical(x)) {
-    return("readr::col_logical()")
-  }
-
-  "readr::col_character()"
-}
-
-build_labelled_restore_block <- function(synthetic, dictionary) {
-  labelled_rows <- dictionary[grepl("haven_labelled", dictionary$synthetic_class, fixed = TRUE), , drop = FALSE]
-  if (nrow(labelled_rows) == 0) {
-    return("# No haven_labelled columns to restore.")
-  }
-
-  lines <- unlist(lapply(seq_len(nrow(labelled_rows)), function(i) {
-    row <- labelled_rows[i, ]
-    syn_col <- synthetic[[row$synthetic_variable]]
-    labels <- parse_label_values(row$label_names, row$label_values)
-    original_var <- if ("original_variable" %in% names(row)) row$original_variable else row$synthetic_variable
-    variable_label <- attr(syn_col, "label", exact = TRUE) %||% original_var
-    label_expr <- if (length(labels) == 0) {
-      "NULL"
-    } else {
-      sprintf(
-        "c(%s)",
-        paste(sprintf('"%s" = %s', escape_r_string(names(labels)), unname(labels)), collapse = ", ")
-      )
-    }
-
-    c(
-      sprintf("data$%s <- haven::labelled(", row$synthetic_variable),
-      sprintf("  data$%s,", row$synthetic_variable),
-      sprintf("  labels = %s,", label_expr),
-      sprintf('  label = "%s"', escape_r_string(variable_label)),
-      ")"
-    )
-  }))
-
-  paste(lines, collapse = "\n")
-}
-
-parse_label_values <- function(label_names, label_values) {
-  if (is.na(label_names) || is.na(label_values) || !nzchar(label_names) || !nzchar(label_values)) {
-    return(stats::setNames(numeric(0), character(0)))
-  }
-
-  names_vec <- trimws(strsplit(label_names, ";", fixed = TRUE)[[1]])
-  values_vec <- trimws(strsplit(label_values, ";", fixed = TRUE)[[1]])
-  stats::setNames(as.numeric(values_vec), names_vec)
-}
-
 escape_r_string <- function(x) {
   gsub("\\\\", "\\\\\\\\", gsub('"', '\\"', x, fixed = TRUE))
 }
@@ -689,54 +617,6 @@ build_reproduction_script <- function(spec, roles, purpose) {
   paste(script, collapse = "\n")
 }
 
-render_ai_readme <- function(synthetic, dictionary, purpose, spec, privacy, roles = NULL) {
-  template <- paste(
-    readLines(system.file("templates", "ai-readme.md", package = "dataganger"), warn = FALSE),
-    collapse = "\n"
-  )
-
-  interpolate(
-    template,
-    n_rows = nrow(synthetic),
-    n_cols = ncol(synthetic),
-    purpose = purpose,
-    synthesis_level = spec$level %||% "unknown",
-    variable_table = build_variable_table(dictionary),
-    missingness_table = build_missingness_table(synthetic),
-    dropped_variables = build_dropped_variables_text(dictionary),
-    privacy_warning = build_privacy_warning(privacy),
-    regeneration_command = build_regeneration_command(purpose, spec, roles = roles)
-  )
-}
-
-build_variable_table <- function(dictionary) {
-  dictionary <- dictionary[
-    !(dictionary$treatment %in% c("dropped", "free_text_dropped", "masked_or_dropped")) &
-      !is.na(dictionary$synthetic_variable) &
-      nzchar(dictionary$synthetic_variable),
-    ,
-    drop = FALSE
-  ]
-  if (nrow(dictionary) == 0) {
-    return("- None")
-  }
-
-  lines <- sprintf(
-    "- `%s` (%s)",
-    dictionary$synthetic_variable,
-    dictionary$synthetic_class
-  )
-  paste(lines, collapse = "\n")
-}
-
-build_missingness_table <- function(synthetic) {
-  lines <- vapply(names(synthetic), function(nm) {
-    pct <- round(sum(is.na(synthetic[[nm]])) / max(1, nrow(synthetic)) * 100, 1)
-    sprintf("- `%s`: %s%% missing", nm, pct)
-  }, character(1))
-  paste(lines, collapse = "\n")
-}
-
 build_dropped_variables_text <- function(dictionary) {
   dropped <- dictionary[dictionary$treatment %in% c("dropped", "free_text_dropped", "masked_or_dropped"), , drop = FALSE]
   if (nrow(dropped) == 0) {
@@ -757,24 +637,14 @@ build_dropped_variables_text <- function(dictionary) {
   )
 }
 
-build_privacy_warning <- function(privacy) {
-  if (is.null(privacy) || nrow(privacy) == 0) {
-    return("- No privacy flags were supplied for this bundle.")
-  }
-
-  paste(
-    sprintf("- `%s` [%s]: %s", privacy$variable, privacy$severity, privacy$flag),
-    collapse = "\n"
-  )
-}
-
 build_regeneration_command <- function(purpose, spec, roles = NULL) {
   build_reproduction_script(spec = spec, roles = roles, purpose = purpose)
 }
 
 render_human_markdown <- function(synthetic, dictionary, purpose, include_report = TRUE,
                                   spec = NULL, roles = NULL, privacy = NULL,
-                                  exact_row_matches = 0L) {
+                                  exact_row_matches = 0L,
+                                  has_code_readiness = FALSE) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
     "- `human/human.md` - this guide, including privacy notes and agent-facing guidance.",
@@ -784,6 +654,9 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
       "- `agent/manifest.json` - provenance: package version, synthesis engine, seed, the full ",
       "spec, disclosure metrics, and a checksum of every bundled file."
     ),
+    if (isTRUE(has_code_readiness)) {
+      "- `agent/code_readiness_report.json` - structural compatibility checks for whether code written on the synthetic data should run on the original."
+    },
     if (isTRUE(include_report)) {
       "- `human/comparison_report.html` - a pre-rendered fidelity and privacy comparison; open it in a browser."
     }
@@ -844,6 +717,19 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "",
     build_dropped_variables_text(dictionary),
     sep = "\n"
+  )
+}
+
+code_readiness_to_json <- function(code_readiness) {
+  meta <- code_readiness$meta
+  if (inherits(meta$generated_at, "POSIXt")) {
+    meta$generated_at <- format(meta$generated_at, tz = "UTC", usetz = TRUE)
+  }
+
+  list(
+    checks = unclass(code_readiness$checks),
+    summary = code_readiness$summary,
+    meta = meta
   )
 }
 

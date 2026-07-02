@@ -60,6 +60,7 @@ make_agent_bundle <- function(file, out, purpose = "development",
   comparison     <- compare_synthetic(data, synthetic, roles = roles)
   post_privacy   <- privacy_check(data, synthetic, roles = roles,
                                   stage = "post", spec = spec)
+  code_readiness <- check_code_readiness(data, synthetic, roles = roles)
   tmp_dir <- tempfile("dataganger-bundle-")
   on.exit(unlink(tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
   dir.create(tmp_dir, recursive = TRUE)
@@ -70,6 +71,7 @@ make_agent_bundle <- function(file, out, purpose = "development",
     roles          = roles,
     comparison     = comparison,
     privacy        = post_privacy,
+    code_readiness = code_readiness,
     path           = tmp_dir,
     format         = "dir",
     include_report = FALSE,
