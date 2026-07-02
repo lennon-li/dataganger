@@ -13,10 +13,18 @@ Every screen mirrors a plain function call, so anything you do here you
 can also script from the R console (see *Use it from R* in the
 [README](https://github.com/lennon-li/dataganger#use-it-from-r)).
 
-## 1. Objective
+## 1. Upload
 
-Start by telling DataGangeR what the synthetic data is *for*. Instead of
-separate Fidelity / Privacy / Anonymity meters, the app now shows one
+Drop in a CSV, Excel, or SAS file — or load one of the built-in sample
+datasets to explore the workflow without any real data. The right-hand
+panel previews your data live as it loads.
+
+![](step-1-upload.png)
+
+## 2. Objective
+
+Next, tell DataGangeR what the synthetic data is *for*. Instead of
+separate Fidelity / Privacy / Anonymity meters, the app shows one
 **Protection** meter: **Demo / Teaching = 5 bars**, **Development and
 prototyping = 3 bars**, and **Internal Analytics = 1 bar**.
 **Development** is the default objective.
@@ -27,15 +35,7 @@ dimensions every time: **Use when**, **Exact values**,
 rare values**. That keeps the trade-off readable without making you
 interpret multiple competing meters.
 
-![](step-1-objective.png)
-
-## 2. Upload
-
-Drop in a CSV, Excel, or SAS file — or load one of the built-in sample
-datasets to explore the workflow without any real data. The right-hand
-panel previews your data live as it loads.
-
-![](step-2-upload.png)
+![](step-2-objective.png)
 
 ## 3. Configure
 
