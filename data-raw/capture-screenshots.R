@@ -34,38 +34,78 @@ on.exit(try(app$stop(), silent = TRUE), add = TRUE)
 shot <- function(file, pause = 0.6) {
   Sys.sleep(pause)
   unlink(fig(file))  # get_screenshot() refuses to overwrite
-  app$get_screenshot(fig(file))
+  # selector = "viewport" clips to the WxH window set above; the default
+  # ("scrollable_area") captures the full scrollable page height instead,
+  # which made step-3-configure.png a 4182px-tall strip next to compare's
+  # 1264px square -- squished when placed side by side in the README table
+  # and squashed again when gifski force-scales every frame to WxH.
+  app$get_screenshot(fig(file), selector = "viewport")
   message("captured ", file, " (", file.info(fig(file))$size, " bytes)")
 }
 
-# --- Step 01 · Objective -------------------------------------------------
-app$set_inputs(`synthesis_controls-purpose_group` = "development")
-shot("step-1-objective.png")
-
-# --- Step 02 · Upload ----------------------------------------------------
-app$click("synthesis_controls-confirm_objective", wait_ = FALSE); Sys.sleep(1.5)
-shot("step-2-upload.png")  # empty dropzone + sample loader (the stable view)
-
-# --- Step 03 · Configure -------------------------------------------------
-# Loading a sample auto-advances Upload -> Configure once profiling finishes.
-app$click("upload-load_sample", wait_ = FALSE)
 visible <- function(id)
   isTRUE(app$get_js(sprintf(
     "(function(e){return e && e.offsetParent !== null;})(document.getElementById('%s'))", id)))
-for (i in 1:30) { Sys.sleep(1); if (visible("roles-k_anon")) break }
-if (visible("upload-go_roles")) { app$click("upload-go_roles", wait_ = FALSE); Sys.sleep(1.5) }
-# Wait for the DataTables (roles + data preview) to actually render their rows;
-# the page frame appears before the tables finish, leaving a spinner otherwise.
+
+# Both guardrail modals (module id "guardrail") re-show themselves from a
+# reactive `observe()` until explicitly resolved, and can appear at more than
+# one point in the flow -- so dismiss defensively wherever they might be
+# showing rather than once at start.
+dismiss_guardrail <- function() {
+  if (visible("guardrail-agree")) {
+    app$click("guardrail-agree", wait_ = FALSE); Sys.sleep(0.5)
+  }
+  # "Confirm and keep" clears the fail-safe's auto-assigned identifies value
+  # for flagged columns back to blank (not drop them); the identifies loop
+  # below sets "id" explicitly anyway, so this only unblocks the UI.
+  if (visible("guardrail-confirm_keep_flagged")) {
+    app$click("guardrail-confirm_keep_flagged", wait_ = FALSE); Sys.sleep(0.5)
+  }
+}
+dismiss_guardrail()  # initial no-direct-identifiers attestation
+
+# --- Step 01 · Upload ------------------------------------------------------
+# Upload is step 1 and Objective is step 2 in the current wizard order (they
+# swapped since this script was last updated for the v0.4.0 Configure UI).
+shot("step-1-upload.png")  # empty dropzone + sample loader (the stable view)
+
+app$click("upload-load_sample", wait_ = FALSE)
 rows_ready <- function()
   isTRUE(suppressWarnings(as.numeric(app$get_js(
     "document.querySelectorAll('#data_panel-dp_table tbody tr').length"))) > 3)
 for (i in 1:30) { if (rows_ready()) break; Sys.sleep(1) }
+dismiss_guardrail()  # fail-safe fires once raw_data + roles are both set
+
+# --- Step 02 · Objective ----------------------------------------------------
+app$click("upload-go_roles", wait_ = FALSE)  # nav_request <- "objective"
+for (i in 1:30) { Sys.sleep(1); if (visible("synthesis_controls-purpose_group")) break }
+# wait_ = FALSE: this radio input doesn't invalidate a Shiny output, so the
+# default wait blocks the full 30s timeout before falling through (matches
+# every other set_inputs/click below, which already pass wait_ = FALSE).
+app$set_inputs(`synthesis_controls-purpose_group` = "development", wait_ = FALSE)
+shot("step-2-objective.png")
+
+# --- Step 03 · Configure -------------------------------------------------
+app$click("synthesis_controls-confirm_objective", wait_ = FALSE)  # -> Configure
+for (i in 1:30) { Sys.sleep(1); if (visible("roles-k_anon")) break }
+# Wait for the data preview table AND the (plain-HTML, renderUI-based) roles
+# table to both finish rendering their rows -- the page frame and the roles
+# panel's spinner appear before either table's rows exist, so firing the
+# identifies/sensitive set_inputs loops too early is a silent no-op that
+# leaves the two-question gate unsatisfied and Generate blocked forever.
+roles_rows_ready <- function()
+  isTRUE(suppressWarnings(as.numeric(app$get_js(
+    "document.querySelectorAll('#roles-roles_table tbody tr').length"))) > 3)
+for (i in 1:30) { if (rows_ready() && roles_rows_ready()) break; Sys.sleep(1) }
 
 # Clear the two-question gate: every column needs a "Points to a person?"
-# answer (identifies). A realistic mix shows the derived actions well:
-#   id -> direct (Removed), age/sex -> combination (Coarsened),
-#   the rest -> none, with income & smoker also marked sensitive.
-identifies <- c(id = "direct", age = "combination", sex = "combination",
+# answer (identifies). "direct" is not a valid answer here: once the upload
+# attestation confirms no direct identifiers, q1_identifies_choices() (see
+# R/mod-roles.R) drops "direct" from Q1 entirely -- selecting it would
+# contradict what was just attested. A realistic mix shows the derived
+# actions well: id/age/sex -> combination (Coarsened), the rest -> none,
+# with income & smoker also marked sensitive.
+identifies <- c(id = "combination", age = "combination", sex = "combination",
                 income = "none", education = "none", smoker = "none",
                 bmi = "none")
 for (i in seq_along(identifies)) {
@@ -73,14 +113,18 @@ for (i in seq_along(identifies)) {
     `roles-identifies_change` = list(row = i, value = unname(identifies[i])),
     allow_no_input_binding_ = TRUE, priority_ = "event", wait_ = FALSE
   )
-  Sys.sleep(0.2)
+  Sys.sleep(1)
 }
-for (i in c(4L, 6L)) {  # income, smoker -> Sensitive? = Yes
+# 0.6.0 Configure has no silent defaults: Generate is gated until every
+# column has an explicit Sensitive? answer too, not just the "yes" ones.
+sensitive <- c(id = "no", age = "no", sex = "no", income = "yes",
+               education = "no", smoker = "yes", bmi = "no")
+for (i in seq_along(sensitive)) {
   app$set_inputs(
-    `roles-sensitive_change` = list(row = i, value = "yes"),
+    `roles-sensitive_change` = list(row = i, value = unname(sensitive[i])),
     allow_no_input_binding_ = TRUE, priority_ = "event", wait_ = FALSE
   )
-  Sys.sleep(0.2)
+  Sys.sleep(1)
 }
 # Capture Configure with the two-question panel up top and the per-column
 # answers + Action override column populated.
@@ -113,7 +157,7 @@ app$stop()
 
 # --- Assemble the hero GIF ----------------------------------------------
 frames <- fig(sprintf("step-%d-%s.png", 1:6,
-  c("objective","upload","configure","generate","compare","export")))
+  c("upload","objective","configure","generate","compare","export")))
 stopifnot(all(file.exists(frames)))
 gifski::gifski(
   frames, gif_file = fig("hero.gif"),
