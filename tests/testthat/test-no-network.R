@@ -59,10 +59,18 @@ test_that("package source contains no network primitives", {
   # vacuously.
   r_dir <- testthat::test_path("..", "..", "R")
   skip_if(!dir.exists(r_dir), "R/ source not available (installed package)")
-  files <- list.files(
-    r_dir,
-    pattern = "\\.[Rr]$",
-    full.names = TRUE
+  app_dir <- testthat::test_path("..", "..", "inst", "app")
+  files <- c(
+    list.files(
+      r_dir,
+      pattern = "\\.[Rr]$",
+      full.names = TRUE
+    ),
+    list.files(
+      app_dir,
+      pattern = "\\.[Rr]$",
+      full.names = TRUE
+    )
   )
   pattern <- paste(
     "\\burl\\(",
@@ -75,6 +83,9 @@ test_that("package source contains no network primitives", {
     "POST\\(",
     "nsl\\(",
     "browseURL\\(",
+    "font_google",
+    "font_link",
+    "fonts\\.googleapis",
     sep = "|"
   )
 

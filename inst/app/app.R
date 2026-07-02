@@ -54,9 +54,9 @@ dg_theme <- bslib::bs_theme(
   primary = "#D43A8A",
   secondary = "#4F7D32",
   danger = "#C76B12",
-  base_font = bslib::font_google("Inter"),
-  heading_font = bslib::font_google("Instrument Serif"),
-  code_font = bslib::font_google("JetBrains Mono"),
+  base_font = "Inter",
+  heading_font = "Instrument Serif",
+  code_font = "JetBrains Mono",
   font_scale = 1
 )
 

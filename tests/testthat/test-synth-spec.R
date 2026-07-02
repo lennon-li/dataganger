@@ -145,3 +145,11 @@ test_that("synth_spec carries k_anon with a default of 5 and validates it", {
 
   expect_error(synth_spec(purpose = "demo", k_anon = 1), "k_anon")
 })
+
+
+test_that("synth_spec() requires a single non-missing purpose string", {
+  expect_error(synth_spec(purpose = NULL), "single non-missing character string")
+  expect_error(synth_spec(purpose = NA_character_), "single non-missing character string")
+  expect_error(synth_spec(purpose = c("demo", "development")), "single non-missing character string")
+  expect_error(synth_spec(purpose = ""), "single non-missing character string")
+})

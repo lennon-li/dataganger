@@ -18,8 +18,8 @@ synth_spec(
 )
 }
 \arguments{
-\item{purpose}{Character. One of \code{"demo"}, \code{"development"}, or \code{"analytics"}.
-If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
+\item{purpose}{Character. A single non-missing string: \code{"demo"},
+\code{"development"}, or \code{"analytics"}.}
 
 \item{level}{Character or \code{NULL}. Synthesis level: \code{"schema"} or
 \code{"marginal"}. If \code{NULL}, derived from the preset.}

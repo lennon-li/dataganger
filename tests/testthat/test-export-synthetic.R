@@ -423,3 +423,30 @@ test_that("manifest booleans and dictionary reflect dropped and pass-through col
   expect_false(isTRUE(manifest$free_text_included))
   expect_match(human_md, "`note`: dropped")
 })
+
+
+test_that("export_synthetic() exact-row matches respect the privacy role-map exclusion", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = sprintf("id-%02d", 1:20),
+    grp = rep(letters[1:4], each = 5),
+    score = rep(1:5, times = 4)
+  )
+  roles <- detect_roles(original)
+  syn <- tibble::tibble(
+    id = sprintf("syn-%02d", 1:20),
+    grp = original$grp,
+    score = original$score
+  )
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 12)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  privacy <- privacy_check(original, syn, roles = roles, stage = "post", spec = attr(syn, "spec"))
+  out_dir <- file.path(tmp, "role-map-dir")
+  export_synthetic(syn, original = original, roles = roles, privacy = privacy, path = out_dir, format = "dir", include_report = FALSE)
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  expect_equal(manifest$exact_row_matches, attr(privacy, "exact_row_matches", exact = TRUE))
+  expect_gt(manifest$exact_row_matches, exact_row_match_count(original, syn))
+})

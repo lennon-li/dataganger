@@ -146,7 +146,12 @@ export_synthetic <- function(synthetic,
 
   exact_row_matches <- attr(privacy, "exact_row_matches", exact = TRUE) %||% 0L
   if (!is.null(original)) {
-    exact_row_matches <- exact_row_match_count(original, synthetic)
+    role_map <- NULL
+    if (!is.null(export_roles) && "variable" %in% names(export_roles) &&
+        "recommended_role" %in% names(export_roles)) {
+      role_map <- stats::setNames(export_roles$recommended_role, export_roles$variable)
+    }
+    exact_row_matches <- exact_row_match_count(original, synthetic, role_map)
     handle_exact_row_matches(exact_row_matches, fail_on_exact_match)
   }
 

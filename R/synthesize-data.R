@@ -81,9 +81,9 @@ synthesize_data <- function(data, spec, roles = NULL,
     attr(syn, "seed_used")     <- spec$seed
     attr(syn, "generated_at")  <- Sys.time()
     class(syn) <- c("dataganger_synthetic", class(syn))
+    syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
     syn <- apply_name_strategy(syn, spec, data)
     attr(syn, "engine")        <- "synthpop"
-    syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
     return(syn)
   }
 
@@ -126,9 +126,10 @@ synthesize_data <- function(data, spec, roles = NULL,
   attr(syn, "generated_at")  <- Sys.time()
   class(syn) <- c("dataganger_synthetic", class(syn))
 
-  # [2.13] Apply name_strategy (after spec attr is set so name_map survives)
-  syn <- apply_name_strategy(syn, spec, data)
   syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
+  # [2.13] Apply name_strategy after k-anonymity so the mapping only records
+  # columns that survive direct-ID dropping and suppression shaping.
+  syn <- apply_name_strategy(syn, spec, data)
   attr(syn, "engine") <- "internal"
 
   syn
@@ -234,7 +235,10 @@ match_decimal_precision <- function(syn, original) {
 decimal_places <- function(x) {
   x <- x[is.finite(x)]
   if (length(x) == 0L) return(0L)
-  if (length(x) > 1000L) x <- sample(x, 1000L)
+  if (length(x) > 1000L) {
+    idx <- unique(as.integer(seq(1L, length(x), length.out = 1000L)))
+    x <- x[idx]
+  }
   d <- vapply(x, function(v) {
     s <- sub("0+$", "", sprintf("%.10f", v))
     if (grepl(".", s, fixed = TRUE)) nchar(sub("^.*\\.", "", s)) else 0L

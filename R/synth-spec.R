@@ -5,8 +5,8 @@
 #' the required engine, but does not check engine availability - that is
 #' done by [synthesize_data()].
 #'
-#' @param purpose Character. One of `"demo"`, `"development"`, or `"analytics"`.
-#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
+#' @param purpose Character. A single non-missing string: `"demo"`,
+#'   `"development"`, or `"analytics"`.
 #' @param level Character or `NULL`. Synthesis level: `"schema"` or
 #'   `"marginal"`. If `NULL`, derived from the preset.
 #' @param n Integer or `NULL`. Number of rows to synthesize. If `NULL`,
@@ -66,6 +66,14 @@ synth_spec <- function(purpose,
                        ...) {
 
   valid_purposes <- c("demo", "development", "analytics")
+
+  if (!is.character(purpose) || length(purpose) != 1L ||
+      is.na(purpose) || !nzchar(purpose)) {
+    cli::cli_abort(c(
+      "{.arg purpose} must be a single non-missing character string",
+      "i" = "Valid purposes: {.val {valid_purposes}}"
+    ))
+  }
 
   if (!purpose %in% valid_purposes) {
     cli::cli_abort(c(

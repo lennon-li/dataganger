@@ -411,9 +411,11 @@ test_that("simulation treatment passes through and drops columns", {
     omit = letters[seq_len(30)],
     stringsAsFactors = FALSE
   )
-  roles <- detect_roles(df)
+  roles <- dataganger:::dg_sync_roles_axes(detect_roles(df))
   roles$simulation[roles$variable == "group"] <- "pass_through"
   roles$simulation[roles$variable == "omit"] <- "drop"
+  roles$identifies[roles$variable == "patient_id"] <- "direct"
+  roles$identifies[roles$variable %in% c("age_band", "region")] <- "combination"
   spec <- synth_spec(purpose = "demo")
 
   syn <- synthesize_data(df, spec, roles = roles)
@@ -527,4 +529,30 @@ test_that("demo schema pipeline completes on example_health_survey", {
   syn <- synthesize_data(example_health_survey, spec)
   expect_equal(nrow(syn), nrow(example_health_survey))
   expect_equal(ncol(syn), ncol(example_health_survey))
+})
+
+
+test_that("synthesize_data() generic naming still drops direct identifiers before renaming", {
+  df <- data.frame(
+    patient_id = sprintf("id-%02d", 1:20),
+    age_band = rep(c("20s", "30s", "40s", "50s"), each = 5),
+    region = rep(c("north", "south"), each = 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- dataganger:::dg_sync_roles_axes(detect_roles(df))
+  roles$disclosure_role[roles$variable == "patient_id"] <- "direct"
+  roles$disclosure_role[roles$variable %in% c("age_band", "region")] <- "quasi"
+  roles$identifies[roles$variable == "patient_id"] <- "direct"
+  roles$identifies[roles$variable %in% c("age_band", "region")] <- "combination"
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 11, name_strategy = "generic")
+
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+  nm <- attr(syn, "spec")$name_map
+  kanon <- attr(syn, "kanon")
+
+  expect_false("patient_id" %in% names(nm))
+  expect_named(syn, c("col_1", "col_2"))
+  expect_equal(unname(nm[c("age_band", "region")]), c("col_1", "col_2"))
+  expect_true(length(kanon$qi_cols) > 0L)
+  expect_false(any(grepl("patient", names(syn), ignore.case = TRUE)))
 })
