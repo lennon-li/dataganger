@@ -9,8 +9,7 @@ check_code_readiness(original, synthetic, roles = NULL)
 \arguments{
 \item{original}{The original data frame.}
 
-\item{synthetic}{The synthetic data frame (from \code{\link[=synthesize_data]{synthesize_data()}} or
-\code{\link[=make_agent_bundle]{make_agent_bundle()}}).}
+\item{synthetic}{The synthetic data frame (from \code{\link[=synthesize_data]{synthesize_data()}}).}
 
 \item{roles}{Optional; a \code{dataganger_roles} object from
 \code{\link[=detect_roles]{detect_roles()}}. Used for ID-uniqueness checks. Computed internally if

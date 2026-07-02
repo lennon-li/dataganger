@@ -22,6 +22,10 @@ An S3 object of class \code{dataganger_roles}, a tibble with columns:
 \item{user_role}{User-supplied override (initially \code{NA}).}
 \item{simulation}{How the column is treated during synthesis.}
 \item{reason}{Justification for the recommended role.}
+\item{identifies}{Whether the column points to a person: \code{"none"}, \code{"combination"}, or \code{"direct"}.}
+\item{sensitive}{Logical flag for whether the column is sensitive if revealed.}
+\item{user_identifies}{User-supplied override for \code{identifies} (initially \code{NA}).}
+\item{user_sensitive}{User-supplied override for \code{sensitive} (initially \code{NA}).}
 \item{disclosure_role}{Disclosure role. \code{NA} (unselected) is the
 conservative default whenever detection is not confident; the user must
 choose a role before generating. \code{"direct"} and \code{"sensitive"} are the

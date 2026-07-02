@@ -92,13 +92,13 @@ dg_treatment_text_axes <- function(identifies, sensitive) {
   }
   if (identical(identifies, "combination")) {
     return(if (isTRUE(sensitive)) {
-      "Coarsened and grouped (k-anonymity) and protected from linkage, then recreated."
+      "Synthesized; grouped with k-anonymity so no rare combination survives."
     } else {
       "Coarsened and grouped so no one is unique (k-anonymity), then recreated."
     })
   }
   if (isTRUE(sensitive)) {
-    return("Recreated synthetically; protected from linkage.")
+    return("Recreated from its distribution; exact values are not copied — attribute-level protection is not yet applied.")
   }
   "Recreated synthetically; distribution kept, exact values not."
 }

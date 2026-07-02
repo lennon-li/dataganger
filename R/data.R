@@ -111,4 +111,4 @@
 #'   \item{risk_level}{Assigned risk level (Low / Medium / High)}
 #' }
 #' @source Synthetically generated via \code{data-raw/Geographic_sample.R}
-"geo\u0067raphic_sample"
+"geographic_sample"

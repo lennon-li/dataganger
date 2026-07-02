@@ -43,7 +43,7 @@
 #'     \item `rare_level_min_n` --- integer; category values seen fewer than
 #'       this many times count as rare (then merged or suppressed).
 #'     \item `free_text_strategy` --- how free-text columns are treated
-#'       (e.g. `"drop"`, `"generic"`); usually set by the purpose preset.
+#'       (typically `"drop"` or `"redact"`); usually set by the purpose preset.
 #'     \item `preserve_missingness` --- how closely to reproduce the original
 #'       pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
 #'   }

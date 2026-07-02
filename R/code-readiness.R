@@ -6,8 +6,7 @@
 #' columns, missingness spikes, and ID uniqueness.
 #'
 #' @param original The original data frame.
-#' @param synthetic The synthetic data frame (from [synthesize_data()] or
-#'   [make_agent_bundle()]).
+#' @param synthetic The synthetic data frame (from [synthesize_data()]).
 #' @param roles Optional; a \code{dataganger_roles} object from
 #'   [detect_roles()]. Used for ID-uniqueness checks. Computed internally if
 #'   \code{NULL}.

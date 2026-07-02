@@ -20,6 +20,10 @@
 #'     \item{user_role}{User-supplied override (initially `NA`).}
 #'     \item{simulation}{How the column is treated during synthesis.}
 #'     \item{reason}{Justification for the recommended role.}
+#'     \item{identifies}{Whether the column points to a person: `"none"`, `"combination"`, or `"direct"`.}
+#'     \item{sensitive}{Logical flag for whether the column is sensitive if revealed.}
+#'     \item{user_identifies}{User-supplied override for `identifies` (initially `NA`).}
+#'     \item{user_sensitive}{User-supplied override for `sensitive` (initially `NA`).}
 #'     \item{disclosure_role}{Disclosure role. `NA` (unselected) is the
 #'       conservative default whenever detection is not confident; the user must
 #'       choose a role before generating. `"direct"` and `"sensitive"` are the
@@ -171,12 +175,12 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 5: high cardinality -> ID candidate
+  # Test 4: high cardinality -> ID candidate
   # Guard: character columns with long median values are not IDs even when
   # unique -- they belong in free text territory and only reached here due to
   # edge cases in is_free_text_candidate (e.g. non-sentence long strings).
   # Numeric columns are excluded: distinctive numbers (lab values, prices,
-  # measurements) are not identifiers unless the column name says so (Test 5).
+  # measurements) are not identifiers unless the column name says so (Test 3).
   # They fall through to the numeric rule below for the user to classify in
   # the UI -- DataGangeR is designed for the user to make that call.
   distinct_ratio <- if (n_rows > 0) n_distinct / n_rows else 0
