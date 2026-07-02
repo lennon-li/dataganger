@@ -175,12 +175,12 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 4: high cardinality -> ID candidate
+  # Test 5: high cardinality -> ID candidate
   # Guard: character columns with long median values are not IDs even when
   # unique -- they belong in free text territory and only reached here due to
   # edge cases in is_free_text_candidate (e.g. non-sentence long strings).
   # Numeric columns are excluded: distinctive numbers (lab values, prices,
-  # measurements) are not identifiers unless the column name says so (Test 3).
+  # measurements) are not identifiers unless the column name says so (Test 4).
   # They fall through to the numeric rule below for the user to classify in
   # the UI -- DataGangeR is designed for the user to make that call.
   distinct_ratio <- if (n_rows > 0) n_distinct / n_rows else 0
