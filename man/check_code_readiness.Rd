@@ -30,7 +30,9 @@ components:
 Evaluates whether code written against the synthetic development twin will
 run against the original data without errors. Checks column presence, R
 class compatibility, factor level coverage, all-NA columns, zero-variance
-columns, missingness spikes, and ID uniqueness.
+columns, missingness spikes, and ID uniqueness. \code{haven_labelled} columns
+currently round-trip as character in synthetic data, so that class change is
+expected for now.
 }
 \examples{
 orig <- data.frame(x = 1:10, y = factor(letters[1:10]))

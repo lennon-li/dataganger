@@ -166,7 +166,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
   }
 
   # Test 4: name matches ID patterns
-  id_pattern <- "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
+  id_pattern <- dg_id_name_pattern()
   if (grepl(id_pattern, name, perl = TRUE)) {
     return(make_role_row(
       name, r_class, "ID candidate",

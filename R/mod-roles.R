@@ -29,14 +29,6 @@ dg_class_to_role <- function(cls) {
   "numeric"
 }
 
-#' @keywords internal
-#' @noRd
-eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
-  if (!is.na(user_role) && nzchar(user_role)) return(user_role)
-  from_rec <- dg_rec_to_role(recommended_role)
-  if (!is.na(from_rec)) return(from_rec)
-  dg_class_to_role(class_col)
-}
 
 #' Question-1 (identifies axis) choices.
 #'
@@ -53,27 +45,6 @@ q1_identifies_choices <- function(attested) {
   }
 }
 
-#' @keywords internal
-#' @noRd
-dg_role_treatment <- function(roles) {
-  if (is.null(roles)) {
-    return(character(0))
-  }
-  treatment_col <- if ("simulation" %in% names(roles)) {
-    "simulation"
-  } else if ("treatment" %in% names(roles)) {
-    "treatment"
-  } else {
-    NULL
-  }
-  if (is.null(treatment_col)) {
-    vals <- rep("synthesize", nrow(roles))
-  } else {
-    vals <- roles[[treatment_col]]
-    vals[is.na(vals) | !nzchar(vals)] <- "synthesize"
-  }
-  stats::setNames(vals, roles$variable)
-}
 
 #' @keywords internal
 #' @noRd

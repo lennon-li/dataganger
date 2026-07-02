@@ -45,6 +45,14 @@ test_that("check_code_readiness() fails on class mismatch", {
   expect_equal(fail_rows$column[1], "x")
 })
 
+
+test_that("check_code_readiness() notes labelled to character as expected for now", {
+  orig <- tibble::tibble(x = haven::labelled(1:5, labels = c(A = 1, B = 2)))
+  syn <- data.frame(x = as.character(1:5), stringsAsFactors = FALSE)
+  r <- check_code_readiness(orig, syn)
+  fail_rows <- r$checks[r$checks$status == "fail" & r$checks$check == "class_match", ]
+  expect_match(fail_rows$message[1], "expected for now")
+})
 test_that("check_code_readiness() fails on all-NA synthetic column", {
   orig <- data.frame(x = 1:10, y = 1:10)
   syn  <- data.frame(x = 11:20, y = rep(NA_real_, 10))

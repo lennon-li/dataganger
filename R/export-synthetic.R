@@ -687,7 +687,7 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "",
     "|                      | sensitive = No | sensitive = Yes |",
     "|---|---|---|",
-    "| identifies = none | Synthesized; distribution kept, exact values not. | Recreated from its distribution; exact values are not copied — attribute-level protection is not yet applied. |",
+    "| identifies = none | Synthesized; distribution kept, exact values not. | Recreated from its distribution; exact values are not copied \u2014 attribute-level protection is not yet applied. |",
     "| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Synthesized; grouped with k-anonymity so no rare combination survives. |",
     "| identifies = direct | **Removed** from the output. | **Removed** from the output. |",
     "",

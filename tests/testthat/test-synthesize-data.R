@@ -477,6 +477,15 @@ test_that("name_strategy maps only output columns after drop treatment", {
   expect_false("omit" %in% names(nm))
 })
 
+
+test_that("synthesize_data() handles roles missing one column", {
+  df <- data.frame(id = 1:20, x = rep(1:5, 4), y = rep(letters[1:2], 10), stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+  roles <- roles[roles$variable != "y", , drop = FALSE]
+  spec <- synth_spec(purpose = "demo", n = 10)
+  expect_no_error(syn <- synthesize_data(df, spec, roles = roles))
+  expect_s3_class(syn, "dataganger_synthetic")
+})
 # ---- Phase 2.1 fix tests ----
 
 # Fix 1 - remove_ids

@@ -71,7 +71,6 @@ synth_categorical <- function(x, n, rare_level_min_n = 5,
   if (isTRUE(merge_rare)) {
     rare_mask <- tbl_counts < rare_level_min_n
     if (any(rare_mask)) {
-      merged <- tbl_nms[!rare_mask]
       # Replace rare in observed data
       rare_vals <- tbl_nms[rare_mask]
       x_obs[x_obs %in% rare_vals] <- ".other"

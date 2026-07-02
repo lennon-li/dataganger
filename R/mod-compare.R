@@ -208,11 +208,12 @@ compare_numeric_table <- function(num_cmp, orig_vec = NULL, synth_vec = NULL) {
 
 mod_compare_server <- function(id, state) {
   rlang::check_installed(
-    c("shiny", "plotly"),
+    "shiny",
     reason = "to use the DataGangeR Shiny modules"
   )
 
   shiny::moduleServer(id, function(input, output, session) {
+    rlang::check_installed("plotly", reason = "to use the interactive comparison plots")
     selected_var <- shiny::reactiveVal(NULL)
 
     # Derive the kind used for plot/stats: user_role > recommended_role > column class
