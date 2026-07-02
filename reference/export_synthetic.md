@@ -103,17 +103,18 @@ export_synthetic(
 
 - include_dictionary:
 
-  Deprecated no-op kept for compatibility.
+  Deprecated, ignored.
 
 - code_readiness:
 
   Optional `dataganger_code_readiness` object from
   [`check_code_readiness()`](https://lennon-li.github.io/dataganger/reference/check_code_readiness.md).
-  When supplied, writes `code_readiness_report.json` into the bundle.
+  When supplied, writes `agent/code_readiness_report.json` into the
+  bundle.
 
 - compact:
 
-  Deprecated no-op kept for compatibility.
+  Deprecated, ignored.
 
 - overwrite:
 

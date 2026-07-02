@@ -1,9 +1,8 @@
 # Create a synthesis specification
 
 Builds a synthesis specification from a purpose preset with optional
-user overrides. The specification records the synthesis parameters and
-the required engine, but does not check engine availability - that is
-done by
+user overrides. The specification records the synthesis parameters but
+does not check engine availability - that is done by
 [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md).
 
 ## Usage
@@ -27,10 +26,8 @@ synth_spec(
 
 - purpose:
 
-  Character. One of `"demo"`, `"development"`, or `"analytics"`. If
-  `NULL`,
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
-  derives the engine from the objective.
+  Character. A single non-missing string: `"demo"`, `"development"`, or
+  `"analytics"`.
 
 - level:
 
@@ -66,12 +63,14 @@ synth_spec(
 
 - engine:
 
-  Character or `NULL`. Optional explicit synthesis engine:
-  `"internal"`/`"marginal"` synthesizes each column from its own
-  distribution (fast, dependency-free, ignores cross-column
-  relationships), `"synthpop"` models columns conditionally so
-  correlations and joint structure are preserved (higher fidelity, needs
-  the synthpop package). If `NULL`,
+  Character or `NULL`. Optional explicit synthesis engine: `"auto"`
+  clears any explicit engine choice so
+  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
+  derives the engine from the objective, `"internal"`/`"marginal"`
+  synthesizes each column from its own distribution (fast,
+  dependency-free, ignores cross-column relationships), and `"synthpop"`
+  models columns conditionally so correlations and joint structure are
+  preserved (higher fidelity, needs the synthpop package). If `NULL`,
   [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
   derives the engine from the objective.
 
@@ -96,8 +95,8 @@ synth_spec(
   - `rare_level_min_n` — integer; category values seen fewer than this
     many times count as rare (then merged or suppressed).
 
-  - `free_text_strategy` — how free-text columns are treated (e.g.
-    `"drop"`, `"generic"`); usually set by the purpose preset.
+  - `free_text_strategy` — how free-text columns are treated (typically
+    `"drop"` or `"redact"`); usually set by the purpose preset.
 
   - `preserve_missingness` — how closely to reproduce the original
     pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
@@ -127,7 +126,7 @@ synth_spec(purpose = "demo")
 #> • Free text strategy: "drop"
 #> • Preserve correlations: "none"
 #> • Preserve missingness: "approx"
-#> • Engine required: "internal"
+#> • Engine: "auto (derived from objective)"
 synth_spec(purpose = "development", n = 200, seed = 42)
 #> ℹ Development synthesis uses synthpop for correlation-aware output when
 #>   installed; review privacy warnings before sharing.
@@ -151,7 +150,7 @@ synth_spec(purpose = "development", n = 200, seed = 42)
 #> • Free text strategy: "drop"
 #> • Preserve correlations: "moderate"
 #> • Preserve missingness: "approx"
-#> • Engine required: "internal"
+#> • Engine: "auto (derived from objective)"
 #> 
 #> ── Seed 
 #> 42
@@ -174,6 +173,6 @@ synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 #> • Free text strategy: "redact"
 #> • Preserve correlations: "high"
 #> • Preserve missingness: "approx"
-#> • Engine required: "synthpop"
+#> • Engine: "auto (derived from objective)"
 #> ! Risk acknowledged by user
 ```

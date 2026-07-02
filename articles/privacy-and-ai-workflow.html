@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -161,8 +161,11 @@ even if it is not identifying by itself.</p>
 <h3 id="synthesis-enforcement">6. Synthesis enforcement<a class="anchor" aria-label="anchor" href="#synthesis-enforcement"></a>
 </h3>
 <p>Once the roles are set, DataGangeR enforces them during synthesis:
-k-anonymity on quasi-identifiers, treatment of sensitive columns, and
-drops where required.</p>
+quasi-identifying columns (Q1 = combination) are coarsened and grouped
+with k-anonymity so no rare combination survives; sensitive columns that
+are not quasi-identifying are recreated from their distributions — exact
+values are not copied, but attribute-level protection is not yet
+applied; and direct identifiers are dropped.</p>
 <p>Why it exists: the answers are not just labels for documentation.
 They become executable rules that shape the synthetic output.</p>
 </div>

@@ -17,7 +17,7 @@ existing synthesis/export/CLI paths."><meta property="og:image" content="https:/
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,6 +95,18 @@ internally.</p></dd>
 
 <dt>reason</dt>
 <dd><p>Justification for the recommended role.</p></dd>
+
+<dt>identifies</dt>
+<dd><p>Whether the column points to a person: <code>"none"</code>, <code>"combination"</code>, or <code>"direct"</code>.</p></dd>
+
+<dt>sensitive</dt>
+<dd><p>Logical flag for whether the column is sensitive if revealed.</p></dd>
+
+<dt>user_identifies</dt>
+<dd><p>User-supplied override for <code>identifies</code> (initially <code>NA</code>).</p></dd>
+
+<dt>user_sensitive</dt>
+<dd><p>User-supplied override for <code>sensitive</code> (initially <code>NA</code>).</p></dd>
 
 <dt>disclosure_role</dt>
 <dd><p>Disclosure role. <code>NA</code> (unselected) is the

@@ -66,8 +66,8 @@ reviewed on the Generate step:
 
 |  | sensitive = No | sensitive = Yes |
 |----|----|----|
-| identifies = none | Synthesized; distribution kept, exact values not. | Synthesized; protected from linkage. |
-| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Coarsened & grouped + protected from linkage. |
+| identifies = none | Synthesized; distribution kept, exact values not. | Recreated from its distribution; exact values are not copied — attribute-level protection is not yet applied. |
+| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Synthesized; grouped with k-anonymity so no rare combination survives. |
 | identifies = direct | **Removed** from the output. | **Removed** from the output. |
 
 Direct identifiers always drop. Everything non-direct is synthesized.
@@ -166,6 +166,6 @@ report_issue("The export summary was confusing", context = "Shiny app")
 ```
 
 The Shiny app also includes a **Report a problem** button in the
-sidebar. Both paths open your browser with environment details filled
-in, but they do not send anything automatically - you stay in control of
-what gets submitted.
+sidebar. Both paths print a pre-filled GitHub issue URL and issue body
+for you to review and copy, but they do not send anything
+automatically - you stay in control of what gets submitted.

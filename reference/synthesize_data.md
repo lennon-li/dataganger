@@ -30,9 +30,10 @@ synthesize_data(data, spec, roles = NULL, engine = NULL)
 
 - engine:
 
-  Character or `NULL`. Engine to use: `"internal"`, `"marginal"` (alias
-  for `"internal"`), or `"synthpop"`. When `NULL`, defaults to
-  `spec$engine` or derives from `spec$preserve_correlations`.
+  Character or `NULL`. Engine to use: `"auto"`, `"internal"`,
+  `"marginal"` (alias for `"internal"`), or `"synthpop"`. When `NULL`,
+  defaults to `spec$engine` or derives from
+  `spec$preserve_correlations`.
 
 ## Value
 

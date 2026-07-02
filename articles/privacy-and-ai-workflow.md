@@ -89,8 +89,11 @@ is not identifying by itself.
 ### 6. Synthesis enforcement
 
 Once the roles are set, DataGangeR enforces them during synthesis:
-k-anonymity on quasi-identifiers, treatment of sensitive columns, and
-drops where required.
+quasi-identifying columns (Q1 = combination) are coarsened and grouped
+with k-anonymity so no rare combination survives; sensitive columns that
+are not quasi-identifying are recreated from their distributions — exact
+values are not copied, but attribute-level protection is not yet
+applied; and direct identifiers are dropped.
 
 Why it exists: the answers are not just labels for documentation. They
 become executable rules that shape the synthetic output.

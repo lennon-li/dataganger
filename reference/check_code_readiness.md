@@ -4,6 +4,8 @@ Evaluates whether code written against the synthetic development twin
 will run against the original data without errors. Checks column
 presence, R class compatibility, factor level coverage, all-NA columns,
 zero-variance columns, missingness spikes, and ID uniqueness.
+`haven_labelled` columns currently round-trip as character in synthetic
+data, so that class change is expected for now.
 
 ## Usage
 
@@ -20,9 +22,7 @@ check_code_readiness(original, synthetic, roles = NULL)
 - synthetic:
 
   The synthetic data frame (from
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
-  or
-  [`make_agent_bundle()`](https://lennon-li.github.io/dataganger/reference/make_agent_bundle.md)).
+  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)).
 
 - roles:
 

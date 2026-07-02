@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -162,12 +162,14 @@ plain-English outcome is reviewed on the Generate step:</p>
 <tr class="odd">
 <td>identifies = none</td>
 <td>Synthesized; distribution kept, exact values not.</td>
-<td>Synthesized; protected from linkage.</td>
+<td>Recreated from its distribution; exact values are not copied —
+attribute-level protection is not yet applied.</td>
 </tr>
 <tr class="even">
 <td>identifies = combination</td>
 <td>Coarsened &amp; grouped (k-anonymity), then synthesized.</td>
-<td>Coarsened &amp; grouped + protected from linkage.</td>
+<td>Synthesized; grouped with k-anonymity so no rare combination
+survives.</td>
 </tr>
 <tr class="odd">
 <td>identifies = direct</td>
@@ -318,9 +320,9 @@ straight from R:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The export summary was confusing"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
 <p>The Shiny app also includes a <strong>Report a problem</strong>
-button in the sidebar. Both paths open your browser with environment
-details filled in, but they do not send anything automatically - you
-stay in control of what gets submitted.</p>
+button in the sidebar. Both paths print a pre-filled GitHub issue URL
+and issue body for you to review and copy, but they do not send anything
+automatically - you stay in control of what gets submitted.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

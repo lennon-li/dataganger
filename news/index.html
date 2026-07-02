@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,17 +38,64 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.5.0" id="dataganger-050">dataganger 0.5.0<a class="anchor" aria-label="anchor" href="#dataganger-050"></a></h2>
-<p>Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarantee.</p>
-<ul><li>Comparison stats are now inference-aware for numeric variables: the Compare view shows mean SMD, SD ratio, and median standardized difference, each coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.</li>
-<li>Compare now separates Univariate and Bivariate views. The Bivariate view uses an X-by-synthetic interaction test to show whether predictor-outcome relationships changed, with outcome-specific effect sizes and p-value fidelity colours.</li>
+<h2 class="pkg-version" data-toc-text="0.6.0" id="dataganger-060">dataganger 0.6.0<a class="anchor" aria-label="anchor" href="#dataganger-060"></a></h2>
+<p>One minimal export bundle, a Configure page with no silent defaults, and a package-wide audit pass: privacy fixes, an honest engine story, honest privacy wording, and a lighter dependency footprint.</p>
+<div class="section level3">
+<h3 id="privacy-fixes-0-6-0">Privacy fixes<a class="anchor" aria-label="anchor" href="#privacy-fixes-0-6-0"></a></h3>
+<ul><li>
+<strong>k-anonymity now runs before column renaming.</strong> Previously, with <code>name_strategy = "generic"</code>, generic renaming ran first and recorded the name map before <code><a href="../reference/enforce_kanon.html">enforce_kanon()</a></code> dropped direct identifiers and applied suppression — so bundles could under-protect. Both engine paths now enforce k-anonymity first. Bundles generated with generic names on earlier versions may be under-protected; regenerate them.</li>
+<li>The manifest and the privacy report now agree on a single exact-row-match number: <code><a href="../reference/export_synthetic.html">export_synthetic()</a></code> uses the same roles-derived exclusion rule as <code>privacy_check_post()</code>.</li>
+<li>Seeded synthesis is fully deterministic: <code>decimal_places()</code> samples long columns with a deterministic stride instead of <code><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample()</a></code>, removing an RNG side effect.</li>
+<li>The app’s theme no longer references Google Fonts at all (<code><a href="https://rstudio.github.io/sass/reference/font_face.html" class="external-link">bslib::font_google()</a></code> replaced with plain family strings served from the packaged self-hosted files); the no-network source guard now also scans <code>inst/app/</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bundle--agent-skill-0-6-0">Bundle &amp; agent skill<a class="anchor" aria-label="anchor" href="#bundle--agent-skill-0-6-0"></a></h3>
+<ul><li>Export bundles use one minimal layout: <code>synthetic_data.csv</code> at the root, <code>human/</code> (<code>human.md</code> with the privacy report folded in, plus optional <code>comparison_report.html</code>), and <code>agent/</code> (<code>recipe.yaml</code> = combined spec + roles, <code>AGENT.md</code>, <code>manifest.json</code>). <code>data_dictionary.csv</code>, <code>load_data.R</code>, <code>analysis.qmd</code>, <code>ai-readme.md</code>, <code>privacy_report.txt</code>, and the separate <code>spec.yaml</code>/<code>roles.yaml</code> are gone. CLI <code>synthesize</code> gains <code>--recipe &lt;recipe.yaml&gt;</code>; <code>--spec</code>/<code>--roles</code> remain supported. <code>compact</code> and <code>include_dictionary</code> are deprecated no-ops.</li>
+<li>
+<code><a href="../reference/export_synthetic.html">export_synthetic()</a></code> honours its <code>code_readiness</code> argument: when supplied, the bundle gains <code>agent/code_readiness_report.json</code>; <code><a href="../reference/make_agent_bundle.html">make_agent_bundle()</a></code> computes it automatically, so every agent bundle now ships the structural-compatibility report.</li>
+<li>Both shipped skills (<code>AGENT.md</code> in every bundle and <code>using-dataganger-bundles</code>) rewritten to the minimal bundle contract.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="engine-0-6-0">Engine<a class="anchor" aria-label="anchor" href="#engine-0-6-0"></a></h3>
+<ul><li>
+<code>"auto"</code> is a real engine alias in <code><a href="../reference/synth_spec.html">synth_spec()</a></code>, <code><a href="../reference/synthesize_data.html">synthesize_data()</a></code>, the CLI (<code>--engine &lt;auto|internal|synthpop&gt;</code>), and spec YAML. An explicit <code>"auto"</code> behaves exactly like leaving the engine unset: the engine is derived from the objective and <code>dataganger.disable_synthpop</code> is respected.</li>
+<li>The misleading <code>engine_required</code> spec field is retired; spec printing reports the explicit engine or <code>auto (derived from objective)</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="app-shiny-0-6-0">App (Shiny)<a class="anchor" aria-label="anchor" href="#app-shiny-0-6-0"></a></h3>
+<ul><li>Compare now separates Univariate and Bivariate views. The Bivariate view uses an X-by-synthetic interaction test to show whether predictor-outcome relationships changed, with outcome-specific effect sizes and p-value fidelity colours.</li>
 <li>Exported comparison reports now include the relationship-interaction table, using data-column order to define predictor then outcome.</li>
 <li>Synthesis controls are folded into collapsed <strong>Advanced settings</strong>, keeping the generation review focused on the effective configuration.</li>
 <li>Generation guidance now invites users to review, generate, or go back to adjust settings, and the data panel automatically previews each newly generated synthetic dataset.</li>
 <li>When <code>synthpop</code> is unavailable, the upload attestation recommends installing it for correlation-aware synthesis.</li>
-<li>Export bundles now use the restructured layout: <code>synthetic_data.csv</code> at the root, <code>human/human.md</code> plus optional <code>human/comparison_report.html</code>, and an <code>agent/</code> folder containing <code>recipe.yaml</code>, <code>AGENT.md</code>, and <code>manifest.json</code>. CLI <code>synthesize</code> also accepts <code>--recipe</code> for the combined spec-plus-roles file, while <code>--spec</code> and <code>--roles</code> remain supported.</li>
+<li>Configure has no silent defaults: Q1 (Points to a person?) and Q2 (Sensitive?) start blank for every column — auto-detected values no longer pre-select — and generation is gated until every column has an explicit answer to both questions. Explicit UI answers are tracked separately (<code>user_identifies</code> / <code>user_sensitive</code>) so CLI synthesis is unaffected.</li>
+<li>The upload fail-safe flags only direct-identifier candidates (ID patterns / free text), no longer sensitive-named columns such as <code>income</code>; flagged columns get a “potential identifier” pill and semantically-coloured actions.</li>
+<li>Categorical comparisons are now inference-aware like numeric ones: coloured by a chi-square/Fisher distributional p-value with TVD as the displayed effect size; the SMD definition is shown on the effect column.</li>
+<li>Assorted Configure/Compare/Generate polish: bottom Confirm-and-Continue, calmer attestation wording (with a disable-internet note), preserve-panel highlight, per-question help tied to table columns, and a generation fidelity recap.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="docs-0-6-0">Docs<a class="anchor" aria-label="anchor" href="#docs-0-6-0"></a></h3>
+<ul><li>Sensitive-column wording is honest and consistent everywhere: quasi-identifying columns are “grouped with k-anonymity so no rare combination survives”; sensitive non-identifying columns are “recreated from its distribution; exact values are not copied — attribute-level protection is not yet applied”. The former “protected from linkage” claim is gone.</li>
+<li>Engine documentation matches reality (demo → internal; development → synthpop when installed; analytics → synthpop + risk acknowledgement).</li>
+<li>
+<code><a href="../reference/detect_roles.html">detect_roles()</a></code> documents the two-axis columns; assorted roxygen and vignette corrections; the startup message is reduced to version + <code><a href="../reference/run_app.html">run_app()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="dependencies--internals-0-6-0">Dependencies &amp; internals<a class="anchor" aria-label="anchor" href="#dependencies--internals-0-6-0"></a></h3>
+<ul><li>
+<code>purrr</code>, <code>tidyr</code>, and <code>vctrs</code> dropped from Imports (unused); <code>plotly</code> moved to Suggests with an install gate in the Compare module.</li>
+<li>
+<code><a href="../reference/check_code_readiness.html">check_code_readiness()</a></code> now documents and reports that <code>haven_labelled</code> → character is the expected round-trip for now.</li>
+<li>Internal hygiene: unified ID-name regex, NULL/NA-safe role lookups (a roles object missing a column no longer errors), helper relocations, and dead-code removal.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.5.0" id="dataganger-050">dataganger 0.5.0<a class="anchor" aria-label="anchor" href="#dataganger-050"></a></h2>
+<p>Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarantee.</p>
+<ul><li>Comparison stats are now inference-aware for numeric variables: the Compare view shows mean SMD, SD ratio, and median standardized difference, each coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.</li>
+<li>UI export bundles now include <code>spec.yaml</code> and <code>roles.yaml</code>, and CLI <code>synthesize --roles</code> can reuse the full role matrix so UI and CLI runs reproduce byte-identical output with the same seed.</li>
 <li>The app now opens with a hard no-direct-identifiers attestation gate, then runs an early assistive fail-safe immediately after upload to flag possible direct identifiers before Objective / Configure. Once attested, Configure’s first question collapses to <code>none</code> / <code>combination</code>. The two questions are framed as the remaining risks after direct identifiers: linkage (combination) and sensitivity.</li>
-<li>Added an agents-only packaged <code>SKILL.md</code> plus <code>dataganger skill [--out &lt;file&gt;]</code> so an AI can drive the package to generate synthetic data without ever reading the real data; the bundled human guide now folds in the privacy report and agent guidance text.</li>
+<li>Added an agents-only packaged <code>SKILL.md</code> plus <code>dataganger skill [--out &lt;file&gt;]</code> so an AI can drive the package to generate synthetic data without ever reading the real data; fixed <code>ai-readme.md</code> so dropped columns are not listed as <code>NA (NA)</code>.</li>
 <li>No-network guarantee: web fonts are now self-hosted (no Google Fonts CDN), so the app makes no external requests; <code><a href="../reference/report_issue.html">report_issue()</a></code> prints a copy-paste GitHub issue instead of opening a browser (the Shiny button shows a copyable modal). A shipped runtime trap test and source guard prove the package makes no network calls, and a Linux <code>unshare -rn</code> CI job runs the suite with no network at all.</li>
 <li>New <code><a href="../articles/privacy-and-ai-workflow.html">vignette("privacy-and-ai-workflow")</a></code> documents the privacy gating ladder, the two ways to use the package with AI, and the no-network guarantee.</li>
 </ul></div>

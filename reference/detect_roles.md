@@ -53,6 +53,23 @@ An S3 object of class `dataganger_roles`, a tibble with columns:
 
   Justification for the recommended role.
 
+- identifies:
+
+  Whether the column points to a person: `"none"`, `"combination"`, or
+  `"direct"`.
+
+- sensitive:
+
+  Logical flag for whether the column is sensitive if revealed.
+
+- user_identifies:
+
+  User-supplied override for `identifies` (initially `NA`).
+
+- user_sensitive:
+
+  User-supplied override for `sensitive` (initially `NA`).
+
 - disclosure_role:
 
   Disclosure role. `NA` (unselected) is the conservative default
