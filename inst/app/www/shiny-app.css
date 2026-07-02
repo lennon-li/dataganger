@@ -124,8 +124,12 @@
 
 /* ============ MAIN ============ */
 .main { padding: 32px 40px 120px; min-width: 0; }
-.main-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
-.main-header-text { flex: 1; min-width: 0; }
+/* flex-wrap + a real min-width let the action column (e.g. Generate's
+   post-run "Back to settings / Regenerate / Continue to Compare" trio) drop
+   to its own row instead of squeezing main-header-text to near-zero width,
+   which wrapped the subtitle one word per line. */
+.main-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.main-header-text { flex: 1; min-width: 200px; }
 .main-header .subtitle { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; color: var(--fg-muted); margin: 8px 0 0; max-width: 64ch; }
 .main-header .subtitle p { margin: 0 0 4px; }
 .main-header .subtitle b { color: var(--ink-900); font-weight: 600; }
