@@ -18,8 +18,8 @@ synth_spec(
 )
 }
 \arguments{
-\item{purpose}{Character. One of \code{"demo"}, \code{"development"}, or \code{"analytics"}.
-If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
+\item{purpose}{Character. A single non-missing string: \code{"demo"},
+\code{"development"}, or \code{"analytics"}.}
 
 \item{level}{Character or \code{NULL}. Synthesis level: \code{"schema"} or
 \code{"marginal"}. If \code{NULL}, derived from the preset.}
@@ -43,11 +43,13 @@ exported data dictionary. If \code{NULL}, derived from the preset.}
 so the same spec and data reproduce the exact same synthetic output.}
 
 \item{engine}{Character or \code{NULL}. Optional explicit synthesis engine:
-\code{"internal"}/\code{"marginal"} synthesizes each column from its own
-distribution (fast, dependency-free, ignores cross-column relationships),
-\code{"synthpop"} models columns conditionally so correlations and joint
-structure are preserved (higher fidelity, needs the synthpop package).
-If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
+\code{"auto"} clears any explicit engine choice so \code{\link[=synthesize_data]{synthesize_data()}} derives
+the engine from the objective, \code{"internal"}/\code{"marginal"} synthesizes
+each column from its own distribution (fast, dependency-free, ignores
+cross-column relationships), and \code{"synthpop"} models columns
+conditionally so correlations and joint structure are preserved (higher
+fidelity, needs the synthpop package). If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}}
+derives the engine from the objective.}
 
 \item{acknowledge_risk}{Logical. Required to be \code{TRUE} when
 \code{purpose = "analytics"}.}
@@ -64,7 +66,7 @@ an \code{"other"} group to reduce re-identification risk.
 \item \code{rare_level_min_n} --- integer; category values seen fewer than
 this many times count as rare (then merged or suppressed).
 \item \code{free_text_strategy} --- how free-text columns are treated
-(e.g. \code{"drop"}, \code{"generic"}); usually set by the purpose preset.
+(typically \code{"drop"} or \code{"redact"}); usually set by the purpose preset.
 \item \code{preserve_missingness} --- how closely to reproduce the original
 pattern of missing (\code{NA}) values (\code{"approx"}, \code{"exact"}, \code{"none"}).
 }}
@@ -74,9 +76,8 @@ An S3 object of class \code{dataganger_spec} (a named list).
 }
 \description{
 Builds a synthesis specification from a purpose preset with optional
-user overrides. The specification records the synthesis parameters and
-the required engine, but does not check engine availability - that is
-done by \code{\link[=synthesize_data]{synthesize_data()}}.
+user overrides. The specification records the synthesis parameters but
+does not check engine availability - that is done by \code{\link[=synthesize_data]{synthesize_data()}}.
 }
 \examples{
 synth_spec(purpose = "demo")

@@ -30,3 +30,20 @@ test_that("synthesize_data output matches original decimal granularity", {
   expect_lte(dec_of(syn$height), 1L)
   expect_equal(syn$count, round(syn$count))  # integer-valued original -> whole numbers
 })
+
+
+test_that("seeded synthesis on long numeric columns is deterministic and RNG-neutral", {
+  original <- data.frame(value = round(seq(0.001, 1.500, length.out = 1500), 3))
+  spec <- synth_spec(purpose = "demo", n = 1500, seed = 42)
+
+  set.seed(999)
+  before <- .Random.seed
+  syn1 <- synthesize_data(original, spec, engine = "internal")
+  after_first <- .Random.seed
+  syn2 <- synthesize_data(original, spec, engine = "internal")
+  after_second <- .Random.seed
+
+  expect_equal(syn1, syn2)
+  expect_equal(before, after_first)
+  expect_equal(before, after_second)
+})

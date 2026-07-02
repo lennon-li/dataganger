@@ -69,6 +69,14 @@ test_that("privacy_check_pre raises a combination cell-size flag", {
   expect_true(any(grepl("smaller than k|cell size|k-anonymity", flags$flag, ignore.case = TRUE)))
 })
 
+
+test_that("privacy_check_pre handles roles missing one column", {
+  df <- data.frame(patient_id = 1:50, x = rnorm(50), stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+  roles <- roles[roles$variable != "x", , drop = FALSE]
+  expect_no_error(pc <- privacy_check(df, roles = roles, stage = "pre"))
+  expect_s3_class(pc, "dataganger_privacy_check")
+})
 test_that("privacy_check() pre flags date columns", {
   df <- data.frame(d = as.Date("2024-01-01") + 1:10)
   roles <- detect_roles(df)

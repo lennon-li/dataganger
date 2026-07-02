@@ -44,6 +44,7 @@ test_that("export_synthetic() writes the full bundle file set", {
   manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
   expect_equal(manifest$seed, 1)
   expect_true(nzchar(manifest$spec_hash))
+  expect_false(file.exists(file.path(out_dir, "agent", "code_readiness_report.json")))
 
   recipe <- yaml::read_yaml(file.path(out_dir, "agent", "recipe.yaml"))
   expect_equal(recipe$purpose, "development")
@@ -60,6 +61,42 @@ test_that("export_synthetic() writes the full bundle file set", {
       "agent/AGENT.md"
     )
   )
+})
+
+test_that("export_synthetic() writes code readiness JSON when supplied", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = 1:8,
+    grp = factor(rep(c("a", "b"), each = 4)),
+    score = c(10, 11, 12, 13, 14, 15, 16, 17)
+  )
+  spec <- synth_spec(purpose = "development", seed = 11)
+  roles <- detect_roles(original)
+  syn <- synthesize_data(original, spec, roles = roles)
+  code_readiness <- check_code_readiness(original, syn, roles = roles)
+
+  out_dir <- file.path(tmp, "bundle-with-readiness")
+  export_synthetic(
+    syn,
+    original = original,
+    roles = roles,
+    code_readiness = code_readiness,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  readiness_path <- file.path(out_dir, "agent", "code_readiness_report.json")
+  expect_true(file.exists(readiness_path))
+
+  readiness <- jsonlite::read_json(readiness_path)
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
+
+  expect_true(is.logical(readiness$summary$ready))
+  expect_true("agent/code_readiness_report.json" %in% names(manifest$file_sha256))
+  expect_match(human_md, "agent/code_readiness_report.json", fixed = TRUE)
 })
 
 test_that("export_synthetic() folds guidance and privacy text into human/human.md", {
@@ -422,4 +459,31 @@ test_that("manifest booleans and dictionary reflect dropped and pass-through col
   expect_true(isTRUE(manifest$ids_included))
   expect_false(isTRUE(manifest$free_text_included))
   expect_match(human_md, "`note`: dropped")
+})
+
+
+test_that("export_synthetic() exact-row matches respect the privacy role-map exclusion", {
+  tmp <- withr::local_tempdir()
+
+  original <- tibble::tibble(
+    id = sprintf("id-%02d", 1:20),
+    grp = rep(letters[1:4], each = 5),
+    score = rep(1:5, times = 4)
+  )
+  roles <- detect_roles(original)
+  syn <- tibble::tibble(
+    id = sprintf("syn-%02d", 1:20),
+    grp = original$grp,
+    score = original$score
+  )
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 12)
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  privacy <- privacy_check(original, syn, roles = roles, stage = "post", spec = attr(syn, "spec"))
+  out_dir <- file.path(tmp, "role-map-dir")
+  export_synthetic(syn, original = original, roles = roles, privacy = privacy, path = out_dir, format = "dir", include_report = FALSE)
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  expect_equal(manifest$exact_row_matches, attr(privacy, "exact_row_matches", exact = TRUE))
+  expect_gt(manifest$exact_row_matches, exact_row_match_count(original, syn))
 })

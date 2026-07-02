@@ -1,10 +1,11 @@
 ## Test environments
 
-- GitHub Actions ubuntu-latest, R release
-- GitHub Actions ubuntu-latest, R devel
+- GitHub Actions ubuntu-latest, R release / devel / oldrel
 - GitHub Actions macos-latest, R release
 - GitHub Actions windows-latest, R release
-- Local R 4.6.0 x86_64-pc-linux-gnu (Ubuntu 24.04, WSL2)
+- GitHub Actions ubuntu-latest, R release with synthpop installed
+- GitHub Actions ubuntu-latest, R release with no network access (`unshare -rn`)
+- Local R 4.6.1 x86_64-pc-linux-gnu (Ubuntu 24.04)
 
 ## R CMD check results
 

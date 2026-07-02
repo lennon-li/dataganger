@@ -45,7 +45,7 @@ test_that("spec command writes synth spec YAML", {
   expect_equal(spec$purpose, "development")
   expect_equal(spec$level, "marginal")
   expect_equal(spec$name_strategy, "preserve")
-  expect_equal(spec$engine_required, "internal")
+  expect_null(spec$engine)
 })
 
 test_that("spec command returns processing error for invalid purpose", {
@@ -298,6 +298,43 @@ test_that("cli_read_spec_yaml and cli_read_roles_yaml read a combined recipe", {
   expect_true(roles$sensitive[roles$variable == "age"])
 })
 
+
+test_that("synthesize with YAML engine auto keeps demo on internal", {
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path <- file.path(tmp, "bundle.zip")
+  yaml::write_yaml(list(purpose = "demo", n = 5, seed = 123, engine = "auto"), spec_path)
+  result <- suppressWarnings(run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path)))
+  expect_identical(result$code, 0L)
+  extract_dir <- file.path(tmp, "extracted")
+  dir.create(extract_dir)
+  utils::unzip(out_path, exdir = extract_dir)
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
+  expect_equal(manifest$engine, "internal")
+})
+
+test_that("synthesize with YAML engine auto uses synthpop for development when available", {
+  skip_if_no_synthpop()
+  withr::local_options(list(dataganger.disable_synthpop = FALSE))
+  tmp <- withr::local_tempdir()
+  data_path <- file.path(tmp, "data.csv")
+  spec_path <- file.path(tmp, "spec.yaml")
+  out_path <- file.path(tmp, "bundle.zip")
+  set.seed(11)
+  n <- 60
+  x <- rnorm(n)
+  readr::write_csv(tibble::tibble(x = x, lab_value = round(2 * x + rnorm(n, sd = 0.3), 2), arm = rep(c("A", "B"), length.out = n)), data_path)
+  yaml::write_yaml(list(purpose = "development", n = n, seed = 7L, engine = "auto"), spec_path)
+  result <- suppressWarnings(run_cli(c("synthesize", data_path, "--spec", spec_path, "--out", out_path)))
+  expect_identical(result$code, 0L)
+  extract_dir <- file.path(tmp, "extracted")
+  dir.create(extract_dir)
+  utils::unzip(out_path, exdir = extract_dir)
+  manifest <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
+  expect_equal(manifest$engine, "synthpop")
+})
+
 test_that("synthesize records internal engine and no synthpop citation for demo", {
   tmp       <- withr::local_tempdir()
   data_path <- cli_fixture_csv(tmp)
@@ -331,7 +368,7 @@ test_that("spec command supports analytics acknowledgement", {
   spec <- yaml::read_yaml(out_path)
   expect_equal(spec$purpose, "analytics")
   expect_true(isTRUE(spec$acknowledged_risk))
-  expect_equal(spec$engine_required, "synthpop")
+  expect_null(spec$engine)
 })
 
 test_that("cli_read_spec_yaml accepts engine and acknowledgement fields", {
@@ -344,6 +381,16 @@ test_that("cli_read_spec_yaml accepts engine and acknowledgement fields", {
   spec <- cli_read_spec_yaml(tmp)
   expect_true(isTRUE(spec$acknowledged_risk))
   expect_equal(spec$engine, "internal")
+})
+
+test_that("cli_read_spec_yaml normalizes engine auto to objective-derived", {
+  tmp <- tempfile(fileext = ".yaml")
+  writeLines(c(
+    "purpose: development",
+    "engine: auto"
+  ), tmp)
+  spec <- cli_read_spec_yaml(tmp)
+  expect_null(spec[["engine", exact = TRUE]])
 })
 
 test_that("yaml engine is honored unless CLI --engine overrides it", {

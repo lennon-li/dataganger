@@ -22,3 +22,5 @@
 ^pkgdown$
 ^dev$
 ^CRAN-SUBMISSION$
+^\.agent$
+^\.tokensave$

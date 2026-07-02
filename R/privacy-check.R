@@ -73,11 +73,11 @@ privacy_check_pre <- function(original, roles) {
 
   for (nm in names(original)) {
     x <- original[[nm]]
-    role <- role_map[[nm]] %||% "unknown"
-    disclosure <- disclosure_map[[nm]] %||% "none"
+    role <- dg_named_lookup(role_map, nm); if (is.na(role)) role <- "unknown"
+    disclosure <- dg_named_lookup(disclosure_map, nm); if (is.na(disclosure)) disclosure <- "none"
 
     # ID columns -> HIGH
-    if (role == "ID candidate" || grepl("(?i)^id$|_id$|^subject|^patient|^record|^case_no", nm, perl = TRUE)) {
+    if (role == "ID candidate" || grepl(dg_id_name_pattern(), nm, perl = TRUE)) {
       flags[[length(flags) + 1]] <- make_flag(nm, "ID column detected", "HIGH",
         "Review whether this column should be excluded from synthetic output")
       next
@@ -168,7 +168,7 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
 
   # 1. ID columns still present in synthetic
   for (nm in intersect(names(original), names(synthetic))) {
-    role <- role_map[[nm]] %||% "unknown"
+    role <- dg_named_lookup(role_map, nm); if (is.na(role)) role <- "unknown"
     if (role == "ID candidate") {
       id_vals <- synthetic[[nm]]
       if (!all(is.na(id_vals))) {

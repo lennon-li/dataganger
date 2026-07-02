@@ -9,8 +9,7 @@ check_code_readiness(original, synthetic, roles = NULL)
 \arguments{
 \item{original}{The original data frame.}
 
-\item{synthetic}{The synthetic data frame (from \code{\link[=synthesize_data]{synthesize_data()}} or
-\code{\link[=make_agent_bundle]{make_agent_bundle()}}).}
+\item{synthetic}{The synthetic data frame (from \code{\link[=synthesize_data]{synthesize_data()}}).}
 
 \item{roles}{Optional; a \code{dataganger_roles} object from
 \code{\link[=detect_roles]{detect_roles()}}. Used for ID-uniqueness checks. Computed internally if
@@ -31,7 +30,9 @@ components:
 Evaluates whether code written against the synthetic development twin will
 run against the original data without errors. Checks column presence, R
 class compatibility, factor level coverage, all-NA columns, zero-variance
-columns, missingness spikes, and ID uniqueness.
+columns, missingness spikes, and ID uniqueness. \code{haven_labelled} columns
+currently round-trip as character in synthetic data, so that class change is
+expected for now.
 }
 \examples{
 orig <- data.frame(x = 1:10, y = factor(letters[1:10]))

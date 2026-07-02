@@ -29,7 +29,6 @@ test_that("synth_spec() maps presets correctly", {
 
   s <- synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
   expect_equal(s$level, "hifi")
-  expect_equal(s$engine_required, "synthpop")
   expect_equal(s$preserve_correlations, "high")
   expect_equal(s$free_text_strategy, "redact")
   expect_equal(s$merge_rare, FALSE)
@@ -108,15 +107,9 @@ test_that("synth_spec() user overrides take precedence", {
   expect_equal(s$level, "marginal")
 })
 
-test_that("synth_spec() sets engine_required correctly", {
-  s <- synth_spec(purpose = "demo")
-  expect_equal(s$engine_required, "internal")
-
-  s <- synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
-  expect_equal(s$engine_required, "synthpop")
-
-  s <- synth_spec(purpose = "development")
-  expect_equal(s$engine_required, "internal")
+test_that("synth_spec() accepts engine = \"auto\" without recording an explicit engine", {
+  s <- synth_spec(purpose = "development", engine = "auto")
+  expect_null(s[["engine", exact = TRUE]])
 })
 
 test_that("synth_spec() print method works", {
@@ -144,4 +137,12 @@ test_that("synth_spec carries k_anon with a default of 5 and validates it", {
   expect_equal(spec2$k_anon, 10)
 
   expect_error(synth_spec(purpose = "demo", k_anon = 1), "k_anon")
+})
+
+
+test_that("synth_spec() requires a single non-missing purpose string", {
+  expect_error(synth_spec(purpose = NULL), "single non-missing character string")
+  expect_error(synth_spec(purpose = NA_character_), "single non-missing character string")
+  expect_error(synth_spec(purpose = c("demo", "development")), "single non-missing character string")
+  expect_error(synth_spec(purpose = ""), "single non-missing character string")
 })

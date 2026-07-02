@@ -156,7 +156,6 @@ mod_export_server <- function(id, state) {
         overwrite = TRUE,
         include_report = TRUE,
         include_dictionary = FALSE,
-        compact = TRUE,
         fail_on_exact_match = FALSE,
         roles = export_roles,
         include_original_names = use_original_names()

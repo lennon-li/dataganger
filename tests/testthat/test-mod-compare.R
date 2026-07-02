@@ -64,6 +64,7 @@ test_that("compare subtitle defines delta and TVD", {
 
 test_that("compare_body renders empty-state card when no synthetic data", {
   testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
 
   state <- compare_test_state()
 
@@ -76,6 +77,7 @@ test_that("compare_body renders empty-state card when no synthetic data", {
 
 test_that("compare_body renders var-rail and var-detail when data is present", {
   testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
 
   fixture <- comparison_fixture(seed = 7)
   state   <- compare_test_state(
@@ -176,6 +178,7 @@ test_that("compare_body excludes identifier variables from navigation", {
 
 test_that("go_export sets nav_request to export", {
   testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
 
   state <- shiny::reactiveValues(
     raw_data    = NULL,
@@ -256,6 +259,7 @@ test_that("date comparison handles all-missing dates without Inf summaries", {
 
 test_that("compare publishes selected variable to shared state", {
   testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
 
   state <- shiny::reactiveValues(
     raw_data = data.frame(a = 1:5, b = letters[1:5]),

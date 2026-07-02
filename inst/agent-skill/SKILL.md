@@ -2,48 +2,55 @@ You are not allowed to read the original data.
 
 # DataGangeR agent workflow
 
-Use DataGangeR to work only from synthetic data generated from the user's real dataset. Never open, preview, sample, parse, or inspect the real data file directly. Generate synthetic data only by calling the package or CLI with the user's chosen UI settings:
+Use DataGangeR to work only from synthetic data generated from the user's real dataset. Never open, preview, sample, parse, or inspect the real data file directly. Treat the real data file as an opaque input to DataGangeR.
 
-- `spec.yaml`
-- `roles.yaml`
-- seed from the exported spec
+## First step: reproduce the bundle exactly
 
-Treat the real data file as an opaque input to DataGangeR.
-
-## First step: reproduce the UI output exactly
-
-Before doing any analysis or coding work, run:
+From inside `agent/`, run:
 
 ```sh
-dataganger synthesize <real-data> --spec spec.yaml --roles roles.yaml --out check.zip
+dataganger synthesize <real-data> --recipe recipe.yaml --out check.zip
 ```
 
-Then extract the synthetic CSV from `check.zip` and confirm it is identical to the UI-generated `synthetic_data.csv` already in the folder. For example:
+Then compare the reproduced synthetic CSV to `../synthetic_data.csv`:
 
 ```sh
 unzip -p check.zip synthetic_data.csv > check_synthetic_data.csv
-cmp -s check_synthetic_data.csv synthetic_data.csv
-diff -u synthetic_data.csv check_synthetic_data.csv
+cmp -s check_synthetic_data.csv ../synthetic_data.csv
+diff -u ../synthetic_data.csv check_synthetic_data.csv
 ```
 
 Proceed only if the files are identical. If they differ, stop and report that reproduction failed.
 
+## Files you may use
+
+Work only from these bundle artifacts:
+
+- `recipe.yaml`
+- `manifest.json`
+- `code_readiness_report.json` (may be absent)
+- `../human/human.md`
+- `../synthetic_data.csv`
+
+Do not assume other files exist.
+
 ## Column names and schema
 
-Column names may vary because the name strategy may rename them. Never assume original column names. Read the names and meanings from `data_dictionary.csv`, and use the synthetic column names recorded there.
+Column names may vary because the name strategy may rename them. Never assume original column names. Read the names and mappings from `recipe.yaml`'s `name_map` when present, and use `../human/human.md` for the treatment list describing how each output column was handled.
 
 ## Allowed workflow
 
 1. Reproduce the synthetic output exactly with the command above.
-2. Work from `synthetic_data.csv`, `data_dictionary.csv`, `README.md`, `ai-readme.md`, `privacy_report.txt`, and other exported bundle files.
+2. Work only from `../synthetic_data.csv` and the listed bundle metadata files.
 3. Inspect the synthetic data, profile it, write code against it, and propose transformations using only the synthetic bundle.
-4. If the user wants variations, ask DataGangeR to generate them by changing `n`, seed, or other user-approved settings in `spec.yaml`, then synthesize again.
+4. If `code_readiness_report.json` is present, use it to catch structural mismatches that would break code on the original data.
+5. If the user wants variations, update `recipe.yaml` with user-approved changes and synthesize again.
 
 ## Never do this
 
 - Do not read the original data into R, Python, SQL, spreadsheets, or any other tool.
 - Do not open the original CSV, Excel, SAS, or other source file for inspection.
-- Do not infer that a synthetic column name matches an original name unless `data_dictionary.csv` says so.
+- Do not infer that a synthetic column name matches an original name unless `recipe.yaml` or `../human/human.md` supports it.
 - Do not claim the output is risk-free or anonymous.
 
 ## Framing

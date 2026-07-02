@@ -48,7 +48,7 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
     x <- data[[i]]
 
     # Determine role for this column
-    role <- role_lookup[[col_name]] %||% "unknown"
+    role <- dg_named_lookup(role_lookup, col_name); if (is.na(role)) role <- "unknown"
 
     # remove_ids: mask ID columns with NA
     if (isTRUE(spec$remove_ids) && !is.null(role_lookup) &&

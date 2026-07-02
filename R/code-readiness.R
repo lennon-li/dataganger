@@ -3,15 +3,14 @@
 #' Evaluates whether code written against the synthetic development twin will
 #' run against the original data without errors. Checks column presence, R
 #' class compatibility, factor level coverage, all-NA columns, zero-variance
-#' columns, missingness spikes, and ID uniqueness.
-#'
+#' columns, missingness spikes, and ID uniqueness. `haven_labelled` columns
+#' currently round-trip as character in synthetic data, so that class change is
+#' expected for now.
 #' @param original The original data frame.
-#' @param synthetic The synthetic data frame (from [synthesize_data()] or
-#'   [make_agent_bundle()]).
+#' @param synthetic The synthetic data frame (from [synthesize_data()]).
 #' @param roles Optional; a \code{dataganger_roles} object from
 #'   [detect_roles()]. Used for ID-uniqueness checks. Computed internally if
 #'   \code{NULL}.
-#'
 #' @return An S3 object of class \code{dataganger_code_readiness} with
 #'   components:
 #'   \describe{
@@ -88,11 +87,12 @@ check_code_readiness <- function(original, synthetic, roles = NULL) {
       rows <- c(rows, list(cr_row("class_match", "column", col,
                                   "pass", sprintf("class '%s' matches", paste(class(orig_col), collapse = "/")))))
     } else {
-      rows <- c(rows, list(cr_row("class_match", "column", col,
-                                  "fail",
-                                  sprintf("class mismatch: original '%s' vs synthetic '%s'",
-                                          paste(class(orig_col), collapse = "/"),
-                                          paste(class(syn_col),  collapse = "/")))))
+      expected_labelled <- haven::is.labelled(orig_col) && is.character(syn_col)
+      class_msg <- sprintf("class mismatch: original '%s' vs synthetic '%s'%s",
+                           paste(class(orig_col), collapse = "/"),
+                           paste(class(syn_col), collapse = "/"),
+                           if (expected_labelled) "; haven_labelled -> character is expected for now" else "")
+      rows <- c(rows, list(cr_row("class_match", "column", col, "fail", class_msg)))
     }
 
     # all_na

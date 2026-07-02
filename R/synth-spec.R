@@ -1,12 +1,11 @@
 #' Create a synthesis specification
 #'
 #' Builds a synthesis specification from a purpose preset with optional
-#' user overrides. The specification records the synthesis parameters and
-#' the required engine, but does not check engine availability - that is
-#' done by [synthesize_data()].
+#' user overrides. The specification records the synthesis parameters but
+#' does not check engine availability - that is done by [synthesize_data()].
 #'
-#' @param purpose Character. One of `"demo"`, `"development"`, or `"analytics"`.
-#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
+#' @param purpose Character. A single non-missing string: `"demo"`,
+#'   `"development"`, or `"analytics"`.
 #' @param level Character or `NULL`. Synthesis level: `"schema"` or
 #'   `"marginal"`. If `NULL`, derived from the preset.
 #' @param n Integer or `NULL`. Number of rows to synthesize. If `NULL`,
@@ -23,11 +22,13 @@
 #' @param seed Integer or `NULL`. Reproducibility seed. Fixes the random draw
 #'   so the same spec and data reproduce the exact same synthetic output.
 #' @param engine Character or `NULL`. Optional explicit synthesis engine:
-#'   `"internal"`/`"marginal"` synthesizes each column from its own
-#'   distribution (fast, dependency-free, ignores cross-column relationships),
-#'   `"synthpop"` models columns conditionally so correlations and joint
-#'   structure are preserved (higher fidelity, needs the synthpop package).
-#'   If `NULL`, [synthesize_data()] derives the engine from the objective.
+#'   `"auto"` clears any explicit engine choice so [synthesize_data()] derives
+#'   the engine from the objective, `"internal"`/`"marginal"` synthesizes
+#'   each column from its own distribution (fast, dependency-free, ignores
+#'   cross-column relationships), and `"synthpop"` models columns
+#'   conditionally so correlations and joint structure are preserved (higher
+#'   fidelity, needs the synthpop package). If `NULL`, [synthesize_data()]
+#'   derives the engine from the objective.
 #' @param acknowledge_risk Logical. Required to be `TRUE` when
 #'   `purpose = "analytics"`.
 #' @param ... Additional decision parameters passed to the spec list. These are
@@ -42,7 +43,7 @@
 #'     \item `rare_level_min_n` --- integer; category values seen fewer than
 #'       this many times count as rare (then merged or suppressed).
 #'     \item `free_text_strategy` --- how free-text columns are treated
-#'       (e.g. `"drop"`, `"generic"`); usually set by the purpose preset.
+#'       (typically `"drop"` or `"redact"`); usually set by the purpose preset.
 #'     \item `preserve_missingness` --- how closely to reproduce the original
 #'       pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
 #'   }
@@ -67,6 +68,14 @@ synth_spec <- function(purpose,
 
   valid_purposes <- c("demo", "development", "analytics")
 
+  if (!is.character(purpose) || length(purpose) != 1L ||
+      is.na(purpose) || !nzchar(purpose)) {
+    cli::cli_abort(c(
+      "{.arg purpose} must be a single non-missing character string",
+      "i" = "Valid purposes: {.val {valid_purposes}}"
+    ))
+  }
+
   if (!purpose %in% valid_purposes) {
     cli::cli_abort(c(
       "Invalid purpose: {.val {purpose}}",
@@ -84,14 +93,14 @@ synth_spec <- function(purpose,
   if (!is.null(seed))          preset$seed          <- seed
 
   if (!is.null(engine)) {
-    valid_engines <- c("internal", "marginal", "synthpop")
+    valid_engines <- c("auto", "internal", "marginal", "synthpop")
     if (!engine %in% valid_engines) {
       cli::cli_abort(c(
         "Invalid engine: {.val {engine}}",
         "i" = "Valid engines: {.val {valid_engines}}"
       ))
     }
-    preset$engine <- engine
+    preset$engine <- if (identical(engine, "auto")) NULL else engine
   }
 
   # --- Absorb ... into spec ---
@@ -108,8 +117,6 @@ synth_spec <- function(purpose,
   # --- Privacy pre-flag hardening (C11) ---
   preset <- apply_privacy_hardening(preset, privacy, roles)
 
-  # --- Engine determination ---
-  preset$engine_required <- engine_for(preset$level, purpose)
 
   # --- Set acknowledged_risk flag ---
   preset$acknowledged_risk <- acknowledge_risk
@@ -282,12 +289,6 @@ apply_privacy_hardening <- function(spec, privacy, roles) {
 # Engine determination
 # ===========================================================================
 
-engine_for <- function(level, purpose) {
-  if (level == "hifi" || purpose == "analytics") {
-    return("synthpop")
-  }
-  "internal"
-}
 
 engine_from_correlations <- function(spec) {
   pc <- spec$preserve_correlations %||% "none"
@@ -324,18 +325,13 @@ print.dataganger_spec <- function(x, ...) {
   cli::cli_li("Free text strategy: {.val {x$free_text_strategy}}")
   cli::cli_li("Preserve correlations: {.val {x$preserve_correlations}}")
   cli::cli_li("Preserve missingness: {.val {x$preserve_missingness}}")
-  cli::cli_li("Engine required: {.val {x$engine_required}}")
+  engine <- x[["engine", exact = TRUE]] %||% "auto (derived from objective)"
+  cli::cli_li("Engine: {.val {engine}}")
 
   if (!is.null(x$seed)) {
     cli::cli_h3("Seed")
     cli::cli_text("{x$seed}")
   }
-
-  engine <- x[["engine", exact = TRUE]]
-  if (!is.null(engine)) {
-    cli::cli_li("Engine: {.val {engine}}")
-  }
-
   if (isTRUE(x$acknowledged_risk)) {
     cli::cli_alert_warning("Risk acknowledged by user")
   }

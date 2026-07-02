@@ -1,10 +1,55 @@
-# dataganger 0.5.0
+# dataganger 0.6.0
 
-Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarantee.
+One minimal export bundle, a Configure page with no silent defaults, and a package-wide audit pass: privacy fixes, an honest engine story, honest privacy wording, and a lighter dependency footprint.
 
-*   Comparison stats are now inference-aware for numeric variables: the Compare
-    view shows mean SMD, SD ratio, and median standardized difference, each
-    coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.
+## Privacy fixes
+
+*   **k-anonymity now runs before column renaming.** Previously, with
+    `name_strategy = "generic"`, generic renaming ran first and recorded the
+    name map before `enforce_kanon()` dropped direct identifiers and applied
+    suppression — so bundles could under-protect. Both engine paths now
+    enforce k-anonymity first. Bundles generated with generic names on
+    earlier versions may be under-protected; regenerate them.
+*   The manifest and the privacy report now agree on a single exact-row-match
+    number: `export_synthetic()` uses the same roles-derived exclusion rule
+    as `privacy_check_post()`.
+*   Seeded synthesis is fully deterministic: `decimal_places()` samples long
+    columns with a deterministic stride instead of `sample()`, removing an
+    RNG side effect.
+*   The app's theme no longer references Google Fonts at all
+    (`bslib::font_google()` replaced with plain family strings served from
+    the packaged self-hosted files); the no-network source guard now also
+    scans `inst/app/`.
+
+## Bundle & agent skill
+
+*   Export bundles use one minimal layout: `synthetic_data.csv` at the root,
+    `human/` (`human.md` with the privacy report folded in, plus optional
+    `comparison_report.html`), and `agent/` (`recipe.yaml` = combined
+    spec + roles, `AGENT.md`, `manifest.json`). `data_dictionary.csv`,
+    `load_data.R`, `analysis.qmd`, `ai-readme.md`, `privacy_report.txt`, and
+    the separate `spec.yaml`/`roles.yaml` are gone. CLI `synthesize` gains
+    `--recipe <recipe.yaml>`; `--spec`/`--roles` remain supported. `compact`
+    and `include_dictionary` are deprecated no-ops.
+*   `export_synthetic()` honours its `code_readiness` argument: when
+    supplied, the bundle gains `agent/code_readiness_report.json`;
+    `make_agent_bundle()` computes it automatically, so every agent bundle
+    now ships the structural-compatibility report.
+*   Both shipped skills (`AGENT.md` in every bundle and
+    `using-dataganger-bundles`) rewritten to the minimal bundle contract.
+
+## Engine
+
+*   `"auto"` is a real engine alias in `synth_spec()`, `synthesize_data()`,
+    the CLI (`--engine <auto|internal|synthpop>`), and spec YAML. An explicit
+    `"auto"` behaves exactly like leaving the engine unset: the engine is
+    derived from the objective and `dataganger.disable_synthpop` is
+    respected.
+*   The misleading `engine_required` spec field is retired; spec printing
+    reports the explicit engine or `auto (derived from objective)`.
+
+## App (Shiny)
+
 *   Compare now separates Univariate and Bivariate views. The Bivariate view
     uses an X-by-synthetic interaction test to show whether predictor-outcome
     relationships changed, with outcome-specific effect sizes and p-value
@@ -18,11 +63,58 @@ Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarant
     generated synthetic dataset.
 *   When `synthpop` is unavailable, the upload attestation recommends installing
     it for correlation-aware synthesis.
-*   Export bundles now use the restructured layout: `synthetic_data.csv` at the
-    root, `human/human.md` plus optional `human/comparison_report.html`, and an
-    `agent/` folder containing `recipe.yaml`, `AGENT.md`, and
-    `manifest.json`. CLI `synthesize` also accepts `--recipe` for the combined
-    spec-plus-roles file, while `--spec` and `--roles` remain supported.
+*   Configure has no silent defaults: Q1 (Points to a person?) and Q2
+    (Sensitive?) start blank for every column — auto-detected values no
+    longer pre-select — and generation is gated until every column has an
+    explicit answer to both questions. Explicit UI answers are tracked
+    separately (`user_identifies` / `user_sensitive`) so CLI synthesis is
+    unaffected.
+*   The upload fail-safe flags only direct-identifier candidates (ID
+    patterns / free text), no longer sensitive-named columns such as
+    `income`; flagged columns get a "potential identifier" pill and
+    semantically-coloured actions.
+*   Categorical comparisons are now inference-aware like numeric ones:
+    coloured by a chi-square/Fisher distributional p-value with TVD as the
+    displayed effect size; the SMD definition is shown on the effect column.
+*   Assorted Configure/Compare/Generate polish: bottom Confirm-and-Continue,
+    calmer attestation wording (with a disable-internet note), preserve-panel
+    highlight, per-question help tied to table columns, and a generation
+    fidelity recap.
+
+## Docs
+
+*   Sensitive-column wording is honest and consistent everywhere:
+    quasi-identifying columns are "grouped with k-anonymity so no rare
+    combination survives"; sensitive non-identifying columns are "recreated
+    from its distribution; exact values are not copied — attribute-level
+    protection is not yet applied". The former "protected from linkage"
+    claim is gone.
+*   Engine documentation matches reality (demo → internal; development →
+    synthpop when installed; analytics → synthpop + risk acknowledgement).
+*   `detect_roles()` documents the two-axis columns; assorted roxygen and
+    vignette corrections; the startup message is reduced to version +
+    `run_app()`.
+
+## Dependencies & internals
+
+*   `purrr`, `tidyr`, and `vctrs` dropped from Imports (unused); `plotly`
+    moved to Suggests with an install gate in the Compare module.
+*   `check_code_readiness()` now documents and reports that
+    `haven_labelled` → character is the expected round-trip for now.
+*   Internal hygiene: unified ID-name regex, NULL/NA-safe role lookups (a
+    roles object missing a column no longer errors), helper relocations, and
+    dead-code removal.
+
+# dataganger 0.5.0
+
+Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarantee.
+
+*   Comparison stats are now inference-aware for numeric variables: the Compare
+    view shows mean SMD, SD ratio, and median standardized difference, each
+    coloured by their t/F/Wilcoxon p-value bands; min/max remain value-only.
+*   UI export bundles now include `spec.yaml` and `roles.yaml`, and CLI
+    `synthesize --roles` can reuse the full role matrix so UI and CLI runs
+    reproduce byte-identical output with the same seed.
 *   The app now opens with a hard no-direct-identifiers attestation gate, then
     runs an early assistive fail-safe immediately after upload to flag possible
     direct identifiers before Objective / Configure. Once attested, Configure's
@@ -31,8 +123,8 @@ Privacy gating, UI/CLI parity, an agent skill, and a provable no-network guarant
     and sensitivity.
 *   Added an agents-only packaged `SKILL.md` plus `dataganger skill [--out <file>]`
     so an AI can drive the package to generate synthetic data without ever
-    reading the real data; the bundled human guide now folds in the privacy
-    report and agent guidance text.
+    reading the real data; fixed `ai-readme.md` so dropped columns are not listed
+    as `NA (NA)`.
 *   No-network guarantee: web fonts are now self-hosted (no Google Fonts CDN), so
     the app makes no external requests; `report_issue()` prints a copy-paste
     GitHub issue instead of opening a browser (the Shiny button shows a copyable

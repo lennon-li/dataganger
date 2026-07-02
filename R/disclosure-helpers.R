@@ -67,6 +67,52 @@ dg_role_to_axes <- function(disclosure_role) {
 
 #' @keywords internal
 #' @noRd
+dg_id_name_pattern <- function() {
+  "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
+}
+
+#' @keywords internal
+#' @noRd
+dg_named_lookup <- function(x, name) {
+  if (is.null(x) || is.na(name) || !nzchar(name) || !(name %in% names(x))) {
+    return(NA_character_)
+  }
+  x[[name]]
+}
+
+#' @keywords internal
+#' @noRd
+eff_role <- function(user_role, recommended_role, class_col = NA_character_) {
+  if (!is.na(user_role) && nzchar(user_role)) return(user_role)
+  from_rec <- dg_rec_to_role(recommended_role)
+  if (!is.na(from_rec)) return(from_rec)
+  dg_class_to_role(class_col)
+}
+
+#' @keywords internal
+#' @noRd
+dg_role_treatment <- function(roles) {
+  if (is.null(roles)) {
+    return(character(0))
+  }
+  treatment_col <- if ("simulation" %in% names(roles)) {
+    "simulation"
+  } else if ("treatment" %in% names(roles)) {
+    "treatment"
+  } else {
+    NULL
+  }
+  if (is.null(treatment_col)) {
+    vals <- rep("synthesize", nrow(roles))
+  } else {
+    vals <- roles[[treatment_col]]
+    vals[is.na(vals) | !nzchar(vals)] <- "synthesize"
+  }
+  stats::setNames(vals, roles$variable)
+}
+
+#' @keywords internal
+#' @noRd
 dg_derived_action_axes <- function(identifies, sensitive) {
   if (length(identifies) != 1) {
     identifies <- identifies[[1]]
@@ -92,13 +138,13 @@ dg_treatment_text_axes <- function(identifies, sensitive) {
   }
   if (identical(identifies, "combination")) {
     return(if (isTRUE(sensitive)) {
-      "Coarsened and grouped (k-anonymity) and protected from linkage, then recreated."
+      "Synthesized; grouped with k-anonymity so no rare combination survives."
     } else {
       "Coarsened and grouped so no one is unique (k-anonymity), then recreated."
     })
   }
   if (isTRUE(sensitive)) {
-    return("Recreated synthetically; protected from linkage.")
+    return("Recreated from its distribution; exact values are not copied \u2014 attribute-level protection is not yet applied.")
   }
   "Recreated synthetically; distribution kept, exact values not."
 }
