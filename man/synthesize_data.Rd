@@ -14,9 +14,9 @@ synthesize_data(data, spec, roles = NULL, engine = NULL)
 \item{roles}{Optional; a \code{dataganger_roles} object from \code{\link[=detect_roles]{detect_roles()}}.
 Informs column treatment but does not override the spec.}
 
-\item{engine}{Character or \code{NULL}. Engine to use: \code{"internal"},
-\code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}.
-When \code{NULL}, defaults to \code{spec$engine} or derives from
+\item{engine}{Character or \code{NULL}. Engine to use: \code{"auto"}, \code{"internal"},
+\code{"marginal"} (alias for \code{"internal"}), or \code{"synthpop"}. When
+\code{NULL}, defaults to \code{spec$engine} or derives from
 \code{spec$preserve_correlations}.}
 }
 \value{

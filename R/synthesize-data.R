@@ -9,9 +9,9 @@
 #' @param spec A `dataganger_spec` object from [synth_spec()].
 #' @param roles Optional; a `dataganger_roles` object from [detect_roles()].
 #'   Informs column treatment but does not override the spec.
-#' @param engine Character or `NULL`. Engine to use: `"internal"`,
-#'   `"marginal"` (alias for `"internal"`), or `"synthpop"`.
-#'   When `NULL`, defaults to `spec$engine` or derives from
+#' @param engine Character or `NULL`. Engine to use: `"auto"`, `"internal"`,
+#'   `"marginal"` (alias for `"internal"`), or `"synthpop"`. When
+#'   `NULL`, defaults to `spec$engine` or derives from
 #'   `spec$preserve_correlations`.
 #'
 #' @return An S3 object of class `dataganger_synthetic`, a tibble with
@@ -45,9 +45,12 @@ synthesize_data <- function(data, spec, roles = NULL,
   spec_engine <- spec[["engine", exact = TRUE]]
   explicit <- engine %||% spec_engine
   engine <- explicit %||% engine_from_correlations(spec)
-  engine <- match.arg(engine, c("internal", "marginal", "synthpop"))
+  engine <- match.arg(engine, c("auto", "internal", "marginal", "synthpop"))
+  if (identical(engine, "auto")) {
+    explicit <- NULL
+    engine <- engine_from_correlations(spec)
+  }
   if (engine == "marginal") engine <- "internal"
-
   # Safety valve: steer auto-derived synthpop onto the internal engine when
   # synthpop is intentionally disabled (e.g. unattended CI, where a synthpop
   # synthesis can hang). Only affects objective-derived routing; an explicit

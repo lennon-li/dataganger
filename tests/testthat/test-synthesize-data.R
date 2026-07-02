@@ -210,6 +210,29 @@ test_that("synthesize_data() explicit internal overrides a synthpop-implying spe
   expect_equal(attr(syn, "engine"), "internal")
 })
 
+test_that("synthesize_data() explicit auto remains objective-derived", {
+  df <- data.frame(x = 1:20, y = rep(letters[1:4], each = 5))
+  withr::local_options(list(dataganger.disable_synthpop = FALSE))
+  demo_spec <- synth_spec(purpose = "demo", engine = "auto", seed = 1L)
+  expect_equal(attr(synthesize_data(df, demo_spec), "engine"), "internal")
+  expect_equal(attr(synthesize_data(df, demo_spec, engine = "auto"), "engine"), "internal")
+  dev_spec <- suppressWarnings(synth_spec(purpose = "development", engine = "auto", seed = 1L))
+  if (requireNamespace("synthpop", quietly = TRUE)) {
+    expect_equal(attr(synthesize_data(df, dev_spec), "engine"), "synthpop")
+  } else {
+    expect_warning(expect_equal(attr(synthesize_data(df, dev_spec), "engine"), "internal"), "synthpop")
+  }
+})
+
+test_that("synthesize_data() disable_synthpop is honored under auto", {
+  skip_if_no_synthpop()
+  df <- data.frame(x = 1:20, y = rep(letters[1:4], each = 5))
+  withr::local_options(list(dataganger.disable_synthpop = TRUE))
+  spec <- suppressWarnings(synth_spec(purpose = "development", engine = "auto", seed = 1L))
+  syn <- synthesize_data(df, spec)
+  expect_equal(attr(syn, "engine"), "internal")
+})
+
 # ---- Seed reproducibility ----
 
 test_that("synthesize_data() seed produces identical output", {

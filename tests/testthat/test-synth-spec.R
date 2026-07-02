@@ -29,7 +29,6 @@ test_that("synth_spec() maps presets correctly", {
 
   s <- synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
   expect_equal(s$level, "hifi")
-  expect_equal(s$engine_required, "synthpop")
   expect_equal(s$preserve_correlations, "high")
   expect_equal(s$free_text_strategy, "redact")
   expect_equal(s$merge_rare, FALSE)
@@ -108,15 +107,9 @@ test_that("synth_spec() user overrides take precedence", {
   expect_equal(s$level, "marginal")
 })
 
-test_that("synth_spec() sets engine_required correctly", {
-  s <- synth_spec(purpose = "demo")
-  expect_equal(s$engine_required, "internal")
-
-  s <- synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
-  expect_equal(s$engine_required, "synthpop")
-
-  s <- synth_spec(purpose = "development")
-  expect_equal(s$engine_required, "internal")
+test_that("synth_spec() accepts engine = \"auto\" without recording an explicit engine", {
+  s <- synth_spec(purpose = "development", engine = "auto")
+  expect_null(s[["engine", exact = TRUE]])
 })
 
 test_that("synth_spec() print method works", {

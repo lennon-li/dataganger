@@ -43,11 +43,13 @@ exported data dictionary. If \code{NULL}, derived from the preset.}
 so the same spec and data reproduce the exact same synthetic output.}
 
 \item{engine}{Character or \code{NULL}. Optional explicit synthesis engine:
-\code{"internal"}/\code{"marginal"} synthesizes each column from its own
-distribution (fast, dependency-free, ignores cross-column relationships),
-\code{"synthpop"} models columns conditionally so correlations and joint
-structure are preserved (higher fidelity, needs the synthpop package).
-If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}} derives the engine from the objective.}
+\code{"auto"} clears any explicit engine choice so \code{\link[=synthesize_data]{synthesize_data()}} derives
+the engine from the objective, \code{"internal"}/\code{"marginal"} synthesizes
+each column from its own distribution (fast, dependency-free, ignores
+cross-column relationships), and \code{"synthpop"} models columns
+conditionally so correlations and joint structure are preserved (higher
+fidelity, needs the synthpop package). If \code{NULL}, \code{\link[=synthesize_data]{synthesize_data()}}
+derives the engine from the objective.}
 
 \item{acknowledge_risk}{Logical. Required to be \code{TRUE} when
 \code{purpose = "analytics"}.}
@@ -74,9 +76,8 @@ An S3 object of class \code{dataganger_spec} (a named list).
 }
 \description{
 Builds a synthesis specification from a purpose preset with optional
-user overrides. The specification records the synthesis parameters and
-the required engine, but does not check engine availability - that is
-done by \code{\link[=synthesize_data]{synthesize_data()}}.
+user overrides. The specification records the synthesis parameters but
+does not check engine availability - that is done by \code{\link[=synthesize_data]{synthesize_data()}}.
 }
 \examples{
 synth_spec(purpose = "demo")
