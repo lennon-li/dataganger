@@ -59,7 +59,7 @@ test_that("compare subtitle defines delta and TVD", {
   html <- as.character(mod_compare_ui("compare"))
   expect_match(html, "TVD")
   expect_match(html, "total variation distance", ignore.case = TRUE)
-  expect_match(html, "Δ")
+  expect_match(html, "\u0394")
 })
 
 test_that("compare_body renders empty-state card when no synthetic data", {
@@ -92,6 +92,56 @@ test_that("compare_body renders var-rail and var-detail when data is present", {
     expect_match(body_html, "compare-layout")
     expect_match(body_html, "var-rail")
     expect_match(body_html, "var-detail")
+    expect_match(body_html, "Univariate")
+    expect_match(body_html, "Bivariate")
+    expect_match(body_html, "Predictor (X)", fixed = TRUE)
+    expect_match(body_html, "Outcome (Y)", fixed = TRUE)
+    expect_match(body_html, "Exploratory comparison")
+    expect_match(body_html, "compare-exploratory-note")
+    expect_match(body_html, "download the synthetic data", ignore.case = TRUE)
+  })
+})
+
+test_that("bivariate outputs render all supported pair types", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  raw <- data.frame(
+    x = 1:12,
+    y = 2 * (1:12) + rep(c(0, 1), 6),
+    group = rep(c("a", "b", "c"), each = 4),
+    flag = rep(c(TRUE, FALSE), 6),
+    stringsAsFactors = FALSE
+  )
+  synthetic <- raw
+  synthetic$y <- rev(synthetic$y)
+  synthetic$flag <- rep(c(TRUE, TRUE, FALSE), 4)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable %in% c("x", "y")] <- "numeric"
+  roles$user_role[roles$variable == "group"] <- "categorical"
+  roles$user_role[roles$variable == "flag"] <- "logical"
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    for (pair in list(c("x", "y"), c("x", "flag"))) {
+      session$setInputs(rel_x = pair[[1]], rel_y = pair[[2]])
+      session$flushReact()
+
+      expect_no_error(output$rel_plot)
+      if (identical(pair, c("x", "y"))) {
+        plot_html <- paste(as.character(output$rel_plot), collapse = "\n")
+        expect_match(plot_html, "LOESS smooth")
+      }
+      stats_html <- paste(as.character(output$rel_stats), collapse = "\n")
+      expect_match(stats_html, "(Difference in correlation|Slope ratio|Odds ratio)")
+      if (identical(pair, c("x", "y"))) {
+        expect_match(stats_html, "Correlation difference p-value")
+        expect_match(stats_html, "Fisher correlation comparison")
+      } else {
+        expect_match(stats_html, "interaction p-value", ignore.case = TRUE)
+      }
+      expect_match(stats_html, "fidelity-band")
+    }
   })
 })
 

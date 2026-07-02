@@ -361,17 +361,37 @@ app_attestation_modal <- function(ns = shiny::NS(NULL)) {
     "border:1px solid var(--risk-500, #F59E0B);",
     "border-left:4px solid var(--risk-500, #F59E0B);"
   )
-  callout <- function(icon, text) {
+  callout <- function(icon, text, style = box_style, text_color = "var(--risk-700, #B45309)") {
     shiny::tags$div(
-      style = box_style,
+      style = style,
       shiny::tags$div(
         style = "display:flex; gap:10px; align-items:flex-start;",
         shiny::tags$span(style = "font-size:18px; line-height:1.3;", icon),
         shiny::tags$span(
-          style = "color:var(--risk-700, #B45309); font-weight:600;",
+          style = sprintf("color:%s; font-weight:600;", text_color),
           text
         )
       )
+    )
+  }
+  info_box_style <- paste(
+    "margin-top:12px; padding:12px 14px; border-radius:6px;",
+    "background:var(--info-50, #EFF6FF);",
+    "border:1px solid var(--info-500, #3B82F6);",
+    "border-left:4px solid var(--info-500, #3B82F6);"
+  )
+  synthpop_notice <- if (!synthpop_available()) {
+    callout(
+      "\U0001F4E6",
+      shiny::tagList(
+        "For correlation-aware synthesis that preserves relationships between variables, we recommend installing the ",
+        shiny::tags$strong("synthpop"),
+        " package. Without it, columns are synthesized independently. Install it with ",
+        shiny::tags$code("install.packages(\"synthpop\")"),
+        " and restart the app."
+      ),
+      style = info_box_style,
+      text_color = "var(--info-700, #1D4ED8)"
     )
   }
   shiny::modalDialog(
@@ -387,6 +407,7 @@ app_attestation_modal <- function(ns = shiny::NS(NULL)) {
       "\u26a0\ufe0f",
       "By using this app I confirm there are no direct identifiers \u2014 including institutional identifiers \u2014 in this dataset (for example: name, email, healthcare/medical record number, national ID, phone, address)."
     ),
+    synthpop_notice,
     footer = shiny::tagList(
       shiny::actionButton(ns("refuse"), "I do not agree", class = "btn btn-secondary"),
       shiny::actionButton(ns("agree"), "I agree", class = "btn btn-primary")

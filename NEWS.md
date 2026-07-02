@@ -50,6 +50,19 @@ One minimal export bundle, a Configure page with no silent defaults, and a packa
 
 ## App (Shiny)
 
+*   Compare now separates Univariate and Bivariate views. The Bivariate view
+    uses an X-by-synthetic interaction test to show whether predictor-outcome
+    relationships changed, with outcome-specific effect sizes and p-value
+    fidelity colours.
+*   Exported comparison reports now include the relationship-interaction table,
+    using data-column order to define predictor then outcome.
+*   Synthesis controls are folded into collapsed **Advanced settings**, keeping
+    the generation review focused on the effective configuration.
+*   Generation guidance now invites users to review, generate, or go back to
+    adjust settings, and the data panel automatically previews each newly
+    generated synthetic dataset.
+*   When `synthpop` is unavailable, the upload attestation recommends installing
+    it for correlation-aware synthesis.
 *   Configure has no silent defaults: Q1 (Points to a person?) and Q2
     (Sensitive?) start blank for every column — auto-detected values no
     longer pre-select — and generation is gated until every column has an

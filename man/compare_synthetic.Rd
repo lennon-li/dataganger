@@ -15,7 +15,7 @@ compare_synthetic(original, synthetic, roles = NULL)
 }
 \value{
 An S3 object of class \code{dataganger_comparison}, a list with
-components \code{dataset}, \code{numeric}, \code{categorical}, \code{relationship},
+components \code{dataset}, \code{numeric}, \code{categorical}, \code{relationship}, \code{interaction},
 \code{privacy_flags}, and \code{meta}.
 }
 \description{

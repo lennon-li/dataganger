@@ -6,8 +6,28 @@ test_that("compare_synthetic() returns dataganger_comparison", {
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_s3_class(cmp, "dataganger_comparison")
-  expect_named(cmp, c("dataset", "numeric", "categorical", "relationship",
+  expect_named(cmp, c("dataset", "numeric", "categorical", "relationship", "interaction",
                       "privacy_flags", "meta"))
+})
+
+test_that("compare_synthetic() includes relationship interactions", {
+  set.seed(201)
+  original <- data.frame(
+    predictor = stats::rnorm(120),
+    outcome = stats::rnorm(120),
+    group = factor(rep(c("a", "b"), 60))
+  )
+  synthetic <- original
+
+  interaction <- compare_synthetic(original, synthetic)$interaction
+
+  expect_named(interaction, c(
+    "predictor", "outcome", "family", "effect_label", "estimate",
+    "null_value", "p_value", "n_terms", "note"
+  ))
+  expect_equal(nrow(interaction), choose(3, 2))
+  expect_identical(interaction$predictor[[1]], "predictor")
+  expect_identical(interaction$outcome[[1]], "outcome")
 })
 
 test_that("compare_synthetic() dataset-level metrics", {
