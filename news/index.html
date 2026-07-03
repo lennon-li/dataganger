@@ -52,7 +52,7 @@
 <h3 id="bundle--agent-skill-0-6-0">Bundle &amp; agent skill<a class="anchor" aria-label="anchor" href="#bundle--agent-skill-0-6-0"></a></h3>
 <ul><li>Export bundles use one minimal layout: <code>synthetic_data.csv</code> at the root, <code>human/</code> (<code>human.md</code> with the privacy report folded in, plus optional <code>comparison_report.html</code>), and <code>agent/</code> (<code>recipe.yaml</code> = combined spec + roles, <code>AGENT.md</code>, <code>manifest.json</code>). <code>data_dictionary.csv</code>, <code>load_data.R</code>, <code>analysis.qmd</code>, <code>ai-readme.md</code>, <code>privacy_report.txt</code>, and the separate <code>spec.yaml</code>/<code>roles.yaml</code> are gone. CLI <code>synthesize</code> gains <code>--recipe &lt;recipe.yaml&gt;</code>; <code>--spec</code>/<code>--roles</code> remain supported. <code>compact</code> and <code>include_dictionary</code> are deprecated no-ops.</li>
 <li>
-<code><a href="../reference/export_synthetic.html">export_synthetic()</a></code> honours its <code>code_readiness</code> argument: when supplied, the bundle gains <code>agent/code_readiness_report.json</code>; <code><a href="../reference/make_agent_bundle.html">make_agent_bundle()</a></code> computes it automatically, so every agent bundle now ships the structural-compatibility report.</li>
+<code><a href="../reference/export_synthetic.html">export_synthetic()</a></code> honors its <code>code_readiness</code> argument: when supplied, the bundle gains <code>agent/code_readiness_report.json</code>; <code><a href="../reference/make_agent_bundle.html">make_agent_bundle()</a></code> computes it automatically, so every agent bundle now ships the structural-compatibility report.</li>
 <li>Both shipped skills (<code>AGENT.md</code> in every bundle and <code>using-dataganger-bundles</code>) rewritten to the minimal bundle contract.</li>
 </ul></div>
 <div class="section level3">
@@ -63,14 +63,14 @@
 </ul></div>
 <div class="section level3">
 <h3 id="app-shiny-0-6-0">App (Shiny)<a class="anchor" aria-label="anchor" href="#app-shiny-0-6-0"></a></h3>
-<ul><li>Compare now separates Univariate and Bivariate views. The Bivariate view uses an X-by-synthetic interaction test to show whether predictor-outcome relationships changed, with outcome-specific effect sizes and p-value fidelity colours.</li>
+<ul><li>Compare now separates Univariate and Bivariate views. The Bivariate view uses an X-by-synthetic interaction test to show whether predictor-outcome relationships changed, with outcome-specific effect sizes and p-value fidelity colors.</li>
 <li>Exported comparison reports now include the relationship-interaction table, using data-column order to define predictor then outcome.</li>
 <li>Synthesis controls are folded into collapsed <strong>Advanced settings</strong>, keeping the generation review focused on the effective configuration.</li>
 <li>Generation guidance now invites users to review, generate, or go back to adjust settings, and the data panel automatically previews each newly generated synthetic dataset.</li>
 <li>When <code>synthpop</code> is unavailable, the upload attestation recommends installing it for correlation-aware synthesis.</li>
 <li>Configure has no silent defaults: Q1 (Points to a person?) and Q2 (Sensitive?) start blank for every column — auto-detected values no longer pre-select — and generation is gated until every column has an explicit answer to both questions. Explicit UI answers are tracked separately (<code>user_identifies</code> / <code>user_sensitive</code>) so CLI synthesis is unaffected.</li>
 <li>The upload fail-safe flags only direct-identifier candidates (ID patterns / free text), no longer sensitive-named columns such as <code>income</code>; flagged columns get a “potential identifier” pill and semantically-coloured actions.</li>
-<li>Categorical comparisons are now inference-aware like numeric ones: coloured by a chi-square/Fisher distributional p-value with TVD as the displayed effect size; the SMD definition is shown on the effect column.</li>
+<li>Categorical comparisons are now inference-aware like numeric ones: colored by a chi-square/Fisher distributional p-value with TVD as the displayed effect size; the SMD definition is shown on the effect column.</li>
 <li>Assorted Configure/Compare/Generate polish: bottom Confirm-and-Continue, calmer attestation wording (with a disable-internet note), preserve-panel highlight, per-question help tied to table columns, and a generation fidelity recap.</li>
 </ul></div>
 <div class="section level3">

@@ -114,7 +114,7 @@ The Compare step separates **Univariate** distribution checks from
 **Bivariate** relationship checks. Bivariate tests fit an
 original-versus- synthetic interaction: low p-values mean the
 predictor-to-outcome relationship was modified (poorer fidelity), using
-the same fidelity colours as other tests. Effect sizes are odds ratios
+the same fidelity colors as other tests. Effect sizes are odds ratios
 for binary outcomes, slope ratios for counts, and differences in slope
 for continuous outcomes; multi-level categorical outcomes receive a
 joint interaction test.

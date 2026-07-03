@@ -42,7 +42,7 @@ privacy wording, and a lighter dependency footprint.
   `--spec`/`--roles` remain supported. `compact` and
   `include_dictionary` are deprecated no-ops.
 - [`export_synthetic()`](https://lennon-li.github.io/dataganger/reference/export_synthetic.md)
-  honours its `code_readiness` argument: when supplied, the bundle gains
+  honors its `code_readiness` argument: when supplied, the bundle gains
   `agent/code_readiness_report.json`;
   [`make_agent_bundle()`](https://lennon-li.github.io/dataganger/reference/make_agent_bundle.md)
   computes it automatically, so every agent bundle now ships the
@@ -67,7 +67,7 @@ privacy wording, and a lighter dependency footprint.
 - Compare now separates Univariate and Bivariate views. The Bivariate
   view uses an X-by-synthetic interaction test to show whether
   predictor-outcome relationships changed, with outcome-specific effect
-  sizes and p-value fidelity colours.
+  sizes and p-value fidelity colors.
 - Exported comparison reports now include the relationship-interaction
   table, using data-column order to define predictor then outcome.
 - Synthesis controls are folded into collapsed **Advanced settings**,
@@ -88,7 +88,7 @@ privacy wording, and a lighter dependency footprint.
   `income`; flagged columns get a “potential identifier” pill and
   semantically-coloured actions.
 - Categorical comparisons are now inference-aware like numeric ones:
-  coloured by a chi-square/Fisher distributional p-value with TVD as the
+  colored by a chi-square/Fisher distributional p-value with TVD as the
   displayed effect size; the SMD definition is shown on the effect
   column.
 - Assorted Configure/Compare/Generate polish: bottom
