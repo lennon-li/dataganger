@@ -10,17 +10,13 @@ privacy](https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-squ
 auditable](https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&logo=github&logoColor=white)](https://github.com/lennon-li/dataganger)
 [![Agent-friendly](https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&logo=robotframework&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
 
-**DataGangeR** creates synthetic data doubles from real datasets so you
-can prototype code, build Shiny apps, teach, and work with coding
-**Agents** without sharing the original dataset.
+**DataGangeR is a human-gated privacy protocol for Agent prototyping.**
+You answer a short set of privacy questions, once, in a guided UI;
+DataGangeR turns your real dataset into a synthetic stand-in that a
+coding **Agent** can build on at full speed — and the Agent never sees
+the original records.
 
 📖 **Documentation:** <https://lennon-li.github.io/dataganger/>
-
-![DataGangeR walks you through objective, upload, configure, generate,
-compare, and export](reference/figures/hero.gif)
-
-DataGangeR walks you through objective, upload, configure, generate,
-compare, and export
 
 ## Want an Agent to build on your data — without ever handing it over?
 
@@ -100,6 +96,12 @@ reviewing what DataGangeR will do, **generate** the synthetic double,
 **compare** real vs. synthetic distributions, and **export** the bundle.
 The sidebar also includes a **Report a problem** button with a copyable
 issue report.
+
+![DataGangeR walks you through objective, upload, configure, generate,
+compare, and export](reference/figures/hero.gif)
+
+DataGangeR walks you through objective, upload, configure, generate,
+compare, and export
 
 **How privacy gating works.** DataGangeR starts with a
 no-direct-identifiers attestation, runs an early local fail-safe scan,
