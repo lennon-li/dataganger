@@ -144,7 +144,10 @@ test_that("export_synthetic() records infeasible k-anon in human markdown and ma
   roles$sensitive <- FALSE
   roles$disclosure_role <- "quasi"
   roles$simulation <- c("pass_through", "pass_through", "synthesize")
-  spec <- synth_spec(purpose = "development", seed = 9, n = 100, k_anon = 5)
+  # Pin the internal engine: this tests k-anon reporting, not synthpop, and
+  # the 3-column fixture leaves synthpop too few columns after exclusions.
+  spec <- synth_spec(purpose = "development", seed = 9, n = 100, k_anon = 5,
+                     engine = "internal")
   result <- run_synthesis_pipeline(df, spec, roles = roles)
   out_dir <- file.path(tmp, "kanon-dir")
 

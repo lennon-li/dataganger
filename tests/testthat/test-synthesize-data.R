@@ -77,7 +77,10 @@ test_that("synthesize_data() jitters zero-IQR numeric columns with nonconstant o
   roles$identifies <- "none"
   roles$sensitive <- FALSE
   roles$disclosure_role <- "none"
-  spec <- synth_spec(purpose = "development", seed = 22, n = nrow(original))
+  # Pin the internal engine: synth_numeric jitter is internal-engine behavior,
+  # and the single-column fixture cannot be synthesized by synthpop at all.
+  spec <- synth_spec(purpose = "development", seed = 22, n = nrow(original),
+                     engine = "internal")
 
   syn <- synthesize_data(original, spec, roles = roles)
 

@@ -330,7 +330,9 @@ augment_synthpop_disclosure <- function(flags, original, synthetic, roles) {
     return(flags)
   }
 
-  disclosure <- synthpop_disclosure_panel(original, synthetic, roles)
+  # Match on original names so generic/dictionary_only renaming does not
+  # silently drop the disclosure metrics (same policy as privacy_check_post).
+  disclosure <- synthpop_disclosure_panel(original, dg_original_names(synthetic), roles)
   if (is.null(disclosure)) {
     return(flags)
   }

@@ -70,7 +70,10 @@ test_that("run_synthesis_pipeline carries infeasible k-anon warnings and metadat
   roles$sensitive <- FALSE
   roles$disclosure_role <- "quasi"
   roles$simulation <- c("pass_through", "pass_through", "synthesize")
-  spec <- synth_spec(purpose = "development", seed = 9, n = 100, k_anon = 5)
+  # Pin the internal engine: this tests pipeline surfacing, not synthpop, and
+  # the 3-column fixture leaves synthpop too few columns after exclusions.
+  spec <- synth_spec(purpose = "development", seed = 9, n = 100, k_anon = 5,
+                     engine = "internal")
 
   result <- run_synthesis_pipeline(df, spec, roles = roles)
 
