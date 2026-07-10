@@ -163,11 +163,80 @@ test_that("export_synthetic() records infeasible k-anon in human markdown and ma
   )
 
   human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
-  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = FALSE)
 
-  expect_match(human_md, "k-anonymity: NOT applied - infeasible", fixed = TRUE)
+  expect_match(human_md, "k-anonymity: not applied; k=5", fixed = TRUE)
+  expect_match(human_md, "acknowledged=no", fixed = TRUE)
   expect_true(isTRUE(manifest$kanon$infeasible))
   expect_false(isTRUE(manifest$kanon$applied))
+  expect_false(isTRUE(manifest$kanon$acknowledged))
+  expect_length(manifest$blockers, 1L)
+  expect_identical(manifest$blockers[[1]]$type, "kanon_not_applied")
+})
+
+test_that("export_synthetic() clears the k-anon blocker after explicit acknowledgement", {
+  tmp <- withr::local_tempdir()
+  syn <- tibble::tibble(age = 1:3, sex = c("F", "M", "F"))
+  attr(syn, "spec") <- synth_spec(purpose = "development", seed = 10, engine = "internal")
+  attr(syn, "kanon") <- list(
+    qi_cols = c("age", "sex"),
+    k = 5L,
+    smallest_cell = 1L,
+    suppressed_cells = 0L,
+    infeasible = TRUE
+  )
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "ack-bundle")
+  export_synthetic(
+    syn,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE,
+    kanon_acknowledged = TRUE
+  )
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = FALSE)
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
+
+  expect_true(isTRUE(manifest$kanon$acknowledged))
+  expect_length(manifest$blockers, 0L)
+  expect_match(human_md, "acknowledged=yes", fixed = TRUE)
+})
+
+test_that("export_synthetic() records k provenance after the user accepts a suggested k", {
+  tmp <- withr::local_tempdir()
+  syn <- tibble::tibble(age = c(30, 40, 50), sex = c("F", "M", "F"))
+  attr(syn, "spec") <- synth_spec(purpose = "development", seed = 11, engine = "internal")
+  attr(syn, "kanon") <- list(
+    qi_cols = c("age", "sex"),
+    k = 3L,
+    smallest_cell = 3L,
+    suppressed_cells = 29L,
+    infeasible = FALSE,
+    k_default = 5L,
+    k_provenance = "user_selected_after_infeasible"
+  )
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "provenance-bundle")
+  export_synthetic(
+    syn,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = FALSE)
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
+
+  expect_identical(manifest$kanon$k_default, 5L)
+  expect_identical(manifest$kanon$k_provenance, "user_selected_after_infeasible")
+  expect_match(
+    human_md,
+    "k-anonymity: k = 3, user-selected after k = 5 was infeasible",
+    fixed = TRUE
+  )
 })
 
 test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {

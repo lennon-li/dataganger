@@ -30,6 +30,41 @@ dg_identifies_option_meta <- function() {
 
 #' @keywords internal
 #' @noRd
+dg_privacy_glossary <- function() {
+  list(
+    qi = paste(
+      "A column that does not name a person on its own, but can identify",
+      "someone when combined with others, like age plus sex plus education."
+    ),
+    k_anonymity = paste(
+      "A rule that makes every quasi-identifier combination appear in at least",
+      "k rows."
+    ),
+    k = "The minimum number of rows required for each quasi-identifier combination.",
+    suppression = paste(
+      "Blanking the quasi-identifier values in rows that still fall below k."
+    ),
+    cell = "A group of rows that share the same quasi-identifier combination."
+  )
+}
+
+#' @keywords internal
+#' @noRd
+dg_privacy_term <- function(label, key) {
+  title <- dg_privacy_glossary()[[key]]
+  if (is.null(title)) {
+    return(label)
+  }
+
+  shiny::tags$abbr(
+    title = title,
+    style = "text-decoration:underline dotted; cursor:help;",
+    label
+  )
+}
+
+#' @keywords internal
+#' @noRd
 dg_axes_to_role <- function(identifies, sensitive) {
   if (length(identifies) != 1) {
     identifies <- identifies[[1]]

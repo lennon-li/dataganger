@@ -35,6 +35,10 @@
 #' @param include_report Logical. When `TRUE` (the default), write
 #'   `human/comparison_report.html`. If `rmarkdown`/`knitr` are unavailable,
 #'   the report is skipped with a message instead of an error.
+#' @param kanon_acknowledged Logical. Records whether a human explicitly
+#'   acknowledged exporting a bundle whose k-anonymity backstop was infeasible.
+#'   Interactive UI export uses this to clear the bundle blocker; non-interactive
+#'   exports leave it `FALSE`.
 #' @param include_dictionary Deprecated, ignored.
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
@@ -65,6 +69,7 @@ export_synthetic <- function(synthetic,
                              include_original_names = NULL,
                              fail_on_exact_match = FALSE,
                              include_report = TRUE,
+                             kanon_acknowledged = FALSE,
                              include_dictionary = TRUE,
                              code_readiness = NULL,
                              compact = FALSE,
@@ -106,6 +111,10 @@ export_synthetic <- function(synthetic,
 
   if (!is.logical(include_report) || length(include_report) != 1) {
     cli::cli_abort("{.arg include_report} must be TRUE or FALSE")
+  }
+
+  if (!is.logical(kanon_acknowledged) || length(kanon_acknowledged) != 1) {
+    cli::cli_abort("{.arg kanon_acknowledged} must be TRUE or FALSE")
   }
 
   if (!is.logical(include_dictionary) || length(include_dictionary) != 1) {
@@ -202,6 +211,7 @@ export_synthetic <- function(synthetic,
       privacy = privacy,
       exact_row_matches = exact_row_matches,
       kanon = attr(synthetic, "kanon", exact = TRUE),
+      kanon_acknowledged = kanon_acknowledged,
       has_code_readiness = !is.null(code_readiness)
     ),
     con = file.path(human_dir, "human.md"),
@@ -230,7 +240,8 @@ export_synthetic <- function(synthetic,
     exact_row_matches      = exact_row_matches,
     include_original_names = include_original_names,
     original               = original,
-    roles                  = export_roles
+    roles                  = export_roles,
+    kanon_acknowledged     = kanon_acknowledged
   )
 
   if (identical(format, "zip")) {
@@ -657,6 +668,7 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
                                   spec = NULL, roles = NULL, privacy = NULL,
                                   exact_row_matches = 0L,
                                   kanon = NULL,
+                                  kanon_acknowledged = FALSE,
                                   has_code_readiness = FALSE) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
@@ -701,10 +713,14 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "|                      | sensitive = No | sensitive = Yes |",
     "|---|---|---|",
     "| identifies = none | Synthesized from the observed distribution with noise; observed values can still recur. | Recreated from its distribution with noise; observed values can still recur - attribute-level protection is not yet applied. |",
-    "| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Synthesized; grouped with k-anonymity so no rare combination survives. |",
+    if (isTRUE(kanon$infeasible)) {
+      "| identifies = combination | Grouping (k-anonymity) was attempted but could NOT be applied to this output - see the k-anonymity status line below. | Grouping (k-anonymity) was attempted but could NOT be applied to this output - see the k-anonymity status line below. |"
+    } else {
+      "| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Synthesized; grouped with k-anonymity so no rare combination survives. |"
+    },
     "| identifies = direct | **Removed** from the output. | **Removed** from the output. |",
     "",
-    render_kanon_line(kanon),
+    render_kanon_line(kanon, kanon_acknowledged = kanon_acknowledged),
     "",
     paste(render_privacy_report(
       privacy,
@@ -741,15 +757,23 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
   )
 }
 
-render_kanon_line <- function(kanon) {
+render_kanon_line <- function(kanon, kanon_acknowledged = FALSE) {
   if (is.null(kanon)) {
     return("k-anonymity: not applicable")
   }
   if (isTRUE(kanon$infeasible)) {
     return(sprintf(
-      "k-anonymity: NOT applied - infeasible for chosen QI set; k=%s, smallest cell=%s",
+      "k-anonymity: not applied; k=%s, smallest cell=%s, acknowledged=%s",
       kanon$k %||% "unknown",
-      kanon$smallest_cell %||% "unknown"
+      kanon$smallest_cell %||% "unknown",
+      if (isTRUE(kanon_acknowledged)) "yes" else "no"
+    ))
+  }
+  if (identical(kanon$k_provenance %||% "default", "user_selected_after_infeasible")) {
+    return(sprintf(
+      "k-anonymity: k = %s, user-selected after k = %s was infeasible",
+      kanon$k %||% "unknown",
+      kanon$k_default %||% "unknown"
     ))
   }
   if (length(kanon$qi_cols %||% character(0)) == 0L) {
@@ -934,7 +958,8 @@ html_escape <- function(x) {
 }
 
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
-                           include_original_names = TRUE, original = NULL, roles = NULL) {
+                           include_original_names = TRUE, original = NULL, roles = NULL,
+                           kanon_acknowledged = FALSE) {
   files <- list.files(bundle_dir, full.names = TRUE, recursive = TRUE, all.files = FALSE, no.. = TRUE)
   rel_files <- sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE))
   keep <- rel_files != "agent/manifest.json"
@@ -971,6 +996,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
   # (distribution charts). Reflect its actual presence rather than hard-coding.
   plots_included <- any(rel_files == "human/comparison_report.html")
 
+  kanon <- attr(synthetic, "kanon", exact = TRUE)
   manifest <- list(
     dataganger_version = as.character(utils::packageVersion("dataganger")),
     generated_at = as.character(Sys.time()),
@@ -986,19 +1012,36 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     spec_hash = spec_hash,
     exact_row_matches = exact_row_matches,
     kanon = {
-      kanon <- attr(synthetic, "kanon", exact = TRUE)
       if (is.null(kanon)) {
-        list(applied = FALSE, k = NULL, smallest_cell = NULL, suppressed_cells = NULL, infeasible = NULL)
+        list(
+          applied = FALSE,
+          k = NULL,
+          smallest_cell = NULL,
+          suppressed_cells = NULL,
+          infeasible = NULL,
+          acknowledged = isTRUE(kanon_acknowledged),
+          k_default = 5L,
+          k_provenance = "default"
+        )
       } else {
         list(
           applied = !isTRUE(kanon$infeasible) && length(kanon$qi_cols %||% character(0)) > 0L,
           k = kanon$k %||% NULL,
           smallest_cell = kanon$smallest_cell %||% NULL,
           suppressed_cells = kanon$suppressed_cells %||% 0L,
-          infeasible = isTRUE(kanon$infeasible)
+          infeasible = isTRUE(kanon$infeasible),
+          acknowledged = isTRUE(kanon_acknowledged),
+          k_default = kanon$k_default %||% 5L,
+          k_provenance = kanon$k_provenance %||% "default"
         )
       }
     },
+    blockers = build_manifest_blockers(
+      kanon,
+      spec = spec,
+      include_original_names = include_original_names,
+      kanon_acknowledged = kanon_acknowledged
+    ),
     synthetic_dims = list(nrow = nrow(synthetic), ncol = ncol(synthetic)),
     file_sha256 = file_hashes,
     source                  = "dataganger",
@@ -1021,6 +1064,30 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     pretty = TRUE,
     null = "null"
   )
+}
+
+build_manifest_blockers <- function(kanon, spec = NULL, include_original_names = TRUE,
+                                    kanon_acknowledged = FALSE) {
+  if (is.null(kanon) || !isTRUE(kanon$infeasible) || isTRUE(kanon_acknowledged)) {
+    return(I(list()))
+  }
+
+  qi_cols <- kanon$qi_cols %||% character(0)
+  if (!isTRUE(include_original_names) && !is.null(spec$name_map) && length(qi_cols) > 0L) {
+    mapped <- qi_cols %in% names(spec$name_map)
+    qi_cols[mapped] <- unname(spec$name_map[qi_cols[mapped]])
+  }
+
+  detail <- sprintf(
+    paste(
+      "k-anonymity was not applied at k = %s for quasi-identifier columns: %s.",
+      "No k-anonymity protection was applied to this output."
+    ),
+    kanon$k %||% "unknown",
+    paste(qi_cols, collapse = ", ")
+  )
+
+  I(list(list(type = "kanon_not_applied", detail = detail)))
 }
 
 recipe_to_yaml_list <- function(spec, roles, include_original_names = TRUE) {

@@ -17,6 +17,7 @@ export_synthetic(
   include_original_names = NULL,
   fail_on_exact_match = FALSE,
   include_report = TRUE,
+  kanon_acknowledged = FALSE,
   include_dictionary = TRUE,
   code_readiness = NULL,
   compact = FALSE,
@@ -65,6 +66,11 @@ manifest, and a warning is emitted instead.}
 \item{include_report}{Logical. When \code{TRUE} (the default), write
 \code{human/comparison_report.html}. If \code{rmarkdown}/\code{knitr} are unavailable,
 the report is skipped with a message instead of an error.}
+
+\item{kanon_acknowledged}{Logical. Records whether a human explicitly
+acknowledged exporting a bundle whose k-anonymity backstop was infeasible.
+Interactive UI export uses this to clear the bundle blocker; non-interactive
+exports leave it \code{FALSE}.}
 
 \item{include_dictionary}{Deprecated, ignored.}
 

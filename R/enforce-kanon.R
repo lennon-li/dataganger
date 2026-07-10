@@ -11,10 +11,10 @@
 #' @param max_steps Maximum coarsening iterations (default 6).
 #' @param max_suppress_frac Feasibility backstop. If satisfying `k` over the
 #'   quasi-identifier set would require blanking more than this fraction of
-#'   rows, k-anonymity is treated as infeasible for the chosen QI set: the
-#'   coarsening/suppression is *not* applied (it would destroy the dataset),
-#'   the synthetic output is returned populated, and a warning advises
-#'   narrowing the quasi-identifiers or lowering `k`. Default 0.2.
+#'   rows, k-anonymity is treated as infeasible for the chosen quasi-identifier
+#'   (QI) set: the coarsening and suppression steps are *not* applied, the
+#'   synthetic output is returned populated, and a warning explains that no
+#'   k-anonymity protection was applied to that output. Default 0.2.
 #'
 #' @return The shaped `synthetic` data frame, with an attribute `kanon`
 #'   recording the achieved state (`smallest_cell`, `suppressed_cells`,
@@ -75,14 +75,12 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
     0L
   }
   if (n_rows > 0L && would_suppress / n_rows > max_suppress_frac) {
+    qi_text <- paste(qi_cols, collapse = ", ")
     cli::cli_warn(c(
-      "k-anonymity (k = {k}) is infeasible over {length(qi_cols)} \\
-       quasi-identifier{?s} without blanking most of the data; \\
-       enforcement was skipped to preserve the synthetic output.",
-      "i" = "Reaching k would suppress {would_suppress}/{n_rows} rows \\
-             ({round(100 * would_suppress / n_rows)}%).",
-      "i" = "Narrow the quasi-identifiers (mark measures/counts as \\
-             {.val none}) or lower k, then re-synthesise."
+      "Could not apply k-anonymity at k = {k} to the selected quasi-identifier (QI) columns: {qi_text}.",
+      "i" = "Reaching k would blank {would_suppress}/{n_rows} rows ({round(100 * would_suppress / n_rows)}%).",
+      "i" = "To avoid destroying the dataset, no k-anonymity protection was applied to this output.",
+      "i" = "Try a smaller k, generate more rows, or mark fewer columns as quasi-identifiers."
     ))
     base_res <- assess_kanonymity(base, qi_cols, k)
     attr(base, "kanon") <- list(

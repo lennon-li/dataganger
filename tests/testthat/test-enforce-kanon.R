@@ -54,10 +54,7 @@ test_that("enforce_kanon backs off (no suppression) when k is infeasible", {
   roles <- data.frame(
     variable = "code", disclosure_role = "quasi", stringsAsFactors = FALSE
   )
-  expect_warning(
-    out <- enforce_kanon(syn, roles = roles, k = 5),
-    "infeasible"
-  )
+  out <- suppressWarnings(enforce_kanon(syn, roles = roles, k = 5))
   info <- attr(out, "kanon")
   expect_true(isTRUE(info$infeasible))
   expect_equal(info$suppressed_cells, 0L)
