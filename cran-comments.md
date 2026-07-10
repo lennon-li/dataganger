@@ -1,3 +1,21 @@
+## Resubmission
+
+This is a resubmission. In this version we have:
+
+- Quoted the package name 'shiny' in the DESCRIPTION Description field and
+  audited the Title/Description fields for other package, software, and API
+  names.
+- Replaced the commented-out `read_input()` example with a self-contained
+  executable example that writes a temporary CSV and reads it back.
+- Replaced the `\dontrun{}` examples in `export_synthetic()`,
+  `make_agent_bundle()`, and `export_diagnostic_package()` with self-contained
+  unwrapped examples (each runs in under 1 second) that write only to
+  temporary files.
+- Audited exported write functions plus all examples, tests, and vignettes
+  for writes to the user's home filespace: exported writers require explicit
+  output paths (no defaults), and examples/tests/vignettes write only to
+  `tempfile()`/`tempdir()`.
+
 ## Test environments
 
 - GitHub Actions ubuntu-latest, R release / devel / oldrel

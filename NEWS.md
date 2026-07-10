@@ -1,3 +1,18 @@
+# dataganger 0.6.1
+
+CRAN resubmission changes requested on 2026-07-10.
+
+*   DESCRIPTION now quotes the package name `'shiny'` correctly in the
+    Description field.
+*   `read_input()` examples are now self-contained, executable, and no longer
+    use commented-out code.
+*   `export_synthetic()`, `make_agent_bundle()`, and
+    `export_diagnostic_package()` examples now write only to temporary paths
+    and no longer use `\dontrun{}`.
+*   Audited exported write functions, examples, tests, and vignettes for
+    home-filespace writes; package examples now stay within `tempfile()` /
+    `tempdir()`.
+
 # dataganger 0.6.0
 
 One minimal export bundle, a Configure page with no silent defaults, and a package-wide audit pass: privacy fixes, an honest engine story, honest privacy wording, and a lighter dependency footprint.

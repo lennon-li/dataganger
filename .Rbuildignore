@@ -24,3 +24,5 @@
 ^CRAN-SUBMISSION$
 ^\.agent$
 ^\.tokensave$
+^AGENTS\.md$
+^\.codegraph$

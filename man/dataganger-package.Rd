@@ -19,7 +19,7 @@ Statistical Software}, 74(11), 1-26. doi:10.18637/jss.v074.i11}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Creates synthetic data doubles from real datasets for prototyping, teaching, Shiny development, and AI-assisted programming. Provides data profiling, role detection, configurable synthesis, utility comparison, and disclosure-risk warnings. Synthetic outputs are intended to reduce direct disclosure risk, not to guarantee privacy.
+Creates synthetic data doubles from real datasets for prototyping, teaching, 'shiny' development, and AI-assisted programming. Provides data profiling, role detection, configurable synthesis, utility comparison, and disclosure-risk warnings. Synthetic outputs are intended to reduce direct disclosure risk, not to guarantee privacy.
 }
 \seealso{
 Useful links:

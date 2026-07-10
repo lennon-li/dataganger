@@ -1,13 +1,13 @@
 Package: dataganger
 Title: Synthetic Data Doubles for Safer Prototyping
-Version: 0.6.0
+Version: 0.6.1
 Authors@R: person("Lennon", "Li",
                   email = "yeli@biostats.ai",
                   role = c("aut", "cre"))
 Author: Lennon Li [aut, cre]
 Maintainer: Lennon Li <yeli@biostats.ai>
 Description: Creates synthetic data doubles from real datasets for prototyping,
-    teaching, Shiny development, and AI-assisted programming. Provides data
+    teaching, 'shiny' development, and AI-assisted programming. Provides data
     profiling, role detection, configurable synthesis, utility comparison, and
     disclosure-risk warnings. Synthetic outputs are intended to reduce direct
     disclosure risk, not to guarantee privacy.
