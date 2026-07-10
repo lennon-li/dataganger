@@ -229,17 +229,7 @@ mod_roles_server <- function(id, state) {
     row_map     <- shiny::reactiveVal(integer(0))
 
     ensure_simulation_column <- function(roles) {
-      if (is.null(roles)) {
-        return(roles)
-      }
-      roles <- dg_seed_disclosure(roles)
-      # Initialise user_identifies to "" (not NA) so roles_generation_pending
-      # knows this is a UI session where every column needs explicit confirmation.
-      if ("user_identifies" %in% names(roles)) {
-        blank_ui <- is.na(roles$user_identifies)
-        if (any(blank_ui)) roles$user_identifies[blank_ui] <- ""
-      }
-      dg_sync_roles_axes(roles)
+      dg_ensure_ui_roles(roles)
     }
 
     normalize_edit_info <- function(info) {

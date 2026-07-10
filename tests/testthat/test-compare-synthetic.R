@@ -1,4 +1,4 @@
-# Tests for compare_synthetic() — [3.1]-[3.5]
+# Tests for compare_synthetic() -- [3.1]-[3.5]
 
 test_that("compare_synthetic() returns dataganger_comparison", {
   df <- data.frame(x = 1:5, y = letters[1:5])
@@ -219,4 +219,36 @@ test_that("compare_synthetic() works with toy dataset", {
   expect_s3_class(cmp, "dataganger_comparison")
   expect_true(nrow(cmp$numeric) > 0)
   expect_true(nrow(cmp$categorical) > 0)
+})
+
+test_that("post-synthesis comparison survives generic column renaming", {
+  original <- data.frame(
+    age = rep(20:29, each = 4),
+    group = rep(c("a", "b"), 20),
+    score = seq_len(40),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(original)
+  roles$identifies <- "none"
+  roles$sensitive <- FALSE
+  roles$disclosure_role <- "none"
+
+  spec_preserve <- synth_spec(purpose = "development", seed = 101, n = 40, name_strategy = "preserve")
+  spec_generic <- synth_spec(purpose = "development", seed = 101, n = 40, name_strategy = "generic")
+  syn_preserve <- synthesize_data(original, spec_preserve, roles = roles)
+  syn_generic <- synthesize_data(original, spec_generic, roles = roles)
+
+  flags_preserve <- privacy_check(original, syn_preserve, roles = roles, stage = "post", spec = spec_preserve)
+  flags_generic <- privacy_check(original, syn_generic, roles = roles, stage = "post", spec = spec_generic)
+  cmp_preserve <- compare_synthetic(original, syn_preserve, roles = roles)
+  cmp_generic <- compare_synthetic(original, syn_generic, roles = roles)
+
+  expect_equal(flags_generic$variable, flags_preserve$variable)
+  expect_equal(flags_generic$flag, flags_preserve$flag)
+  expect_equal(cmp_generic$numeric$variable, cmp_preserve$numeric$variable)
+  expect_gt(nrow(cmp_generic$numeric), 0)
+  expect_equal(
+    exact_row_match_count(original, dg_original_names(syn_generic)),
+    exact_row_match_count(original, syn_preserve)
+  )
 })

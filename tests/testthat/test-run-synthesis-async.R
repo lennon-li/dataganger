@@ -4,7 +4,7 @@ test_that("run_synthesis_pipeline returns synthetic, comparison, and privacy", {
 
   result <- run_synthesis_pipeline(example_health_survey, spec)
 
-  expect_named(result, c("synthetic", "comparison", "privacy"))
+  expect_named(result, c("synthetic", "comparison", "privacy", "warnings", "kanon"))
   expect_s3_class(result$synthetic, "dataganger_synthetic")
   expect_s3_class(result$comparison, "dataganger_comparison")
   expect_s3_class(result$privacy, "dataganger_privacy_check")
@@ -35,7 +35,7 @@ test_that("start_synthesis_process runs the pipeline in a background process", {
 
   handle$wait() # block until the subprocess finishes
   result <- handle$get_result()
-  expect_named(result, c("synthetic", "comparison", "privacy"))
+  expect_named(result, c("synthetic", "comparison", "privacy", "warnings", "kanon"))
   expect_s3_class(result$synthetic, "dataganger_synthetic")
 })
 
@@ -54,4 +54,26 @@ test_that("run_synthesis_pipeline blocks incomplete role answers", {
     run_synthesis_pipeline(data.frame(zip = c("100", "200"), score = c(1, 2)), spec, roles = roles),
     "privacy questions"
   )
+})
+
+test_that("run_synthesis_pipeline carries infeasible k-anon warnings and metadata", {
+  df <- data.frame(
+    qi_a = sprintf("a%03d", 1:100),
+    qi_b = sprintf("b%03d", 1:100),
+    value = seq_len(100),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$user_identifies <- "combination"
+  roles$user_sensitive <- FALSE
+  roles$identifies <- "combination"
+  roles$sensitive <- FALSE
+  roles$disclosure_role <- "quasi"
+  roles$simulation <- c("pass_through", "pass_through", "synthesize")
+  spec <- synth_spec(purpose = "development", seed = 9, n = 100, k_anon = 5)
+
+  result <- run_synthesis_pipeline(df, spec, roles = roles)
+
+  expect_true(isTRUE(result$kanon$infeasible))
+  expect_true(any(grepl("infeasible", result$warnings, fixed = TRUE)))
 })

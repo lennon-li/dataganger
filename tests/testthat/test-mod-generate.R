@@ -456,3 +456,66 @@ test_that("generate blocks when column privacy questions are incomplete", {
   expect_match(notifications[[1]]$ui, "Finish the column privacy questions")
   expect_null(shiny::isolate(state$synthetic))
 })
+
+test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(qi = rep(letters[1:2], each = 5), value = 1:10),
+    spec = synth_spec(purpose = "development", seed = 1L)
+  )
+  shiny::isolate({
+    roles <- state$roles
+    roles$user_identifies <- "none"
+    roles$user_sensitive <- FALSE
+    roles$identifies <- "none"
+    roles$sensitive <- FALSE
+    roles <- dg_sync_roles_axes(roles)
+    state$roles <- roles
+  })
+
+  toy_synthetic <- structure(
+    data.frame(qi = rep(letters[1:2], each = 5), value = 1:10),
+    class = c("dataganger_synthetic", "data.frame")
+  )
+  attr(toy_synthetic, "kanon") <- list(
+    qi_cols = "qi",
+    k = 5L,
+    smallest_cell = 1L,
+    suppressed_cells = 0L,
+    infeasible = TRUE
+  )
+  toy_privacy <- tibble::tibble(
+    variable = "(quasi-identifiers)",
+    flag = "high",
+    severity = "HIGH",
+    recommendation = "review"
+  )
+  class(toy_privacy) <- c("dataganger_privacy_check", class(toy_privacy))
+  attr(toy_privacy, "exact_row_matches") <- 0L
+  result <- list(
+    synthetic = toy_synthetic,
+    comparison = structure(list(), class = "dataganger_comparison"),
+    privacy = toy_privacy,
+    warnings = "k-anonymity warning",
+    kanon = attr(toy_synthetic, "kanon", exact = TRUE)
+  )
+
+  testthat::local_mocked_bindings(run_synthesis_pipeline = function(...) result)
+  withr::local_options(dataganger.synthesis_async = FALSE)
+  recorder <- capture_notifications()
+  withr::local_options(recorder$options)
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    html <- paste(as.character(output$result_stats), collapse = "\n")
+    expect_match(html, "SKIPPED - infeasible", fixed = TRUE)
+    expect_match(html, "1 - see bundle report", fixed = TRUE)
+  })
+
+  notifications <- recorder$get()
+  expect_true(any(vapply(notifications, function(x) identical(x$ui, "k-anonymity warning"), logical(1))))
+  expect_true(isTRUE(shiny::isolate(state$kanon$infeasible)))
+  expect_false(is.null(shiny::isolate(state$generated_roles)))
+})

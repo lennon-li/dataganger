@@ -38,21 +38,22 @@ compare_synthetic <- function(original, synthetic, roles = NULL) {
   if (!is.data.frame(synthetic)) {
     cli::cli_abort("{.arg synthetic} must be a data frame")
   }
+  synthetic_for_match <- dg_original_names(synthetic)
 
   # -- dataset-level --
-  ds <- compare_dataset(original, synthetic)
+  ds <- compare_dataset(original, synthetic_for_match)
 
   # -- numeric comparison --
-  num_cmp <- compare_numeric(original, synthetic)
+  num_cmp <- compare_numeric(original, synthetic_for_match)
 
   # -- categorical comparison --
-  cat_cmp <- compare_categorical(original, synthetic)
+  cat_cmp <- compare_categorical(original, synthetic_for_match)
 
   # -- relationship (correlation) --
-  rel_cmp <- compare_relationship(original, synthetic)
+  rel_cmp <- compare_relationship(original, synthetic_for_match)
 
   # -- relationship modification (interaction) --
-  int_cmp <- compare_relationship_interaction(original, synthetic, roles)
+  int_cmp <- compare_relationship_interaction(original, synthetic_for_match, roles)
 
   out <- list(
     dataset       = ds,

@@ -144,9 +144,9 @@ dg_treatment_text_axes <- function(identifies, sensitive) {
     })
   }
   if (isTRUE(sensitive)) {
-    return("Recreated from its distribution; exact values are not copied \u2014 attribute-level protection is not yet applied.")
+    return("Recreated from its distribution with noise; observed values can still recur - attribute-level protection is not yet applied.")
   }
-  "Recreated synthetically; distribution kept, exact values not."
+  "Recreated synthetically; values are drawn from the observed distribution with noise; observed values can still recur."
 }
 
 #' @keywords internal
@@ -157,11 +157,15 @@ dg_kanon_columns <- function(roles) {
   }
 
   discrete_classes <- c("categorical candidate", "date", "ID candidate", "label_check")
-  classes <- if ("class" %in% names(roles)) roles$class else rep(NA_character_, nrow(roles))
+  recommended <- if ("recommended_role" %in% names(roles)) {
+    roles$recommended_role
+  } else {
+    rep(NA_character_, nrow(roles))
+  }
 
   if (all(c("identifies", "sensitive") %in% names(roles))) {
     combo <- roles$variable[roles$identifies %in% "combination"]
-    sens <- roles$variable[isTRUE_vec(roles$sensitive) & classes %in% discrete_classes]
+    sens <- roles$variable[isTRUE_vec(roles$sensitive) & recommended %in% discrete_classes]
     return(unique(c(combo, sens)))
   }
 
@@ -170,7 +174,7 @@ dg_kanon_columns <- function(roles) {
   }
   quasi <- roles$variable[roles$disclosure_role %in% "quasi"]
   sensitive_identifying <- roles$variable[
-    roles$disclosure_role %in% "sensitive" & classes %in% discrete_classes
+    roles$disclosure_role %in% "sensitive" & recommended %in% discrete_classes
   ]
   unique(c(quasi, sensitive_identifying))
 }
@@ -266,6 +270,25 @@ dg_seed_disclosure <- function(roles) {
     },
     character(1)
   )
+  dg_sync_roles_axes(roles)
+}
+
+#' @keywords internal
+#' @noRd
+dg_ensure_ui_roles <- function(roles) {
+  if (is.null(roles)) {
+    return(roles)
+  }
+  roles <- dg_seed_disclosure(roles)
+  if ("user_identifies" %in% names(roles)) {
+    blank_ui <- is.na(roles$user_identifies)
+    if (any(blank_ui)) {
+      roles$user_identifies[blank_ui] <- ""
+    }
+  }
+  if ("user_sensitive" %in% names(roles)) {
+    roles$user_sensitive[is.na(roles$user_sensitive)] <- NA
+  }
   dg_sync_roles_axes(roles)
 }
 

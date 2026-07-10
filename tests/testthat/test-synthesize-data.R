@@ -69,6 +69,24 @@ test_that("synthesize_data() marginal numeric column", {
   expect_true(all(syn$val <= max(df$val, na.rm = TRUE) + 1e-8))
 })
 
+test_that("synthesize_data() jitters zero-IQR numeric columns with nonconstant outliers", {
+  original <- data.frame(
+    salary = c(rep(100, 55), 150, 200, 250, 300)
+  )
+  roles <- detect_roles(original)
+  roles$identifies <- "none"
+  roles$sensitive <- FALSE
+  roles$disclosure_role <- "none"
+  spec <- synth_spec(purpose = "development", seed = 22, n = nrow(original))
+
+  syn <- synthesize_data(original, spec, roles = roles)
+
+  exact_share <- mean(syn$salary %in% original$salary)
+  non_modal_originals <- setdiff(unique(original$salary), 100)
+  expect_lt(exact_share, 1)
+  expect_false(all(non_modal_originals %in% syn$salary))
+})
+
 test_that("synthesize_data() marginal factor column", {
   df <- data.frame(group = factor(rep(c("A", "B", "C"), each = 10)))
   spec <- synth_spec(purpose = "demo", n = 50)

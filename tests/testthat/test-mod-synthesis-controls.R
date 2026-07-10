@@ -120,7 +120,7 @@ test_that("purpose card shows a single Protection meter", {
   expect_false(grepl("identifiability", html, ignore.case = FALSE))
 })
 
-test_that("Configure confirm is blocked until every column has a disclosure role", {
+test_that("Configure confirm is blocked until every generated column has UI answers", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
@@ -129,10 +129,9 @@ test_that("Configure confirm is blocked until every column has a disclosure role
     session$setInputs(`controls-purpose_group` = "development")
     session$flushReact()
 
-    # Build a proper dataganger_roles object; force all disclosure_roles to NA
-    df    <- data.frame(age = 1:5, city = letters[1:5])
+    df    <- data.frame(age = 1:5, visit = as.Date("2020-01-01") + 0:4)
     roles <- detect_roles(df)
-    roles$disclosure_role <- NA_character_
+    roles <- dg_ensure_ui_roles(roles)
 
     state$roles <- roles
     session$flushReact()
@@ -140,11 +139,13 @@ test_that("Configure confirm is blocked until every column has a disclosure role
     session$setInputs(`controls-confirm` = 1L)
     session$flushReact()
 
-    # Gate must block: spec_confirmed must stay at 0
     expect_equal(state$spec_confirmed %||% 0L, 0L)
 
-    # Fix all disclosure roles and confirm again -> must advance
-    roles$disclosure_role <- "none"
+    roles$user_identifies <- "none"
+    roles$user_sensitive <- FALSE
+    roles$identifies <- "none"
+    roles$sensitive <- FALSE
+    roles <- dg_sync_roles_axes(roles)
     state$roles <- roles
     session$flushReact()
 
@@ -155,7 +156,7 @@ test_that("Configure confirm is blocked until every column has a disclosure role
   })
 })
 
-test_that("Configure confirm ignores missing disclosure roles on dropped or pass-through columns", {
+test_that("Configure confirm ignores missing UI answers on dropped or pass-through columns", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
@@ -164,9 +165,8 @@ test_that("Configure confirm ignores missing disclosure roles on dropped or pass
     session$setInputs(`controls-purpose_group` = "development")
     session$flushReact()
 
-    roles <- detect_roles(data.frame(age = 1:5, city = letters[1:5]))
+    roles <- dg_ensure_ui_roles(detect_roles(data.frame(age = 1:5, city = letters[1:5])))
     roles$simulation <- c("drop", "pass_through")
-    roles$disclosure_role <- NA_character_
 
     state$roles <- roles
     session$flushReact()
@@ -178,7 +178,7 @@ test_that("Configure confirm ignores missing disclosure roles on dropped or pass
   })
 })
 
-test_that("Configure confirm still blocks a synthesized column with missing disclosure role", {
+test_that("Configure confirm still blocks a synthesized column with missing UI answer", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(synth_controls_host_server, {
@@ -187,9 +187,8 @@ test_that("Configure confirm still blocks a synthesized column with missing disc
     session$setInputs(`controls-purpose_group` = "development")
     session$flushReact()
 
-    roles <- detect_roles(data.frame(age = 1:5, city = letters[1:5]))
+    roles <- dg_ensure_ui_roles(detect_roles(data.frame(age = 1:5, city = letters[1:5])))
     roles$simulation <- c("synthesize", "drop")
-    roles$disclosure_role <- c(NA_character_, NA_character_)
 
     state$roles <- roles
     session$flushReact()

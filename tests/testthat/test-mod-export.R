@@ -41,14 +41,14 @@ test_that("download filename reflects state$seed_used", {
   })
 })
 
-test_that("use_original_names is FALSE only for the demo purpose", {
+test_that("use_original_names delegates to export_synthetic name-strategy resolution", {
   testthat::skip_if_not_installed("shiny")
 
   shiny::testServer(mod_export_server, args = list(state = export_test_state("demo")), {
-    expect_false(use_original_names())
+    expect_null(use_original_names())
   })
   shiny::testServer(mod_export_server, args = list(state = export_test_state("development")), {
-    expect_true(use_original_names())
+    expect_null(use_original_names())
   })
 })
 
@@ -117,4 +117,52 @@ test_that("export summary counts role-excluded columns (e.g. IDs) as dropped", {
     expect_match(summary_html, "Dropped")
     expect_match(summary_html, "1 column")
   })
+})
+
+test_that("module export manifest hashes match after post-generation spec edits", {
+  testthat::skip_if_not_installed("shiny")
+
+  raw_data <- data.frame(
+    patient_id = sprintf("P%02d", 1:25),
+    grp = rep(letters[1:5], each = 5),
+    score = seq_len(25),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(raw_data)
+  roles$identifies <- c("direct", "none", "none")
+  roles$sensitive <- FALSE
+  roles <- dg_sync_roles_axes(roles)
+  spec <- synth_spec(purpose = "development", seed = 77L, n = nrow(raw_data))
+  synthetic <- synthesize_data(raw_data, spec, roles = roles)
+  comparison <- compare_synthetic(raw_data, synthetic, roles = roles)
+  privacy <- privacy_check(raw_data, synthetic, roles = roles, stage = "post", spec = spec)
+
+  state <- export_test_state()
+  state$raw_data <- raw_data
+  state$synthetic <- synthetic
+  state$comparison <- comparison
+  state$privacy <- privacy
+  state$roles <- roles
+  state$generated_roles <- roles
+  state$spec <- spec
+  state$seed_used <- spec$seed
+  shiny::isolate({
+    state$spec$seed <- 999L
+    state$roles$simulation[state$roles$variable == "grp"] <- "pass_through"
+  })
+
+  out_dir <- withr::local_tempdir()
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    zip_path <- build_export(out_dir)
+    expect_true(file.exists(zip_path))
+  })
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  for (rel in names(manifest$file_sha256)) {
+    expect_equal(
+      digest::digest(file.path(out_dir, rel), algo = "sha256", file = TRUE, serialize = FALSE),
+      manifest$file_sha256[[rel]],
+      info = rel
+    )
+  }
 })

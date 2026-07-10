@@ -75,7 +75,7 @@ test_that("detect_roles() still flags distinctive character as ID candidate", {
 
 test_that("detect_roles() detects ID from column name pattern", {
   # Use data that does NOT trigger the cardinality-based ID check
-  # n_distinct=3, nrow=25 → ratio 0.12 < 0.95, so only name triggers ID
+  # n_distinct=3, nrow=25 -> ratio 0.12 < 0.95, so only name triggers ID
   df <- data.frame(patient_id = rep(1:3, length.out = 25))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "ID candidate")
@@ -134,8 +134,8 @@ test_that("detect_roles() detects categorical candidate (n_distinct <= 20)", {
 
 test_that("detect_roles() detects free text", {
   # 60 unique long strings, each > 50 characters
-  # 100 rows → n_distinct=60 > nrow*0.5=50, mean_nchar > 50
-  # ratio 0.6 < 0.95, n_distinct=60 > 20 → not ID, not categorical
+  # 100 rows -> n_distinct=60 > nrow*0.5=50, mean_nchar > 50
+  # ratio 0.6 < 0.95, n_distinct=60 > 20 -> not ID, not categorical
   base_strings <- sprintf(
     "very_long_unique_text_for_testing_free_text_number_%030d",
     1:60
@@ -175,10 +175,10 @@ test_that("detect_roles() classifies geographic names by cardinality, not a spec
 })
 
 test_that("detect_roles() labels a distinctive numeric column as numeric", {
-  # 50 rows, exactly 30 distinct values → n_distinct=30
+  # 50 rows, exactly 30 distinct values -> n_distinct=30
   # ratio 30/50=0.6, >=0.05 and <0.95 AND n_distinct=30 > 20
   # Not ID (ratio < 0.95), not categorical (ratio >= 0.05 AND > 20), numeric class
-  # Name "normal_col" matches no patterns → numeric (user classifies via UI)
+  # Name "normal_col" matches no patterns -> numeric (user classifies via UI)
   df <- data.frame(
     normal_col = c(1:30, 1:20),
     stringsAsFactors = FALSE
@@ -242,7 +242,7 @@ test_that("print.dataganger_roles works without error", {
 })
 
 test_that("detect_roles() does not classify long character values as ID even at high cardinality", {
-  # 50 unique strings each ~30 chars, no spaces — high cardinality but long values
+  # 50 unique strings each ~30 chars, no spaces -- high cardinality but long values
   vals <- sprintf("item-description-key-value-%03d", 1:50)
   df <- data.frame(item_desc = vals, stringsAsFactors = FALSE)
   r <- detect_roles(df)
@@ -254,7 +254,7 @@ test_that("detect_roles() rejects non-data-frame", {
   expect_error(detect_roles("not a df"), "must be a data frame")
 })
 
-# Regression: Bug 5 — character-stored dates were classified "unknown" and fed
+# Regression: Bug 5 -- character-stored dates were classified "unknown" and fed
 # to synthpop as high-cardinality factors, hanging CART.
 test_that("detect_roles() classifies ISO date strings as 'date'", {
   df <- data.frame(
@@ -346,4 +346,10 @@ test_that("detect_roles leaves geographic categorical columns unselected for dis
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "categorical candidate")
   expect_true(is.na(r$disclosure_role[1]))
+})
+
+test_that("print.dataganger_roles handles subset objects without required columns", {
+  roles <- detect_roles(data.frame(age = 1:5, city = letters[1:5]))
+
+  expect_no_error(print(roles[, c("variable", "identifies")]))
 })
