@@ -32,6 +32,7 @@ mod_export_ui <- function(id) {
     stale_banner_ui("export", ns = ns),
     shiny::tags$div(class = "double-rule"),
     shiny::uiOutput(ns("export_summary")),
+    shiny::uiOutput(ns("kanon_export_gate")),
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
@@ -121,6 +122,32 @@ mod_export_server <- function(id, state) {
       )
     })
 
+    output$kanon_export_gate <- shiny::renderUI({
+      kanon <- state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE)
+      if (is.null(kanon) || !isTRUE(kanon$infeasible)) {
+        return(NULL)
+      }
+
+      shiny::tags$div(
+        class = "card",
+        style = "margin-top:12px; border-left:4px solid var(--risk-500);",
+        shiny::tags$div(
+          class = "card-header",
+          shiny::tags$span(class = "title", "Acknowledge missing k-anonymity protection"),
+          shiny::tags$span(class = "sub", "required before browser export")
+        ),
+        shiny::tags$p(
+          style = "margin-top:8px;",
+          "This run could not apply k-anonymity. The bundle will be marked with a blocker until a human acknowledges that state."
+        ),
+        shiny::checkboxInput(
+          session$ns("kanon_acknowledged"),
+          label = "I understand that no k-anonymity protection was applied to this output, and I still want to export this bundle.",
+          value = FALSE
+        )
+      )
+    })
+
     export_base_name <- function() {
       seed <- shiny::isolate(state$seed_used)
       if (!is.null(seed)) {
@@ -137,6 +164,14 @@ mod_export_server <- function(id, state) {
     # Build the full bundle into `bundle_dir` and return the path to the ZIP.
     build_export <- function(bundle_dir) {
       shiny::req(state$synthetic, state$spec)
+      kanon <- shiny::isolate(state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE))
+      kanon_acknowledged <- isTRUE(shiny::isolate(input$kanon_acknowledged))
+      if (isTRUE(kanon$infeasible) && !kanon_acknowledged) {
+        stop(
+          "Export requires explicit acknowledgment because k-anonymity was not applied to this output.",
+          call. = FALSE
+        )
+      }
 
       export_roles <- shiny::isolate(state$generated_roles %||% state$roles)
       if (is.null(export_roles) && !is.null(state$raw_data)) {
@@ -155,7 +190,8 @@ mod_export_server <- function(id, state) {
         include_dictionary = FALSE,
         fail_on_exact_match = FALSE,
         roles = export_roles,
-        include_original_names = use_original_names()
+        include_original_names = use_original_names(),
+        kanon_acknowledged = kanon_acknowledged
       )
 
       zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))
@@ -175,7 +211,13 @@ mod_export_server <- function(id, state) {
         dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
         on.exit(unlink(bundle_dir, recursive = TRUE))
 
-        artefact <- build_export(bundle_dir)
+        artefact <- tryCatch(
+          build_export(bundle_dir),
+          error = function(e) {
+            shiny::showNotification(conditionMessage(e), type = "error", duration = NULL)
+            stop(e)
+          }
+        )
         file.copy(from = artefact, to = file, overwrite = TRUE)
         invisible(NULL)
       }

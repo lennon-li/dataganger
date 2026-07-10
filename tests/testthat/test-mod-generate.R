@@ -497,7 +497,10 @@ test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
     synthetic = toy_synthetic,
     comparison = structure(list(), class = "dataganger_comparison"),
     privacy = toy_privacy,
-    warnings = "k-anonymity warning",
+    warnings = paste(
+      "Could not apply k-anonymity at k = 5 to the selected quasi-identifier (QI) columns: qi.",
+      "To avoid destroying the dataset, no k-anonymity protection was applied to this output."
+    ),
     kanon = attr(toy_synthetic, "kanon", exact = TRUE)
   )
 
@@ -510,12 +513,245 @@ test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
     session$setInputs(generate = 1L)
     session$flushReact()
     html <- paste(as.character(output$result_stats), collapse = "\n")
-    expect_match(html, "SKIPPED - infeasible", fixed = TRUE)
+    expect_match(html, "not applied - see options below", fixed = TRUE)
     expect_match(html, "1 - see bundle report", fixed = TRUE)
   })
 
   notifications <- recorder$get()
-  expect_true(any(vapply(notifications, function(x) identical(x$ui, "k-anonymity warning"), logical(1))))
+  expect_false(any(vapply(notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1))))
   expect_true(isTRUE(shiny::isolate(state$kanon$infeasible)))
   expect_false(is.null(shiny::isolate(state$generated_roles)))
+})
+
+test_that("generate renders the structured k-anon panel after an infeasible run", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(
+      age = c(30, 31, 32),
+      sex = c("F", "M", "F"),
+      education = c("A", "B", "A"),
+      smoker = c(TRUE, FALSE, TRUE),
+      stringsAsFactors = FALSE
+    ),
+    spec = synth_spec(purpose = "development", seed = 1L)
+  )
+  shiny::isolate({
+    roles <- state$roles
+    roles$identifies[] <- "none"
+    roles$sensitive[] <- FALSE
+    roles$identifies[roles$variable %in% c("age", "sex", "education", "smoker")] <- "combination"
+    state$roles <- dg_sync_roles_axes(roles)
+  })
+
+  toy_synthetic <- structure(
+    shiny::isolate(state$raw_data),
+    class = c("dataganger_synthetic", "data.frame")
+  )
+  attr(toy_synthetic, "kanon") <- list(
+    qi_cols = c("age", "sex", "education", "smoker"),
+    k = 5L,
+    smallest_cell = 1L,
+    suppressed_cells = 0L,
+    infeasible = TRUE
+  )
+  toy_privacy <- tibble::tibble()
+  class(toy_privacy) <- c("dataganger_privacy_check", class(toy_privacy))
+  attr(toy_privacy, "exact_row_matches") <- 0L
+  testthat::local_mocked_bindings(
+    run_synthesis_pipeline = function(...) {
+      list(
+        synthetic = toy_synthetic,
+        comparison = structure(list(), class = "dataganger_comparison"),
+        privacy = toy_privacy,
+        warnings = paste(
+          "Could not apply k-anonymity at k = 5 to the selected quasi-identifier (QI) columns: age, sex, education, smoker.",
+          "To avoid destroying the dataset, no k-anonymity protection was applied to this output."
+        ),
+        kanon = attr(toy_synthetic, "kanon", exact = TRUE)
+      )
+    },
+    kanon_escape_routes = function(...) {
+      list(
+        qi_cols = c("age", "sex", "education", "smoker"),
+        feasible_k = 3L,
+        feasible_k_suppressed_cells = 29L,
+        suggested_n = 1000L,
+        suggested_n_suppressed_cells = 49L,
+        skipped_n_probe = FALSE,
+        driver_col = "age"
+      )
+    }
+  )
+  recorder <- capture_notifications()
+  withr::local_options(
+    dataganger.synthesis_async = FALSE,
+    recorder$options
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    html <- paste(as.character(output$generate_actions), collapse = "\n")
+    expect_match(html, "k-anonymity was not applied", fixed = TRUE)
+    expect_match(html, "Apply k = 3 and regenerate", fixed = TRUE)
+    expect_match(html, "Generate 1000 rows at k = 5", fixed = TRUE)
+    expect_match(html, "age", fixed = TRUE)
+  })
+
+  notifications <- recorder$get()
+  expect_false(any(vapply(notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1))))
+})
+
+test_that("generate k-action button updates k and stores provenance before regenerating", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(
+      age = c(30, 31, 32),
+      sex = c("F", "M", "F"),
+      education = c("A", "B", "A"),
+      smoker = c(TRUE, FALSE, TRUE),
+      stringsAsFactors = FALSE
+    ),
+    spec = synth_spec(purpose = "development", seed = 1L)
+  )
+  shiny::isolate({
+    roles <- state$roles
+    roles$identifies[] <- "none"
+    roles$sensitive[] <- FALSE
+    roles$identifies[roles$variable %in% c("age", "sex", "education", "smoker")] <- "combination"
+    state$roles <- dg_sync_roles_axes(roles)
+  })
+
+  calls <- list()
+  testthat::local_mocked_bindings(
+    run_synthesis_pipeline = function(data, spec, roles) {
+      calls[[length(calls) + 1L]] <<- list(k = spec$k_anon %||% 5L, n = spec$n %||% nrow(data))
+      out <- structure(data, class = c("dataganger_synthetic", "data.frame"))
+      if ((spec$k_anon %||% 5L) == 3L) {
+        attr(out, "kanon") <- list(
+          qi_cols = c("age", "sex", "education", "smoker"),
+          k = 3L,
+          smallest_cell = 3L,
+          suppressed_cells = 29L,
+          infeasible = FALSE
+        )
+      } else {
+        attr(out, "kanon") <- list(
+          qi_cols = c("age", "sex", "education", "smoker"),
+          k = 5L,
+          smallest_cell = 1L,
+          suppressed_cells = 0L,
+          infeasible = TRUE
+        )
+      }
+      privacy <- tibble::tibble()
+      class(privacy) <- c("dataganger_privacy_check", class(privacy))
+      attr(privacy, "exact_row_matches") <- 0L
+      list(
+        synthetic = out,
+        comparison = structure(list(), class = "dataganger_comparison"),
+        privacy = privacy,
+        warnings = character(0),
+        kanon = attr(out, "kanon", exact = TRUE)
+      )
+    },
+    kanon_escape_routes = function(...) {
+      list(
+        qi_cols = c("age", "sex", "education", "smoker"),
+        feasible_k = 3L,
+        feasible_k_suppressed_cells = 29L,
+        suggested_n = 1000L,
+        suggested_n_suppressed_cells = 49L,
+        skipped_n_probe = FALSE,
+        driver_col = "age"
+      )
+    }
+  )
+  withr::local_options(dataganger.synthesis_async = FALSE)
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    session$setInputs(apply_escape_k = 1L)
+    session$flushReact()
+  })
+
+  expect_equal(length(calls), 2L)
+  expect_identical(calls[[2]]$k, 3L)
+  expect_identical(shiny::isolate(state$spec$k_anon), 3L)
+  expect_identical(shiny::isolate(state$k_anon), 3L)
+  expect_identical(shiny::isolate(state$kanon$k_default), 5L)
+  expect_identical(shiny::isolate(state$kanon$k_provenance), "user_selected_after_infeasible")
+})
+
+test_that("generate n-action button updates the row count before regenerating", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(
+      age = c(30, 31, 32),
+      sex = c("F", "M", "F"),
+      education = c("A", "B", "A"),
+      smoker = c(TRUE, FALSE, TRUE),
+      stringsAsFactors = FALSE
+    ),
+    spec = synth_spec(purpose = "development", seed = 1L)
+  )
+  shiny::isolate({
+    roles <- state$roles
+    roles$identifies[] <- "none"
+    roles$sensitive[] <- FALSE
+    roles$identifies[roles$variable %in% c("age", "sex", "education", "smoker")] <- "combination"
+    state$roles <- dg_sync_roles_axes(roles)
+  })
+
+  calls <- list()
+  testthat::local_mocked_bindings(
+    run_synthesis_pipeline = function(data, spec, roles) {
+      calls[[length(calls) + 1L]] <<- list(k = spec$k_anon %||% 5L, n = spec$n %||% nrow(data))
+      out <- structure(data, class = c("dataganger_synthetic", "data.frame"))
+      attr(out, "kanon") <- list(
+        qi_cols = c("age", "sex", "education", "smoker"),
+        k = spec$k_anon %||% 5L,
+        smallest_cell = if ((spec$n %||% nrow(data)) >= 1000L) 5L else 1L,
+        suppressed_cells = if ((spec$n %||% nrow(data)) >= 1000L) 49L else 0L,
+        infeasible = (spec$n %||% nrow(data)) < 1000L
+      )
+      privacy <- tibble::tibble()
+      class(privacy) <- c("dataganger_privacy_check", class(privacy))
+      attr(privacy, "exact_row_matches") <- 0L
+      list(
+        synthetic = out,
+        comparison = structure(list(), class = "dataganger_comparison"),
+        privacy = privacy,
+        warnings = character(0),
+        kanon = attr(out, "kanon", exact = TRUE)
+      )
+    },
+    kanon_escape_routes = function(...) {
+      list(
+        qi_cols = c("age", "sex", "education", "smoker"),
+        feasible_k = 3L,
+        feasible_k_suppressed_cells = 29L,
+        suggested_n = 1000L,
+        suggested_n_suppressed_cells = 49L,
+        skipped_n_probe = FALSE,
+        driver_col = "age"
+      )
+    }
+  )
+  withr::local_options(dataganger.synthesis_async = FALSE)
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    session$setInputs(apply_escape_n = 1L)
+    session$flushReact()
+  })
+
+  expect_equal(length(calls), 2L)
+  expect_identical(calls[[2]]$n, 1000L)
+  expect_identical(shiny::isolate(state$spec$n), 1000L)
 })

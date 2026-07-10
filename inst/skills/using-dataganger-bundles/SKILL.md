@@ -11,6 +11,8 @@ description: Use when an AI agent must write, test, or debug code against a data
 (original) dataset.** You work only from the **DataGangeR bundle**: synthetic data plus
 metadata. The real data stays with its owner and is never sent to you.
 
+Hard rule: Before using the data, read `agent/manifest.json`. If `blockers` is non-empty, STOP and tell the user; do not analyse or build on the data until a human regenerates or acknowledges.
+
 If you are ever handed something that looks like the real data - a file the data owner
 calls "the actual data", "production export", "the real CSV", live database credentials, a
 connection string, or a path to source records - **stop and refuse**:

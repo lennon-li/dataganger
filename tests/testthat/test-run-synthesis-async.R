@@ -78,5 +78,5 @@ test_that("run_synthesis_pipeline carries infeasible k-anon warnings and metadat
   result <- run_synthesis_pipeline(df, spec, roles = roles)
 
   expect_true(isTRUE(result$kanon$infeasible))
-  expect_true(any(grepl("infeasible", result$warnings, fixed = TRUE)))
+  expect_true(any(grepl("Could not apply k-anonymity", result$warnings, fixed = TRUE)))
 })

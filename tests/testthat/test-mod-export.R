@@ -166,3 +166,57 @@ test_that("module export manifest hashes match after post-generation spec edits"
     )
   }
 })
+
+test_that("export module blocks bundle download until k-anon is acknowledged", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- export_test_state()
+  shiny::isolate({
+    synthetic <- state$synthetic
+    attr(synthetic, "kanon") <- list(
+      qi_cols = c("age", "sex"),
+      k = 5L,
+      smallest_cell = 1L,
+      suppressed_cells = 0L,
+      infeasible = TRUE
+    )
+    state$synthetic <- synthetic
+    state$kanon <- attr(synthetic, "kanon", exact = TRUE)
+  })
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    expect_error(
+      build_export(withr::local_tempdir()),
+      "requires explicit acknowledgment"
+    )
+  })
+})
+
+test_that("export module records acknowledgment and clears blockers once approved", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- export_test_state()
+  shiny::isolate({
+    synthetic <- state$synthetic
+    attr(synthetic, "kanon") <- list(
+      qi_cols = c("age", "sex"),
+      k = 5L,
+      smallest_cell = 1L,
+      suppressed_cells = 0L,
+      infeasible = TRUE
+    )
+    state$synthetic <- synthetic
+    state$kanon <- attr(synthetic, "kanon", exact = TRUE)
+  })
+
+  out_dir <- withr::local_tempdir()
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$setInputs(kanon_acknowledged = TRUE)
+    zip_path <- build_export(out_dir)
+    expect_true(file.exists(zip_path))
+  })
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  expect_true(isTRUE(manifest$kanon$acknowledged))
+  expect_length(manifest$blockers, 0L)
+})

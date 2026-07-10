@@ -13,6 +13,141 @@ generate_notification <- function(...) {
 
 #' @keywords internal
 #' @noRd
+is_kanon_infeasible_warning <- function(text) {
+  grepl(
+    "Could not apply k-anonymity|no k-anonymity protection was applied to this output",
+    text %||% "",
+    ignore.case = TRUE
+  )
+}
+
+#' @keywords internal
+#' @noRd
+kanon_action_seed <- function(spec) {
+  spec$seed %||% sample.int(.Machine$integer.max, 1L)
+}
+
+#' @keywords internal
+#' @noRd
+apply_kanon_provenance <- function(synthetic, provenance = NULL) {
+  kanon <- attr(synthetic, "kanon", exact = TRUE)
+  if (is.null(kanon)) {
+    return(synthetic)
+  }
+
+  kanon$k_default <- provenance$k_default %||% kanon$k_default %||% 5L
+  kanon$k_provenance <- provenance$k_provenance %||% kanon$k_provenance %||% "default"
+  attr(synthetic, "kanon") <- kanon
+  synthetic
+}
+
+#' @keywords internal
+#' @noRd
+render_kanon_escape_panel <- function(session, kanon, escape_routes) {
+  qi_cols <- kanon$qi_cols %||% character(0)
+  current_k <- kanon$k %||% "unknown"
+  driver_col <- escape_routes$driver_col %||% NULL
+  feasible_k <- escape_routes$feasible_k %||% NULL
+  suggested_n <- escape_routes$suggested_n %||% NULL
+
+  action_buttons <- list()
+  if (!is.null(feasible_k) && feasible_k < current_k) {
+    action_buttons[[length(action_buttons) + 1L]] <- shiny::actionButton(
+      session$ns("apply_escape_k"),
+      sprintf("Apply k = %s and regenerate", feasible_k),
+      class = "btn btn-warning"
+    )
+  }
+  if (!is.null(suggested_n)) {
+    action_buttons[[length(action_buttons) + 1L]] <- shiny::actionButton(
+      session$ns("apply_escape_n"),
+      sprintf("Generate %s rows at k = %s", suggested_n, current_k),
+      class = "btn btn-secondary"
+    )
+  }
+
+  guidance <- if (!is.null(driver_col)) {
+    shiny::tags$p(
+      class = "help",
+      style = "margin:10px 0 0;",
+      shiny::tagList(
+        "If ",
+        shiny::tags$code(driver_col),
+        " does not need to be a ",
+        dg_privacy_term("quasi-identifier (QI)", "qi"),
+        ", mark it as ",
+        shiny::tags$strong("No"),
+        " for Q1 and regenerate. It has the most distinct values in this set."
+      )
+    )
+  } else {
+    NULL
+  }
+
+  probe_note <- if (isTRUE(escape_routes$skipped_n_probe)) {
+    shiny::tags$p(
+      class = "help",
+      style = "margin:10px 0 0;",
+      "Row-count suggestions are skipped for datasets larger than 50,000 rows."
+    )
+  } else {
+    NULL
+  }
+
+  shiny::tags$div(
+    class = "card",
+    style = "margin-top:12px; border-left:4px solid var(--synth-600);",
+    shiny::tags$div(
+      class = "card-header",
+      shiny::tags$span(class = "title", "k-anonymity was not applied"),
+      shiny::tags$span(class = "sub", "choose one of the computed ways forward")
+    ),
+    shiny::tags$p(
+      style = "margin-top:8px;",
+      shiny::tagList(
+        "DataGangeR could not enforce ",
+        dg_privacy_term("k-anonymity", "k_anonymity"),
+        " at ",
+        dg_privacy_term("k", "k"),
+        " = ",
+        current_k,
+        " across these ",
+        dg_privacy_term("quasi-identifier (QI)", "qi"),
+        " columns: ",
+        shiny::tags$span(
+          style = "font-family:var(--font-mono); color:var(--fg-default);",
+          paste(qi_cols, collapse = ", ")
+        ),
+        "."
+      )
+    ),
+    shiny::tags$p(
+      style = "margin:0;",
+      shiny::tagList(
+        "Applying it would require too much ",
+        dg_privacy_term("suppression", "suppression"),
+        ", so no k-anonymity protection was applied to this output."
+      )
+    ),
+    if (length(action_buttons) > 0L) {
+      shiny::tags$div(
+        style = "display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;",
+        action_buttons
+      )
+    } else {
+      shiny::tags$p(
+        class = "help",
+        style = "margin-top:12px;",
+        "No computed regenerate shortcut was feasible inside the current probe limits."
+      )
+    },
+    guidance,
+    probe_note
+  )
+}
+
+#' @keywords internal
+#' @noRd
 mod_generate_ui <- function(id) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
@@ -287,17 +422,38 @@ mod_generate_server <- function(id, state) {
 
     # Commit a finished pipeline result into app state.
     finalize_result <- function(result) {
+      synthetic <- result$synthetic
+      synthetic <- apply_kanon_provenance(
+        synthetic,
+        provenance = state$kanon_next_provenance %||% NULL
+      )
+      result$synthetic <- synthetic
       last_duration(as.numeric(difftime(Sys.time(), run_started_at() %||% Sys.time(), units = "secs")))
       state$seed_used <- run_seed()
-      state$synthetic <- result$synthetic
+      state$synthetic <- synthetic
       state$comparison <- result$comparison
       state$privacy <- result$privacy
-      state$kanon <- result$kanon %||% attr(result$synthetic, "kanon", exact = TRUE)
+      state$kanon <- attr(synthetic, "kanon", exact = TRUE)
       state$pipeline_warnings <- result$warnings %||% character(0)
+      state$kanon_escape_routes <- if (isTRUE(state$kanon$infeasible)) {
+        kanon_escape_routes(
+          data = state$raw_data,
+          roles = state$roles,
+          k = state$kanon$k %||% 5L
+        )
+      } else {
+        NULL
+      }
       state$generated_roles <- state$roles
-      for (warning_text in state$pipeline_warnings) {
+      visible_warnings <- if (isTRUE(state$kanon$infeasible)) {
+        state$pipeline_warnings[!vapply(state$pipeline_warnings, is_kanon_infeasible_warning, logical(1))]
+      } else {
+        state$pipeline_warnings
+      }
+      for (warning_text in visible_warnings) {
         generate_notification(warning_text, type = "warning", duration = NULL)
       }
+      state$kanon_next_provenance <- NULL
       state$stale$synthesis <- FALSE
       state$stale$comparison <- FALSE
       state$stale$export <- FALSE
@@ -347,6 +503,8 @@ mod_generate_server <- function(id, state) {
 
       spec_with_seed <- state$spec
       spec_with_seed$seed <- seed
+      state$kanon_acknowledged <- FALSE
+      state$kanon_escape_routes <- NULL
       run_started_at(Sys.time())
       run_seed(seed)
       dg_log(sprintf(
@@ -504,7 +662,7 @@ mod_generate_server <- function(id, state) {
       kanon_class <- "stat"
       if (!is.null(kanon) && length(kanon$qi_cols %||% character(0)) > 0L) {
         if (isTRUE(kanon$infeasible)) {
-          kanon_label <- "SKIPPED - infeasible for chosen QI set"
+          kanon_label <- "not applied - see options below"
           kanon_class <- "stat risk"
         } else {
           kanon_label <- sprintf(
@@ -538,7 +696,16 @@ mod_generate_server <- function(id, state) {
           stat_cell("SEED", seed_label),
           stat_cell("DURATION", dur_label),
           stat_cell("EXACT MATCHES", exact_row_matches),
-          stat_cell("K-ANON", kanon_label, kanon_class),
+          stat_cell(
+            shiny::tagList(
+              dg_privacy_term("K-anonymity", "k_anonymity"),
+              " (",
+              dg_privacy_term("k", "k"),
+              ")"
+            ),
+            kanon_label,
+            kanon_class
+          ),
           stat_cell(
             "HIGH FLAGS",
             sprintf("%d - see bundle report", high_flags),
@@ -549,7 +716,16 @@ mod_generate_server <- function(id, state) {
     })
 
     output$generate_actions <- shiny::renderUI({
-      NULL
+      kanon <- state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE)
+      if (is.null(kanon) || !isTRUE(kanon$infeasible)) {
+        return(NULL)
+      }
+
+      render_kanon_escape_panel(
+        session = session,
+        kanon = kanon,
+        escape_routes = state$kanon_escape_routes %||% list()
+      )
     })
 
     shiny::observeEvent(input$generate, ignoreNULL = TRUE, {
@@ -579,6 +755,35 @@ mod_generate_server <- function(id, state) {
 
       seed <- sample.int(.Machine$integer.max, 1L)
       run_synthesis(seed)
+    })
+
+    shiny::observeEvent(input$apply_escape_k, ignoreNULL = TRUE, {
+      escape_routes <- state$kanon_escape_routes %||% list()
+      suggested_k <- escape_routes$feasible_k %||% NULL
+      current_k <- state$kanon$k %||% state$spec$k_anon %||% 5L
+      if (is.null(suggested_k) || isTRUE(generating()) || is.null(state$spec)) {
+        return(invisible(NULL))
+      }
+
+      state$spec$k_anon <- suggested_k
+      state$k_anon <- suggested_k
+      state$kanon_next_provenance <- list(
+        k_default = current_k,
+        k_provenance = "user_selected_after_infeasible"
+      )
+      run_synthesis(kanon_action_seed(state$spec))
+    })
+
+    shiny::observeEvent(input$apply_escape_n, ignoreNULL = TRUE, {
+      escape_routes <- state$kanon_escape_routes %||% list()
+      suggested_n <- escape_routes$suggested_n %||% NULL
+      if (is.null(suggested_n) || isTRUE(generating()) || is.null(state$spec)) {
+        return(invisible(NULL))
+      }
+
+      state$spec$n <- suggested_n
+      state$kanon_next_provenance <- NULL
+      run_synthesis(kanon_action_seed(state$spec))
     })
 
     shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {

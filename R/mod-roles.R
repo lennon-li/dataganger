@@ -116,13 +116,26 @@ mod_roles_ui <- function(id, embedded = FALSE) {
         style = "margin:8px 0; display:flex; align-items:center; gap:10px;",
         shiny::tags$label(
           style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
-          "Minimum cell size (k)"
+          shiny::tagList(
+            "Minimum ",
+            dg_privacy_term("k", "k"),
+            " for ",
+            dg_privacy_term("k-anonymity", "k_anonymity")
+          )
         ),
         shiny::numericInput(ns("k_anon"), label = NULL, value = 5, min = 2, step = 1,
                             width = "80px"),
         shiny::tags$span(
           style = "font-size:12px; color:var(--fg-subtle);",
-          "No quasi-identifier combination in the synthetic output will appear in fewer than k records."
+          shiny::tagList(
+            "No ",
+            dg_privacy_term("quasi-identifier (QI)", "qi"),
+            " ",
+            dg_privacy_term("cell", "cell"),
+            " in the synthetic output will appear in fewer than ",
+            dg_privacy_term("k", "k"),
+            " rows."
+          )
         )
       ),
       shiny::uiOutput(ns("disclosure_help")),
@@ -672,7 +685,15 @@ mod_roles_server <- function(id, state) {
         style = "margin-top:12px;",
         shiny::tags$div(
           style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
-          sprintf("QI set: %s   k = %d", paste(qi, collapse = " \u00b7 "), k)
+          shiny::tagList(
+            dg_privacy_term("Quasi-identifier (QI)", "qi"),
+            " columns: ",
+            paste(qi, collapse = " \u00b7 "),
+            "   ",
+            dg_privacy_term("k", "k"),
+            " = ",
+            k
+          )
         ),
         if (safe) {
           shiny::tags$div(
@@ -683,9 +704,16 @@ mod_roles_server <- function(id, state) {
           shiny::tagList(
             shiny::tags$div(
               style = "color:var(--synth-700); font-weight:600;",
-              sprintf(
-                "\u26a0 Smallest cell: %d record(s). %d of %d records (%.1f%%) in combinations smaller than k.",
-                res$smallest_cell, res$n_below, nrow(data), res$pct_below
+              shiny::tagList(
+                "\u26a0 Smallest ",
+                dg_privacy_term("cell", "cell"),
+                ": ",
+                sprintf(
+                  "%d record(s). %d of %d records (%.1f%%) fall below ",
+                  res$smallest_cell, res$n_below, nrow(data), res$pct_below
+                ),
+                dg_privacy_term("k", "k"),
+                "."
               )
             ),
             shiny::tags$ul(lapply(worst_lines, shiny::tags$li))

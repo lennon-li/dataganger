@@ -34,6 +34,8 @@ Work only from these bundle artifacts:
 
 Do not assume other files exist.
 
+Hard rule: Before using the data, read `manifest.json`. If `blockers` is non-empty, STOP and tell the user; do not analyse or build on the data until a human regenerates or acknowledges.
+
 ## Column names and schema
 
 Column names may vary because the name strategy may rename them. Never assume original column names. Read the names and mappings from `recipe.yaml`'s `name_map` when present, and use `../human/human.md` for the treatment list describing how each output column was handled.

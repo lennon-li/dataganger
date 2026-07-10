@@ -17,10 +17,10 @@ enforce_kanon(synthetic, roles, k = 5, max_steps = 6L, max_suppress_frac = 0.2)
 
 \item{max_suppress_frac}{Feasibility backstop. If satisfying \code{k} over the
 quasi-identifier set would require blanking more than this fraction of
-rows, k-anonymity is treated as infeasible for the chosen QI set: the
-coarsening/suppression is \emph{not} applied (it would destroy the dataset),
-the synthetic output is returned populated, and a warning advises
-narrowing the quasi-identifiers or lowering \code{k}. Default 0.2.}
+rows, k-anonymity is treated as infeasible for the chosen quasi-identifier
+(QI) set: the coarsening and suppression steps are \emph{not} applied, the
+synthetic output is returned populated, and a warning explains that no
+k-anonymity protection was applied to that output. Default 0.2.}
 }
 \value{
 The shaped \code{synthetic} data frame, with an attribute \code{kanon}
