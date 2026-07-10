@@ -14,3 +14,14 @@ test_that("roles survive a YAML round-trip with both axes and actions", {
     expect_equal(rt[[col]], roles[[col]], info = col)
   }
 })
+
+test_that("cli_read_roles_yaml preserves disclosure_role when axes are omitted", {
+  tmp <- withr::local_tempfile(fileext = ".yml")
+  df <- data.frame(age = 1:10)
+  yaml::write_yaml(list(roles = list(list(variable = "age", disclosure_role = "quasi"))), tmp)
+
+  roles <- cli_read_roles_yaml(tmp, df)
+
+  expect_equal(roles$disclosure_role[roles$variable == "age"], "quasi")
+  expect_equal(roles$identifies[roles$variable == "age"], "combination")
+})

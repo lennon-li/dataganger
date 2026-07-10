@@ -130,18 +130,15 @@ mod_export_server <- function(id, state) {
       }
     }
 
-    # Original column names are kept except for the demo purpose, which
-    # anonymizes them to protect variable identity.
     use_original_names <- function() {
-      purpose <- state$spec$purpose
-      is.null(purpose) || !identical(purpose, "demo")
+      NULL
     }
 
     # Build the full bundle into `bundle_dir` and return the path to the ZIP.
     build_export <- function(bundle_dir) {
       shiny::req(state$synthetic, state$spec)
 
-      export_roles <- shiny::isolate(state$roles)
+      export_roles <- shiny::isolate(state$generated_roles %||% state$roles)
       if (is.null(export_roles) && !is.null(state$raw_data)) {
         export_roles <- detect_roles(state$raw_data)
       }
@@ -159,13 +156,6 @@ mod_export_server <- function(id, state) {
         fail_on_exact_match = FALSE,
         roles = export_roles,
         include_original_names = use_original_names()
-      )
-
-      export_spec <- shiny::isolate(state$spec)
-      export_spec$seed <- shiny::isolate(state$seed_used) %||% export_spec$seed
-      cli_write_yaml(
-        recipe_to_yaml_list(export_spec, export_roles, include_original_names = use_original_names()),
-        file.path(bundle_dir, "agent", "recipe.yaml")
       )
 
       zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))

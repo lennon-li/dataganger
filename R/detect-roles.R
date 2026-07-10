@@ -330,6 +330,12 @@ apply_disclosure_overrides <- function(roles, overrides) {
 
 #' @export
 print.dataganger_roles <- function(x, ...) {
+  required <- c("variable", "class", "recommended_role", "user_role", "reason")
+  if (!all(required %in% names(x))) {
+    class(x) <- setdiff(class(x), "dataganger_roles")
+    return(print(tibble::as_tibble(x), ...))
+  }
+
   cli::cli_h1("DataGangeR Roles")
 
   n_overrides <- sum(!is.na(x$user_role))

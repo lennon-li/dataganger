@@ -187,7 +187,7 @@ cli_write_yaml <- function(x, path) {
 
 #' @keywords internal
 #' @noRd
-roles_to_yaml_list <- function(roles) {
+roles_to_yaml_list <- function(roles, name_map = NULL, include_original_names = TRUE) {
   keep <- intersect(
     c(
       "variable", "identifies", "sensitive", "simulation",
@@ -197,7 +197,18 @@ roles_to_yaml_list <- function(roles) {
   )
 
   lapply(seq_len(nrow(roles)), function(i) {
-    as.list(roles[i, keep, drop = FALSE])
+    row <- as.list(roles[i, keep, drop = FALSE])
+    if (!isTRUE(include_original_names) && !is.null(name_map) && length(name_map) > 0L) {
+      # Columns dropped before renaming (e.g. direct identifiers) never enter
+      # the name_map; their original names must still be withheld.
+      row$variable <- if (as.character(roles$variable[[i]]) %in% names(name_map)) {
+        unname(name_map[[as.character(roles$variable[[i]])]])
+      } else {
+        sprintf("withheld_%d", i)
+      }
+      row$user_role <- NULL
+    }
+    row
   })
 }
 
@@ -213,6 +224,12 @@ cli_read_roles_yaml <- function(path, data) {
     idx <- which(base$variable == entry$variable)
     if (!length(idx)) {
       next
+    }
+
+    if (is.null(entry$identifies) && !is.null(entry$disclosure_role)) {
+      axes <- dg_role_to_axes(entry$disclosure_role)
+      base$identifies[idx] <- axes$identifies
+      base$sensitive[idx] <- axes$sensitive
     }
 
     for (field in c("identifies", "simulation", "disclosure_role", "user_role")) {

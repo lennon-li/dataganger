@@ -130,7 +130,7 @@ test_that("enforce_kanon unions identifying sensitive columns into the QI set", 
   roles <- data.frame(
     variable = c("zip", "religion"),
     disclosure_role = c("quasi", "sensitive"),
-    class = c("categorical candidate", "categorical candidate"),
+    recommended_role = c("categorical candidate", "categorical candidate"),
     stringsAsFactors = FALSE
   )
   res <- enforce_kanon(syn, roles, k = 5)

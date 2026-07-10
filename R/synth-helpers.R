@@ -23,10 +23,20 @@ synth_numeric <- function(x, n, missing_strategy = "approx") {
   # Sample from empirical CDF with jitter
   synth <- sample(x_obs, size = n, replace = TRUE)
 
-  # Add small Gaussian jitter scaled to IQR/10
-  iqr_val <- stats::IQR(x_obs, na.rm = TRUE)
-  if (iqr_val > 0) {
-    jitter_sd <- iqr_val / 10
+  # Add Gaussian noise unless the column is truly constant.
+  if (length(unique(x_obs)) > 1L) {
+    scale_candidates <- c(
+      stats::IQR(x_obs, na.rm = TRUE) / 10,
+      stats::mad(x_obs, na.rm = TRUE),
+      stats::sd(x_obs, na.rm = TRUE),
+      abs(mean(x_obs, na.rm = TRUE)) / 100
+    )
+    scale_candidates <- scale_candidates[is.finite(scale_candidates) & scale_candidates > 0]
+    jitter_sd <- if (length(scale_candidates)) scale_candidates[[1L]] else 0
+  } else {
+    jitter_sd <- 0
+  }
+  if (jitter_sd > 0) {
     synth <- synth + stats::rnorm(n, mean = 0, sd = jitter_sd)
   }
 

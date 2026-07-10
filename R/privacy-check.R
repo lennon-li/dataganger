@@ -157,6 +157,7 @@ privacy_check_pre <- function(original, roles) {
 # ===========================================================================
 
 privacy_check_post <- function(original, synthetic, roles, spec) {
+  synthetic_match <- dg_original_names(synthetic)
   flags <- list()
   exact_row_matches <- 0L
 
@@ -167,10 +168,10 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
   }
 
   # 1. ID columns still present in synthetic
-  for (nm in intersect(names(original), names(synthetic))) {
+  for (nm in intersect(names(original), names(synthetic_match))) {
     role <- dg_named_lookup(role_map, nm); if (is.na(role)) role <- "unknown"
     if (role == "ID candidate") {
-      id_vals <- synthetic[[nm]]
+      id_vals <- synthetic_match[[nm]]
       if (!all(is.na(id_vals))) {
         flags[[length(flags) + 1]] <- make_flag(nm,
           "ID column not fully masked in synthetic output", "HIGH",
@@ -181,7 +182,7 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
 
   # 2. Exact-row match check (C8: nrow >= 20 only)
   if (nrow(original) >= 20) {
-    exact_row_matches <- exact_row_match_count(original, synthetic, role_map)
+    exact_row_matches <- exact_row_match_count(original, synthetic_match, role_map)
     if (exact_row_matches > 0) {
       flags[[length(flags) + 1]] <- make_flag("(dataset)",
           sprintf("%d exact-row match(es) between synthetic and original", exact_row_matches),
@@ -200,11 +201,11 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
   cat_cols <- names(original)[vapply(original, function(x) {
     is.character(x) || is.factor(x) || is.logical(x)
   }, logical(1))]
-  cat_cols <- intersect(cat_cols, names(synthetic))
+  cat_cols <- intersect(cat_cols, names(synthetic_match))
 
   for (nm in cat_cols) {
     x_orig <- as.character(original[[nm]])
-    x_syn  <- as.character(synthetic[[nm]])
+    x_syn  <- as.character(synthetic_match[[nm]])
     tx <- table(x_orig[!is.na(x_orig)])
     rare_vals <- names(tx)[tx < rare_min_n & tx > 0]
     if (length(rare_vals) > 0) {
@@ -224,9 +225,9 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
   }
   if (!is.null(dr)) {
     k_target <- if (!is.null(spec)) spec$k_anon %||% 5 else 5
-    qi_cols <- intersect(names(dr)[dr %in% "quasi"], names(synthetic))  # %in% is NA-safe
+    qi_cols <- intersect(names(dr)[dr %in% "quasi"], names(synthetic_match))  # %in% is NA-safe
     if (length(qi_cols) >= 1L) {
-      res <- assess_kanonymity(synthetic, qi_cols, k = k_target)
+      res <- assess_kanonymity(synthetic_match, qi_cols, k = k_target)
       if (!is.na(res$smallest_cell) && res$smallest_cell < k_target) {
         flags[[length(flags) + 1]] <- make_flag(
           "(quasi-identifiers)",
@@ -246,10 +247,10 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
     date_cols <- names(original)[vapply(original, function(x) {
       inherits(x, "Date") || inherits(x, "POSIXct")
     }, logical(1))]
-    date_cols <- intersect(date_cols, names(synthetic))
+    date_cols <- intersect(date_cols, names(synthetic_match))
     for (nm in date_cols) {
-      if (inherits(synthetic[[nm]], "Date")) {
-        days <- unique(format(synthetic[[nm]], "%d"))
+      if (inherits(synthetic_match[[nm]], "Date")) {
+        days <- unique(format(synthetic_match[[nm]], "%d"))
         days <- days[!is.na(days)]
         if (length(days) > 1 && !all(days == "01")) {
           flags[[length(flags) + 1]] <- make_flag(nm,
@@ -311,12 +312,27 @@ exact_row_match_count <- function(original, synthetic, role_map = NULL) {
   as.integer(sum(syn_key %in% orig_key, na.rm = TRUE))
 }
 
+dg_original_names <- function(synthetic) {
+  spec <- attr(synthetic, "spec", exact = TRUE)
+  name_map <- spec$name_map %||% NULL
+  if (is.null(name_map) || !length(name_map)) {
+    return(synthetic)
+  }
+  reverse_map <- stats::setNames(names(name_map), unname(name_map))
+  out <- synthetic
+  mapped <- names(out) %in% names(reverse_map)
+  names(out)[mapped] <- unname(reverse_map[names(out)[mapped]])
+  out
+}
+
 augment_synthpop_disclosure <- function(flags, original, synthetic, roles) {
   if (!identical(attr(synthetic, "engine", exact = TRUE), "synthpop")) {
     return(flags)
   }
 
-  disclosure <- synthpop_disclosure_panel(original, synthetic, roles)
+  # Match on original names so generic/dictionary_only renaming does not
+  # silently drop the disclosure metrics (same policy as privacy_check_post).
+  disclosure <- synthpop_disclosure_panel(original, dg_original_names(synthetic), roles)
   if (is.null(disclosure)) {
     return(flags)
   }

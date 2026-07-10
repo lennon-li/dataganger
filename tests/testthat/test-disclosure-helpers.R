@@ -47,7 +47,7 @@ test_that("treatment text reflects both axes", {
   expect_match(dg_treatment_text_axes("combination", FALSE), "Coarsened")
   expect_match(dg_treatment_text_axes("combination", TRUE), "grouped with k-anonymity so no rare combination survives")
   expect_match(dg_treatment_text_axes("none", TRUE), "attribute-level protection is not yet applied")
-  expect_match(dg_treatment_text_axes("none", FALSE), "distribution kept")
+  expect_match(dg_treatment_text_axes("none", FALSE), "observed distribution with noise")
   expect_match(dg_treatment_text_axes(NA_character_, FALSE), "needs an answer")
 })
 
@@ -55,7 +55,7 @@ test_that("dg_kanon_columns unions quasi with identifying-sensitive", {
   roles <- data.frame(
     variable = c("zip", "religion", "income", "name"),
     disclosure_role = c("quasi", "sensitive", "sensitive", "direct"),
-    class = c("categorical candidate", "categorical candidate", "numeric", "free text"),
+    recommended_role = c("categorical candidate", "categorical candidate", "numeric", "free text"),
     stringsAsFactors = FALSE
   )
   out <- dg_kanon_columns(roles)
@@ -67,7 +67,7 @@ test_that("dg_kanon_columns unions quasi with identifying-sensitive", {
 test_that("dg_kanon_columns unions combination and discrete sensitive", {
   roles <- data.frame(
     variable = c("age", "income", "diag", "bmi"),
-    class = c("numeric", "numeric", "categorical candidate", "numeric"),
+    recommended_role = c("numeric", "numeric", "categorical candidate", "numeric"),
     identifies = c("combination", "combination", "none", "none"),
     sensitive = c(FALSE, TRUE, TRUE, FALSE),
     stringsAsFactors = FALSE
@@ -140,7 +140,7 @@ test_that("dg_decision_recap_table builds the generate recap rows", {
   expect_equal(out$action, c("Drop", "Pass through", "Synthesize"))
   expect_match(out$what_we_do[[1]], "Removed")
   expect_match(out$what_we_do[[2]], "grouped with k-anonymity so no rare combination survives")
-  expect_match(out$what_we_do[[3]], "distribution kept")
+  expect_match(out$what_we_do[[3]], "observed distribution with noise")
   expect_equal(out$type, c("identifier", "date", "numeric"))
 })
 
@@ -178,4 +178,15 @@ test_that("roles_ready_for_generation only requires answered eligible columns", 
   roles$simulation[3] <- "synthesize"
   expect_false(roles_ready_for_generation(roles))
   expect_equal(roles_generation_pending(roles), 3L)
+})
+
+test_that("dg_kanon_columns includes sensitive named categorical columns from detected roles", {
+  df <- data.frame(
+    diagnosis = rep(c("flu", "cold", "asthma"), each = 4),
+    score = seq_len(12),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+
+  expect_true("diagnosis" %in% dg_kanon_columns(roles))
 })

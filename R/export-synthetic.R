@@ -158,7 +158,7 @@ export_synthetic <- function(synthetic,
         "recommended_role" %in% names(export_roles)) {
       role_map <- stats::setNames(export_roles$recommended_role, export_roles$variable)
     }
-    exact_row_matches <- exact_row_match_count(original, synthetic, role_map)
+    exact_row_matches <- exact_row_match_count(original, dg_original_names(synthetic), role_map)
     handle_exact_row_matches(exact_row_matches, fail_on_exact_match)
   }
 
@@ -201,6 +201,7 @@ export_synthetic <- function(synthetic,
       roles = export_roles,
       privacy = privacy,
       exact_row_matches = exact_row_matches,
+      kanon = attr(synthetic, "kanon", exact = TRUE),
       has_code_readiness = !is.null(code_readiness)
     ),
     con = file.path(human_dir, "human.md"),
@@ -528,7 +529,7 @@ reproduction_spec_args <- function(spec, purpose) {
   }, character(1))
 }
 
-build_reproduction_script <- function(spec, roles, purpose) {
+build_reproduction_script <- function(spec, roles, purpose, include_original_names = TRUE) {
   purpose <- purpose %||% spec$purpose %||% "unspecified"
 
   script <- c(
@@ -542,7 +543,13 @@ build_reproduction_script <- function(spec, roles, purpose) {
     "roles <- detect_roles(original)"
   )
 
-  if (is.null(roles)) {
+  if (!isTRUE(include_original_names)) {
+    script <- c(
+      script,
+      "# Column names were withheld for name privacy, so per-column override",
+      "# vectors are omitted. Recreate decisions in your own DataGangeR session."
+    )
+  } else if (is.null(roles)) {
     script <- c(
       script,
       "# No manual overrides were recorded, so detect_roles(original) is enough."
@@ -637,13 +644,19 @@ build_dropped_variables_text <- function(dictionary) {
   )
 }
 
-build_regeneration_command <- function(purpose, spec, roles = NULL) {
-  build_reproduction_script(spec = spec, roles = roles, purpose = purpose)
+build_regeneration_command <- function(purpose, spec, roles = NULL, include_original_names = TRUE) {
+  build_reproduction_script(
+    spec = spec,
+    roles = roles,
+    purpose = purpose,
+    include_original_names = include_original_names
+  )
 }
 
 render_human_markdown <- function(synthetic, dictionary, purpose, include_report = TRUE,
                                   spec = NULL, roles = NULL, privacy = NULL,
                                   exact_row_matches = 0L,
+                                  kanon = NULL,
                                   has_code_readiness = FALSE) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
@@ -687,11 +700,18 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "",
     "|                      | sensitive = No | sensitive = Yes |",
     "|---|---|---|",
-    "| identifies = none | Synthesized; distribution kept, exact values not. | Recreated from its distribution; exact values are not copied \u2014 attribute-level protection is not yet applied. |",
+    "| identifies = none | Synthesized from the observed distribution with noise; observed values can still recur. | Recreated from its distribution with noise; observed values can still recur - attribute-level protection is not yet applied. |",
     "| identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Synthesized; grouped with k-anonymity so no rare combination survives. |",
     "| identifies = direct | **Removed** from the output. | **Removed** from the output. |",
     "",
-    paste(render_privacy_report(privacy, exact_row_matches), collapse = "\n"),
+    render_kanon_line(kanon),
+    "",
+    paste(render_privacy_report(
+      privacy,
+      exact_row_matches,
+      spec = spec %||% attr(synthetic, "spec", exact = TRUE),
+      include_original_names = "original_variable" %in% names(dictionary)
+    ), collapse = "\n"),
     "",
     "## Regenerate this data",
     "",
@@ -701,7 +721,8 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     build_regeneration_command(
       purpose,
       spec %||% attr(synthetic, "spec", exact = TRUE),
-      roles = roles
+      roles = roles,
+      include_original_names = "original_variable" %in% names(dictionary)
     ),
     "```",
     "",
@@ -720,6 +741,27 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
   )
 }
 
+render_kanon_line <- function(kanon) {
+  if (is.null(kanon)) {
+    return("k-anonymity: not applicable")
+  }
+  if (isTRUE(kanon$infeasible)) {
+    return(sprintf(
+      "k-anonymity: NOT applied - infeasible for chosen QI set; k=%s, smallest cell=%s",
+      kanon$k %||% "unknown",
+      kanon$smallest_cell %||% "unknown"
+    ))
+  }
+  if (length(kanon$qi_cols %||% character(0)) == 0L) {
+    return(sprintf("k-anonymity: not applicable; k=%s, no QI columns selected", kanon$k %||% "unknown"))
+  }
+  sprintf(
+    "k-anonymity: enforced, k=%s, smallest cell=%s",
+    kanon$k %||% "unknown",
+    kanon$smallest_cell %||% "unknown"
+  )
+}
+
 code_readiness_to_json <- function(code_readiness) {
   meta <- code_readiness$meta
   if (inherits(meta$generated_at, "POSIXt")) {
@@ -733,7 +775,9 @@ code_readiness_to_json <- function(code_readiness) {
   )
 }
 
-render_privacy_report <- function(privacy, exact_row_matches = 0L) {
+render_privacy_report <- function(privacy, exact_row_matches = 0L,
+                                  spec = NULL, include_original_names = TRUE) {
+  privacy <- privacy_for_name_policy(privacy, spec, include_original_names)
   if (is.null(privacy) || nrow(privacy) == 0) {
     return(c(
       "DataGangeR privacy report",
@@ -761,6 +805,20 @@ render_privacy_report <- function(privacy, exact_row_matches = 0L) {
       )
     })
   )
+}
+
+privacy_for_name_policy <- function(privacy, spec, include_original_names = TRUE) {
+  if (is.null(privacy) || isTRUE(include_original_names)) {
+    return(privacy)
+  }
+  name_map <- spec$name_map %||% NULL
+  if (is.null(name_map) || !"variable" %in% names(privacy)) {
+    return(privacy)
+  }
+  out <- privacy
+  mapped <- out$variable %in% names(name_map)
+  out$variable[mapped] <- unname(name_map[out$variable[mapped]])
+  out
 }
 
 render_comparison_report <- function(comparison, privacy, synthetic, purpose, output_file) {
@@ -927,6 +985,20 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     spec = spec_for_manifest,
     spec_hash = spec_hash,
     exact_row_matches = exact_row_matches,
+    kanon = {
+      kanon <- attr(synthetic, "kanon", exact = TRUE)
+      if (is.null(kanon)) {
+        list(applied = FALSE, k = NULL, smallest_cell = NULL, suppressed_cells = NULL, infeasible = NULL)
+      } else {
+        list(
+          applied = !isTRUE(kanon$infeasible) && length(kanon$qi_cols %||% character(0)) > 0L,
+          k = kanon$k %||% NULL,
+          smallest_cell = kanon$smallest_cell %||% NULL,
+          suppressed_cells = kanon$suppressed_cells %||% 0L,
+          infeasible = isTRUE(kanon$infeasible)
+        )
+      }
+    },
     synthetic_dims = list(nrow = nrow(synthetic), ncol = ncol(synthetic)),
     file_sha256 = file_hashes,
     source                  = "dataganger",
@@ -956,7 +1028,18 @@ recipe_to_yaml_list <- function(spec, roles, include_original_names = TRUE) {
   if (!isTRUE(include_original_names)) {
     recipe$name_map <- NULL
   }
-  recipe$roles <- if (is.null(roles)) list() else roles_to_yaml_list(roles)
+  recipe$roles <- if (is.null(roles)) {
+    list()
+  } else {
+    roles_to_yaml_list(
+      roles,
+      name_map = spec$name_map %||% NULL,
+      include_original_names = include_original_names
+    )
+  }
+  if (!isTRUE(include_original_names) && !is.null(spec$name_map)) {
+    recipe$note <- "column names withheld (name privacy); reproduce from your own DataGangeR session"
+  }
   recipe
 }
 

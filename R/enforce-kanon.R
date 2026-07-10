@@ -84,8 +84,9 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
       "i" = "Narrow the quasi-identifiers (mark measures/counts as \\
              {.val none}) or lower k, then re-synthesise."
     ))
+    base_res <- assess_kanonymity(base, qi_cols, k)
     attr(base, "kanon") <- list(
-      qi_cols = qi_cols, k = k, smallest_cell = res$smallest_cell,
+      qi_cols = qi_cols, k = k, smallest_cell = base_res$smallest_cell,
       suppressed_cells = 0L, infeasible = TRUE
     )
     return(base)

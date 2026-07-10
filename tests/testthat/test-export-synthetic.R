@@ -131,6 +131,45 @@ test_that("export_synthetic() folds guidance and privacy text into human/human.m
   expect_match(human_md, "Exact row matches")
 })
 
+test_that("export_synthetic() records infeasible k-anon in human markdown and manifest", {
+  tmp <- withr::local_tempdir()
+  df <- data.frame(
+    qi_a = sprintf("a%03d", 1:100),
+    qi_b = sprintf("b%03d", 1:100),
+    value = seq_len(100),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$identifies <- "combination"
+  roles$sensitive <- FALSE
+  roles$disclosure_role <- "quasi"
+  roles$simulation <- c("pass_through", "pass_through", "synthesize")
+  # Pin the internal engine: this tests k-anon reporting, not synthpop, and
+  # the 3-column fixture leaves synthpop too few columns after exclusions.
+  spec <- synth_spec(purpose = "development", seed = 9, n = 100, k_anon = 5,
+                     engine = "internal")
+  result <- run_synthesis_pipeline(df, spec, roles = roles)
+  out_dir <- file.path(tmp, "kanon-dir")
+
+  export_synthetic(
+    result$synthetic,
+    original = df,
+    roles = roles,
+    comparison = result$comparison,
+    privacy = result$privacy,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md"), warn = FALSE), collapse = "\n")
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+
+  expect_match(human_md, "k-anonymity: NOT applied - infeasible", fixed = TRUE)
+  expect_true(isTRUE(manifest$kanon$infeasible))
+  expect_false(isTRUE(manifest$kanon$applied))
+})
+
 test_that("export_synthetic() sanitizes spreadsheet-dangerous cells", {
   tmp <- withr::local_tempdir()
 
@@ -315,6 +354,37 @@ test_that("export_synthetic() omits original_variable when name_strategy is dict
   expect_null(manifest$spec$name_map)
 })
 
+test_that("dictionary_only export withholds original names from bundled text", {
+  tmp <- withr::local_tempdir()
+  original <- tibble::tibble(
+    patient_zip = rep(sprintf("%05d", 10001:10010), each = 3),
+    salary = rep(c(50000, 65000, 72000), 10)
+  )
+  # Use detect_roles output as-is: patient_zip matches the ID-name pattern and
+  # is dropped as a direct identifier, so it never enters the name_map. The
+  # dropped-column path must also withhold the original name in recipe.yaml.
+  roles <- detect_roles(original)
+  spec <- synth_spec(purpose = "demo", seed = 44, name_strategy = "dictionary_only", n = nrow(original))
+  syn <- synthesize_data(original, spec, roles = roles)
+
+  out_dir <- file.path(tmp, "dictionary-private")
+  export_synthetic(
+    syn,
+    original = original,
+    roles = roles,
+    path = out_dir,
+    format = "dir",
+    include_report = FALSE
+  )
+
+  text_files <- list.files(out_dir, recursive = TRUE, full.names = TRUE)
+  text_files <- text_files[!grepl("synthetic_data\\.csv$", text_files)]
+  bundled <- paste(vapply(text_files, function(path) {
+    paste(readLines(path, warn = FALSE), collapse = "\n")
+  }, character(1)), collapse = "\n")
+  expect_false(grepl("patient_zip|salary", bundled))
+})
+
 test_that("export_synthetic() skips report gracefully when report deps are unavailable", {
   tmp <- withr::local_tempdir()
   syn <- tibble::tibble(x = 1:3)
@@ -369,6 +439,19 @@ test_that("build_reproduction_script() emits a runnable R-only pipeline", {
   expect_match(script, "roles\\$simulation")
   expect_no_match(script, "import ")
   expect_no_match(script, "```\\{python\\}")
+})
+
+test_that("build_reproduction_script() omits original-name keyed overrides when names are withheld", {
+  original <- tibble::tibble(patient_zip = c("10001", "10002"), salary = c(10, 20))
+  roles <- detect_roles(original)
+  roles$user_role[roles$variable == "salary"] <- "numeric"
+  spec <- synth_spec(purpose = "demo", seed = 1, name_strategy = "dictionary_only")
+
+  script <- build_reproduction_script(spec, roles, "demo", include_original_names = FALSE)
+
+  expect_match(script, "Column names were withheld", fixed = TRUE)
+  expect_no_match(script, "roles\\$user_role")
+  expect_no_match(script, "patient_zip|salary")
 })
 
 test_that("export_synthetic() writes the same reproduction pipeline into bundle files", {

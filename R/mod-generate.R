@@ -292,6 +292,12 @@ mod_generate_server <- function(id, state) {
       state$synthetic <- result$synthetic
       state$comparison <- result$comparison
       state$privacy <- result$privacy
+      state$kanon <- result$kanon %||% attr(result$synthetic, "kanon", exact = TRUE)
+      state$pipeline_warnings <- result$warnings %||% character(0)
+      state$generated_roles <- state$roles
+      for (warning_text in state$pipeline_warnings) {
+        generate_notification(warning_text, type = "warning", duration = NULL)
+      }
       state$stale$synthesis <- FALSE
       state$stale$comparison <- FALSE
       state$stale$export <- FALSE
@@ -487,10 +493,30 @@ mod_generate_server <- function(id, state) {
       seed_label <- if (is.null(state$seed_used)) "n/a" else as.character(state$seed_used)
       exact_row_matches <- attr(state$privacy, "exact_row_matches", exact = TRUE)
       exact_row_matches <- if (is.null(exact_row_matches)) "unavailable" else as.character(exact_row_matches)
+      high_flags <- if (!is.null(state$privacy) && nrow(state$privacy) > 0L &&
+          "severity" %in% names(state$privacy)) {
+        sum(state$privacy$severity == "HIGH", na.rm = TRUE)
+      } else {
+        0L
+      }
+      kanon <- state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE)
+      kanon_label <- "not applicable"
+      kanon_class <- "stat"
+      if (!is.null(kanon) && length(kanon$qi_cols %||% character(0)) > 0L) {
+        if (isTRUE(kanon$infeasible)) {
+          kanon_label <- "SKIPPED - infeasible for chosen QI set"
+          kanon_class <- "stat risk"
+        } else {
+          kanon_label <- sprintf(
+            "enforced (smallest cell >= %s)",
+            kanon$k %||% "k"
+          )
+        }
+      }
 
-      stat_cell <- function(label, value) {
+      stat_cell <- function(label, value, class = "stat") {
         shiny::tags$div(
-          class = "stat",
+          class = class,
           shiny::tags$div(class = "label", label),
           shiny::tags$div(class = "v", value)
         )
@@ -511,7 +537,13 @@ mod_generate_server <- function(id, state) {
           ),
           stat_cell("SEED", seed_label),
           stat_cell("DURATION", dur_label),
-          stat_cell("EXACT MATCHES", exact_row_matches)
+          stat_cell("EXACT MATCHES", exact_row_matches),
+          stat_cell("K-ANON", kanon_label, kanon_class),
+          stat_cell(
+            "HIGH FLAGS",
+            sprintf("%d - see bundle report", high_flags),
+            if (high_flags > 0L) "stat risk" else "stat"
+          )
         )
       )
     })

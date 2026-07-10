@@ -43,6 +43,7 @@ mod_upload_ui                 <- dataganger:::mod_upload_ui
 mod_data_panel_server         <- dataganger:::mod_data_panel_server
 mod_data_panel_ui             <- dataganger:::mod_data_panel_ui
 dg_sync_roles_axes            <- dataganger:::dg_sync_roles_axes
+dg_ensure_ui_roles            <- dataganger:::dg_ensure_ui_roles
 suspected_direct_identifiers  <- dataganger:::suspected_direct_identifiers
 app_fail_safe_empty           <- dataganger:::app_fail_safe_empty
 app_guardrail_server          <- dataganger:::app_guardrail_server
@@ -363,6 +364,9 @@ server <- function(input, output, session) {
     state$comparison          <- NULL
     state$compare_selected_var <- NULL
     state$privacy             <- NULL
+    state$kanon               <- NULL
+    state$pipeline_warnings   <- NULL
+    state$generated_roles     <- NULL
     state$seed_used           <- NULL
     state$nav_request         <- NULL
     state$fail_safe_status    <- "idle"
@@ -432,7 +436,7 @@ server <- function(input, output, session) {
       shiny::withProgress(message = "Detecting column roles\u2026", value = 0.5, {
         state$roles <- dg_timeit(
           "configure: detect_roles",
-          detect_roles(state$raw_data, profile = state$profile)
+          dg_ensure_ui_roles(detect_roles(state$raw_data, profile = state$profile))
         )
         shiny::setProgress(value = 1.0)
       })

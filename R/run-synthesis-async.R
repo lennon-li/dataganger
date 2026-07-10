@@ -25,13 +25,29 @@ run_synthesis_pipeline <- function(data, spec, roles = NULL) {
     )
   }
 
-  synthetic <- synthesize_data(data, spec, roles = roles)
-  comparison <- compare_synthetic(data, synthetic, roles = roles)
-  privacy <- privacy_check(
-    data, synthetic,
-    roles = roles, stage = "post", spec = spec
+  captured_warnings <- character(0)
+  pipeline <- withCallingHandlers(
+    {
+      synthetic <- synthesize_data(data, spec, roles = roles)
+      comparison <- compare_synthetic(data, synthetic, roles = roles)
+      privacy <- privacy_check(
+        data, synthetic,
+        roles = roles, stage = "post", spec = spec
+      )
+      list(synthetic = synthetic, comparison = comparison, privacy = privacy)
+    },
+    warning = function(w) {
+      captured_warnings <<- c(captured_warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
   )
-  list(synthetic = synthetic, comparison = comparison, privacy = privacy)
+  list(
+    synthetic = pipeline$synthetic,
+    comparison = pipeline$comparison,
+    privacy = pipeline$privacy,
+    warnings = captured_warnings,
+    kanon = attr(pipeline$synthetic, "kanon", exact = TRUE)
+  )
 }
 
 #' Is dataganger running under devtools::load_all (not installed)?
