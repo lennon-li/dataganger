@@ -87,10 +87,12 @@ agent instructions, and a manifest. By default the bundle is written as a
 zip archive.
 }
 \examples{
-dat <- data.frame(id = 1:50, grp = rep(letters[1:5], each = 10))
-spec <- synth_spec(purpose = "demo", seed = 1)
+dat <- data.frame(
+  age = 21:70,
+  score = seq(10, 59),
+  grp = rep(LETTERS[1:5], each = 10)
+)
+spec <- synth_spec(purpose = "demo", seed = 1, engine = "internal")
 syn <- synthesize_data(dat, spec)
-\dontrun{
-export_synthetic(syn, original = dat, path = tempfile(fileext = ".zip"))
-}
+export_synthetic(syn, path = tempfile(fileext = ".zip"), include_report = FALSE)
 }

@@ -19,9 +19,9 @@
 #' @export
 #'
 #' @examples
-#' f <- system.file("extdata", package = "dataganger")
-#' # read_input(file.path(f, "example.csv"))
-#' # read_input(file.path(f, "example.csv"), encoding = "latin1")
+#' path <- tempfile(fileext = ".csv")
+#' readr::write_csv(data.frame(id = 1:3, grp = c("a", "b", "c")), path)
+#' read_input(path)
 read_input <- function(file, sheet = NULL, encoding = NULL, ...) {
   if (!file.exists(file)) {
     cli::cli_abort("File does not exist: {.path {file}}")

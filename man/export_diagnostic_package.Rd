@@ -35,7 +35,6 @@ column roles, sensitivity, and exposure levels. Does not synthesise data.
 Intended for agent pre-inspection and Lens ingestion.
 }
 \examples{
-\dontrun{
-export_diagnostic_package(my_data, path = "diagnostic_view.json")
-}
+dat <- data.frame(age = c(34, 29, 41), grp = c("a", "b", "c"))
+export_diagnostic_package(dat, path = tempfile(fileext = ".json"))
 }
