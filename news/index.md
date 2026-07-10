@@ -1,5 +1,25 @@
 # Changelog
 
+## dataganger 0.6.1
+
+CRAN resubmission changes requested on 2026-07-10.
+
+- DESCRIPTION now quotes the package name `'shiny'` correctly in the
+  Description field.
+- [`read_input()`](https://lennon-li.github.io/dataganger/reference/read_input.md)
+  examples are now self-contained, executable, and no longer use
+  commented-out code.
+- [`export_synthetic()`](https://lennon-li.github.io/dataganger/reference/export_synthetic.md),
+  [`make_agent_bundle()`](https://lennon-li.github.io/dataganger/reference/make_agent_bundle.md),
+  and
+  [`export_diagnostic_package()`](https://lennon-li.github.io/dataganger/reference/export_diagnostic_package.md)
+  examples now write only to temporary paths and no longer use
+  `\dontrun{}`.
+- Audited exported write functions, examples, tests, and vignettes for
+  home-filespace writes; package examples now stay within
+  [`tempfile()`](https://rdrr.io/r/base/tempfile.html) /
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html).
+
 ## dataganger 0.6.0
 
 One minimal export bundle, a Configure page with no silent defaults, and

@@ -49,7 +49,6 @@ Invisibly, the written JSON path.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-export_diagnostic_package(my_data, path = "diagnostic_view.json")
-} # }
+dat <- data.frame(age = c(34, 29, 41), grp = c("a", "b", "c"))
+export_diagnostic_package(dat, path = tempfile(fileext = ".json"))
 ```

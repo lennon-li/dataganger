@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,16 @@
       <small>Source: <a href="https://github.com/lennon-li/dataganger/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.6.1" id="dataganger-061">dataganger 0.6.1<a class="anchor" aria-label="anchor" href="#dataganger-061"></a></h2>
+<p>CRAN resubmission changes requested on 2026-07-10.</p>
+<ul><li>DESCRIPTION now quotes the package name <code>'shiny'</code> correctly in the Description field.</li>
+<li>
+<code><a href="../reference/read_input.html">read_input()</a></code> examples are now self-contained, executable, and no longer use commented-out code.</li>
+<li>
+<code><a href="../reference/export_synthetic.html">export_synthetic()</a></code>, <code><a href="../reference/make_agent_bundle.html">make_agent_bundle()</a></code>, and <code><a href="../reference/export_diagnostic_package.html">export_diagnostic_package()</a></code> examples now write only to temporary paths and no longer use <code>\dontrun{}</code>.</li>
+<li>Audited exported write functions, examples, tests, and vignettes for home-filespace writes; package examples now stay within <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile()</a></code> / <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.6.0" id="dataganger-060">dataganger 0.6.0<a class="anchor" aria-label="anchor" href="#dataganger-060"></a></h2>
 <p>One minimal export bundle, a Configure page with no silent defaults, and a package-wide audit pass: privacy fixes, an honest engine story, honest privacy wording, and a lighter dependency footprint.</p>

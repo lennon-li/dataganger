@@ -54,10 +54,17 @@ Invisibly, the written bundle path.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-make_agent_bundle(
-  file = "path/to/data.csv",
-  out  = tempfile(fileext = ".zip")
+dat <- data.frame(
+  age = c(24, 28, 35, 41),
+  score = c(88, 91, 84, 95),
+  grp = c("A", "A", "B", "B")
 )
-} # }
+path <- tempfile(fileext = ".csv")
+readr::write_csv(dat, path)
+make_agent_bundle(
+  file = path,
+  out = tempfile(fileext = ".zip"),
+  purpose = "demo",
+  seed = 1
+)
 ```

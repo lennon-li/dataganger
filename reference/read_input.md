@@ -46,7 +46,13 @@ SAS/XPT imports preserve `haven_labelled` vectors as-is.
 ## Examples
 
 ``` r
-f <- system.file("extdata", package = "dataganger")
-# read_input(file.path(f, "example.csv"))
-# read_input(file.path(f, "example.csv"), encoding = "latin1")
+path <- tempfile(fileext = ".csv")
+readr::write_csv(data.frame(id = 1:3, grp = c("a", "b", "c")), path)
+read_input(path)
+#> # A tibble: 3 × 2
+#>      id grp  
+#>   <dbl> <chr>
+#> 1     1 a    
+#> 2     2 b    
+#> 3     3 c    
 ```
