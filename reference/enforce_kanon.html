@@ -79,10 +79,10 @@ values blanked (<code>NA</code>). Operates on the output only.</p>
 <dt id="arg-max-suppress-frac">max_suppress_frac<a class="anchor" aria-label="anchor" href="#arg-max-suppress-frac"></a></dt>
 <dd><p>Feasibility backstop. If satisfying <code>k</code> over the
 quasi-identifier set would require blanking more than this fraction of
-rows, k-anonymity is treated as infeasible for the chosen QI set: the
-coarsening/suppression is <em>not</em> applied (it would destroy the dataset),
-the synthetic output is returned populated, and a warning advises
-narrowing the quasi-identifiers or lowering <code>k</code>. Default 0.2.</p></dd>
+rows, k-anonymity is treated as infeasible for the chosen quasi-identifier
+(QI) set: the coarsening and suppression steps are <em>not</em> applied, the
+synthetic output is returned populated, and a warning explains that no
+k-anonymity protection was applied to that output. Default 0.2.</p></dd>
 
 </dl></div>
     <div class="section level2">

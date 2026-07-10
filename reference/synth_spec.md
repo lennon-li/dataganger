@@ -92,6 +92,13 @@ synth_spec(
   - `merge_rare` — logical; combine infrequent category values into an
     `"other"` group to reduce re-identification risk.
 
+  - `k_anon` — minimum cell size for k-anonymity. Here, a
+    quasi-identifier (QI) is a column that can identify someone only
+    when combined with others, a cell is one shared QI combination, and
+    suppression means blanking QI values in cells that still fall below
+    the target. The validator allows values down to 2, but automated
+    escape-route suggestions never pick a value below 3.
+
   - `rare_level_min_n` — integer; category values seen fewer than this
     many times count as rare (then merged or suppressed).
 

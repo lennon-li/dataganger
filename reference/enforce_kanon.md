@@ -33,10 +33,10 @@ enforce_kanon(synthetic, roles, k = 5, max_steps = 6L, max_suppress_frac = 0.2)
 
   Feasibility backstop. If satisfying `k` over the quasi-identifier set
   would require blanking more than this fraction of rows, k-anonymity is
-  treated as infeasible for the chosen QI set: the
-  coarsening/suppression is *not* applied (it would destroy the
-  dataset), the synthetic output is returned populated, and a warning
-  advises narrowing the quasi-identifiers or lowering `k`. Default 0.2.
+  treated as infeasible for the chosen quasi-identifier (QI) set: the
+  coarsening and suppression steps are *not* applied, the synthetic
+  output is returned populated, and a warning explains that no
+  k-anonymity protection was applied to that output. Default 0.2.
 
 ## Value
 

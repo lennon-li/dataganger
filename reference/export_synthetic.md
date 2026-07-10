@@ -21,6 +21,7 @@ export_synthetic(
   include_original_names = NULL,
   fail_on_exact_match = FALSE,
   include_report = TRUE,
+  kanon_acknowledged = FALSE,
   include_dictionary = TRUE,
   code_readiness = NULL,
   compact = FALSE,
@@ -100,6 +101,13 @@ export_synthetic(
   Logical. When `TRUE` (the default), write
   `human/comparison_report.html`. If `rmarkdown`/`knitr` are
   unavailable, the report is skipped with a message instead of an error.
+
+- kanon_acknowledged:
+
+  Logical. Records whether a human explicitly acknowledged exporting a
+  bundle whose k-anonymity backstop was infeasible. Interactive UI
+  export uses this to clear the bundle blocker; non-interactive exports
+  leave it `FALSE`.
 
 - include_dictionary:
 

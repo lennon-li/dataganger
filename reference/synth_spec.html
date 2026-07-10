@@ -130,6 +130,12 @@ relationships are retained (<code>"none"</code>, <code>"moderate"</code>, <code>
 so an exact event date cannot single out an individual.</p></li>
 <li><p><code>merge_rare</code> — logical; combine infrequent category values into
 an <code>"other"</code> group to reduce re-identification risk.</p></li>
+<li><p><code>k_anon</code> — minimum cell size for k-anonymity. Here, a
+quasi-identifier (QI) is a column that can identify someone only when
+combined with others, a cell is one shared QI combination, and
+suppression means blanking QI values in cells that still fall below
+the target. The validator allows values down to 2, but automated
+escape-route suggestions never pick a value below 3.</p></li>
 <li><p><code>rare_level_min_n</code> — integer; category values seen fewer than
 this many times count as rare (then merged or suppressed).</p></li>
 <li><p><code>free_text_strategy</code> — how free-text columns are treated

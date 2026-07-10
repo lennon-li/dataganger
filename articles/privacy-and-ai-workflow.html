@@ -223,6 +223,254 @@ no direct identifiers, the app keeps the two subtler risks visible so
 the user does not falsely feel “done” after removing names.</p>
 </div>
 <div class="section level2">
+<h2 id="short-glossary">Short glossary<a class="anchor" aria-label="anchor" href="#short-glossary"></a>
+</h2>
+<ul>
+<li>
+<strong>Quasi-identifier (QI):</strong> a column that does not name
+a person on its own, but can identify someone when combined with others,
+like age + sex + education.</li>
+<li>
+<strong>k-anonymity:</strong> a rule that requires every
+quasi-identifier combination to appear in at least <code>k</code>
+rows.</li>
+<li>
+<strong>k:</strong> the minimum number of rows required for each
+quasi-identifier combination.</li>
+<li>
+<strong>Cell:</strong> one group of rows that shares the same
+quasi-identifier combination.</li>
+<li>
+<strong>Suppression:</strong> blanking the quasi-identifier values
+in rows that still fall below <code>k</code>.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="worked-k-anonymity-examples-from-the-built-in-samples">Worked k-anonymity examples from the built-in samples<a class="anchor" aria-label="anchor" href="#worked-k-anonymity-examples-from-the-built-in-samples"></a>
+</h2>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## dataganger 0.6.1</span></span>
+<span><span class="co">##   Start the app: dataganger::run_app()</span></span></code></pre>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://yihui.org/knitr/" class="external-link">knitr</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Everything below uses only exported DataGangeR functions, so you can run it</span></span>
+<span><span class="co"># yourself. A "roles" frame just needs `variable` and `disclosure_role`</span></span>
+<span><span class="co"># ("quasi" marks a quasi-identifier, "direct" is removed, "none" is left alone).</span></span>
+<span><span class="va">qi_roles</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">qi_cols</span>, <span class="va">drop_cols</span> <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>    variable <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span>,</span>
+<span>    disclosure_role <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span></span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">qi_cols</span>, <span class="st">"quasi"</span>,</span>
+<span>      <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">drop_cols</span>, <span class="st">"direct"</span>, <span class="st">"none"</span><span class="op">)</span></span>
+<span>    <span class="op">)</span>,</span>
+<span>    stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Probe one configuration: returns the kanon outcome (infeasible? how many</span></span>
+<span><span class="co"># quasi-identifier cells had to be suppressed?) without printing warnings.</span></span>
+<span><span class="va">probe_kanon</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">qi_cols</span>, <span class="va">k</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">out</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">withCallingHandlers</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="../reference/enforce_kanon.html">enforce_kanon</a></span><span class="op">(</span><span class="va">data</span>, <span class="fu">qi_roles</span><span class="op">(</span><span class="va">data</span>, <span class="va">qi_cols</span><span class="op">)</span>, k <span class="op">=</span> <span class="va">k</span><span class="op">)</span>,</span>
+<span>    warning <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">invokeRestart</a></span><span class="op">(</span><span class="st">"muffleWarning"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">out</span>, <span class="st">"kanon"</span>, exact <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">individual_qi</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"sex"</span>, <span class="st">"education"</span>, <span class="st">"smoker"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Escape route 1: walk k down from 5 to the largest value that works</span></span>
+<span><span class="co"># (never below 3 - smaller values give close to no protection).</span></span>
+<span><span class="va">feasible_k</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">k_try</span> <span class="kw">in</span> <span class="fl">5</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">info</span> <span class="op">&lt;-</span> <span class="fu">probe_kanon</span><span class="op">(</span><span class="va">individual_sample</span>, <span class="va">individual_qi</span>, <span class="va">k_try</span><span class="op">)</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">info</span><span class="op">$</span><span class="va">infeasible</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">feasible_k</span> <span class="op">&lt;-</span> <span class="va">k_try</span></span>
+<span>    <span class="va">feasible_k_info</span> <span class="op">&lt;-</span> <span class="va">info</span></span>
+<span>    <span class="kw">break</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Escape route 2: generate more synthetic rows, so each quasi-identifier</span></span>
+<span><span class="co"># combination is shared by more rows. The engine is pinned so the numbers</span></span>
+<span><span class="co"># do not depend on which synthesis packages are installed.</span></span>
+<span><span class="va">more_rows_spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/synth_spec.html">synth_spec</a></span><span class="op">(</span></span>
+<span>  purpose <span class="op">=</span> <span class="st">"development"</span>, n <span class="op">=</span> <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">1</span>, engine <span class="op">=</span> <span class="st">"internal"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">## <span style="color: #00BBBB;">ℹ</span> Development synthesis uses <span style="color: #0000BB;">synthpop</span> for correlation-aware output when</span></span>
+<span><span class="co">##   installed; review privacy warnings before sharing.</span></span></code></pre>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">more_rows</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">withCallingHandlers</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/synthesize_data.html">synthesize_data</a></span><span class="op">(</span><span class="va">individual_sample</span>, <span class="va">more_rows_spec</span>,</span>
+<span>                  roles <span class="op">=</span> <span class="fu">qi_roles</span><span class="op">(</span><span class="va">individual_sample</span>, <span class="va">individual_qi</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  warning <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">invokeRestart</a></span><span class="op">(</span><span class="st">"muffleWarning"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">more_rows_info</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">more_rows</span>, <span class="st">"kanon"</span>, exact <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Escape route 3: shrink the quasi-identifier set (age drives the sparsity:</span></span>
+<span><span class="co"># it has the most distinct values of the four).</span></span>
+<span><span class="va">drop_age_info</span> <span class="op">&lt;-</span> <span class="fu">probe_kanon</span><span class="op">(</span></span>
+<span>  <span class="va">individual_sample</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sex"</span>, <span class="st">"education"</span>, <span class="st">"smoker"</span><span class="op">)</span>, <span class="fl">5</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">suppressed_text</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">info</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">n</span> <span class="op">&lt;-</span> <span class="va">info</span><span class="op">$</span><span class="va">suppressed_cells</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%d suppressed QI cells"</span>, <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span> <span class="fl">0L</span> <span class="kw">else</span> <span class="va">n</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">individual_table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  option <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"Keep age + sex + education + smoker at k = 5"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Apply k = %d"</span>, <span class="va">feasible_k</span><span class="op">)</span>,</span>
+<span>    <span class="st">"Generate 1000 rows at k = 5"</span>,</span>
+<span>    <span class="st">"Mark age as not part of the QI set"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  feasible_at_k <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"No"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Yes (k = %d)"</span>, <span class="va">feasible_k</span><span class="op">)</span>,</span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">more_rows_info</span><span class="op">$</span><span class="va">infeasible</span><span class="op">)</span><span class="op">)</span> <span class="st">"No"</span> <span class="kw">else</span> <span class="st">"Yes (k = 5)"</span>,</span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">drop_age_info</span><span class="op">$</span><span class="va">infeasible</span><span class="op">)</span><span class="op">)</span> <span class="st">"No"</span> <span class="kw">else</span> <span class="st">"Yes (k = 5)"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  cost <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"No k-anonymity protection applied"</span>,</span>
+<span>    <span class="fu">suppressed_text</span><span class="op">(</span><span class="va">feasible_k_info</span><span class="op">)</span>,</span>
+<span>    <span class="fu">suppressed_text</span><span class="op">(</span><span class="va">more_rows_info</span><span class="op">)</span>,</span>
+<span>    <span class="fu">suppressed_text</span><span class="op">(</span><span class="va">drop_age_info</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># The temporal and geographic samples are aggregate-shaped (site-day records</span></span>
+<span><span class="co"># and region summaries, not people), so no column is marked as identifying</span></span>
+<span><span class="co"># in combination and the k-anonymity step never engages.</span></span>
+<span><span class="va">temporal_table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  option <span class="op">=</span> <span class="st">"Keep the combination question at none for all columns"</span>,</span>
+<span>  feasible_at_k <span class="op">=</span> <span class="st">"Not applicable"</span>,</span>
+<span>  cost <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span>    <span class="st">"No k-anonymity step; %d QI columns selected because rows are site-day records, not people"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu">qi_roles</span><span class="op">(</span><span class="va">temporal_sample</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">disclosure_role</span> <span class="op">==</span> <span class="st">"quasi"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">geographic_table</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  option <span class="op">=</span> <span class="st">"Keep the combination question at none for all columns"</span>,</span>
+<span>  feasible_at_k <span class="op">=</span> <span class="st">"Not applicable"</span>,</span>
+<span>  cost <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span></span>
+<span>    <span class="st">"No k-anonymity step; %d QI columns selected because rows are region summaries, not people"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu">qi_roles</span><span class="op">(</span><span class="va">geographic_sample</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">disclosure_role</span> <span class="op">==</span> <span class="st">"quasi"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="individual_sample-200-x-7">
+<code>individual_sample</code> (200 x 7)<a class="anchor" aria-label="anchor" href="#individual_sample-200-x-7"></a>
+</h3>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">individual_table</span>, col.names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Option"</span>, <span class="st">"Feasible at k"</span>, <span class="st">"Cost"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="48%">
+<col width="15%">
+<col width="36%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Option</th>
+<th align="left">Feasible at k</th>
+<th align="left">Cost</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">Keep age + sex + education + smoker at k = 5</td>
+<td align="left">No</td>
+<td align="left">No k-anonymity protection applied</td>
+</tr>
+<tr class="even">
+<td align="left">Apply k = 3</td>
+<td align="left">Yes (k = 3)</td>
+<td align="left">29 suppressed QI cells</td>
+</tr>
+<tr class="odd">
+<td align="left">Generate 1000 rows at k = 5</td>
+<td align="left">Yes (k = 5)</td>
+<td align="left">54 suppressed QI cells</td>
+</tr>
+<tr class="even">
+<td align="left">Mark age as not part of the QI set</td>
+<td align="left">Yes (k = 5)</td>
+<td align="left">6 suppressed QI cells</td>
+</tr>
+</tbody>
+</table>
+<p>This is the person-level example where k-anonymity matters. The
+current four-column QI set is too sparse at <code>k = 5</code>, but the
+code above shows three concrete escape routes: lower <code>k</code> to
+3, generate 1000 rows, or remove <code>age</code> from the QI set.</p>
+</div>
+<div class="section level3">
+<h3 id="temporal_sample-365-x-5">
+<code>temporal_sample</code> (365 x 5)<a class="anchor" aria-label="anchor" href="#temporal_sample-365-x-5"></a>
+</h3>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">temporal_table</span>, col.names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Option"</span>, <span class="st">"Feasible at k"</span>, <span class="st">"Cost"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="34%">
+<col width="9%">
+<col width="56%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Option</th>
+<th align="left">Feasible at k</th>
+<th align="left">Cost</th>
+</tr></thead>
+<tbody><tr class="odd">
+<td align="left">Keep the combination question at none for all
+columns</td>
+<td align="left">Not applicable</td>
+<td align="left">No k-anonymity step; 0 QI columns selected because rows
+are site-day records, not people</td>
+</tr></tbody>
+</table>
+<p>This sample is aggregate-shaped: each row is a site-day measurement,
+not a person. In that situation the combination question should usually
+stay at <code>none</code>, because there is no person-level
+quasi-identifier combination to protect with k-anonymity.</p>
+</div>
+<div class="section level3">
+<h3 id="geographic_sample-50-x-5">
+<code>geographic_sample</code> (50 x 5)<a class="anchor" aria-label="anchor" href="#geographic_sample-50-x-5"></a>
+</h3>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">geographic_table</span>, col.names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Option"</span>, <span class="st">"Feasible at k"</span>, <span class="st">"Cost"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<table class="table">
+<colgroup>
+<col width="34%">
+<col width="9%">
+<col width="56%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Option</th>
+<th align="left">Feasible at k</th>
+<th align="left">Cost</th>
+</tr></thead>
+<tbody><tr class="odd">
+<td align="left">Keep the combination question at none for all
+columns</td>
+<td align="left">Not applicable</td>
+<td align="left">No k-anonymity step; 0 QI columns selected because rows
+are region summaries, not people</td>
+</tr></tbody>
+</table>
+<p>This sample is also aggregate-shaped: each row summarizes a region.
+That is why the worked table above computes zero QI columns and treats
+k-anonymity as not applicable unless a user is actually modelling
+person-level records.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="two-ways-to-use-it-with-ai">Two ways to use it with AI<a class="anchor" aria-label="anchor" href="#two-ways-to-use-it-with-ai"></a>
 </h2>
 <div class="section level3">
@@ -243,7 +491,7 @@ artifacts.</p>
 bundle’s <code>agent/recipe.yaml</code> records everything needed to
 regenerate the synthetic data: the spec, the per-column roles, and the
 seed. An AI agent can then run DataGangeR itself, for example:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">dataganger</span> synthesize <span class="op">&lt;</span>real-data<span class="op">&gt;</span> --recipe agent/recipe.yaml <span class="at">--out</span> check.zip</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="ex">dataganger</span> synthesize <span class="op">&lt;</span>real-data<span class="op">&gt;</span> --recipe agent/recipe.yaml <span class="at">--out</span> check.zip</span></code></pre></div>
 <p>That path is paired with the packaged agent workflow guide.
 <code>dataganger skill</code> prints or copies the installed agent guide
 (shipped in the bundle as <code>agent/AGENT.md</code>), whose first rule

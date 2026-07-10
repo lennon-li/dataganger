@@ -66,6 +66,7 @@ zip archive.</p>
 <span>  include_original_names <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  fail_on_exact_match <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_report <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  kanon_acknowledged <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_dictionary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  code_readiness <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  compact <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -141,6 +142,13 @@ manifest, and a warning is emitted instead.</p></dd>
 <dd><p>Logical. When <code>TRUE</code> (the default), write
 <code>human/comparison_report.html</code>. If <code>rmarkdown</code>/<code>knitr</code> are unavailable,
 the report is skipped with a message instead of an error.</p></dd>
+
+
+<dt id="arg-kanon-acknowledged">kanon_acknowledged<a class="anchor" aria-label="anchor" href="#arg-kanon-acknowledged"></a></dt>
+<dd><p>Logical. Records whether a human explicitly
+acknowledged exporting a bundle whose k-anonymity backstop was infeasible.
+Interactive UI export uses this to clear the bundle blocker; non-interactive
+exports leave it <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-include-dictionary">include_dictionary<a class="anchor" aria-label="anchor" href="#arg-include-dictionary"></a></dt>
