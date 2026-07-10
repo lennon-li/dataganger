@@ -11,10 +11,10 @@ test_that("age as combination survives the full pipeline without crashing", {
   spec <- synth_spec(roles = r, purpose = "development")
   spec$k_anon <- 5
 
-  expect_warning(
-    res <- run_synthesis_pipeline(df, spec, roles = r),
-    "infeasible"
-  )
+  # run_synthesis_pipeline() captures warnings for the app UI instead of
+  # emitting them; the infeasibility signal now arrives in res$warnings.
+  res <- run_synthesis_pipeline(df, spec, roles = r)
+  expect_true(any(grepl("infeasible", res$warnings)))
 
   expect_s3_class(res$synthetic, "data.frame")
   all_na <- vapply(res$synthetic, function(x) all(is.na(x)), logical(1))
