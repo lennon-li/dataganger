@@ -10,7 +10,7 @@ to reduce direct disclosure risk, not to guarantee privacy.
 
 Useful links:
 
-- <https://lennon-li.github.io/dataganger/>
+- <https://dataganger.biostats.ai/>
 
 - <https://github.com/lennon-li/dataganger>
 

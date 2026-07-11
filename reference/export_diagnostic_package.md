@@ -29,13 +29,13 @@ export_diagnostic_package(
 - roles:
 
   Optional; a `dataganger_roles` object from
-  [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md).
+  [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md).
   Computed internally if `NULL`.
 
 - profile:
 
   Optional; a `dataganger_profile` object from
-  [`profile_data()`](https://lennon-li.github.io/dataganger/reference/profile_data.md).
+  [`profile_data()`](https://dataganger.biostats.ai/reference/profile_data.md).
   Computed internally if `NULL`.
 
 - overwrite:

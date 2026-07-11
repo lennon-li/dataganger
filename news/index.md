@@ -6,13 +6,13 @@ CRAN resubmission changes requested on 2026-07-10.
 
 - DESCRIPTION now quotes the package name `'shiny'` correctly in the
   Description field.
-- [`read_input()`](https://lennon-li.github.io/dataganger/reference/read_input.md)
+- [`read_input()`](https://dataganger.biostats.ai/reference/read_input.md)
   examples are now self-contained, executable, and no longer use
   commented-out code.
-- [`export_synthetic()`](https://lennon-li.github.io/dataganger/reference/export_synthetic.md),
-  [`make_agent_bundle()`](https://lennon-li.github.io/dataganger/reference/make_agent_bundle.md),
+- [`export_synthetic()`](https://dataganger.biostats.ai/reference/export_synthetic.md),
+  [`make_agent_bundle()`](https://dataganger.biostats.ai/reference/make_agent_bundle.md),
   and
-  [`export_diagnostic_package()`](https://lennon-li.github.io/dataganger/reference/export_diagnostic_package.md)
+  [`export_diagnostic_package()`](https://dataganger.biostats.ai/reference/export_diagnostic_package.md)
   examples now write only to temporary paths and no longer use
   `\dontrun{}`.
 - Audited exported write functions, examples, tests, and vignettes for
@@ -31,14 +31,14 @@ privacy wording, and a lighter dependency footprint.
 - **k-anonymity now runs before column renaming.** Previously, with
   `name_strategy = "generic"`, generic renaming ran first and recorded
   the name map before
-  [`enforce_kanon()`](https://lennon-li.github.io/dataganger/reference/enforce_kanon.md)
+  [`enforce_kanon()`](https://dataganger.biostats.ai/reference/enforce_kanon.md)
   dropped direct identifiers and applied suppression — so bundles could
   under-protect. Both engine paths now enforce k-anonymity first.
   Bundles generated with generic names on earlier versions may be
   under-protected; regenerate them.
 - The manifest and the privacy report now agree on a single
   exact-row-match number:
-  [`export_synthetic()`](https://lennon-li.github.io/dataganger/reference/export_synthetic.md)
+  [`export_synthetic()`](https://dataganger.biostats.ai/reference/export_synthetic.md)
   uses the same roles-derived exclusion rule as `privacy_check_post()`.
 - Seeded synthesis is fully deterministic: `decimal_places()` samples
   long columns with a deterministic stride instead of
@@ -61,10 +61,10 @@ privacy wording, and a lighter dependency footprint.
   gone. CLI `synthesize` gains `--recipe <recipe.yaml>`;
   `--spec`/`--roles` remain supported. `compact` and
   `include_dictionary` are deprecated no-ops.
-- [`export_synthetic()`](https://lennon-li.github.io/dataganger/reference/export_synthetic.md)
+- [`export_synthetic()`](https://dataganger.biostats.ai/reference/export_synthetic.md)
   honors its `code_readiness` argument: when supplied, the bundle gains
   `agent/code_readiness_report.json`;
-  [`make_agent_bundle()`](https://lennon-li.github.io/dataganger/reference/make_agent_bundle.md)
+  [`make_agent_bundle()`](https://dataganger.biostats.ai/reference/make_agent_bundle.md)
   computes it automatically, so every agent bundle now ships the
   structural-compatibility report.
 - Both shipped skills (`AGENT.md` in every bundle and
@@ -73,8 +73,8 @@ privacy wording, and a lighter dependency footprint.
 ### Engine
 
 - `"auto"` is a real engine alias in
-  [`synth_spec()`](https://lennon-li.github.io/dataganger/reference/synth_spec.md),
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md),
+  [`synth_spec()`](https://dataganger.biostats.ai/reference/synth_spec.md),
+  [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md),
   the CLI (`--engine <auto|internal|synthpop>`), and spec YAML. An
   explicit `"auto"` behaves exactly like leaving the engine unset: the
   engine is derived from the objective and `dataganger.disable_synthpop`
@@ -126,16 +126,16 @@ privacy wording, and a lighter dependency footprint.
   from linkage” claim is gone.
 - Engine documentation matches reality (demo → internal; development →
   synthpop when installed; analytics → synthpop + risk acknowledgement).
-- [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md)
+- [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md)
   documents the two-axis columns; assorted roxygen and vignette
   corrections; the startup message is reduced to version +
-  [`run_app()`](https://lennon-li.github.io/dataganger/reference/run_app.md).
+  [`run_app()`](https://dataganger.biostats.ai/reference/run_app.md).
 
 ### Dependencies & internals
 
 - `purrr`, `tidyr`, and `vctrs` dropped from Imports (unused); `plotly`
   moved to Suggests with an install gate in the Compare module.
-- [`check_code_readiness()`](https://lennon-li.github.io/dataganger/reference/check_code_readiness.md)
+- [`check_code_readiness()`](https://dataganger.biostats.ai/reference/check_code_readiness.md)
   now documents and reports that `haven_labelled` → character is the
   expected round-trip for now.
 - Internal hygiene: unified ID-name regex, NULL/NA-safe role lookups (a
@@ -166,13 +166,13 @@ guarantee.
   `ai-readme.md` so dropped columns are not listed as `NA (NA)`.
 - No-network guarantee: web fonts are now self-hosted (no Google Fonts
   CDN), so the app makes no external requests;
-  [`report_issue()`](https://lennon-li.github.io/dataganger/reference/report_issue.md)
+  [`report_issue()`](https://dataganger.biostats.ai/reference/report_issue.md)
   prints a copy-paste GitHub issue instead of opening a browser (the
   Shiny button shows a copyable modal). A shipped runtime trap test and
   source guard prove the package makes no network calls, and a Linux
   `unshare -rn` CI job runs the suite with no network at all.
 - New
-  [`vignette("privacy-and-ai-workflow")`](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.md)
+  [`vignette("privacy-and-ai-workflow")`](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.md)
   documents the privacy gating ladder, the two ways to use the package
   with AI, and the no-network guarantee.
 
@@ -198,7 +198,7 @@ Configure redesign around two intrinsic privacy questions.
   detail panel around consistent dimensions for use, values,
   relationships, identifiers, and sensitive / rare data.
 - Synthesis Settings labels are more human-readable, with matching
-  [`synth_spec()`](https://lennon-li.github.io/dataganger/reference/synth_spec.md)
+  [`synth_spec()`](https://dataganger.biostats.ai/reference/synth_spec.md)
   documentation for the current settings surface.
 - The per-column data preview includes a filter so you can inspect one
   variable at a time while reviewing the Configure step.
@@ -212,7 +212,7 @@ Generation, comparison, and export clarity pass:
   Configure table as final, non-editable values) so choices can be
   reviewed before generating.
 - New
-  [`report_issue()`](https://lennon-li.github.io/dataganger/reference/report_issue.md)
+  [`report_issue()`](https://dataganger.biostats.ai/reference/report_issue.md)
   helper plus an in-app **Report a problem** button open a pre-filled
   GitHub issue with environment details, without sending anything
   automatically.
@@ -265,7 +265,7 @@ Configure page clarity pass:
 
 ### Disclosure roles
 
-- [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md)
+- [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md)
   is now conservative: it only auto-assigns a disclosure role when
   confident (a clear direct identifier, or a known-sensitive column
   name). All other columns are left **unselected** rather than defaulted
@@ -291,7 +291,7 @@ Configure page clarity pass:
   billions of split candidates; (2) even moderate-cardinality character
   columns (\>20 distinct values) used as CART *predictors* trigger the
   same 2^(k-1) blowup at k=34. Fix:
-  [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md)
+  [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md)
   now detects date strings (ISO, “Mon DD YYYY”, MM/DD/YY) via regex and
   classifies them as “date”; and a new `synthpop_bridge_cols()` function
   excludes any character column with \>20 distinct values from
@@ -310,7 +310,7 @@ Configure page clarity pass:
   item in the Configure advanced-settings panel.
 
 - **P3 — Role-reactive row suggestion**:
-  [`suggest_min_rows()`](https://lennon-li.github.io/dataganger/reference/suggest_min_rows.md)
+  [`suggest_min_rows()`](https://dataganger.biostats.ai/reference/suggest_min_rows.md)
   gains a `data` parameter; when called with `data` and `roles`, it
   recomputes the coverage estimate over only the columns that are still
   being synthesized. Dropping an ID or excluded column now immediately
@@ -341,11 +341,11 @@ Configure page clarity pass:
   synchronous path for tests and CI.
 
 - Coverage-based row-count suggestion:
-  [`profile_data()`](https://lennon-li.github.io/dataganger/reference/profile_data.md)
+  [`profile_data()`](https://dataganger.biostats.ai/reference/profile_data.md)
   now carries cross-column coverage (distinct joint combinations of
   categorical columns plus the largest per-column level count), and the
   new
-  [`suggest_min_rows()`](https://lennon-li.github.io/dataganger/reference/suggest_min_rows.md)
+  [`suggest_min_rows()`](https://dataganger.biostats.ai/reference/suggest_min_rows.md)
   function turns that into a sufficient synthetic row count - capped at
   5000, floored at the largest level count, and never above the
   original. The Configuration row-count slider pre-fills with the

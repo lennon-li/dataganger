@@ -21,7 +21,7 @@ make_agent_bundle(
 - file:
 
   Path to the input data file. Passed to
-  [`read_input()`](https://lennon-li.github.io/dataganger/reference/read_input.md).
+  [`read_input()`](https://dataganger.biostats.ai/reference/read_input.md).
 
 - out:
 
@@ -30,7 +30,7 @@ make_agent_bundle(
 - purpose:
 
   Synthesis purpose preset. Defaults to `"development"`. See
-  [`synth_spec()`](https://lennon-li.github.io/dataganger/reference/synth_spec.md)
+  [`synth_spec()`](https://dataganger.biostats.ai/reference/synth_spec.md)
   for valid values.
 
 - seed:
@@ -44,7 +44,7 @@ make_agent_bundle(
 - ...:
 
   Additional arguments passed to
-  [`read_input()`](https://lennon-li.github.io/dataganger/reference/read_input.md)
+  [`read_input()`](https://dataganger.biostats.ai/reference/read_input.md)
   only (e.g. `encoding`, `sheet`).
 
 ## Value

@@ -34,7 +34,7 @@ export_synthetic(
 - synthetic:
 
   A synthetic data frame, typically from
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md).
+  [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md).
 
 - original:
 
@@ -46,14 +46,14 @@ export_synthetic(
 
   Optional `dataganger_comparison` object. If `NULL` and `original` is
   supplied,
-  [`compare_synthetic()`](https://lennon-li.github.io/dataganger/reference/compare_synthetic.md)
+  [`compare_synthetic()`](https://dataganger.biostats.ai/reference/compare_synthetic.md)
   is run automatically.
 
 - privacy:
 
   Optional `dataganger_privacy_check` object. If `NULL` and `original`
   is supplied,
-  [`privacy_check()`](https://lennon-li.github.io/dataganger/reference/privacy_check.md)
+  [`privacy_check()`](https://dataganger.biostats.ai/reference/privacy_check.md)
   is run automatically at the post stage.
 
 - path:
@@ -116,7 +116,7 @@ export_synthetic(
 - code_readiness:
 
   Optional `dataganger_code_readiness` object from
-  [`check_code_readiness()`](https://lennon-li.github.io/dataganger/reference/check_code_readiness.md).
+  [`check_code_readiness()`](https://dataganger.biostats.ai/reference/check_code_readiness.md).
   When supplied, writes `agent/code_readiness_report.json` into the
   bundle.
 

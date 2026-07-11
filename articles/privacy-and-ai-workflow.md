@@ -391,7 +391,7 @@ locally.
 This now includes the trust edges around the app itself:
 
 - web fonts are self-hosted, so there is no CDN request
-- [`report_issue()`](https://lennon-li.github.io/dataganger/reference/report_issue.md)
+- [`report_issue()`](https://dataganger.biostats.ai/reference/report_issue.md)
   prints a copyable GitHub issue URL and body instead of opening a
   browser
 - the Shiny “Report a problem” button shows a copyable modal instead of

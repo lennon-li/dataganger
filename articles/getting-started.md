@@ -94,7 +94,7 @@ Defaults are safe for the objective you picked — leave them unless you
 have a reason to change them. Each control in the app also carries a
 one-line explanation, and every decision is recorded in the exported
 spec so the result is reproducible (see
-[`synth_spec()`](https://lennon-li.github.io/dataganger/reference/synth_spec.md)
+[`synth_spec()`](https://dataganger.biostats.ai/reference/synth_spec.md)
 for the programmatic equivalents).
 
 ## 4. Generate
@@ -146,7 +146,7 @@ there is no separate privacy file. `agent/recipe.yaml` records the spec,
 the per-column roles, and the seed, so an agent can regenerate or vary
 the synthetic data without ever reading the real data — see the [Privacy
 gating and Agent
-workflows](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.md)
+workflows](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.md)
 article.
 
 ![](step-6-export.png)

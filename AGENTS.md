@@ -36,8 +36,8 @@ when the local environment silently skipped tests (PR \#39, 2026-07-10).
   (`human.md`, optional `comparison_report.html`), `agent/`
   (`recipe.yaml`, `AGENT.md`, `manifest.json`).
 - The order of operations in
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md):
-  [`enforce_kanon()`](https://lennon-li.github.io/dataganger/reference/enforce_kanon.md)
+  [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md):
+  [`enforce_kanon()`](https://dataganger.biostats.ai/reference/enforce_kanon.md)
   runs BEFORE column renaming (`apply_name_strategy()`).
 - The provable no-network guarantee: no external requests, CDN assets,
   or web fonts anywhere in package code or `inst/app/`.

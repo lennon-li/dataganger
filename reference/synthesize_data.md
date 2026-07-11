@@ -20,12 +20,12 @@ synthesize_data(data, spec, roles = NULL, engine = NULL)
 - spec:
 
   A `dataganger_spec` object from
-  [`synth_spec()`](https://lennon-li.github.io/dataganger/reference/synth_spec.md).
+  [`synth_spec()`](https://dataganger.biostats.ai/reference/synth_spec.md).
 
 - roles:
 
   Optional; a `dataganger_roles` object from
-  [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md).
+  [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md).
   Informs column treatment but does not override the spec.
 
 - engine:

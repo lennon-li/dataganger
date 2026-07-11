@@ -22,12 +22,12 @@ check_code_readiness(original, synthetic, roles = NULL)
 - synthetic:
 
   The synthetic data frame (from
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)).
+  [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md)).
 
 - roles:
 
   Optional; a `dataganger_roles` object from
-  [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md).
+  [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md).
   Used for ID-uniqueness checks. Computed internally if `NULL`.
 
 ## Value

@@ -3,7 +3,7 @@
 Builds a synthesis specification from a purpose preset with optional
 user overrides. The specification records the synthesis parameters but
 does not check engine availability - that is done by
-[`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md).
+[`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md).
 
 ## Usage
 
@@ -65,13 +65,13 @@ synth_spec(
 
   Character or `NULL`. Optional explicit synthesis engine: `"auto"`
   clears any explicit engine choice so
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
+  [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md)
   derives the engine from the objective, `"internal"`/`"marginal"`
   synthesizes each column from its own distribution (fast,
   dependency-free, ignores cross-column relationships), and `"synthpop"`
   models columns conditionally so correlations and joint structure are
   preserved (higher fidelity, needs the synthpop package). If `NULL`,
-  [`synthesize_data()`](https://lennon-li.github.io/dataganger/reference/synthesize_data.md)
+  [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md)
   derives the engine from the objective.
 
 - acknowledge_risk:

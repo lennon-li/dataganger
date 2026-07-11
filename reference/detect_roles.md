@@ -22,7 +22,7 @@ detect_roles(data, profile = NULL)
 - profile:
 
   Optional; a `dataganger_profile` object from
-  [`profile_data()`](https://lennon-li.github.io/dataganger/reference/profile_data.md).
+  [`profile_data()`](https://dataganger.biostats.ai/reference/profile_data.md).
   If `NULL` (the default), profiling is performed internally.
 
 ## Value

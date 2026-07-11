@@ -18,7 +18,7 @@
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="DataGangeR — Synthetic Data Doubles for Safer Prototyping">
 <meta name="description" content="Creates synthetic data doubles from real datasets for prototyping, teaching, shiny development, and AI-assisted programming. Provides data profiling, role detection, configurable synthesis, utility comparison, and disclosure-risk warnings. Synthetic outputs are intended to reduce direct disclosure risk, not to guarantee privacy.">
 <meta property="og:description" content="Creates synthetic data doubles from real datasets for prototyping, teaching, shiny development, and AI-assisted programming. Provides data profiling, role detection, configurable synthesis, utility comparison, and disclosure-risk warnings. Synthetic outputs are intended to reduce direct disclosure risk, not to guarantee privacy.">
-<meta property="og:image" content="https://lennon-li.github.io/dataganger/logo.png">
+<meta property="og:image" content="https://dataganger.biostats.ai/logo.png">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -67,9 +67,9 @@
 </div>
 <!-- badges: start -->
 
-<p><a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&amp;logo=lock&amp;logoColor=white" alt="Your data stays local"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/network-none-2ea44f?style=flat-square" alt="No network calls"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&amp;logo=shield&amp;logoColor=white" alt="Human-gated privacy"></a> <a href="https://github.com/lennon-li/dataganger" class="external-link"><img src="https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Open &amp; auditable"></a> <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&amp;logo=robotframework&amp;logoColor=white" alt="Agent-friendly"></a></p>
+<p><a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&amp;logo=lock&amp;logoColor=white" alt="Your data stays local"></a> <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/network-none-2ea44f?style=flat-square" alt="No network calls"></a> <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&amp;logo=shield&amp;logoColor=white" alt="Human-gated privacy"></a> <a href="https://github.com/lennon-li/dataganger" class="external-link"><img src="https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Open &amp; auditable"></a> <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&amp;logo=robotframework&amp;logoColor=white" alt="Agent-friendly"></a></p>
 <p><strong>DataGangeR is a human-gated privacy protocol for Agent prototyping.</strong> You answer a short set of privacy questions, once, in a guided UI; DataGangeR turns your real dataset into a synthetic stand-in that a coding <strong>Agent</strong> can build on at full speed — and the Agent never sees the original records.</p>
-<p>📖 <strong>Documentation:</strong> <a href="https://lennon-li.github.io/dataganger/" class="uri">https://lennon-li.github.io/dataganger/</a></p>
+<p>📖 <strong>Documentation:</strong> <a href="https://dataganger.biostats.ai/" class="uri">https://dataganger.biostats.ai/</a></p>
 <div class="section level2">
 <h2 id="want-an-agent-to-build-on-your-data--without-ever-handing-it-over">Want an Agent to build on your data — without ever handing it over?<a class="anchor" aria-label="anchor" href="#want-an-agent-to-build-on-your-data--without-ever-handing-it-over"></a>
 </h2>
@@ -114,10 +114,10 @@
 <div class="float">
 <img src="reference/figures/hero.gif" alt="DataGangeR walks you through objective, upload, configure, generate, compare, and export"><div class="figcaption">DataGangeR walks you through objective, upload, configure, generate, compare, and export</div>
 </div>
-<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported Agent workflow. When <code>synthpop</code> is not installed, the attestation also recommends it for correlation-aware synthesis. See the <a href="https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows vignette</a>.</p>
+<p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported Agent workflow. When <code>synthpop</code> is not installed, the attestation also recommends it for correlation-aware synthesis. See the <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows vignette</a>.</p>
 <p>The Compare step separates <strong>Univariate</strong> distribution checks from <strong>Bivariate</strong> relationship checks. Bivariate tests fit an original-versus- synthetic interaction: low p-values mean the predictor-to-outcome relationship was modified (poorer fidelity), using the same fidelity colors as other tests. Effect sizes are odds ratios for binary outcomes, slope ratios for counts, and differences in slope for continuous outcomes; multi-level categorical outcomes receive a joint interaction test.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dataganger.biostats.ai/">dataganger</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/run_app.html">run_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <table class="table">
 <colgroup>
@@ -148,7 +148,7 @@
 </ul>
 <p>An end-to-end reproducible pipeline looks like this:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lennon-li.github.io/dataganger/">dataganger</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dataganger.biostats.ai/">dataganger</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">dat</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_input.html">read_input</a></span><span class="op">(</span><span class="st">"my-data.csv"</span><span class="op">)</span>          <span class="co"># or: individual_sample</span></span>
 <span><span class="va">profile</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/profile_data.html">profile_data</a></span><span class="op">(</span><span class="va">dat</span><span class="op">)</span></span>
@@ -261,7 +261,7 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/lennon-li/dataganger/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/lennon-li/dataganger/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
-<li><a href="https://lennon-li.github.io/dataganger/"><img src="https://github.com/lennon-li/dataganger/actions/workflows/pkgdown.yaml/badge.svg" alt="pkgdown"></a></li>
+<li><a href="https://dataganger.biostats.ai/"><img src="https://github.com/lennon-li/dataganger/actions/workflows/pkgdown.yaml/badge.svg" alt="pkgdown"></a></li>
 </ul>
 </div>
 

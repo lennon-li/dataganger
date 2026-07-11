@@ -1,7 +1,7 @@
 # Suggest a sufficient synthetic row count
 
 Given a
-[`profile_data()`](https://lennon-li.github.io/dataganger/reference/profile_data.md)
+[`profile_data()`](https://dataganger.biostats.ai/reference/profile_data.md)
 profile (which carries cross-column coverage information), suggests how
 many rows to synthesize so that the synthetic data can still represent
 every category combination and every category level observed in the
@@ -25,7 +25,7 @@ suggest_min_rows(
 - profile:
 
   A `dataganger_profile` from
-  [`profile_data()`](https://lennon-li.github.io/dataganger/reference/profile_data.md).
+  [`profile_data()`](https://dataganger.biostats.ai/reference/profile_data.md).
 
 - roles:
 

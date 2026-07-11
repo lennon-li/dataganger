@@ -30,7 +30,7 @@ privacy_check(
 - roles:
 
   Optional; a `dataganger_roles` object from
-  [`detect_roles()`](https://lennon-li.github.io/dataganger/reference/detect_roles.md).
+  [`detect_roles()`](https://dataganger.biostats.ai/reference/detect_roles.md).
   Recommended for pre-stage flag detection. When omitted, fallback
   name/type heuristics are used.
 

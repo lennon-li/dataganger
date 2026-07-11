@@ -15,7 +15,7 @@ plot_comparison(comparison)
 - comparison:
 
   A `dataganger_comparison` object from
-  [`compare_synthetic()`](https://lennon-li.github.io/dataganger/reference/compare_synthetic.md).
+  [`compare_synthetic()`](https://dataganger.biostats.ai/reference/compare_synthetic.md).
 
 ## Value
 
