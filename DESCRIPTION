@@ -48,7 +48,7 @@ Suggests:
     synthpop,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
-URL: https://lennon-li.github.io/dataganger/, https://github.com/lennon-li/dataganger
+URL: https://dataganger.biostats.ai/, https://github.com/lennon-li/dataganger
 BugReports: https://github.com/lennon-li/dataganger/issues
 Config/roxygen2/version: 8.0.0
 RoxygenNote: 8.0.0

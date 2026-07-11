@@ -2,21 +2,21 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/lennon-li/dataganger/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/lennon-li/dataganger/actions/workflows/R-CMD-check.yaml)
-[![pkgdown](https://github.com/lennon-li/dataganger/actions/workflows/pkgdown.yaml/badge.svg)](https://lennon-li.github.io/dataganger/)
+[![pkgdown](https://github.com/lennon-li/dataganger/actions/workflows/pkgdown.yaml/badge.svg)](https://dataganger.biostats.ai/)
 <!-- badges: end -->
 
-[![Your data stays local](https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&logo=lock&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
-[![No network calls](https://img.shields.io/badge/network-none-2ea44f?style=flat-square)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
-[![Human-gated privacy](https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&logo=shield&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
+[![Your data stays local](https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&logo=lock&logoColor=white)](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html)
+[![No network calls](https://img.shields.io/badge/network-none-2ea44f?style=flat-square)](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html)
+[![Human-gated privacy](https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&logo=shield&logoColor=white)](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html)
 [![Open &amp; auditable](https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&logo=github&logoColor=white)](https://github.com/lennon-li/dataganger)
-[![Agent-friendly](https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&logo=robotframework&logoColor=white)](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html)
+[![Agent-friendly](https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&logo=robotframework&logoColor=white)](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html)
 
 **DataGangeR is a human-gated privacy protocol for Agent prototyping.** You
 answer a short set of privacy questions, once, in a guided UI; DataGangeR turns
 your real dataset into a synthetic stand-in that a coding **Agent** can build
 on at full speed — and the Agent never sees the original records.
 
-📖 **Documentation:** <https://lennon-li.github.io/dataganger/>
+📖 **Documentation:** <https://dataganger.biostats.ai/>
 
 ## Want an Agent to build on your data — without ever handing it over?
 
@@ -101,7 +101,7 @@ until you answer two privacy questions for every column. Those answers drive
 the synthesis rules and the exported Agent workflow. When `synthpop` is not
 installed, the attestation also recommends it for correlation-aware synthesis.
 See the
-[Privacy gating and Agent workflows vignette](https://lennon-li.github.io/dataganger/articles/privacy-and-ai-workflow.html).
+[Privacy gating and Agent workflows vignette](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html).
 
 The Compare step separates **Univariate** distribution checks from
 **Bivariate** relationship checks. Bivariate tests fit an original-versus-

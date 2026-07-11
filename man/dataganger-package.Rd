@@ -24,7 +24,7 @@ Creates synthetic data doubles from real datasets for prototyping, teaching, 'sh
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://lennon-li.github.io/dataganger/}
+  \item \url{https://dataganger.biostats.ai/}
   \item \url{https://github.com/lennon-li/dataganger}
   \item Report bugs at \url{https://github.com/lennon-li/dataganger/issues}
 }
