@@ -7,3 +7,11 @@
 /doc/
 /Meta/
 /docs/
+.agents/
+.claude/
+.codex/
+.codegraph/
+.hermes/
+.tokensave/
+dev/
+exec/
