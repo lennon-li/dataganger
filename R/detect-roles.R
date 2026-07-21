@@ -166,10 +166,12 @@ detect_single_role_inner <- function(x, name, n_rows) {
   }
 
   # Test 3.5: alphanumeric ID -- a structured mix of letters, digits, and
-  # delimiters (account numbers, order IDs, license plates, ...). This is a
-  # more specific signal than the generic ID tests below, so it takes
-  # priority: a column matching both is an alphanumeric ID, not a plain
-  # pseudo identifier.
+  # delimiters (account numbers, order IDs, license plates, ...). Checked
+  # ahead of Test 4/5 below purely so its more specific `reason` text wins;
+  # all three tests produce the same role ("alphanumeric ID") and default
+  # treatment (scramble) -- there is no longer a separate, less-structured
+  # "pseudo identifier" category. Anything that looks like an identifier,
+  # structured or not, is an alphanumeric ID.
   if (is_alphanumeric_id_candidate(x, n_rows)) {
     return(make_role_row(
       name, r_class, "alphanumeric ID",
@@ -179,17 +181,21 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 4: name matches ID patterns
+  # Test 4: name matches ID patterns -- alphanumeric ID is now the single
+  # catch-all for anything that looks like an identifier, structured or not;
+  # its default treatment is to scramble (not drop), so the value survives
+  # in a de-identified form rather than being removed by default.
   id_pattern <- dg_id_name_pattern()
   if (grepl(id_pattern, name, perl = TRUE)) {
     return(make_role_row(
-      name, r_class, "ID candidate",
+      name, r_class, "alphanumeric ID",
       "The column name suggests an identifier, such as an ID, record number, or key.",
-      "direct"
+      "direct",
+      default_simulation = "scramble"
     ))
   }
 
-  # Test 5: high cardinality -> ID candidate
+  # Test 5: high cardinality -> alphanumeric ID
   # Guard: character columns with long median values are not IDs even when
   # unique -- they belong in free text territory and only reached here due to
   # edge cases in is_free_text_candidate (e.g. non-sentence long strings).
@@ -204,9 +210,10 @@ detect_single_role_inner <- function(x, name, n_rows) {
   }
   if (!is_long_char && !is.numeric(x) && distinct_ratio >= 0.95 && n_rows >= 20 && !all(is.na(x))) {
     return(make_role_row(
-      name, r_class, "ID candidate",
+      name, r_class, "alphanumeric ID",
       "Nearly every value is unique, so this likely identifies individual records.",
-      "direct"
+      "direct",
+      default_simulation = "scramble"
     ))
   }
 

@@ -568,7 +568,10 @@ test_that("synthesize_data() handles roles missing one column", {
   roles <- detect_roles(df)
   roles <- roles[roles$variable != "y", , drop = FALSE]
   spec <- synth_spec(purpose = "demo", n = 10)
-  expect_no_error(syn <- synthesize_data(df, spec, roles = roles))
+  # id is an alphanumeric ID (default simulation "scramble"); the row-count
+  # change (20 -> 10) makes scramble fall back to plain synthesis with a
+  # warning, which is expected and irrelevant to this test.
+  expect_no_error(syn <- suppressWarnings(synthesize_data(df, spec, roles = roles)))
   expect_s3_class(syn, "dataganger_synthetic")
 })
 # ---- Phase 2.1 fix tests ----
@@ -584,8 +587,14 @@ test_that("remove_ids masks ID columns with NA", {
   roles$disclosure_role[roles$variable == "x"] <- "none"
   spec <- synth_spec(purpose = "demo", n = 10)
   spec$remove_ids <- TRUE
-  syn <- synthesize_data(df, spec, roles = roles)
-  expect_false("id" %in% names(syn))
+  # "id" is an alphanumeric ID with a default "scramble" simulation, which
+  # exempts it from enforce_kanon's drop -- but remove_ids already masked its
+  # values to NA in synthesize_marginal, so it stays present and fully NA
+  # rather than being dropped as a column. The row-count change (50 -> 10)
+  # also makes scramble fall back to plain synthesis with a warning, which
+  # is expected and irrelevant here since the column is already NA-masked.
+  syn <- suppressWarnings(synthesize_data(df, spec, roles = roles))
+  expect_true(all(is.na(syn$id)))
   expect_false(all(is.na(syn$x)))
 })
 
@@ -661,6 +670,11 @@ test_that("synthesize_data() generic naming still drops direct identifiers befor
   roles$disclosure_role[roles$variable %in% c("age_band", "region")] <- "quasi"
   roles$identifies[roles$variable == "patient_id"] <- "direct"
   roles$identifies[roles$variable %in% c("age_band", "region")] <- "combination"
+  # patient_id defaults to simulation = "scramble" as an alphanumeric ID,
+  # which is an explicit keep-decision exempting it from the drop below.
+  # Force an explicit "drop" decision to test that identifiers are still
+  # dropped before renaming when that decision is made.
+  roles$simulation[roles$variable == "patient_id"] <- "drop"
   spec <- synth_spec(purpose = "demo", n = 20, seed = 11, name_strategy = "generic")
 
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")

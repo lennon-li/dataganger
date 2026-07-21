@@ -28,24 +28,26 @@ test_that("synthpop preserves a correlation that the internal engine destroys", 
   expect_gt(cor_sp, cor_int)             # and is materially better than marginal
 })
 
-test_that("distinctive numeric survives synthpop; only the ID-named column drops", {
+test_that("distinctive numeric survives synthpop; the ID-named column is scrambled, not dropped", {
   skip_if_no_synthpop()
   set.seed(2)
   df <- data.frame(
-    patient_label = paste0("P", 1:200),    # name + cardinality -> ID candidate -> dropped
+    patient_label = paste0("P", 1:200),    # name + cardinality -> alphanumeric ID -> scrambled
     lab_value = round(rnorm(200, 50, 8), 2), # distinctive numeric -> numeric role -> kept
     arm = rep(c("A", "B"), 100),
     stringsAsFactors = FALSE
   )
   roles <- detect_roles(df)
   expect_equal(roles$recommended_role[roles$variable == "lab_value"], "numeric")
-  expect_equal(roles$recommended_role[roles$variable == "patient_label"], "ID candidate")
+  expect_equal(roles$recommended_role[roles$variable == "patient_label"], "alphanumeric ID")
+  expect_equal(roles$simulation[roles$variable == "patient_label"], "scramble")
 
   spec <- suppressWarnings(synth_spec("development", seed = 2L))
   syn <- synthesize_data(df, spec, roles = roles)
   expect_equal(attr(syn, "engine"), "synthpop")
   expect_true("lab_value" %in% names(syn))
-  expect_false("patient_label" %in% names(syn))
+  expect_true("patient_label" %in% names(syn))
+  expect_false(identical(syn$patient_label, df$patient_label))
   expect_gt(length(unique(syn$lab_value)), 1L)  # non-degenerate
 })
 

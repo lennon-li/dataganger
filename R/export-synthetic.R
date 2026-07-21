@@ -987,7 +987,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
   raw_rows_included <- length(pass_through_cols) > 0L
   ids_included <- !is.null(pass_through_rows) && any(
     pass_through_rows$identifies %in% "direct" |
-      pass_through_rows$recommended_role %in% "ID candidate",
+      pass_through_rows$recommended_role %in% "alphanumeric ID",
     na.rm = TRUE
   )
   free_text_included <- !is.null(pass_through_rows) && any(

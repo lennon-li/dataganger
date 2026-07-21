@@ -214,7 +214,13 @@ test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
 
   syn <- synthesize_data(df, spec = spec, roles = roles)
 
-  expect_false("patient_id" %in% names(syn))
+  # patient_id is an alphanumeric ID with the default "scramble" simulation,
+  # so it is kept (scrambled) rather than dropped. A scramble reorders each
+  # value's characters, so it will not reproduce the original column
+  # verbatim (an occasional single-row coincidence is possible since some
+  # values contain repeated digits, but the whole vector will not match).
+  expect_true("patient_id" %in% names(syn))
+  expect_false(identical(syn$patient_id, df$patient_id))
   info <- attr(syn, "kanon")
   expect_false(is.null(info))
   if (length(info$qi_cols)) {

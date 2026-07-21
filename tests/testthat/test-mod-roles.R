@@ -134,7 +134,9 @@ test_that("editing Action treatment and confirming writes back to state", {
     session$flushReact()
     session$flushReact()
 
-    expect_equal(state$roles$simulation[[1]], "synthesize")
+    # record_id is an alphanumeric ID by default, so its default action is
+    # scramble, not synthesize.
+    expect_equal(state$roles$simulation[[1]], "scramble")
 
     session$setInputs(
       `roles-simulation_change` = list(row = 1L, value = "pass_through")
@@ -201,7 +203,7 @@ test_that("confirming role edits invalidates downstream state", {
     session$flushReact()
 
     session$setInputs(
-      `roles-role_change` = list(row = 1L, value = "identifier")
+      `roles-role_change` = list(row = 1L, value = "numeric")
     )
     session$flushReact()
     session$setInputs(`roles-confirm` = 1L)
@@ -307,15 +309,27 @@ test_that("inline override controls expose drop/pass-through and data type", {
   })
 })
 
-test_that("the type dropdown shows 'pseudo identifier' but keeps the internal value 'identifier'", {
+test_that("'identifier' (pseudo identifier) is no longer a selectable type; alphanumeric ID covers it", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
   shiny::testServer(mod_roles_server, args = list(state = state), {
     html <- paste(as.character(output$roles_table), collapse = "\n")
-    expect_match(html, 'value="identifier"', fixed = TRUE)
-    expect_match(html, "pseudo identifier", fixed = TRUE)
-    expect_false(grepl(">identifier<", html, fixed = TRUE))
+    expect_false(grepl('value="identifier"', html, fixed = TRUE))
+    expect_false(grepl("pseudo identifier", html, fixed = TRUE))
+    expect_match(html, 'value="alphanumeric_id"', fixed = TRUE)
+    expect_match(html, "alpha-numeric ID", fixed = TRUE)
+  })
+})
+
+test_that("role_change silently rejects 'identifier' since it is no longer a valid type", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original_user_roles <- state$roles$user_role
+    session$setInputs(role_change = list(row = 1, value = "identifier"))
+    expect_identical(state$roles$user_role, original_user_roles)
   })
 })
 
@@ -388,9 +402,8 @@ test_that("the legend shows each type's default treatment", {
   expect_match(html, "Resample")
   expect_match(html, "Simulate")
   expect_match(html, "Scramble")
-  expect_match(html, "Drop")
   expect_match(html, "alpha-numeric ID")
-  expect_match(html, "pseudo identifier")
+  expect_false(grepl("pseudo identifier", html, fixed = TRUE))
 })
 
 test_that("a logical/boolean column is classified as categorical, not a distinct logical type", {
@@ -437,7 +450,7 @@ test_that("overriding the type away from identifier clears the direct disclosure
   })
 })
 
-test_that("choosing identifier or free_text as the type always sets direct, even without a prior direct role", {
+test_that("choosing alphanumeric_id or free_text as the type always sets direct, even without a prior direct role", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
@@ -445,10 +458,10 @@ test_that("choosing identifier or free_text as the type always sets direct, even
     # Row 3 ("income") starts as a plain non-identifying numeric column.
     expect_equal(state$roles$identifies[[3]], "none")
 
-    session$setInputs(role_change = list(row = 3, value = "identifier"))
+    session$setInputs(role_change = list(row = 3, value = "alphanumeric_id"))
     expect_equal(state$roles$identifies[[3]], "direct")
     expect_equal(state$roles$disclosure_role[[3]], "direct")
-    expect_equal(state$roles$simulation[[3]], "drop")
+    expect_equal(state$roles$simulation[[3]], "scramble")
 
     session$setInputs(role_change = list(row = 3, value = "free_text"))
     expect_equal(state$roles$identifies[[3]], "direct")

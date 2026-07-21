@@ -583,9 +583,9 @@ test_that("manifest booleans and dictionary reflect dropped and pass-through col
 
   roles <- tibble::tibble(
     variable = c("id", "note", "score"),
-    recommended_role = c("ID candidate", "free text", "numeric"),
+    recommended_role = c("alphanumeric ID", "free text", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
-    class = c("ID candidate", "free text", "numeric"),
+    class = c("alphanumeric ID", "free text", "numeric"),
     identifies = c("direct", "direct", "none"),
     sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "direct", "none"),

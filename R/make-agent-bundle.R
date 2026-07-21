@@ -114,7 +114,7 @@ build_diagnostic_view <- function(roles, dictionary, synthetic, purpose) {
   })
 
   has_free_text <- any(roles$recommended_role == "free text")
-  has_ids       <- any(roles$recommended_role == "ID candidate")
+  has_ids       <- any(roles$recommended_role == "alphanumeric ID")
 
   list(
     source             = "dataganger",

@@ -253,9 +253,13 @@ mod_compare_server <- function(id, state) {
     # Derive the kind used for plot/stats: simulation="drop" > user_role >
     # recommended_role > column class.
     # Logical/boolean is not a distinct kind -- it is treated as categorical.
-    # Alpha-numeric ID is not comparable either (its scrambled values carry
-    # no distributional meaning), so it maps to the same "identifier" kind
-    # that already excludes plain pseudo identifiers.
+    # Free text is internally synthesized as categorical (see
+    # synth_free_text()'s "categorical" strategy), so it is compared the same
+    # way, subject to the same dg_max_comparable_levels() cardinality cap --
+    # near-unique free text is excluded by that cap rather than unconditionally.
+    # Any ID (alphanumeric ID -- there is no separate pseudo-identifier type
+    # any more) is never comparable: its scrambled/dropped values carry no
+    # distributional meaning.
     role_to_kind <- function(role) {
       if (is.na(role) || !nzchar(role)) return(NA_character_)
       lc <- tolower(role)
@@ -264,7 +268,7 @@ mod_compare_server <- function(id, state) {
       if (grepl("categor", lc)) return("categorical")
       if (grepl("\\bdate\\b", lc)) return("date")
       if (grepl("logic|boolean", lc)) return("categorical")
-      if (grepl("free.text|free_text", lc)) return("free_text")
+      if (grepl("free.text|free_text", lc)) return("categorical")
       if (grepl("geograph", lc)) return("categorical")
       if (grepl("numeric", lc)) return("numeric")
       if (grepl("drop", lc)) return("drop")
@@ -397,7 +401,7 @@ mod_compare_server <- function(id, state) {
           class = "card",
           shiny::tags$p(
             style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin:0;",
-            "No comparable variables remain after excluding pseudo identifier columns."
+            "No comparable variables remain after excluding ID and dropped columns."
           )
         ))
       }
@@ -538,7 +542,7 @@ mod_compare_server <- function(id, state) {
         vapply(lvls, function(l) mean(vals == l), numeric(1))
       }
 
-      if (kind %in% c("free_text", "drop")) {
+      if (kind == "drop") {
         return(empty_plot(paste0(kind, " \u2014 no distribution plot")))
       }
 
@@ -679,7 +683,7 @@ mod_compare_server <- function(id, state) {
 
       kind <- eff_kind(var, roles, orig[[var]])
 
-      if (kind %in% c("identifier", "free_text", "drop")) {
+      if (kind %in% c("identifier", "drop")) {
         return(shiny::tags$p(
           style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin-top:8px;",
           paste0("Role is '", kind, "' \u2014 this column is excluded from distribution comparison.")

@@ -99,7 +99,7 @@ test_that("dg_kanon_columns is empty/NA-safe", {
 })
 
 test_that("dg_suggest_disclosure maps detected class to a protective suggestion or unset", {
-  expect_equal(dg_suggest_disclosure("ID candidate"), "direct")
+  expect_equal(dg_suggest_disclosure("alphanumeric ID"), "direct")
   expect_equal(dg_suggest_disclosure("free text"), "direct")
   expect_equal(dg_suggest_disclosure("date"), "quasi")
   expect_equal(dg_suggest_disclosure("numeric"), "none")
@@ -111,7 +111,7 @@ test_that("dg_suggest_disclosure maps detected class to a protective suggestion 
 test_that("dg_seed_disclosure seeds protective suggestions, leaves ambiguous unset", {
   roles <- data.frame(
     variable = c("id", "dob", "bp", "arm"),
-    class = c("ID candidate", "date", "numeric", "categorical candidate"),
+    class = c("alphanumeric ID", "date", "numeric", "categorical candidate"),
     disclosure_role = rep("", 4),
     stringsAsFactors = FALSE
   )
@@ -124,9 +124,9 @@ test_that("dg_seed_disclosure seeds protective suggestions, leaves ambiguous uns
 test_that("dg_decision_recap_table builds the generate recap rows", {
   roles <- tibble::tibble(
     variable = c("name", "zip", "bp"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, "date", NA_character_),
-    class = c("ID candidate", "categorical candidate", "numeric"),
+    class = c("alphanumeric ID", "categorical candidate", "numeric"),
     identifies = c("direct", "combination", "none"),
     sensitive = c(FALSE, TRUE, FALSE),
     simulation = c("drop", "pass_through", "synthesize")
@@ -141,7 +141,7 @@ test_that("dg_decision_recap_table builds the generate recap rows", {
   expect_match(out$what_we_do[[1]], "Removed")
   expect_match(out$what_we_do[[2]], "grouped with k-anonymity so no rare combination survives")
   expect_match(out$what_we_do[[3]], "observed distribution with noise")
-  expect_equal(out$type, c("identifier", "date", "numeric"))
+  expect_equal(out$type, c("alphanumeric_id", "date", "numeric"))
 })
 
 test_that("dg_decision_recap_table is robust to missing columns", {

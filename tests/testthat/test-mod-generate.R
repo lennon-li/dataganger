@@ -405,9 +405,9 @@ test_that("decision recap renders the revised review columns", {
   )
   state$roles <- tibble::tibble(
     variable = c("name", "zip", "bp"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, "date", NA_character_),
-    class = c("ID candidate", "categorical candidate", "numeric"),
+    class = c("alphanumeric ID", "categorical candidate", "numeric"),
     identifies = c("direct", "combination", "none"),
     sensitive = c(FALSE, TRUE, FALSE),
     simulation = c("drop", "pass_through", "synthesize")

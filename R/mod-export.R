@@ -84,7 +84,7 @@ mod_export_server <- function(id, state) {
       # Reconcile against what is actually in the synthetic output, so the
       # counts always tie out (Original = synthesized + pass-through + dropped).
       # A column can leave the output via Action = drop OR by role exclusion
-      # (e.g. an ID candidate that is never synthesized); both count as dropped.
+      # (e.g. an alphanumeric ID that is never synthesized); both count as dropped.
       orig_n  <- ncol(raw_data)
       final_n <- ncol(synthetic)
       pass_cols <- character(0)

@@ -73,7 +73,7 @@ check_code_readiness <- function(original, synthetic, roles = NULL) {
   common <- intersect(names(original), names(synthetic))
 
   id_cols <- if (!is.null(roles)) {
-    roles$variable[roles$recommended_role == "ID candidate"]
+    roles$variable[roles$recommended_role == "alphanumeric ID"]
   } else {
     character()
   }

@@ -63,14 +63,17 @@ spec_to_synthpop_args <- function(spec, roles, data) {
   args
 }
 
-# Columns excluded from the synthpop call by role alone (ID candidates and
-# free text). These are truly absent from the synthetic output — they are
-# identifiers or unstructured text that should not be synthesized at all.
+# Columns excluded from the synthpop call itself by role alone (alphanumeric
+# IDs and free text) -- synthpop's sequential CART cannot handle their high
+# cardinality. They are absent from synthpop::syn()'s own output, but
+# apply_simulation_treatment() adds them back afterwards from the original
+# data (scrambled or resampled as categorical), so they still appear in the
+# final synthetic output unless their role/action says otherwise.
 synthpop_role_excluded_cols <- function(roles) {
   if (is.null(roles) || !"recommended_role" %in% names(roles)) {
     return(character())
   }
-  excl <- roles$variable[roles$recommended_role %in% c("ID candidate", "free text")]
+  excl <- roles$variable[roles$recommended_role %in% c("alphanumeric ID", "free text")]
   excl[!is.na(excl)]
 }
 

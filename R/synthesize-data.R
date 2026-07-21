@@ -209,16 +209,17 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
     scramble_cols <- character(0)
   }
 
+  # Set (not just overwrite) so these columns are added back even when an
+  # engine excluded them from its own output entirely -- e.g. the synthpop
+  # engine drops alphanumeric-ID/free-text columns from its own call rather
+  # than synthesizing them, so pass_through/scramble must be able to add
+  # them, not merely overwrite an existing column.
   for (col in pass_cols) {
-    if (col %in% names(syn)) {
-      syn[[col]] <- original[[col]]
-    }
+    syn[[col]] <- original[[col]]
   }
 
   for (col in scramble_cols) {
-    if (col %in% names(syn)) {
-      syn[[col]] <- scramble_alphanumeric_id(as.character(original[[col]]))
-    }
+    syn[[col]] <- scramble_alphanumeric_id(as.character(original[[col]]))
   }
 
   if (length(drop_cols) > 0L) {

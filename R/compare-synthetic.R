@@ -533,8 +533,11 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
     )
   }
   # Logical/boolean is not a distinct kind -- it is treated as categorical.
-  # Alpha-numeric ID maps to "identifier" so it is excluded like plain
-  # pseudo identifiers -- its scrambled values carry no distributional meaning.
+  # Free text is internally synthesized as categorical, so it is compared
+  # (and pairable) the same way. Any ID (alphanumeric ID -- there is no
+  # separate pseudo-identifier type any more) maps to "identifier" and is
+  # never comparable -- its scrambled/dropped values carry no distributional
+  # meaning.
   role_to_kind <- function(role) {
     if (length(role) == 0L || is.na(role) || !nzchar(role)) return(NA_character_)
     lc <- tolower(role)
@@ -543,7 +546,7 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
     if (grepl("categor", lc)) return("categorical")
     if (grepl("\\bdate\\b", lc)) return("date")
     if (grepl("logic|boolean", lc)) return("categorical")
-    if (grepl("free.text|free_text", lc)) return("free_text")
+    if (grepl("free.text|free_text", lc)) return("categorical")
     if (grepl("geograph", lc)) return("categorical")
     if (grepl("numeric", lc)) return("numeric")
     if (grepl("drop", lc)) return("drop")
@@ -577,7 +580,7 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
     function(variable) effective_kind(variable, original[[variable]]),
     character(1)
   ), variables)
-  variables <- variables[!kinds %in% c("identifier", "free_text", "drop")]
+  variables <- variables[!kinds %in% c("identifier", "drop")]
   if (length(variables) < 2L) return(empty())
 
   pairs <- utils::combn(variables, 2L, simplify = FALSE)

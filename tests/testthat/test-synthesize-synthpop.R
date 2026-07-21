@@ -83,7 +83,7 @@ test_that("synthesize_synthpop() aborts when all columns are excluded", {
 test_that("synthpop_bridge_cols() identifies high-cardinality char columns", {
   df <- data.frame(
     date_str = format(as.Date("2020-01-01") + 1:50, "%b %e, %Y"), # date role
-    big_cat  = sprintf("cat_%03d", rep(1:30, length.out = 50)),     # 30 distinct > 20
+    big_cat  = sprintf("cat_%03d", rep(1:30, length.out = 50)),     # 30 distinct, letter+digit shape -> alphanumeric ID
     small_cat = rep(letters[1:5], each = 10),                        # 5 distinct, OK
     score     = rnorm(50),
     stringsAsFactors = FALSE
@@ -91,7 +91,11 @@ test_that("synthpop_bridge_cols() identifies high-cardinality char columns", {
   roles  <- detect_roles(df)
   bridge <- synthpop_bridge_cols(roles, df)
   expect_true("date_str"  %in% bridge)
-  expect_true("big_cat"   %in% bridge)
+  # big_cat's consistent letter+digit shape now gets recommended_role
+  # "alphanumeric ID", so it is truly excluded (handled by
+  # apply_simulation_treatment's scramble) rather than bridged.
+  expect_false("big_cat"  %in% bridge)
+  expect_true("big_cat"   %in% synthpop_role_excluded_cols(roles))
   expect_false("small_cat" %in% bridge)
   expect_false("score"     %in% bridge)
 })

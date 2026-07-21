@@ -1,9 +1,9 @@
 app_test_roles <- function() {
   roles <- tibble::tibble(
     variable = c("email", "age"),
-    recommended_role = c("ID candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "numeric"),
     user_role = c(NA_character_, NA_character_),
-    class = c("ID candidate", "numeric"),
+    class = c("alphanumeric ID", "numeric"),
     identifies = c("direct", "none"),
     sensitive = c(FALSE, FALSE),
     disclosure_role = c("direct", "none"),
@@ -69,7 +69,9 @@ test_that("fail-safe flags suspected direct identifiers and drop or confirm reso
     session$setInputs(confirm_keep_flagged = 1L)
     session$flushReact()
     expect_identical(state$fail_safe_status, "ready")
-    expect_equal(state$roles$simulation[state$roles$variable == "email"], "synthesize")
+    # email's recommended_role is "alphanumeric ID", so confirming keeps it
+    # scrambled rather than treating it as ordinary data to synthesize.
+    expect_equal(state$roles$simulation[state$roles$variable == "email"], "scramble")
     expect_equal(state$roles$identifies[state$roles$variable == "email"], "")
   })
 

@@ -34,7 +34,7 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
 
   # --- remove_ids guard (C11 privacy hardening) ---
   if (isTRUE(spec$remove_ids) && !is.null(role_lookup)) {
-    id_cols <- names(role_lookup)[role_lookup == "ID candidate"]
+    id_cols <- names(role_lookup)[role_lookup == "alphanumeric ID"]
     if (length(id_cols) > 0) {
       cli::cli_inform(c(
         "i" = "{.arg remove_ids} is TRUE: masking {length(id_cols)} ID column{?s}",
@@ -52,7 +52,7 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
 
     # remove_ids: mask ID columns with NA
     if (isTRUE(spec$remove_ids) && !is.null(role_lookup) &&
-        role == "ID candidate") {
+        role == "alphanumeric ID") {
       cols[[i]] <- typed_missing_vector(x, n)
       next
     }

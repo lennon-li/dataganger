@@ -40,7 +40,7 @@ test_that("detect_roles() detects ID candidate from high cardinality", {
   set.seed(123)
   df <- data.frame(token = sprintf("tok%03d", 1:50))
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[r$variable == "token"], "ID candidate")
+  expect_equal(r$recommended_role[r$variable == "token"], "alphanumeric ID")
   expect_match(r$reason[r$variable == "token"], "Nearly every value is unique")
 })
 
@@ -48,7 +48,7 @@ test_that("detect_roles() does NOT flag high-cardinality as ID when nrow < 20", 
   # Column named "col_x" to avoid triggering ID name pattern
   df <- data.frame(col_x = 1:10)
   r <- detect_roles(df)
-  expect_false(r$recommended_role[r$variable == "col_x"] == "ID candidate")
+  expect_false(r$recommended_role[r$variable == "col_x"] == "alphanumeric ID")
 })
 
 test_that("detect_roles() labels distinctive numeric as numeric, not ID candidate", {
@@ -57,20 +57,20 @@ test_that("detect_roles() labels distinctive numeric as numeric, not ID candidat
   df <- data.frame(measurement = seq(1.1, 50.1, length.out = 50))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "numeric")
-  expect_false(r$recommended_role[1] == "ID candidate")
+  expect_false(r$recommended_role[1] == "alphanumeric ID")
 })
 
 test_that("detect_roles() still flags distinctive numeric as ID when name matches", {
   df <- data.frame(record_id = seq(1.1, 50.1, length.out = 50))
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "ID candidate")
+  expect_equal(r$recommended_role[1], "alphanumeric ID")
   expect_match(r$reason[1], "suggests an identifier")
 })
 
 test_that("detect_roles() still flags distinctive character as ID candidate", {
   df <- data.frame(token = sprintf("tok%03d", 1:50))
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "ID candidate")
+  expect_equal(r$recommended_role[1], "alphanumeric ID")
 })
 
 test_that("detect_roles() detects ID from column name pattern", {
@@ -78,7 +78,7 @@ test_that("detect_roles() detects ID from column name pattern", {
   # n_distinct=3, nrow=25 -> ratio 0.12 < 0.95, so only name triggers ID
   df <- data.frame(patient_id = rep(1:3, length.out = 25))
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "ID candidate")
+  expect_equal(r$recommended_role[1], "alphanumeric ID")
   expect_match(r$reason[1], "suggests an identifier")
 })
 
@@ -87,7 +87,7 @@ test_that("detect_roles() detects multiple ID name patterns", {
   for (nm in patterns) {
     df <- setNames(data.frame(x = rep(1:3, length.out = 25)), nm)
     r <- detect_roles(df)
-    expect_equal(r$recommended_role[1], "ID candidate", info = nm)
+    expect_equal(r$recommended_role[1], "alphanumeric ID", info = nm)
   }
 })
 
@@ -171,7 +171,7 @@ test_that("detect_roles() classifies geographic names by cardinality, not a spec
     stringsAsFactors = FALSE
   )
   high_roles <- detect_roles(high_card)
-  expect_equal(high_roles$recommended_role[1], "ID candidate")
+  expect_equal(high_roles$recommended_role[1], "alphanumeric ID")
 })
 
 test_that("detect_roles() labels a distinctive numeric column as numeric", {
@@ -246,7 +246,7 @@ test_that("detect_roles() does not classify long character values as ID even at 
   vals <- sprintf("item-description-key-value-%03d", 1:50)
   df <- data.frame(item_desc = vals, stringsAsFactors = FALSE)
   r <- detect_roles(df)
-  expect_false(r$recommended_role[1] == "ID candidate",
+  expect_false(r$recommended_role[1] == "alphanumeric ID",
                label = "long char column should not be classified as ID candidate")
 })
 
@@ -372,7 +372,7 @@ test_that("detect_roles treats a fixed-prefix reference number as alphanumeric I
 test_that("detect_roles does not classify a plain letter-prefixed ID (no delimiter) as alphanumeric", {
   df <- data.frame(token = sprintf("tok%03d", 1:30), stringsAsFactors = FALSE)
   r <- detect_roles(df)
-  expect_equal(r$recommended_role[1], "ID candidate")
+  expect_equal(r$recommended_role[1], "alphanumeric ID")
 })
 
 test_that("detect_roles does not classify a small set of alphanumeric category codes as an ID", {

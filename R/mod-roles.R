@@ -9,10 +9,10 @@ NULL
 dg_rec_to_role <- function(rec) {
   if (is.na(rec) || !nzchar(rec)) return(NA_character_)
   lc <- tolower(rec)
-  # Checked before the generic "id" pattern below, since "alphanumeric ID"
-  # would otherwise match it too.
+  # There is no separate "pseudo identifier" type any more -- anything that
+  # looks like an identifier, structured or not, is an alphanumeric ID.
   if (grepl("alphanumeric", lc)) return("alphanumeric_id")
-  if (grepl("id\\b|identifier", lc)) return("identifier")
+  if (grepl("id\\b|identifier", lc)) return("alphanumeric_id")
   if (grepl("categor", lc)) return("categorical")
   if (grepl("free.text|free_text", lc)) return("free_text")
   if (grepl("\\bdate\\b", lc)) return("date")
@@ -72,7 +72,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           class = "subtitle",
           "DataGangeR auto-detected each column's role. ",
           shiny::tags$strong("Adjust any that look wrong"),
-          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Pseudo identifiers and free text are always handled with extra care."
+          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Alphanumeric IDs and free text are always handled with extra care."
         )
       ),
       shiny::tags$div(
@@ -265,9 +265,7 @@ type_action_legend_ui <- function() {
       row("numeric / date", "Simulate",
           "Recreated within the observed distribution/range, with noise or coarsening."),
       row("alpha-numeric ID", "Scramble",
-          "Letters and digits are reordered within each value; delimiters and length are kept."),
-      row("pseudo identifier", "Drop",
-          "Removed from the output entirely, unless explicitly kept via Action override.")
+          "Any identifier-shaped column. Letters and digits are reordered within each value; delimiters and length are kept.")
     )
   )
 }
@@ -389,7 +387,7 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
 
-      all_roles <- c("identifier", "alphanumeric_id", "numeric", "categorical",
+      all_roles <- c("alphanumeric_id", "numeric", "categorical",
                      "date", "free_text")
       eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
         eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
@@ -426,16 +424,18 @@ mod_roles_server <- function(id, state) {
       role_filter(input$role_filter_val)
     })
 
-    # "identifier" and "free_text" are internal values kept unchanged so
-    # every existing comparison/dispatch keyed on them keeps working; only
-    # their displayed label differs. Logical is no longer a distinct role --
-    # it is folded into categorical (see dg_rec_to_role/dg_class_to_role).
-    # "drop" is a data *treatment*, not a data type -- it lives only in
-    # SIMULATION_OPTIONS (Action override) now, not in the type dropdown.
-    ROLE_OPTIONS <- c("identifier", "alphanumeric_id", "numeric", "categorical",
+    # There is no separate "pseudo identifier" type any more -- any column
+    # that looks like an identifier, structured or not, is an alphanumeric
+    # ID, whose default action is scramble rather than drop. "free_text" is
+    # kept unchanged so every existing comparison/dispatch keyed on it keeps
+    # working; only its displayed label differs. Logical is no longer a
+    # distinct role -- it is folded into categorical (see
+    # dg_rec_to_role/dg_class_to_role). "drop" is a data *treatment*, not a
+    # data type -- it lives only in SIMULATION_OPTIONS (Action override) now,
+    # not in the type dropdown.
+    ROLE_OPTIONS <- c("alphanumeric_id", "numeric", "categorical",
                       "date", "free_text")
     ROLE_LABELS <- c(
-      identifier      = "pseudo identifier",
       alphanumeric_id = "alpha-numeric ID",
       numeric         = "numeric",
       categorical     = "categorical",
@@ -825,19 +825,19 @@ mod_roles_server <- function(id, state) {
       roles$user_role[[orig_row]] <- val
 
       # The type dropdown doubles as a privacy signal for the options that
-      # always mean "this points to a person": choosing "identifier",
-      # "free_text", or "alphanumeric_id" only ever strengthens protection,
-      # so it is safe to apply immediately. Without this, enforce_kanon()
-      # keeps dropping the column by disclosure_role/identifies regardless
-      # of the override, because identifies/disclosure_role -- not
-      # user_role -- are what actually drive removal. Moving *away* from an
-      # identifying type only clears a previously auto-detected "direct";
-      # an explicit identifies answer (the Q1 dropdown) is never silently
-      # overridden by a type change.
+      # always mean "this points to a person": choosing "free_text" or
+      # "alphanumeric_id" only ever strengthens protection, so it is safe to
+      # apply immediately. Without this, enforce_kanon() keeps dropping the
+      # column by disclosure_role/identifies regardless of the override,
+      # because identifies/disclosure_role -- not user_role -- are what
+      # actually drive removal. Moving *away* from an identifying type only
+      # clears a previously auto-detected "direct"; an explicit identifies
+      # answer (the Q1 dropdown) is never silently overridden by a type
+      # change.
       user_confirmed_identifies <- !is.na(roles$user_identifies[[orig_row]]) &&
         nzchar(roles$user_identifies[[orig_row]])
 
-      if (val %in% c("identifier", "free_text", "alphanumeric_id")) {
+      if (val %in% c("free_text", "alphanumeric_id")) {
         roles$identifies[[orig_row]] <- "direct"
       } else if (!user_confirmed_identifies &&
                  identical(roles$identifies[[orig_row]], "direct")) {

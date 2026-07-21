@@ -220,7 +220,7 @@ mod_data_panel_server <- function(id, state) {
           !is.na(roles$user_role) & nzchar(roles$user_role),
           roles$user_role, roles$recommended_role
         )
-        id_cols <- roles$variable[eff_role == "ID candidate"]
+        id_cols <- roles$variable[eff_role == "alphanumeric ID"]
         for (id_col in intersect(id_cols, names(df))) {
           if (is.numeric(df[[id_col]])) {
             df[[id_col]] <- as.character(df[[id_col]])
@@ -257,7 +257,7 @@ mod_data_panel_server <- function(id, state) {
           !is.na(roles$user_role) & nzchar(roles$user_role),
           roles$user_role, roles$recommended_role
         )
-        roles$variable[eff_role2 == "ID candidate"]
+        roles$variable[eff_role2 == "alphanumeric ID"]
       } else {
         character(0)
       }

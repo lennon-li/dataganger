@@ -17,7 +17,7 @@ test_that("build_diagnostic_view() returns correct structure", {
   roles <- tibble::tibble(
     variable         = c("patient_id", "score", "notes", "city"),
     class            = c("numeric", "numeric", "character", "character"),
-    recommended_role = c("ID candidate", "unknown", "free text", "categorical candidate"),
+    recommended_role = c("alphanumeric ID", "unknown", "free text", "categorical candidate"),
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = c("name", "no match", "long text", "low cardinality"),
@@ -45,7 +45,7 @@ test_that("build_diagnostic_view() returns correct structure", {
   expect_equal(result$dataset$n_cols, 4L)
   expect_length(result$columns, 4L)
   expect_equal(result$columns[[1]]$name,      "patient_id")
-  expect_equal(result$columns[[1]]$role,      "ID candidate")
+  expect_equal(result$columns[[1]]$role,      "alphanumeric ID")
   expect_equal(result$columns[[1]]$disclosure_role, "direct")
   expect_equal(result$columns[[1]]$treatment, "synthesized")
   expect_equal(result$columns[[2]]$disclosure_role, "none")
@@ -60,7 +60,7 @@ test_that("build_diagnostic_view() blocked$free_text_examples is FALSE when no f
   roles <- tibble::tibble(
     variable         = c("id", "score"),
     class            = c("numeric", "numeric"),
-    recommended_role = c("ID candidate", "unknown"),
+    recommended_role = c("alphanumeric ID", "unknown"),
     user_role        = NA_character_,
     simulation       = "synthesize",
     reason           = c("name", "no match"),

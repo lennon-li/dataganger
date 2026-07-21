@@ -60,7 +60,7 @@ export_diagnostic_package <- function(data, path, roles = NULL,
   })
 
   has_free_text <- any(roles$recommended_role == "free text")
-  has_ids       <- any(roles$recommended_role == "ID candidate")
+  has_ids       <- any(roles$recommended_role == "alphanumeric ID")
 
   diag <- list(
     source             = "dataganger",
@@ -92,7 +92,7 @@ export_diagnostic_package <- function(data, path, roles = NULL,
 
 diagnostic_exposure_level <- function(role) {
   switch(role,
-    "ID candidate" = "blocked",
+    "alphanumeric ID" = "blocked",
     "free text"    = "blocked",
     "date"         = "coarsened",
     "schema_only"

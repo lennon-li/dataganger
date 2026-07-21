@@ -222,7 +222,7 @@ dg_kanon_columns <- function(roles) {
     return(character(0))
   }
 
-  discrete_classes <- c("categorical candidate", "date", "ID candidate", "label_check")
+  discrete_classes <- c("categorical candidate", "date", "alphanumeric ID", "label_check")
   recommended <- if ("recommended_role" %in% names(roles)) {
     roles$recommended_role
   } else {
@@ -285,7 +285,7 @@ dg_suggest_disclosure <- function(class) {
 
   switch(
     class,
-    "ID candidate" = "direct",
+    "alphanumeric ID" = "direct",
     "free text" = "direct",
     "date" = "quasi",
     "Date" = "quasi",
@@ -674,7 +674,7 @@ suspected_direct_identifiers <- function(roles) {
 
   reason <- rep(NA_character_, nrow(roles))
   reason[identifies %in% "direct"] <- "marked as a direct identifier"
-  reason[is.na(reason) & recommended_role %in% "ID candidate"] <-
+  reason[is.na(reason) & recommended_role %in% "alphanumeric ID"] <-
     "looks like an ID (high-cardinality / ID-shaped)"
   reason[is.na(reason) & recommended_role %in% "free text"] <-
     "free text may contain names or identifying details"
