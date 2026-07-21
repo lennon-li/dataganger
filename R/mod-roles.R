@@ -763,6 +763,35 @@ mod_roles_server <- function(id, state) {
       if (!val %in% ROLE_OPTIONS) return(invisible(NULL))
 
       roles$user_role[[orig_row]] <- val
+
+      # The type dropdown doubles as a privacy signal for the two options
+      # that always mean "this points to a person": choosing "identifier" or
+      # "free_text" (or "drop") only ever strengthens protection, so it is
+      # safe to apply immediately. Without this, enforce_kanon() keeps
+      # dropping the column by disclosure_role/identifies regardless of the
+      # override, because identifies/disclosure_role -- not user_role --
+      # are what actually drive removal. Moving *away* from an identifying
+      # type only clears a previously auto-detected "direct"; an explicit
+      # identifies answer (the Q1 dropdown) is never silently overridden by
+      # a type change.
+      user_confirmed_identifies <- !is.na(roles$user_identifies[[orig_row]]) &&
+        nzchar(roles$user_identifies[[orig_row]])
+
+      if (val %in% c("identifier", "free_text")) {
+        roles$identifies[[orig_row]] <- "direct"
+      } else if (!identical(val, "drop") &&
+                 !user_confirmed_identifies &&
+                 identical(roles$identifies[[orig_row]], "direct")) {
+        roles$identifies[[orig_row]] <- NA_character_
+      }
+
+      roles <- dg_sync_roles_axes(roles)
+      roles$simulation[[orig_row]] <- if (identical(val, "drop")) {
+        "drop"
+      } else {
+        dg_derived_action_axes(roles$identifies[[orig_row]], roles$sensitive[[orig_row]])
+      }
+
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)

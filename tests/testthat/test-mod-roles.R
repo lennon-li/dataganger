@@ -323,6 +323,72 @@ test_that("changing identifies derives drop action and changing sensitive keeps 
   })
 })
 
+test_that("overriding the type away from identifier clears the direct disclosure role", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 1 ("id") starts as an auto-detected direct identifier.
+    expect_equal(state$roles$identifies[[1]], "direct")
+    expect_equal(state$roles$disclosure_role[[1]], "direct")
+    expect_equal(state$roles$simulation[[1]], "drop")
+
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+
+    expect_true(is.na(state$roles$identifies[[1]]))
+    expect_true(is.na(state$roles$disclosure_role[[1]]))
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+  })
+})
+
+test_that("choosing identifier or free_text as the type always sets direct, even without a prior direct role", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 3 ("income") starts as a plain non-identifying numeric column.
+    expect_equal(state$roles$identifies[[3]], "none")
+
+    session$setInputs(role_change = list(row = 3, value = "identifier"))
+    expect_equal(state$roles$identifies[[3]], "direct")
+    expect_equal(state$roles$disclosure_role[[3]], "direct")
+    expect_equal(state$roles$simulation[[3]], "drop")
+
+    session$setInputs(role_change = list(row = 3, value = "free_text"))
+    expect_equal(state$roles$identifies[[3]], "direct")
+    expect_equal(state$roles$simulation[[3]], "drop")
+  })
+})
+
+test_that("choosing drop as the type drops the column without touching identifies", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 2 ("zip") starts as a quasi-identifier (combination).
+    session$setInputs(role_change = list(row = 2, value = "drop"))
+    expect_equal(state$roles$simulation[[2]], "drop")
+    expect_equal(state$roles$identifies[[2]], "combination")
+  })
+})
+
+test_that("an explicit Q1 answer is not silently overridden by a later type change", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # User explicitly confirms row 1 ("id") is not identifying via the Q1 dropdown.
+    session$setInputs(identifies_change = list(row = 1, value = "none"))
+    expect_equal(state$roles$identifies[[1]], "none")
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+
+    # Changing the type dropdown afterwards must not clobber that explicit answer.
+    session$setInputs(role_change = list(row = 1, value = "numeric"))
+    expect_equal(state$roles$identifies[[1]], "none")
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+  })
+})
+
 test_that("disclosure help leads with the two questions and is not wrapped in details", {
   html <- as.character(disclosure_help_ui())
   expect_match(html, "Could a value point to a specific person")
