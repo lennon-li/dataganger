@@ -830,18 +830,24 @@ mod_roles_server <- function(id, state) {
       # apply immediately. Without this, enforce_kanon() keeps dropping the
       # column by disclosure_role/identifies regardless of the override,
       # because identifies/disclosure_role -- not user_role -- are what
-      # actually drive removal. Moving *away* from an identifying type only
-      # clears a previously auto-detected "direct"; an explicit identifies
-      # answer (the Q1 dropdown) is never silently overridden by a type
-      # change.
-      user_confirmed_identifies <- !is.na(roles$user_identifies[[orig_row]]) &&
-        nzchar(roles$user_identifies[[orig_row]])
-
+      # actually drive removal.
+      #
+      # Moving *away* from an identifying type (e.g. picking "categorical"
+      # for a column flagged as an alphanumeric ID) is itself an explicit
+      # statement that this column should be treated as ordinary data -- it
+      # is the intended way to keep an ID-shaped column instead of dropping
+      # or scrambling it. That statement supersedes a prior Q1 "direct"
+      # answer, even one the user already confirmed; otherwise the type
+      # change looks like it worked but enforce_kanon still drops the column
+      # because identifies stayed "direct". Q1 is reset to unanswered
+      # (rather than silently flipped to "none") so the user is prompted to
+      # re-confirm before generating -- consistent with the no-silent-
+      # defaults policy elsewhere in this module.
       if (val %in% c("free_text", "alphanumeric_id")) {
         roles$identifies[[orig_row]] <- "direct"
-      } else if (!user_confirmed_identifies &&
-                 identical(roles$identifies[[orig_row]], "direct")) {
-        roles$identifies[[orig_row]] <- NA_character_
+      } else if (identical(roles$identifies[[orig_row]], "direct")) {
+        roles$identifies[[orig_row]]      <- NA_character_
+        roles$user_identifies[[orig_row]] <- NA_character_
       }
 
       roles <- dg_sync_roles_axes(roles)

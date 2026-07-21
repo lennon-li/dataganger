@@ -397,6 +397,31 @@ test_that("choosing alpha-numeric ID as the type sets identifies=direct and simu
   })
 })
 
+test_that("retyping a Q1-confirmed direct identifier to categorical resets Q1 instead of staying dropped", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+  # Row 1 ("id") already has identifies="direct" AND a user-confirmed Q1
+  # answer -- simulating a user who earlier answered "yes, this identifies
+  # a person" for the alphanumeric ID column.
+  shiny::isolate({
+    state$roles$user_identifies <- c("direct", NA_character_, NA_character_)
+  })
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+    # The type change is itself an explicit statement that this column is
+    # now ordinary data, so it overrides the earlier Q1 answer instead of
+    # leaving it stuck on "direct" (which would keep forcing a drop).
+    expect_true(is.na(state$roles$identifies[[1]]))
+    expect_true(is.na(state$roles$user_identifies[[1]]))
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+    # Q1 is reset to unanswered (not silently flipped to "none"), so
+    # generation stays blocked until the user re-confirms it.
+    pending <- shiny::isolate(roles_generation_pending(state$roles))
+    expect_true(length(pending) > 0)
+  })
+})
+
 test_that("the legend shows each type's default treatment", {
   html <- as.character(type_action_legend_ui())
   expect_match(html, "Resample")
