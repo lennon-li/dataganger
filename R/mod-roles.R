@@ -631,8 +631,46 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_action_override_controls <- function(orig_row, row_data) {
+      # Explains what a type override actually does once it takes effect --
+      # shown only when moving *away* from an identifying recommended role
+      # (alphanumeric ID / free text) to a plain type, since that is the
+      # override whose consequence (Q1 reset, inclusion in synthesis and
+      # Compare) is easy to miss. If the underlying column still has more
+      # distinct values than the Compare page's dynamic cap, that is called
+      # out too, since the override alone will not make it comparable.
+      override_consequence_caption <- function(recommended_role, user_role, col_data, n_rows) {
+        rec <- tolower(recommended_role %||% "")
+        usr <- tolower(user_role %||% "")
+        was_identifying <- grepl("alphanumeric", rec) || grepl("free.text|free_text", rec)
+        now_plain <- usr %in% c("categorical", "numeric", "date")
+        if (!(was_identifying && now_plain)) {
+          return(NULL)
+        }
+        n_rows <- n_rows %||% length(col_data)
+        n_distinct <- if (!is.null(col_data)) length(unique(col_data[!is.na(col_data)])) else NA_integer_
+        cap <- dg_max_comparable_levels(n_rows)
+        over_cap <- !is.na(n_distinct) && n_distinct > cap
+        text <- if (over_cap) {
+          sprintf(
+            paste(
+              "Now treated as ordinary data, but %s distinct values is above the",
+              "%d-value Compare limit for %s rows -- it will still be hidden there",
+              "and may synthesize as many rare categories. Q1 was reset; confirm it",
+              "again before generating."
+            ),
+            format(n_distinct, big.mark = ","), cap, format(n_rows, big.mark = ",")
+          )
+        } else {
+          "Now treated as ordinary data: synthesized and shown on Compare. Q1 was reset -- confirm it again before generating."
+        }
+        list(text = text, warn = over_cap)
+      }
+
+      make_action_override_controls <- function(orig_row, row_data, col_data, n_rows) {
         simulation_value <- as.character(row_data$simulation[[1]] %||% "synthesize")
+        caption <- override_consequence_caption(
+          row_data$recommended_role[[1]], row_data$user_role[[1]], col_data, n_rows
+        )
         shiny::tags$div(
           style = "display:grid; gap:6px;",
           shiny::tags$div(
@@ -657,10 +695,21 @@ mod_roles_server <- function(id, state) {
               row_data$recommended_role[[1]],
               row_data$class[[1]]
             )
-          )
+          ),
+          if (!is.null(caption)) {
+            shiny::tags$div(
+              style = if (isTRUE(caption$warn)) {
+                "font-size:11px; color:#b7791f; background:#fffbea; border:1px solid #f6e05e; border-radius:3px; padding:4px 6px;"
+              } else {
+                "font-size:11px; color:var(--fg-muted); background:var(--bg-subtle); border-radius:3px; padding:4px 6px;"
+              },
+              caption$text
+            )
+          }
         )
       }
 
+      raw_data <- state$raw_data
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
@@ -669,6 +718,11 @@ mod_roles_server <- function(id, state) {
           storage_signal_for(r$variable[[1]], r$class[[1]]),
           sep = "\n"
         )
+        col_data <- if (!is.null(raw_data) && r$variable[[1]] %in% names(raw_data)) {
+          raw_data[[r$variable[[1]]]]
+        } else {
+          NULL
+        }
         shiny::tags$tr(
           shiny::tags$td(
             style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
@@ -692,7 +746,7 @@ mod_roles_server <- function(id, state) {
           ),
           shiny::tags$td(
             style = "min-width:320px; padding:6px 8px;",
-            make_action_override_controls(orig_row, r)
+            make_action_override_controls(orig_row, r, col_data, nrow(raw_data))
           )
         )
       })

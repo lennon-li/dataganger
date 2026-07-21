@@ -49,9 +49,9 @@ roles_test_state <- function() {
   )
   state$roles <- tibble::tibble(
     variable = c("id", "zip", "income"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
-    class = c("ID candidate", "categorical candidate", "numeric"),
+    class = c("alphanumeric ID", "categorical candidate", "numeric"),
     identifies = c("direct", "combination", "none"),
     sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "quasi", "none"),
@@ -73,9 +73,9 @@ roles_test_state_with_unset <- function() {
   )
   state$roles <- tibble::tibble(
     variable = c("id", "zip", "income"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
-    class = c("ID candidate", "categorical candidate", "categorical candidate"),
+    class = c("alphanumeric ID", "categorical candidate", "categorical candidate"),
     identifies = c("direct", "combination", NA_character_),
     sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "quasi", ""),
@@ -419,6 +419,54 @@ test_that("retyping a Q1-confirmed direct identifier to categorical resets Q1 in
     # generation stays blocked until the user re-confirms it.
     pending <- shiny::isolate(roles_generation_pending(state$roles))
     expect_true(length(pending) > 0)
+  })
+})
+
+test_that("overriding an alphanumeric ID to categorical shows a plain reset caption", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+    session$flushReact()
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, "Now treated as ordinary data", fixed = TRUE)
+    expect_match(html, "Q1 was reset", fixed = TRUE)
+    # Only 3 distinct values in a 3-row fixture -- well under the Compare
+    # cap, so no cardinality warning should appear.
+    expect_false(grepl("Compare limit", html, fixed = TRUE))
+  })
+})
+
+test_that("overriding a high-cardinality alphanumeric ID to categorical warns about the Compare limit", {
+  testthat::skip_if_not_installed("shiny")
+  state <- shiny::reactiveValues()
+  state$raw_data <- data.frame(
+    id = sprintf("REC-%03d", 1:50),
+    x  = rep(1:5, 10),
+    stringsAsFactors = FALSE
+  )
+  state$roles <- tibble::tibble(
+    variable = c("id", "x"),
+    recommended_role = c("alphanumeric ID", "numeric"),
+    user_role = c(NA_character_, NA_character_),
+    class = c("alphanumeric ID", "numeric"),
+    identifies = c("direct", "none"),
+    sensitive = c(FALSE, FALSE),
+    disclosure_role = c("direct", "none"),
+    simulation = c("scramble", "synthesize"),
+    reason = c("Looks like an ID.", "Looks numeric."),
+    disclosure_reason = c(NA_character_, NA_character_)
+  )
+  state$profile <- list()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+    session$flushReact()
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    # 50 distinct values in 50 rows is well above dg_max_comparable_levels(50) = 10.
+    expect_match(html, "distinct values is above", fixed = TRUE)
+    expect_match(html, "Compare limit", fixed = TRUE)
   })
 })
 
