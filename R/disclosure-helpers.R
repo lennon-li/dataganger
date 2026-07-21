@@ -587,6 +587,7 @@ app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {
       state$raw_data <- NULL
       state$profile <- NULL
       state$roles <- NULL
+      state$column_filter <- NULL
       state$filename <- NULL
       state$fail_safe_status <- "idle"
       state$fail_safe_flagged <- app_fail_safe_empty()
