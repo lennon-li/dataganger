@@ -418,30 +418,51 @@ table.dataTable tbody tr:hover {
 
 /* ============ 8 · fileInput inside .upload zone ============ */
 
-.upload .shiny-input-container { margin: 0; width: 100% !important; max-width: 420px; }
-.upload .input-group { flex-wrap: nowrap; }
-.upload .btn-file {
-  background: var(--synth-500) !important;
-  color: white !important;
-  border-color: var(--synth-500) !important;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 14px;
-  border-radius: 4px 0 0 4px !important;
-  padding: 8px 14px !important;
+/* Shiny's fileInputBinding binds all drag/drop handling to the closest
+   div.input-group (see shiny.js zoneOf()), which by default is only the
+   small Browse-button row. We stretch that div over the full .upload card
+   so the whole box — not just the button row — is a working drop target,
+   and hide its native chrome since the card's own icon/copy already
+   communicates the drop affordance. */
+
+.upload { position: relative; }
+
+.upload .shiny-input-container {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  width: 100% !important;
+  max-width: none !important;
 }
-.upload .btn-file:hover {
-  background: var(--synth-700) !important;
-  border-color: var(--synth-700) !important;
+.upload .shiny-input-container > label.control-label { display: none; }
+
+.upload .input-group {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex-wrap: nowrap;
+  opacity: 0;
+  cursor: pointer;
 }
-.upload .form-control[readonly],
-.upload .form-control:read-only {
-  background: var(--paper-100) !important;
-  border-color: var(--paper-300) !important;
-  color: var(--fg-muted) !important;
-  font-family: var(--font-mono) !important;
-  font-size: 12px !important;
-  border-radius: 0 4px 4px 0 !important;
+.upload .input-group .btn-file {
+  width: 100%;
+  height: 100%;
+}
+.upload .input-group .form-control { display: none; }
+
+.upload .progress {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 16px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.upload:has(.input-group.shiny-file-input-over) {
+  border-color: var(--synth-500);
+  background: var(--synth-50);
 }
 
 
