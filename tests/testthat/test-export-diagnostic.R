@@ -29,7 +29,7 @@ test_that("export_diagnostic_package() column fields are correct", {
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "diag.json")
   df  <- data.frame(
-    patient_id = sprintf("ID-%03d", 1:30),
+    patient_id = sprintf("ID%03d", 1:30),
     score      = round(rnorm(30), 1),
     stringsAsFactors = FALSE
   )

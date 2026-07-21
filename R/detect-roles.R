@@ -165,6 +165,20 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
+  # Test 3.5: alphanumeric ID -- a structured mix of letters, digits, and
+  # delimiters (account numbers, order IDs, license plates, ...). This is a
+  # more specific signal than the generic ID tests below, so it takes
+  # priority: a column matching both is an alphanumeric ID, not a plain
+  # pseudo identifier.
+  if (is_alphanumeric_id_candidate(x, n_rows)) {
+    return(make_role_row(
+      name, r_class, "alphanumeric ID",
+      "Values mix letters and digits in a consistent pattern (e.g. account or reference numbers), so this looks like a structured identifier.",
+      "direct",
+      default_simulation = "scramble"
+    ))
+  }
+
   # Test 4: name matches ID patterns
   id_pattern <- dg_id_name_pattern()
   if (grepl(id_pattern, name, perl = TRUE)) {
@@ -262,14 +276,15 @@ is_free_text_candidate <- function(x) {
   isTRUE(median_nchar > 20 || median_word_count >= 5)
 }
 
-make_role_row <- function(name, r_class, role, reason, disclosure_role) {
+make_role_row <- function(name, r_class, role, reason, disclosure_role,
+                          default_simulation = "synthesize") {
   axes <- dg_role_to_axes(disclosure_role)
   tibble::tibble(
     variable         = name,
     class            = r_class,
     recommended_role = role,
     user_role        = NA_character_,
-    simulation       = "synthesize",
+    simulation       = default_simulation,
     reason           = reason,
     identifies       = axes$identifies,
     sensitive        = axes$sensitive,
@@ -278,9 +293,62 @@ make_role_row <- function(name, r_class, role, reason, disclosure_role) {
   )
 }
 
+# Delimiter characters recognised inside a structured alphanumeric ID.
+# Kept as a single canonical set so detection and scrambling agree on what
+# counts as a delimiter.
+dg_alphanumeric_id_delimiters <- function() "-_./ "
+
+# Alphanumeric ID candidate: nearly every sampled value mixes letters,
+# digits, AND at least one delimiter (dg_alphanumeric_id_delimiters()); most
+# values share one dominant letter/digit "shape" (delimiters and other
+# punctuation kept literal, e.g. "AB-1234-56" -> "AA-9999-99", and equally
+# "tok-001" -> "aaa-999" for a fixed-prefix reference number); and values are
+# reasonably distinct. Requiring a delimiter distinguishes a structured
+# reference number (account/order/tracking numbers -- a fixed prefix plus a
+# sequence still counts, e.g. invoice numbers) from a plain letter-prefixed
+# ID with no delimiter (e.g. "P1", "P2", ...), which stays a regular pseudo
+# identifier.
+is_alphanumeric_id_candidate <- function(x, n_rows) {
+  if (!is.character(x) || all(is.na(x))) {
+    return(FALSE)
+  }
+
+  x_obs <- trimws(x[!is.na(x)])
+  x_obs <- x_obs[nzchar(x_obs)]
+  if (length(x_obs) < 5L) {
+    return(FALSE)
+  }
+
+  # Deterministic head-sample, matching is_free_text_candidate()'s approach,
+  # to keep this bounded on very long character columns.
+  if (length(x_obs) > 1000L) {
+    x_obs <- x_obs[seq_len(1000L)]
+  }
+
+  has_letter <- grepl("[A-Za-z]", x_obs)
+  has_digit  <- grepl("[0-9]", x_obs)
+  has_delim  <- grepl(paste0("[", dg_alphanumeric_id_delimiters(), "]"), x_obs)
+  if (mean(has_letter & has_digit & has_delim) < 0.9) {
+    return(FALSE)
+  }
+
+  shapes <- gsub("[0-9]", "9", gsub("[A-Za-z]", "A", x_obs))
+  top_share <- max(table(shapes)) / length(x_obs)
+  if (top_share < 0.6) {
+    return(FALSE)
+  }
+
+  n_distinct_obs <- length(unique(x_obs))
+  distinct_ratio <- if (n_rows > 0) n_distinct_obs / n_rows else 0
+  distinct_ratio >= 0.5
+}
+
 disclosure_reason_for <- function(disclosure_role, role) {
   if (is.na(disclosure_role)) {
     return("Not assigned automatically. Choose the disclosure role before generating.")
+  }
+  if (identical(disclosure_role, "direct") && identical(role, "alphanumeric ID")) {
+    return("Marked direct because this column can identify a person on its own; its structure is scrambled rather than removed.")
   }
   switch(disclosure_role,
     direct = "Marked direct because this column can identify a person on its own, so it is removed from the output.",

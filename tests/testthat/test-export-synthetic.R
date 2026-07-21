@@ -618,13 +618,13 @@ test_that("export_synthetic() exact-row matches respect the privacy role-map exc
   tmp <- withr::local_tempdir()
 
   original <- tibble::tibble(
-    id = sprintf("id-%02d", 1:20),
+    id = sprintf("id%02d", 1:20),
     grp = rep(letters[1:4], each = 5),
     score = rep(1:5, times = 4)
   )
   roles <- detect_roles(original)
   syn <- tibble::tibble(
-    id = sprintf("syn-%02d", 1:20),
+    id = sprintf("syn%02d", 1:20),
     grp = original$grp,
     score = original$score
   )

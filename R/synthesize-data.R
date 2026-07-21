@@ -188,6 +188,7 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
   treatment <- stats::setNames(treatment, roles$variable)
 
   pass_cols <- intersect(names(treatment)[treatment == "pass_through"], names(original))
+  scramble_cols <- intersect(names(treatment)[treatment == "scramble"], names(original))
   drop_cols <- intersect(names(treatment)[treatment == "drop"], names(syn))
 
   if (length(pass_cols) > 0L && nrow(syn) != nrow(original)) {
@@ -199,9 +200,24 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
     pass_cols <- character(0)
   }
 
+  if (length(scramble_cols) > 0L && nrow(syn) != nrow(original)) {
+    cli::cli_warn(c(
+      "Scrambled columns {.val {scramble_cols}} require the same row count as the original data.",
+      "i" = "Row count changed ({nrow(original)} \u2192 {nrow(syn)}); synthesizing those columns instead.",
+      "i" = "Set row count back to {nrow(original)} to use scramble."
+    ))
+    scramble_cols <- character(0)
+  }
+
   for (col in pass_cols) {
     if (col %in% names(syn)) {
       syn[[col]] <- original[[col]]
+    }
+  }
+
+  for (col in scramble_cols) {
+    if (col %in% names(syn)) {
+      syn[[col]] <- scramble_alphanumeric_id(as.character(original[[col]]))
     }
   }
 

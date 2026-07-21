@@ -14,6 +14,70 @@ test_that("enforce_kanon removes direct identifiers from output", {
   expect_false("id" %in% names(out))
 })
 
+test_that("enforce_kanon does not remove a direct-identifier column explicitly set to pass_through", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("pass_through", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_true("id" %in% names(out))
+})
+
+test_that("enforce_kanon does not remove a direct-identifier column explicitly set to scramble", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("scramble", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_true("id" %in% names(out))
+})
+
+test_that("enforce_kanon still removes a direct identifier when simulation is the untouched default", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("synthesize", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_false("id" %in% names(out))
+})
+
+test_that("enforce_kanon still removes a direct identifier explicitly set to drop", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("drop", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_false("id" %in% names(out))
+})
+
 test_that("enforce_kanon leaves output with no QI cell smaller than k", {
   syn <- data.frame(
     cat = c(rep("A", 30), rep("B", 30), rep("C", 2)),

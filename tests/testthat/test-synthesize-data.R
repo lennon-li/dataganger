@@ -512,6 +512,42 @@ test_that("pass-through treatment falls back gracefully when row count differs",
   expect_true("x" %in% names(syn))
 })
 
+test_that("simulation treatment scrambles an alphanumeric ID column", {
+  set.seed(1)
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    x = 1:30,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$simulation[roles$variable == "order_id"], "scramble")
+  spec <- synth_spec(purpose = "demo", engine = "internal")
+
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true("order_id" %in% names(syn))
+  expect_false(any(syn$order_id %in% df$order_id))
+  expect_true(all(grepl("^..-....-..$", syn$order_id)))
+})
+
+test_that("scramble treatment falls back gracefully when row count differs", {
+  set.seed(1)
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    x = 1:30,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "demo", n = 10, engine = "internal")
+
+  expect_warning(
+    syn <- synthesize_data(df, spec, roles = roles, engine = "internal"),
+    "Scrambled columns"
+  )
+  expect_equal(nrow(syn), 10L)
+  expect_true("x" %in% names(syn))
+})
+
 test_that("name_strategy maps only output columns after drop treatment", {
   df <- data.frame(keep = 1:10, omit = 11:20)
   roles <- detect_roles(df)
@@ -615,7 +651,7 @@ test_that("demo schema pipeline completes on example_health_survey", {
 
 test_that("synthesize_data() generic naming still drops direct identifiers before renaming", {
   df <- data.frame(
-    patient_id = sprintf("id-%02d", 1:20),
+    patient_id = sprintf("id%02d", 1:20),
     age_band = rep(c("20s", "30s", "40s", "50s"), each = 5),
     region = rep(c("north", "south"), each = 10),
     stringsAsFactors = FALSE

@@ -250,11 +250,16 @@ mod_compare_server <- function(id, state) {
       )
     }
 
-    # Derive the kind used for plot/stats: user_role > recommended_role > column class
+    # Derive the kind used for plot/stats: simulation="drop" > user_role >
+    # recommended_role > column class.
     # Logical/boolean is not a distinct kind -- it is treated as categorical.
+    # Alpha-numeric ID is not comparable either (its scrambled values carry
+    # no distributional meaning), so it maps to the same "identifier" kind
+    # that already excludes plain pseudo identifiers.
     role_to_kind <- function(role) {
       if (is.na(role) || !nzchar(role)) return(NA_character_)
       lc <- tolower(role)
+      if (grepl("alphanumeric", lc)) return("identifier")
       if (grepl("id\\b|identifier", lc)) return("identifier")
       if (grepl("categor", lc)) return("categorical")
       if (grepl("\\bdate\\b", lc)) return("date")
@@ -270,6 +275,12 @@ mod_compare_server <- function(id, state) {
       if (!is.null(roles)) {
         idx <- match(var, roles$variable)
         if (!is.na(idx)) {
+          # An explicit "drop" action is authoritative regardless of what the
+          # type dropdown says -- "drop" only lives in Action override now.
+          if ("simulation" %in% names(roles) &&
+              identical(roles$simulation[[idx]], "drop")) {
+            return("drop")
+          }
           ur  <- roles$user_role[[idx]]
           rec <- if ("recommended_role" %in% names(roles)) roles$recommended_role[[idx]] else NA_character_
           kind_from_user <- role_to_kind(ur)

@@ -176,6 +176,37 @@ test_that("compare_body excludes identifier variables from navigation", {
   })
 })
 
+test_that("compare_body excludes alpha-numeric ID variables from navigation", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  set.seed(1)
+  raw <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    age = 1:30,
+    group = rep(c("a", "b"), 15),
+    stringsAsFactors = FALSE
+  )
+  synthetic <- raw
+  synthetic$age <- rev(synthetic$age)
+  roles <- detect_roles(raw)
+  expect_equal(roles$recommended_role[roles$variable == "order_id"], "alphanumeric ID")
+
+  state <- compare_test_state(
+    raw_data = raw,
+    synthetic = synthetic,
+    roles = roles
+  )
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    body_html <- paste(as.character(output$compare_body), collapse = "\n")
+    expect_no_match(body_html, "order_id")
+    expect_match(body_html, "age")
+    expect_match(body_html, "group")
+  })
+})
+
 test_that("go_export sets nav_request to export", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("plotly")

@@ -38,7 +38,7 @@ test_that("detect_roles assigns disclosure_role per the conservative policy", {
 
 test_that("detect_roles() detects ID candidate from high cardinality", {
   set.seed(123)
-  df <- data.frame(token = sprintf("tok-%03d", 1:50))
+  df <- data.frame(token = sprintf("tok%03d", 1:50))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[r$variable == "token"], "ID candidate")
   expect_match(r$reason[r$variable == "token"], "Nearly every value is unique")
@@ -68,7 +68,7 @@ test_that("detect_roles() still flags distinctive numeric as ID when name matche
 })
 
 test_that("detect_roles() still flags distinctive character as ID candidate", {
-  df <- data.frame(token = sprintf("tok-%03d", 1:50))
+  df <- data.frame(token = sprintf("tok%03d", 1:50))
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "ID candidate")
 })
@@ -167,7 +167,7 @@ test_that("detect_roles() classifies geographic names by cardinality, not a spec
   expect_equal(low_roles$recommended_role[1], "categorical candidate")
 
   high_card <- data.frame(
-    region = sprintf("region-%03d", 1:50),
+    region = sprintf("region%03d", 1:50),
     stringsAsFactors = FALSE
   )
   high_roles <- detect_roles(high_card)
@@ -346,6 +346,61 @@ test_that("detect_roles leaves geographic categorical columns unselected for dis
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "categorical candidate")
   expect_true(is.na(r$disclosure_role[1]))
+})
+
+test_that("detect_roles classifies a delimited letter+digit column as alphanumeric ID", {
+  set.seed(1)
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "alphanumeric ID")
+  expect_equal(r$identifies[1], "direct")
+  expect_equal(r$disclosure_role[1], "direct")
+  expect_equal(r$simulation[1], "scramble")
+})
+
+test_that("detect_roles treats a fixed-prefix reference number as alphanumeric ID too", {
+  # A constant letter prefix plus a sequence is still a structured
+  # letter+digit+delimiter pattern (e.g. an invoice number).
+  df <- data.frame(invoice = sprintf("INV-%06d", 1:30), stringsAsFactors = FALSE)
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "alphanumeric ID")
+})
+
+test_that("detect_roles does not classify a plain letter-prefixed ID (no delimiter) as alphanumeric", {
+  df <- data.frame(token = sprintf("tok%03d", 1:30), stringsAsFactors = FALSE)
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[1], "ID candidate")
+})
+
+test_that("detect_roles does not classify a small set of alphanumeric category codes as an ID", {
+  # Only 3 distinct codes repeated many times -- not identifying.
+  df <- data.frame(plan = rep(c("A-1", "B-2", "C-3"), each = 10), stringsAsFactors = FALSE)
+  r <- detect_roles(df)
+  expect_false(identical(r$recommended_role[1], "alphanumeric ID"))
+})
+
+test_that("scramble_alphanumeric_id preserves delimiter positions and never leaks the original value", {
+  set.seed(1)
+  x <- sprintf("OR-%04d-%02d", 1:50, sample(1:99, 50, TRUE))
+  scrambled <- dataganger:::scramble_alphanumeric_id(x)
+
+  expect_equal(length(scrambled), length(x))
+  expect_true(all(grepl("^..-....-..$", scrambled)))
+  expect_false(any(scrambled == x))
+  # Same multiset of non-delimiter characters per value (a permutation, not new data)
+  strip <- function(v) sort(strsplit(gsub("-", "", v), "")[[1]])
+  same_chars <- vapply(seq_along(x), function(i) identical(strip(x[[i]]), strip(scrambled[[i]])), logical(1))
+  expect_true(all(same_chars))
+})
+
+test_that("scramble_alphanumeric_id passes through NA and empty strings unchanged", {
+  out <- dataganger:::scramble_alphanumeric_id(c("AB-123", NA, ""))
+  expect_true(is.na(out[[2]]))
+  expect_equal(out[[3]], "")
+  expect_false(is.na(out[[1]]))
 })
 
 test_that("print.dataganger_roles handles subset objects without required columns", {

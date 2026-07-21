@@ -341,6 +341,58 @@ test_that("role_change silently rejects 'logical' since it is no longer a valid 
   })
 })
 
+test_that("the type dropdown offers alpha-numeric ID and the action dropdown offers scramble", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, 'value="alphanumeric_id"', fixed = TRUE)
+    expect_match(html, "alpha-numeric ID", fixed = TRUE)
+    expect_match(html, 'value="scramble"', fixed = TRUE)
+    expect_match(html, "Scramble", fixed = TRUE)
+  })
+})
+
+test_that("'drop' does not appear as a type dropdown option", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    # "drop" must still appear once, as an Action override option, but never
+    # as a value="drop" <option> inside a type (role_change) dropdown.
+    type_selects <- regmatches(html, gregexpr(
+      '(?s)<select[^>]*role_change[^>]*>.*?</select>', html, perl = TRUE
+    ))[[1]]
+    expect_true(length(type_selects) > 0L)
+    expect_false(any(grepl('value="drop"', type_selects, fixed = TRUE)))
+  })
+})
+
+test_that("choosing alpha-numeric ID as the type sets identifies=direct and simulation=scramble", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 3 ("income") starts as a plain non-identifying numeric column.
+    session$setInputs(role_change = list(row = 3, value = "alphanumeric_id"))
+    expect_equal(state$roles$identifies[[3]], "direct")
+    expect_equal(state$roles$disclosure_role[[3]], "direct")
+    expect_equal(state$roles$simulation[[3]], "scramble")
+  })
+})
+
+test_that("the legend shows each type's default treatment", {
+  html <- as.character(type_action_legend_ui())
+  expect_match(html, "Resample")
+  expect_match(html, "Simulate")
+  expect_match(html, "Scramble")
+  expect_match(html, "Drop")
+  expect_match(html, "alpha-numeric ID")
+  expect_match(html, "pseudo identifier")
+})
+
 test_that("a logical/boolean column is classified as categorical, not a distinct logical type", {
   df <- data.frame(
     flag = rep(c(TRUE, FALSE), 10),
@@ -404,15 +456,22 @@ test_that("choosing identifier or free_text as the type always sets direct, even
   })
 })
 
-test_that("choosing drop as the type drops the column without touching identifies", {
+test_that("'drop' is no longer a selectable type; it only lives in Action override", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
 
   shiny::testServer(mod_roles_server, args = list(state = state), {
-    # Row 2 ("zip") starts as a quasi-identifier (combination).
+    original_user_roles <- state$roles$user_role
+    original_simulation <- state$roles$simulation
+    # Row 2 ("zip") starts as a quasi-identifier (combination); "drop" is not
+    # a valid type value any more, so the change is silently rejected.
     session$setInputs(role_change = list(row = 2, value = "drop"))
+    expect_identical(state$roles$user_role, original_user_roles)
+    expect_identical(state$roles$simulation, original_simulation)
+
+    # The Action override dropdown still supports drop directly.
+    session$setInputs(simulation_change = list(row = 2, value = "drop"))
     expect_equal(state$roles$simulation[[2]], "drop")
-    expect_equal(state$roles$identifies[[2]], "combination")
   })
 })
 

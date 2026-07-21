@@ -533,9 +533,12 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
     )
   }
   # Logical/boolean is not a distinct kind -- it is treated as categorical.
+  # Alpha-numeric ID maps to "identifier" so it is excluded like plain
+  # pseudo identifiers -- its scrambled values carry no distributional meaning.
   role_to_kind <- function(role) {
     if (length(role) == 0L || is.na(role) || !nzchar(role)) return(NA_character_)
     lc <- tolower(role)
+    if (grepl("alphanumeric", lc)) return("identifier")
     if (grepl("id\\b|identifier", lc)) return("identifier")
     if (grepl("categor", lc)) return("categorical")
     if (grepl("\\bdate\\b", lc)) return("date")

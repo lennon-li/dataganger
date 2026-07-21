@@ -265,6 +265,39 @@ synth_free_text <- function(x, n, strategy = "categorical",
   cli::cli_abort("Unknown free_text_strategy: {.val {strategy}}")
 }
 
+# ===========================================================================
+# Alphanumeric ID scrambling [2.9]
+# ===========================================================================
+
+#' Scramble an alphanumeric ID's characters, one value at a time
+#'
+#' Each value is transformed independently: delimiter characters
+#' ([dg_alphanumeric_id_delimiters()]) stay in their exact original
+#' positions, and every other character (letters and digits pooled together)
+#' is randomly reordered among the remaining positions. This destroys the
+#' actual value while preserving its length and delimiter layout, and never
+#' mixes characters across rows -- one record's scrambled ID cannot leak
+#' another record's characters.
+#'
+#' @param x Character vector of original values (`NA` passes through as `NA`).
+#' @return A character vector the same length as `x`.
+#' @keywords internal
+#' @noRd
+scramble_alphanumeric_id <- function(x) {
+  delim_pattern <- paste0("[", dg_alphanumeric_id_delimiters(), "]")
+  vapply(x, function(val) {
+    if (is.na(val) || !nzchar(val)) {
+      return(val)
+    }
+    chars <- strsplit(val, "", fixed = TRUE)[[1]]
+    scramble_idx <- which(!grepl(delim_pattern, chars))
+    if (length(scramble_idx) > 1L) {
+      chars[scramble_idx] <- chars[sample(scramble_idx)]
+    }
+    paste(chars, collapse = "")
+  }, character(1), USE.NAMES = FALSE)
+}
+
 
 # ===========================================================================
 # Missingness application (R5: independent per-column Bernoulli)

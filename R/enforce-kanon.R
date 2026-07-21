@@ -33,6 +33,17 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
   dr <- stats::setNames(roles$disclosure_role, roles$variable)
 
   direct <- names(dr)[dr %in% "direct"]  # %in% is NA-safe; == returns NA for unselected roles
+
+  # An explicit pass_through or scramble choice is a deliberate decision to
+  # keep the column (verbatim or scrambled), not an unset default -- it takes
+  # precedence over the disclosure-role drop. Only the default "synthesize"
+  # (untouched) and the explicit "drop" are still removed here.
+  if ("simulation" %in% names(roles)) {
+    sim <- stats::setNames(roles$simulation, roles$variable)
+    kept_explicitly <- names(sim)[sim %in% c("pass_through", "scramble")]
+    direct <- setdiff(direct, kept_explicitly)
+  }
+
   drop_cols <- intersect(direct, names(synthetic))
   if (length(drop_cols)) {
     synthetic <- synthetic[, !names(synthetic) %in% drop_cols, drop = FALSE]

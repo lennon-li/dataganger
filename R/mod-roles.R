@@ -9,6 +9,9 @@ NULL
 dg_rec_to_role <- function(rec) {
   if (is.na(rec) || !nzchar(rec)) return(NA_character_)
   lc <- tolower(rec)
+  # Checked before the generic "id" pattern below, since "alphanumeric ID"
+  # would otherwise match it too.
+  if (grepl("alphanumeric", lc)) return("alphanumeric_id")
   if (grepl("id\\b|identifier", lc)) return("identifier")
   if (grepl("categor", lc)) return("categorical")
   if (grepl("free.text|free_text", lc)) return("free_text")
@@ -140,6 +143,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           )
         )
       ),
+      type_action_legend_ui(),
       shiny::uiOutput(ns("disclosure_help")),
       shiny::uiOutput(ns("roles_table")),
       shiny::uiOutput(ns("kanon_readout")),
@@ -226,6 +230,44 @@ disclosure_help_ui <- function(attested = FALSE) {
         class = "dq-ex",
         "Examples: diagnosis, income, religion, mental health, immigration."
       )
+    )
+  )
+}
+
+#' Reference card: what each data type does by default
+#'
+#' A quick-reference legend for the type dropdown's default treatment, shown
+#' above the per-column table so the effect of a type is visible before
+#' anyone changes it.
+#'
+#' @keywords internal
+#' @noRd
+type_action_legend_ui <- function() {
+  row <- function(type, action, detail) {
+    shiny::tags$tr(
+      shiny::tags$td(style = "font-family:var(--font-mono); font-size:12px; padding:4px 8px; white-space:nowrap;", type),
+      shiny::tags$td(style = "font-family:var(--font-sans); font-weight:600; font-size:12px; padding:4px 8px; white-space:nowrap;", action),
+      shiny::tags$td(style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); padding:4px 8px;", detail)
+    )
+  }
+  shiny::tags$div(
+    class = "card",
+    style = "margin-bottom:12px;",
+    shiny::tags$div(
+      class = "card-header",
+      shiny::tags$span(class = "title", "What each type does by default"),
+      shiny::tags$span(class = "sub", "override any column with Action override")
+    ),
+    shiny::tags$table(
+      style = "width:100%; border-collapse:collapse;",
+      row("categorical / free text", "Resample",
+          "Recreated from the observed distribution; rare or near-unique values are grouped."),
+      row("numeric / date", "Simulate",
+          "Recreated within the observed distribution/range, with noise or coarsening."),
+      row("alpha-numeric ID", "Scramble",
+          "Letters and digits are reordered within each value; delimiters and length are kept."),
+      row("pseudo identifier", "Drop",
+          "Removed from the output entirely, unless explicitly kept via Action override.")
     )
   )
 }
@@ -347,8 +389,8 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
 
-      all_roles <- c("identifier", "numeric", "categorical",
-                     "date", "free_text", "drop")
+      all_roles <- c("identifier", "alphanumeric_id", "numeric", "categorical",
+                     "date", "free_text")
       eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
         eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
       }, character(1))
@@ -388,17 +430,19 @@ mod_roles_server <- function(id, state) {
     # every existing comparison/dispatch keyed on them keeps working; only
     # their displayed label differs. Logical is no longer a distinct role --
     # it is folded into categorical (see dg_rec_to_role/dg_class_to_role).
-    ROLE_OPTIONS <- c("identifier", "numeric", "categorical",
-                      "date", "free_text", "drop")
+    # "drop" is a data *treatment*, not a data type -- it lives only in
+    # SIMULATION_OPTIONS (Action override) now, not in the type dropdown.
+    ROLE_OPTIONS <- c("identifier", "alphanumeric_id", "numeric", "categorical",
+                      "date", "free_text")
     ROLE_LABELS <- c(
-      identifier   = "pseudo identifier",
-      numeric      = "numeric",
-      categorical  = "categorical",
-      date         = "date",
-      free_text    = "free text",
-      drop         = "drop"
+      identifier      = "pseudo identifier",
+      alphanumeric_id = "alpha-numeric ID",
+      numeric         = "numeric",
+      categorical     = "categorical",
+      date            = "date",
+      free_text       = "free text"
     )
-    SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
+    SIMULATION_OPTIONS <- c("synthesize", "pass_through", "scramble", "drop")
 
     # Role-mapping helpers (rec_to_role/class_to_role/eff_role) are defined at
     # file scope so the Generate page's read-only decision table can reuse them.
@@ -510,6 +554,7 @@ mod_roles_server <- function(id, state) {
         labels <- c(
           synthesize = "Synthesise",
           pass_through = "Pass through",
+          scramble = "Scramble",
           drop = "Drop"
         )
         opts <- lapply(SIMULATION_OPTIONS, function(opt) {
@@ -779,30 +824,32 @@ mod_roles_server <- function(id, state) {
 
       roles$user_role[[orig_row]] <- val
 
-      # The type dropdown doubles as a privacy signal for the two options
-      # that always mean "this points to a person": choosing "identifier" or
-      # "free_text" (or "drop") only ever strengthens protection, so it is
-      # safe to apply immediately. Without this, enforce_kanon() keeps
-      # dropping the column by disclosure_role/identifies regardless of the
-      # override, because identifies/disclosure_role -- not user_role --
-      # are what actually drive removal. Moving *away* from an identifying
-      # type only clears a previously auto-detected "direct"; an explicit
-      # identifies answer (the Q1 dropdown) is never silently overridden by
-      # a type change.
+      # The type dropdown doubles as a privacy signal for the options that
+      # always mean "this points to a person": choosing "identifier",
+      # "free_text", or "alphanumeric_id" only ever strengthens protection,
+      # so it is safe to apply immediately. Without this, enforce_kanon()
+      # keeps dropping the column by disclosure_role/identifies regardless
+      # of the override, because identifies/disclosure_role -- not
+      # user_role -- are what actually drive removal. Moving *away* from an
+      # identifying type only clears a previously auto-detected "direct";
+      # an explicit identifies answer (the Q1 dropdown) is never silently
+      # overridden by a type change.
       user_confirmed_identifies <- !is.na(roles$user_identifies[[orig_row]]) &&
         nzchar(roles$user_identifies[[orig_row]])
 
-      if (val %in% c("identifier", "free_text")) {
+      if (val %in% c("identifier", "free_text", "alphanumeric_id")) {
         roles$identifies[[orig_row]] <- "direct"
-      } else if (!identical(val, "drop") &&
-                 !user_confirmed_identifies &&
+      } else if (!user_confirmed_identifies &&
                  identical(roles$identifies[[orig_row]], "direct")) {
         roles$identifies[[orig_row]] <- NA_character_
       }
 
       roles <- dg_sync_roles_axes(roles)
-      roles$simulation[[orig_row]] <- if (identical(val, "drop")) {
-        "drop"
+      # Alpha-numeric ID's default treatment is to scramble, not the plain
+      # drop/synthesize binary that dg_derived_action_axes() derives for
+      # every other identifying type.
+      roles$simulation[[orig_row]] <- if (identical(val, "alphanumeric_id")) {
+        "scramble"
       } else {
         dg_derived_action_axes(roles$identifies[[orig_row]], roles$sensitive[[orig_row]])
       }

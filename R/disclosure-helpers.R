@@ -556,7 +556,19 @@ app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {
       roles$identifies[idx] <- ""
       roles$disclosure_role[idx] <- NA_character_
       roles <- dg_sync_roles_axes(roles)
-      roles$simulation[idx] <- if (identical(mode, "drop")) "drop" else "synthesize"
+      if (identical(mode, "drop")) {
+        roles$simulation[idx] <- "drop"
+      } else {
+        # Alpha-numeric ID's default treatment is to scramble, not synthesize.
+        recommended <- if ("recommended_role" %in% names(roles)) {
+          roles$recommended_role[idx]
+        } else {
+          rep(NA_character_, sum(idx))
+        }
+        roles$simulation[idx] <- ifelse(
+          recommended %in% "alphanumeric ID", "scramble", "synthesize"
+        )
+      }
       state$roles <- roles
       state$fail_safe_status <- "ready"
       state$fail_safe_upload_token <- app_fail_safe_token(state)
