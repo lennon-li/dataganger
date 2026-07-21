@@ -20,7 +20,7 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
   merge_rare  <- spec$merge_rare %||% TRUE
   coarsen     <- spec$coarsen_dates %||% TRUE
   missingness <- spec$preserve_missingness %||% "approx"
-  free_text_s <- spec$free_text_strategy %||% "drop"
+  free_text_s <- spec$free_text_strategy %||% "categorical"
 
   # Build role lookup if available
   role_lookup <- NULL
@@ -57,13 +57,22 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       next
     }
 
-    # Free text handling. Trust the detected role when we have one — detect_roles
+    # Free text handling. Trust the detected role when we have one \u2014 detect_roles
     # already ran is_free_text_candidate (its free-text test precedes every other
     # role), so a column carrying any concrete role was already found not to be
     # free text. Only probe directly when the role is unknown, to avoid
     # recomputing the free-text heuristic on every non-free-text column.
+    # "free text" stays a distinct detection label, but internally it is
+    # synthesized the same way as any other categorical column (see
+    # synth_free_text()'s "categorical" strategy) unless drop/redact is
+    # explicitly requested (e.g. by privacy hardening).
     if (role == "free text" || (role == "unknown" && is_free_text_candidate(x))) {
-      cols[[i]] <- synth_free_text(x, n, strategy = free_text_s)
+      cols[[i]] <- synth_free_text(x, n,
+        strategy = free_text_s,
+        rare_level_min_n = rare_min_n,
+        merge_rare = merge_rare,
+        missing_strategy = missingness
+      )
       next
     }
 

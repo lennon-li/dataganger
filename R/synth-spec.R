@@ -48,8 +48,12 @@
 #'       escape-route suggestions never pick a value below 3.
 #'     \item `rare_level_min_n` --- integer; category values seen fewer than
 #'       this many times count as rare (then merged or suppressed).
-#'     \item `free_text_strategy` --- how free-text columns are treated
-#'       (typically `"drop"` or `"redact"`); usually set by the purpose preset.
+#'     \item `free_text_strategy` --- how free-text columns are treated:
+#'       `"categorical"` (default) synthesizes them the same way as any other
+#'       categorical column, with rare/near-unique values collapsed to
+#'       `".other"`; `"drop"` and `"redact"` are also available and are used
+#'       to reinforce privacy hardening when a pre-stage check flags a
+#'       free-text column as high risk.
 #'     \item `preserve_missingness` --- how closely to reproduce the original
 #'       pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
 #'   }
@@ -144,7 +148,7 @@ preset_table <- function(purpose) {
       preserve_correlations = "none",
       coarsen_dates       = TRUE,
       merge_rare          = TRUE,
-      free_text_strategy  = "drop",
+      free_text_strategy  = "categorical",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
       k_anon              = 5,
@@ -157,7 +161,7 @@ preset_table <- function(purpose) {
       preserve_correlations = "moderate",
       coarsen_dates       = FALSE,
       merge_rare          = TRUE,
-      free_text_strategy  = "drop",
+      free_text_strategy  = "categorical",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
       k_anon              = 5,
@@ -170,7 +174,7 @@ preset_table <- function(purpose) {
       preserve_correlations = "high",
       coarsen_dates       = FALSE,
       merge_rare          = FALSE,
-      free_text_strategy  = "redact",
+      free_text_strategy  = "categorical",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
       k_anon              = 5,
@@ -246,6 +250,16 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     cli::cli_abort(c(
       "Invalid preserve_missingness: {.val {spec$preserve_missingness}}",
       "i" = "Valid values: {.val {valid_missingness}}"
+    ))
+  }
+
+  # Validate free_text_strategy
+  valid_free_text_strategies <- c("categorical", "drop", "redact")
+  if (!is.null(spec$free_text_strategy) &&
+      !spec$free_text_strategy %in% valid_free_text_strategies) {
+    cli::cli_abort(c(
+      "Invalid free_text_strategy: {.val {spec$free_text_strategy}}",
+      "i" = "Valid values: {.val {valid_free_text_strategies}}"
     ))
   }
 

@@ -433,6 +433,34 @@ test_that("synthesize_data() free text dropped when strategy is drop", {
   expect_false(all(is.na(syn$x)))
 })
 
+test_that("free_text_strategy defaults to categorical, not drop", {
+  spec <- synth_spec(purpose = "demo")
+  expect_equal(spec$free_text_strategy, "categorical")
+})
+
+test_that("synthesize_data() free text is synthesized as categorical by default", {
+  set.seed(1)
+  # Almost every note is unique; a handful repeat often enough to clear
+  # rare_level_min_n (default 5) and should survive rare-level collapsing.
+  common_note <- "Routine follow-up, no concerns to report at this visit."
+  unique_notes <- sprintf(
+    "Patient reports symptom variant number %d during today's visit.", 1:100
+  )
+  notes <- c(rep(common_note, 10), unique_notes)
+  df <- data.frame(notes = notes, x = seq_along(notes))
+  spec <- synth_spec(purpose = "demo", n = 200)
+
+  syn <- synthesize_data(df, spec)
+
+  expect_type(syn$notes, "character")
+  expect_false(all(is.na(syn$notes)))
+  # Every near-unique note collapses to ".other"; none reappear verbatim.
+  expect_false(any(unique_notes %in% syn$notes))
+  # The note repeated often enough (>= rare_level_min_n) is allowed to recur.
+  expect_true(common_note %in% syn$notes)
+  expect_true(all(syn$notes %in% c(common_note, ".other")))
+})
+
 test_that("synthesize_data() marginal mixed types all work", {
   df <- data.frame(
     n = rnorm(10),

@@ -251,13 +251,14 @@ mod_compare_server <- function(id, state) {
     }
 
     # Derive the kind used for plot/stats: user_role > recommended_role > column class
+    # Logical/boolean is not a distinct kind -- it is treated as categorical.
     role_to_kind <- function(role) {
       if (is.na(role) || !nzchar(role)) return(NA_character_)
       lc <- tolower(role)
       if (grepl("id\\b|identifier", lc)) return("identifier")
       if (grepl("categor", lc)) return("categorical")
       if (grepl("\\bdate\\b", lc)) return("date")
-      if (grepl("logic|boolean", lc)) return("logical")
+      if (grepl("logic|boolean", lc)) return("categorical")
       if (grepl("free.text|free_text", lc)) return("free_text")
       if (grepl("geograph", lc)) return("categorical")
       if (grepl("numeric", lc)) return("numeric")
@@ -280,7 +281,7 @@ mod_compare_server <- function(id, state) {
       }
       # Fall back to actual column class
       if (is.null(col_data)) return("numeric")
-      if (is.logical(col_data))                            return("logical")
+      if (is.logical(col_data))                            return("categorical")
       if (inherits(col_data, c("Date", "POSIXct", "POSIXt"))) return("date")
       if (is.character(col_data) || is.factor(col_data))   return("categorical")
       "numeric"
@@ -385,7 +386,7 @@ mod_compare_server <- function(id, state) {
           class = "card",
           shiny::tags$p(
             style = "font-family:var(--font-sans); font-size:13px; color:var(--fg-muted); margin:0;",
-            "No comparable variables remain after excluding identifier columns."
+            "No comparable variables remain after excluding pseudo identifier columns."
           )
         ))
       }
@@ -400,7 +401,6 @@ mod_compare_server <- function(id, state) {
         kind_lbl <- switch(kind,
           numeric     = "num",
           categorical = "cat",
-          logical     = "log",
           date        = "date",
           kind
         )
@@ -531,10 +531,20 @@ mod_compare_server <- function(id, state) {
         return(empty_plot(paste0(kind, " \u2014 no distribution plot")))
       }
 
-      if (kind %in% c("categorical", "logical")) {
+      if (kind == "categorical") {
         orig_vals  <- explicit_missing(orig[[var]])
         synth_vals <- explicit_missing(synth[[var]])
         lvls <- sort(unique(c(orig_vals, synth_vals)))
+
+        max_levels <- dg_max_comparable_levels(nrow(orig))
+        if (length(lvls) > max_levels) {
+          return(empty_plot(sprintf(
+            "%d distinct values \u2014 too many to compare reliably for %s row%s (limit %d)",
+            length(lvls), format(nrow(orig), big.mark = ","),
+            if (nrow(orig) == 1L) "" else "s", max_levels
+          )))
+        }
+
         orig_prop  <- prop_by_level(orig_vals, lvls)
         synth_prop <- prop_by_level(synth_vals, lvls)
         dat <- data.frame(
@@ -677,10 +687,27 @@ mod_compare_server <- function(id, state) {
 
       fmt_pct <- function(x) sprintf("%.0f%%", 100 * x)
 
-      if (kind %in% c("categorical", "logical")) {
+      if (kind == "categorical") {
         orig_vals  <- explicit_missing(orig[[var]])
         synth_vals <- explicit_missing(synth[[var]])
         lvls <- sort(unique(c(orig_vals, synth_vals)))
+
+        max_levels <- dg_max_comparable_levels(nrow(orig))
+        if (length(lvls) > max_levels) {
+          return(shiny::tags$div(
+            class = "banner risk",
+            style = "margin-top:8px;",
+            shiny::tags$span(class = "icon", "!"),
+            shiny::tags$div(
+              shiny::tags$b(sprintf("%d distinct values.", length(lvls))),
+              sprintf(
+                " Too many to compare reliably for %s rows (limit %d) \u2014 excluded from this page.",
+                format(nrow(orig), big.mark = ","), max_levels
+              )
+            )
+          ))
+        }
+
         orig_prop  <- prop_by_level(orig_vals, lvls)
         synth_prop <- prop_by_level(synth_vals, lvls)
         tvd  <- 0.5 * sum(abs(orig_prop - synth_prop))
@@ -805,7 +832,6 @@ mod_compare_server <- function(id, state) {
       kind_y <- eff_kind(var_y, state$roles, orig[[var_y]])
       normalize_kind <- function(kind) {
         if (kind == "date") return("numeric")
-        if (kind == "logical") return("categorical")
         kind
       }
       plot_kind_x <- normalize_kind(kind_x)
@@ -882,8 +908,12 @@ mod_compare_server <- function(id, state) {
         if (length(levels_x) < 2L || length(levels_y) < 2L) {
           return(empty_plot("Both categorical variables need at least two levels"))
         }
-        if (length(levels_x) > 30L || length(levels_y) > 30L) {
-          return(empty_plot("Categorical variables are limited to 30 levels"))
+        max_levels <- dg_max_comparable_levels(nrow(orig))
+        if (length(levels_x) > max_levels || length(levels_y) > max_levels) {
+          return(empty_plot(sprintf(
+            "Too many distinct values to compare reliably for %s rows (limit %d)",
+            format(nrow(orig), big.mark = ","), max_levels
+          )))
         }
         heat_data <- function(dat) {
           tab <- table(
@@ -931,7 +961,13 @@ mod_compare_server <- function(id, state) {
         synth_mixed <- prepare_mixed(synth_pair)
         categories <- sort(unique(c(orig_mixed$category, synth_mixed$category)))
         if (length(categories) < 2L) return(empty_plot("The categorical variable needs at least two groups"))
-        if (length(categories) > 30L) return(empty_plot("Categorical variables are limited to 30 levels"))
+        max_levels <- dg_max_comparable_levels(nrow(orig))
+        if (length(categories) > max_levels) {
+          return(empty_plot(sprintf(
+            "Too many distinct values to compare reliably for %s rows (limit %d)",
+            format(nrow(orig), big.mark = ","), max_levels
+          )))
+        }
         make_box <- function(dat, title, color) {
           dat$category <- factor(dat$category, levels = categories)
           panel_title(

@@ -532,13 +532,14 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
       p_value = double(0), n_terms = integer(0), note = character(0)
     )
   }
+  # Logical/boolean is not a distinct kind -- it is treated as categorical.
   role_to_kind <- function(role) {
     if (length(role) == 0L || is.na(role) || !nzchar(role)) return(NA_character_)
     lc <- tolower(role)
     if (grepl("id\\b|identifier", lc)) return("identifier")
     if (grepl("categor", lc)) return("categorical")
     if (grepl("\\bdate\\b", lc)) return("date")
-    if (grepl("logic|boolean", lc)) return("logical")
+    if (grepl("logic|boolean", lc)) return("categorical")
     if (grepl("free.text|free_text", lc)) return("free_text")
     if (grepl("geograph", lc)) return("categorical")
     if (grepl("numeric", lc)) return("numeric")
@@ -561,7 +562,7 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
         if (!is.na(recommended_kind)) return(recommended_kind)
       }
     }
-    if (is.logical(column)) return("logical")
+    if (is.logical(column)) return("categorical")
     if (inherits(column, c("Date", "POSIXct", "POSIXt"))) return("date")
     if (is.character(column) || is.factor(column)) return("categorical")
     "numeric"

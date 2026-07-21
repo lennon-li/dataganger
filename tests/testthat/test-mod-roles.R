@@ -307,6 +307,50 @@ test_that("inline override controls expose drop/pass-through and data type", {
   })
 })
 
+test_that("the type dropdown shows 'pseudo identifier' but keeps the internal value 'identifier'", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, 'value="identifier"', fixed = TRUE)
+    expect_match(html, "pseudo identifier", fixed = TRUE)
+    expect_false(grepl(">identifier<", html, fixed = TRUE))
+  })
+})
+
+test_that("logical is no longer a selectable type; the dropdown offers categorical instead", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_false(grepl('value="logical"', html, fixed = TRUE))
+    expect_match(html, 'value="categorical"', fixed = TRUE)
+  })
+})
+
+test_that("role_change silently rejects 'logical' since it is no longer a valid type", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original_user_roles <- state$roles$user_role
+    session$setInputs(role_change = list(row = 1, value = "logical"))
+    expect_identical(state$roles$user_role, original_user_roles)
+  })
+})
+
+test_that("a logical/boolean column is classified as categorical, not a distinct logical type", {
+  df <- data.frame(
+    flag = rep(c(TRUE, FALSE), 10),
+    other = 1:20
+  )
+  roles <- detect_roles(df)
+  row <- roles[roles$variable == "flag", ]
+  expect_identical(dg_class_to_role(row$class), "categorical")
+})
+
 test_that("changing identifies derives drop action and changing sensitive keeps synthesis", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()

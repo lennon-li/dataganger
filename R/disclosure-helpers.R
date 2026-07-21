@@ -106,6 +106,37 @@ dg_id_name_pattern <- function() {
   "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
 }
 
+#' Maximum number of distinct levels worth showing on the Compare page
+#'
+#' Scales with sample size rather than using a fixed cutoff: every displayed
+#' level should have, on average, at least `rare_level_min_n` observations --
+#' the same threshold synthesis already uses to decide a category is reliable
+#' enough to keep instead of collapsing into `.other` (see
+#' `synth_categorical()`). A column with more distinct values than this is
+#' excluded from Compare's charts with a warning, since a bar chart with more
+#' groups than that has, on average, too few observations per group to
+#' compare meaningfully -- and free-text-as-categorical columns in particular
+#' will often have close to one distinct value per row.
+#'
+#' @param n Number of rows in the dataset (typically `nrow(original)`).
+#' @param rare_level_min_n Minimum observations per level to be considered
+#'   reliable; default 5, matching `synth_categorical()`'s default.
+#' @param floor_levels Always allow at least this many levels, even for tiny
+#'   datasets (default 5).
+#' @param cap_levels Never allow more than this many levels regardless of `n`,
+#'   so the chart stays legible even for very large datasets (default 30).
+#' @return Integer: the maximum number of distinct levels allowed.
+#' @keywords internal
+#' @noRd
+dg_max_comparable_levels <- function(n, rare_level_min_n = 5,
+                                      floor_levels = 5L, cap_levels = 30L) {
+  if (is.null(n) || length(n) != 1L || is.na(n) || n <= 0) {
+    return(floor_levels)
+  }
+  suggested <- floor(n / rare_level_min_n)
+  as.integer(max(floor_levels, min(cap_levels, suggested)))
+}
+
 #' @keywords internal
 #' @noRd
 dg_named_lookup <- function(x, name) {

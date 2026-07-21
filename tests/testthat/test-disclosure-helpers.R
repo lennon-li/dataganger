@@ -190,3 +190,24 @@ test_that("dg_kanon_columns includes sensitive named categorical columns from de
 
   expect_true("diagnosis" %in% dg_kanon_columns(roles))
 })
+
+test_that("dg_max_comparable_levels scales with n between the floor and cap", {
+  # Small n: floor applies even though n/rare_level_min_n would be smaller.
+  expect_equal(dg_max_comparable_levels(10), 5L)
+  # Mid-range: scales as n / rare_level_min_n.
+  expect_equal(dg_max_comparable_levels(100), 20L)
+  # Large n: capped so the chart stays legible.
+  expect_equal(dg_max_comparable_levels(10000), 30L)
+})
+
+test_that("dg_max_comparable_levels respects custom rare_level_min_n/floor/cap", {
+  expect_equal(dg_max_comparable_levels(1000, rare_level_min_n = 10), 30L)
+  expect_equal(dg_max_comparable_levels(1000, rare_level_min_n = 10, cap_levels = 50L), 50L)
+  expect_equal(dg_max_comparable_levels(1, floor_levels = 3L), 3L)
+})
+
+test_that("dg_max_comparable_levels is NA/zero-safe", {
+  expect_equal(dg_max_comparable_levels(NA), 5L)
+  expect_equal(dg_max_comparable_levels(0), 5L)
+  expect_equal(dg_max_comparable_levels(NULL), 5L)
+})

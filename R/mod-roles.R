@@ -13,7 +13,8 @@ dg_rec_to_role <- function(rec) {
   if (grepl("categor", lc)) return("categorical")
   if (grepl("free.text|free_text", lc)) return("free_text")
   if (grepl("\\bdate\\b", lc)) return("date")
-  if (grepl("logic|boolean", lc)) return("logical")
+  # Logical/boolean is not a distinct role -- it is treated as categorical.
+  if (grepl("logic|boolean", lc)) return("categorical")
   if (grepl("numeric", lc)) return("numeric")
   NA_character_
 }
@@ -24,7 +25,8 @@ dg_class_to_role <- function(cls) {
   if (is.na(cls) || !nzchar(cls)) return("numeric")
   lc <- tolower(cls)
   if (grepl("date|posix", lc)) return("date")
-  if (grepl("logical", lc)) return("logical")
+  # Logical/boolean is not a distinct role -- it is treated as categorical.
+  if (grepl("logical", lc)) return("categorical")
   if (grepl("char|factor", lc)) return("categorical")
   "numeric"
 }
@@ -67,7 +69,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           class = "subtitle",
           "DataGangeR auto-detected each column's role. ",
           shiny::tags$strong("Adjust any that look wrong"),
-          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Identifiers and free text are always handled with extra care."
+          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Pseudo identifiers and free text are always handled with extra care."
         )
       ),
       shiny::tags$div(
@@ -345,7 +347,7 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
 
-      all_roles <- c("identifier", "numeric", "categorical", "logical",
+      all_roles <- c("identifier", "numeric", "categorical",
                      "date", "free_text", "drop")
       eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
         eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
@@ -373,7 +375,7 @@ mod_roles_server <- function(id, state) {
 
       chips <- list(make_chip("all", "all", nrow(roles)))
       for (r in present) {
-        chips <- c(chips, list(make_chip(r, r, as.integer(counts[r]))))
+        chips <- c(chips, list(make_chip(ROLE_LABELS[[r]] %||% r, r, as.integer(counts[r]))))
       }
       shiny::tagList(chips)
     })
@@ -382,8 +384,20 @@ mod_roles_server <- function(id, state) {
       role_filter(input$role_filter_val)
     })
 
-    ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
+    # "identifier" and "free_text" are internal values kept unchanged so
+    # every existing comparison/dispatch keyed on them keeps working; only
+    # their displayed label differs. Logical is no longer a distinct role --
+    # it is folded into categorical (see dg_rec_to_role/dg_class_to_role).
+    ROLE_OPTIONS <- c("identifier", "numeric", "categorical",
                       "date", "free_text", "drop")
+    ROLE_LABELS <- c(
+      identifier   = "pseudo identifier",
+      numeric      = "numeric",
+      categorical  = "categorical",
+      date         = "date",
+      free_text    = "free text",
+      drop         = "drop"
+    )
     SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
 
     # Role-mapping helpers (rec_to_role/class_to_role/eff_role) are defined at
@@ -452,13 +466,14 @@ mod_roles_server <- function(id, state) {
           !is.na(recommended_role) && nzchar(recommended_role) &&
           !identical(tolower(effective %||% ""), tolower(class_to_role(class_col) %||% ""))
         opts <- lapply(ROLE_OPTIONS, function(opt) {
+          opt_label <- ROLE_LABELS[[opt]] %||% opt
           shiny::tags$option(
             value    = opt,
             selected = if (identical(opt, effective)) "selected" else NULL,
             if (!is.na(recommended_option) && identical(opt, recommended_option)) {
-              paste0(opt, " (recommended)")
+              paste0(opt_label, " (recommended)")
             } else {
-              opt
+              opt_label
             }
           )
         })

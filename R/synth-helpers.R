@@ -239,12 +239,28 @@ synth_labelled <- function(x, n, rare_level_min_n = 5,
 # Free text handling [2.8]
 # ===========================================================================
 
-synth_free_text <- function(x, n, strategy = "drop") {
+synth_free_text <- function(x, n, strategy = "categorical",
+                            rare_level_min_n = 5, merge_rare = TRUE,
+                            missing_strategy = "approx") {
   if (strategy == "drop") {
     return(rep(NA_character_, n))
   }
   if (strategy == "redact") {
     return(rep("[REDACTED]", n))
+  }
+  if (strategy == "categorical") {
+    # Free text is not synthesized with any dedicated free-text model --
+    # internally it gets the same treatment as any other high-cardinality
+    # categorical column: values seen fewer than rare_level_min_n times are
+    # collapsed to ".other" before resampling, so distinct free-text strings
+    # (almost always all of them) do not reappear verbatim unless several
+    # records shared the exact same text.
+    return(synth_categorical(
+      x, n,
+      rare_level_min_n = rare_level_min_n,
+      merge_rare = merge_rare,
+      missing_strategy = missing_strategy
+    ))
   }
   cli::cli_abort("Unknown free_text_strategy: {.val {strategy}}")
 }
