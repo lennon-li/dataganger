@@ -265,6 +265,19 @@ test_that("detect_roles() classifies ISO date strings as 'date'", {
   expect_equal(r$recommended_role[r$variable == "event_date"], "date")
 })
 
+test_that("a character-stored date gets the same quasi-identifier default as a native Date column", {
+  df <- data.frame(
+    native = as.Date("2020-01-01") + 1:50,
+    text   = format(as.Date("2020-01-01") + 1:50, "%Y-%m-%d"),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$disclosure_role[r$variable == "native"], "quasi")
+  expect_equal(r$disclosure_role[r$variable == "text"], "quasi")
+  expect_equal(r$identifies[r$variable == "native"], "combination")
+  expect_equal(r$identifies[r$variable == "text"], "combination")
+})
+
 test_that("detect_roles() classifies 'Month DD, YYYY' date strings as 'date'", {
   df <- data.frame(
     report_date = format(as.Date("2019-06-01") + 1:50, "%b %e, %Y"),

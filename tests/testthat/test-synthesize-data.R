@@ -698,6 +698,12 @@ test_that("character-stored ISO date strings are synthesized as dates, not resam
   )
   roles <- detect_roles(df)
   expect_equal(roles$recommended_role[roles$variable == "event_date"], "date")
+  # date-role columns default to being a quasi-identifier (like a native
+  # Date column would), which would otherwise coarsen this to month-level
+  # via enforce_kanon regardless of coarsen_dates -- opt out so this test
+  # isolates marginal-stage format-preserving synthesis.
+  roles$identifies[roles$variable == "event_date"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
 
   spec <- synth_spec(purpose = "demo", n = 100, seed = 2, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
@@ -726,6 +732,10 @@ test_that("character-stored date+time strings preserve both the date range and t
   )
   roles <- detect_roles(df)
   expect_equal(roles$recommended_role[roles$variable == "visit"], "date")
+  # Opt out of the quasi-identifier default (see comment in the ISO-date
+  # test above) so this test isolates marginal-stage format preservation.
+  roles$identifies[roles$variable == "visit"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
 
   spec <- synth_spec(purpose = "demo", n = 100, seed = 4, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
@@ -745,6 +755,10 @@ test_that("a bare time-of-day column (no date part) is synthesized and stays tim
   )
   roles <- detect_roles(df)
   expect_equal(roles$recommended_role[roles$variable == "check_in"], "date")
+  # Opt out of the quasi-identifier default (see comment in the ISO-date
+  # test above) so this test isolates marginal-stage format preservation.
+  roles$identifies[roles$variable == "check_in"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
 
   spec <- synth_spec(purpose = "demo", n = 100, seed = 6, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
@@ -762,6 +776,10 @@ test_that("character-stored dates preserve the original NA rate", {
   x[sample(seq_along(x), 40)] <- NA
   df <- data.frame(sched = x, stringsAsFactors = FALSE)
   roles <- detect_roles(df)
+  # Opt out of the quasi-identifier default (see comment in the ISO-date
+  # test above) so this test isolates marginal-stage format preservation.
+  roles$identifies[roles$variable == "sched"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
 
   spec <- synth_spec(purpose = "demo", n = 200, seed = 8, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")

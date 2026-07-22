@@ -121,12 +121,18 @@ detect_single_role_inner <- function(x, name, n_rows) {
     ))
   }
 
-  # Test 2: Date or POSIXct
+  # Test 2: Date or POSIXct. disclosure_role is set explicitly to "quasi"
+  # here (rather than left NA_character_ for dg_seed_disclosure()'s
+  # class-keyed fallback to fill in) so native and character-stored dates
+  # (Test 2b) get identical treatment -- that fallback only recognizes the
+  # literal R class strings "Date"/"POSIXct", not "character", so a
+  # character-stored date would otherwise silently miss the same
+  # quasi-identifier default a native Date column gets.
   if (r_class %in% c("Date", "POSIXct")) {
     return(make_role_row(
       name, r_class, "date",
       "Stored as a date/time value, so it is treated as a date column.",
-      NA_character_
+      "quasi"
     ))
   }
 
@@ -154,7 +160,7 @@ detect_single_role_inner <- function(x, name, n_rows) {
         return(make_role_row(
           name, r_class, "date",
           "The values look like dates or times even though they are stored as text.",
-          NA_character_
+          "quasi"
         ))
       }
     }

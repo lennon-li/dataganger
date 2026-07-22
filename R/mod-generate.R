@@ -669,6 +669,21 @@ mod_generate_server <- function(id, state) {
             "enforced (smallest cell >= %s)",
             kanon$k %||% "k"
           )
+          # Suppression works at whole-cell granularity, not row granularity
+          # -- reaching k can require absorbing a few whole neighbouring
+          # cells, which can blank far more rows than the number that were
+          # actually below k. Surface that here so a QI column that ended
+          # up mostly or fully blanked to reach k is visible, not silent.
+          row_frac <- kanon$suppressed_row_frac %||% 0
+          if (row_frac > 0) {
+            kanon_label <- sprintf(
+              "%s; %s%% of QI values suppressed",
+              kanon_label, round(100 * row_frac)
+            )
+            if (row_frac >= 0.5) {
+              kanon_class <- "stat risk"
+            }
+          }
         }
       }
 
