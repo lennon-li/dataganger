@@ -419,15 +419,41 @@ synth_free_text <- function(x, n, strategy = "categorical",
 # Alphanumeric ID scrambling [2.9]
 # ===========================================================================
 
+#' Replace one character with a different one of the same class
+#'
+#' Digits map to a different digit, lowercase to a different lowercase letter,
+#' uppercase to a different uppercase letter. Any other character is returned
+#' unchanged. Uses the (seeded) RNG so scrambling stays reproducible.
+#'
+#' @param ch A single-character string.
+#' @return A single-character string.
+#' @keywords internal
+#' @noRd
+dg_random_like_char <- function(ch) {
+  pool <- if (grepl("[0-9]", ch)) {
+    setdiff(as.character(0:9), ch)
+  } else if (grepl("[a-z]", ch)) {
+    setdiff(letters, ch)
+  } else if (grepl("[A-Z]", ch)) {
+    setdiff(LETTERS, ch)
+  } else {
+    return(ch)
+  }
+  if (length(pool) == 0L) ch else sample(pool, 1L)
+}
+
 #' Scramble an alphanumeric ID's characters, one value at a time
 #'
 #' Each value is transformed independently: delimiter characters
 #' ([dg_alphanumeric_id_delimiters()]) stay in their exact original
-#' positions, and every other character (letters and digits pooled together)
-#' is randomly reordered among the remaining positions. This destroys the
-#' actual value while preserving its length and delimiter layout, and never
-#' mixes characters across rows -- one record's scrambled ID cannot leak
-#' another record's characters.
+#' positions. When a value has at least two distinct non-delimiter characters,
+#' those characters are randomly reordered (preserving the multiset), which
+#' destroys the value while keeping its length and delimiter layout and never
+#' mixing characters across rows. When reordering cannot change the value -- a
+#' single character (`"5"`) or all-identical characters (`"11"`, `"222"`), as
+#' with short numeric IDs -- each non-delimiter character is instead replaced
+#' with a random one of the same class. Either way the returned value is
+#' guaranteed to differ from the original, so no identifier survives in place.
 #'
 #' @param x Character vector of original values (`NA` passes through as `NA`).
 #' @return A character vector the same length as `x`.
@@ -441,32 +467,46 @@ scramble_alphanumeric_id <- function(x) {
     }
     chars <- strsplit(val, "", fixed = TRUE)[[1]]
     scramble_idx <- which(!grepl(delim_pattern, chars))
-    if (length(scramble_idx) <= 1L) {
+    if (length(scramble_idx) == 0L) {
       return(val)
     }
 
-    # If there's nothing to permute (all identical), scrambling can't change it.
-    if (length(unique(chars[scramble_idx])) <= 1L) {
-      return(val)
-    }
-
-    # Try a few random permutations; if we still reproduce the original value,
-    # force a swap between two positions with different characters.
-    for (attempt in 1:10) {
-      perm <- sample(scramble_idx)
+    # When there are at least two DISTINCT non-delimiter characters, reorder
+    # them (preserving the multiset). Typical alphanumeric IDs land here.
+    if (length(scramble_idx) >= 2L &&
+        length(unique(chars[scramble_idx])) >= 2L) {
+      for (attempt in 1:10) {
+        perm <- sample(scramble_idx)
+        out_chars <- chars
+        out_chars[scramble_idx] <- out_chars[perm]
+        out <- paste(out_chars, collapse = "")
+        if (!identical(out, val)) {
+          return(out)
+        }
+      }
+      # Guaranteed change: swap two positions holding different characters.
       out_chars <- chars
-      out_chars[scramble_idx] <- out_chars[perm]
+      i1 <- scramble_idx[[1]]
+      i2 <- scramble_idx[which(out_chars[scramble_idx] != out_chars[[i1]])[[1]]]
+      out_chars[c(i1, i2)] <- out_chars[c(i2, i1)]
+      return(paste(out_chars, collapse = ""))
+    }
+
+    # Reordering cannot change this value (single character, or all identical),
+    # as with short numeric IDs. Replace each non-delimiter character with a
+    # random one of the same class so the value is genuinely de-identified
+    # instead of surviving in place.
+    for (attempt in 1:20) {
+      out_chars <- chars
+      for (i in scramble_idx) {
+        out_chars[[i]] <- dg_random_like_char(chars[[i]])
+      }
       out <- paste(out_chars, collapse = "")
       if (!identical(out, val)) {
         return(out)
       }
     }
-
-    out_chars <- chars
-    i1 <- scramble_idx[[1]]
-    i2 <- scramble_idx[which(out_chars[scramble_idx] != out_chars[[i1]])[[1]]]
-    out_chars[c(i1, i2)] <- out_chars[c(i2, i1)]
-    paste(out_chars, collapse = "")
+    out
   }, character(1), USE.NAMES = FALSE)
 }
 

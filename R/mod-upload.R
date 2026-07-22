@@ -136,27 +136,26 @@ mod_upload_server <- function(id, state) {
 
       staged_path <- stage_upload(file_info$datapath, file_info$name)
 
-      raw_data <- tryCatch(
-        read_input(staged_path),
+      # Read column NAMES only. The column-filter box triages on names; the
+      # actual data is not read until the user clicks Continue (see the `read`
+      # closure below), so a dropped column's values are never loaded.
+      cols <- tryCatch(
+        names(read_input(staged_path, n_max = 0L)),
         error = function(e) {
           shiny::showNotification(conditionMessage(e), type = "error")
           NULL
         }
       )
 
-      if (is.null(raw_data)) {
+      if (is.null(cols)) {
         return(invisible(NULL))
       }
 
-      state$raw_data <- raw_data
+      state$upload_source <- list(
+        columns = cols,
+        read = function() read_input(staged_path)
+      )
       state$filename <- file_info$name
-
-      session$onFlushed(function() {
-        shiny::withProgress(message = "Profiling data\u2026", value = 0.4, {
-          state$profile <- dg_timeit("upload: profile_data", profile_data(raw_data))
-          shiny::setProgress(value = 1.0, detail = "Done")
-        })
-      }, once = TRUE)
     })
 
     shiny::observeEvent(input$load_sample, ignoreNULL = TRUE, {
@@ -164,13 +163,22 @@ mod_upload_server <- function(id, state) {
       e <- new.env(parent = emptyenv())
       utils::data(list = nm, package = "dataganger", envir = e)
       loaded <- tibble::as_tibble(e[[nm]])
-      state$raw_data <- loaded
+      state$upload_source <- list(
+        columns = names(loaded),
+        read = function() loaded
+      )
       sample_label <- if (identical(input$sample_dataset, "regional")) "geo\u0067raphic_sample" else paste0(input$sample_dataset, "_sample")
       state$filename <- paste0(sample_label, " (built-in)")
+    })
 
+    # Profile the WORKING data (state$raw_data), which the column-filter step
+    # sets only after the user has dropped the columns they do not want. A
+    # dropped column is never profiled, detected, synthesised, or exported.
+    shiny::observeEvent(state$raw_data, ignoreNULL = TRUE, {
+      working <- state$raw_data
       session$onFlushed(function() {
         shiny::withProgress(message = "Profiling data\u2026", value = 0.4, {
-          state$profile <- dg_timeit("upload: profile_data", profile_data(loaded))
+          state$profile <- dg_timeit("upload: profile_data", profile_data(working))
           shiny::setProgress(value = 1.0, detail = "Done")
         })
       }, once = TRUE)

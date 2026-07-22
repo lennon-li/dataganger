@@ -5,7 +5,6 @@ test_that("new upload resets downstream state and clears stale flags", {
     state <- session$getReturned()
 
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
-    state$column_filter <- list(x = "drop")
     state$spec <- list(purpose = "development")
     state$synthetic <- tibble::tibble(x = 1)
     state$comparison <- list(ok = TRUE)
@@ -18,7 +17,6 @@ test_that("new upload resets downstream state and clears stale flags", {
     expect_s3_class(state$raw_data, "data.frame")
     expect_null(state$profile)
     expect_null(state$roles)
-    expect_null(state$column_filter)
     expect_null(state$spec)
     expect_null(state$synthetic)
     expect_null(state$comparison)

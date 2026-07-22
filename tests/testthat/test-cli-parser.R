@@ -9,40 +9,37 @@ test_that("dataganger_cli returns zero for help", {
 })
 
 test_that("dataganger_cli returns syntax status for unknown command", {
-  err <- capture.output(
-    code <- dataganger_cli(c("bogus"), quit = FALSE),
-    type = "message"
-  )
-  expect_identical(code, 2L)
-  expect_true(any(grepl("Unknown command: bogus", err, fixed = TRUE)))
+  result <- run_cli(c("bogus"))
+  expect_identical(result$code, 2L)
+  expect_true(any(grepl("Unknown command: bogus", result$messages, fixed = TRUE)))
 })
 
 test_that("profile requires input and out", {
-  err <- capture.output(code <- dataganger_cli(c("profile"), quit = FALSE), type = "message")
-  expect_identical(code, 2L)
-  expect_true(any(grepl("profile requires exactly one data file", err, fixed = TRUE)))
+  result <- run_cli(c("profile"))
+  expect_identical(result$code, 2L)
+  expect_true(any(grepl("profile requires exactly one data file", result$messages, fixed = TRUE)))
 
-  err <- capture.output(code <- dataganger_cli(c("profile", "data.csv"), quit = FALSE), type = "message")
-  expect_identical(code, 2L)
-  expect_true(any(grepl("Missing required option --out", err, fixed = TRUE)))
+  result <- run_cli(c("profile", "data.csv"))
+  expect_identical(result$code, 2L)
+  expect_true(any(grepl("Missing required option --out", result$messages, fixed = TRUE)))
 })
 
 test_that("spec requires purpose and out", {
-  err <- capture.output(code <- dataganger_cli(c("spec", "--out", "spec.yaml"), quit = FALSE), type = "message")
-  expect_identical(code, 2L)
-  expect_true(any(grepl("Missing required option --purpose", err, fixed = TRUE)))
+  result <- run_cli(c("spec", "--out", "spec.yaml"))
+  expect_identical(result$code, 2L)
+  expect_true(any(grepl("Missing required option --purpose", result$messages, fixed = TRUE)))
 })
 
 test_that("synthesize requires exactly one config source and out", {
-  err <- capture.output(code <- dataganger_cli(c("synthesize", "data.csv", "--out", "bundle.zip"), quit = FALSE), type = "message")
-  expect_identical(code, 2L)
-  expect_true(any(grepl("Provide exactly one of --spec or --recipe", err, fixed = TRUE)))
+  result <- run_cli(c("synthesize", "data.csv", "--out", "bundle.zip"))
+  expect_identical(result$code, 2L)
+  expect_true(any(grepl("Provide exactly one of --spec or --recipe", result$messages, fixed = TRUE)))
 })
 
 test_that("unknown options are syntax errors", {
-  err <- capture.output(code <- dataganger_cli(c("inspect", "bundle.zip", "--loud"), quit = FALSE), type = "message")
-  expect_identical(code, 2L)
-  expect_true(any(grepl("Unknown option --loud", err, fixed = TRUE)))
+  result <- run_cli(c("inspect", "bundle.zip", "--loud"))
+  expect_identical(result$code, 2L)
+  expect_true(any(grepl("Unknown option --loud", result$messages, fixed = TRUE)))
 })
 
 test_that("CLI reconstructs dataganger_spec from YAML", {

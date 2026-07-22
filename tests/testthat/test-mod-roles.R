@@ -25,6 +25,7 @@ roles_host_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     state <- mod_state_server("state")
     mod_upload_server("upload", state)
+    mod_column_filter_server("column_filter", state)
     mod_roles_server("roles", state)
 
     shiny::observe({
@@ -102,6 +103,7 @@ test_that("editing user_role and confirming writes back to state", {
 
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     expect_s3_class(state$roles, "dataganger_roles")
@@ -132,6 +134,7 @@ test_that("editing Action treatment and confirming writes back to state", {
 
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     # record_id is an alphanumeric ID by default, so its default action is
@@ -164,6 +167,7 @@ test_that("invalid simulation treatment is ignored silently", {
 
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     original_simulation <- state$roles$simulation
@@ -193,6 +197,7 @@ test_that("confirming role edits invalidates downstream state", {
 
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     state$spec <- list(purpose = "development")
@@ -232,6 +237,7 @@ test_that("editing a non-user_role column is ignored silently", {
 
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     original_user_roles <- state$roles$user_role
@@ -262,6 +268,7 @@ test_that("roles table labels the four configure columns", {
   shiny::testServer(roles_host_server, {
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     html <- paste(as.character(output$`roles-roles_table`), collapse = "
@@ -642,6 +649,7 @@ test_that("agg_warning banner shows for aggregated count tables", {
   shiny::testServer(roles_host_server, {
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     html <- paste(as.character(output$`roles-agg_warning`), collapse = "\n")
@@ -662,6 +670,7 @@ test_that("agg_warning banner stays empty for individual-level microdata", {
   shiny::testServer(roles_host_server, {
     session$setInputs(`upload-file` = roles_upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
     session$flushReact()
 
     html <- paste(as.character(output$`roles-agg_warning`), collapse = "\n")
@@ -708,7 +717,7 @@ test_that("disclosure help uses the attested direct-identifier framing copy", {
   html <- as.character(disclosure_help_ui(attested = TRUE))
   expect_match(html, "You('|&#39;|&apos;)ve confirmed there are no direct identifiers")
   expect_match(html, "Could this column, combined with others, help single out a person\\?")
-  expect_match(html, "Is this column sensitive — would it be considered private or intrusive")
+  expect_match(html, "Is this column sensitive \u2014 would it be considered private or intrusive")
   expect_false(grepl("Yes, directly", html, fixed = TRUE))
 })
 

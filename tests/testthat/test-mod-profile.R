@@ -25,6 +25,7 @@ profile_host_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     state <- mod_state_server("state")
     mod_upload_server("upload", state)
+    mod_column_filter_server("column_filter", state)
     profile <- mod_profile_server("profile", state)
     list(state = state, profile = profile)
   })
@@ -43,6 +44,7 @@ test_that("profile outputs render after upload through mod-upload wiring", {
 
     session$setInputs(`upload-file` = upload_input_value(csv_path))
     session$flushReact()
+    cf_continue(session, state)
 
     expect_false(is.null(state$profile))
     expect_match(profile$profile_text(), "DataGangeR Profile")
