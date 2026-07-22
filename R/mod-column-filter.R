@@ -76,10 +76,11 @@ column_filter_modal <- function(col_names, ns) {
     easyClose = FALSE,
     shiny::tags$p(
       class = "cf-modal-intro",
-      "This is the first filter on your data. Drag each column into how it ",
-      "should be treated (or click a column to cycle it). Columns that look ",
-      "like IDs are already suggested for Drop \u2014 move them back if that's ",
-      "wrong. You can fine-tune this again later on the Configure step."
+      "Drag each variable into the box for how it should be treated (or click ",
+      "a variable to cycle it). Variables in the Drop box will be excluded ",
+      "from all downstream steps (profiling, role detection, synthesis, and ",
+      "export). Columns that look like IDs are pre-suggested for Drop \u2014 ",
+      "move them out if that's wrong."
     ),
     shiny::tags$div(
       class = "cf-zones",
@@ -98,10 +99,15 @@ column_filter_modal <- function(col_names, ns) {
 
 #' Internal Shiny Column Filter Module
 #'
-#' Shows the column-filter triage modal as soon as `state$raw_data` is set,
-#' driven only by column names (no need to wait for profiling / full role
-#' detection). Stores the user's choice in `state$column_filter`, a named
-#' list mapping column name to `"synthesize"`, `"pass_through"`, or `"drop"`.
+#' Shows the column-filter triage modal as soon as `state$upload_source` is
+#' set, driven only by that source's column names (no column values are read
+#' here). Stores the user's choice in `state$column_filter`, a named list
+#' mapping column name to `"synthesize"`, `"pass_through"`, or `"drop"`. On
+#' Continue it reads only the non-dropped columns (via
+#' `upload_source$read(col_select = keep)`) into `state$raw_data`. For CSV
+#' files, dropped columns are never parsed; for other formats they are read
+#' then immediately discarded. Nothing downstream (profiling, role detection,
+#' synthesis, export) ever sees a dropped column.
 #'
 #' @keywords internal
 #' @noRd
@@ -111,12 +117,38 @@ mod_column_filter_server <- function(id, state) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    shiny::observeEvent(state$raw_data, ignoreNULL = TRUE, {
-      shiny::showModal(column_filter_modal(names(state$raw_data), ns))
+    # A new upload announces its column NAMES via state$upload_source (no data
+    # is read yet). Triage is on names only. Clear any prior working data /
+    # filter choice, and do not populate state$raw_data until the user
+    # confirms which columns to keep.
+    shiny::observeEvent(state$upload_source, ignoreNULL = TRUE, {
+      state$column_filter <- NULL
+      state$raw_data <- NULL
+      shiny::showModal(column_filter_modal(state$upload_source$columns, ns))
     })
 
     shiny::observeEvent(input$buckets, ignoreNULL = TRUE, {
-      state$column_filter <- input$buckets
+      buckets <- input$buckets
+      state$column_filter <- buckets
+
+      dropped <- names(buckets)[vapply(buckets, identical, logical(1), "drop")]
+      src <- state$upload_source
+      keep <- setdiff(src$columns, dropped)
+
+      # Read only the kept columns. For CSV files this means dropped columns
+      # are never parsed; for other formats they are read then discarded.
+      full <- tryCatch(
+        src$read(col_select = keep),
+        error = function(e) {
+          shiny::showNotification(conditionMessage(e), type = "error")
+          NULL
+        }
+      )
+      if (is.null(full)) {
+        return(invisible(NULL))
+      }
+      state$raw_data <- full[, intersect(keep, names(full)), drop = FALSE]
+
       shiny::removeModal()
     })
 

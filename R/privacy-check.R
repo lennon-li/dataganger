@@ -297,9 +297,20 @@ make_flag <- function(variable, flag, severity, recommendation) {
   )
 }
 
-exact_row_match_count <- function(original, synthetic, role_map = NULL) {
+# Per-row exact-match flags between original and synthetic, on the same
+# columns the count uses (shared columns minus alphanumeric-ID columns), and
+# only when the original has >= 20 rows. Returns a list with two logical
+# vectors: `original` (which original rows are reproduced verbatim in the
+# synthetic output) and `synthetic` (which synthetic rows are verbatim copies
+# of an original row). `sum(<result>$synthetic)` equals exact_row_match_count()
+# by construction, so highlight and stat box can never disagree.
+exact_row_match_flags <- function(original, synthetic, role_map = NULL) {
+  empty <- list(
+    original  = rep(FALSE, nrow(original)),
+    synthetic = rep(FALSE, nrow(synthetic))
+  )
   if (nrow(original) < 20 || nrow(synthetic) == 0) {
-    return(0L)
+    return(empty)
   }
 
   common_cols <- intersect(names(original), names(synthetic))
@@ -310,12 +321,19 @@ exact_row_match_count <- function(original, synthetic, role_map = NULL) {
   match_cols <- setdiff(common_cols, id_cols)
 
   if (length(match_cols) == 0) {
-    return(0L)
+    return(empty)
   }
 
   orig_key <- row_key(original[, match_cols, drop = FALSE])
   syn_key <- row_key(synthetic[, match_cols, drop = FALSE])
-  as.integer(sum(syn_key %in% orig_key, na.rm = TRUE))
+  list(
+    original  = unname(orig_key %in% syn_key),
+    synthetic = unname(syn_key %in% orig_key)
+  )
+}
+
+exact_row_match_count <- function(original, synthetic, role_map = NULL) {
+  as.integer(sum(exact_row_match_flags(original, synthetic, role_map)$synthetic))
 }
 
 dg_original_names <- function(synthetic) {

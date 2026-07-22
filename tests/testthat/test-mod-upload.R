@@ -25,6 +25,7 @@ upload_host_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     state <- mod_state_server("state")
     mod_upload_server("upload", state)
+    mod_column_filter_server("column_filter", state)
     list(state = state)
   })
 }
@@ -41,6 +42,13 @@ test_that("5-row CSV upload populates raw_data and profile", {
 
     session$setInputs(`upload-file` = upload_input_value(csv_path))
     session$flushReact()
+
+    # Phase 1: an upload announces its columns but does not read data yet.
+    expect_false(is.null(state$upload_source))
+    expect_null(state$raw_data)
+
+    # Phase 2: Continue reads the data into the working set.
+    cf_continue(session, state)
 
     expect_s3_class(state$raw_data, "data.frame")
     expect_equal(nrow(state$raw_data), 5)
@@ -63,9 +71,9 @@ test_that("second upload replaces raw_data and clears downstream state", {
 
     session$setInputs(`upload-file` = upload_input_value(first_path))
     session$flushReact()
+    cf_continue(session, state)
 
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
-    state$column_filter <- list(x = "drop")
     state$spec <- list(purpose = "development")
     state$synthetic <- tibble::tibble(x = 1)
     state$comparison <- list(ok = TRUE)
@@ -73,14 +81,23 @@ test_that("second upload replaces raw_data and clears downstream state", {
     state$stale <- list(synthesis = TRUE, comparison = TRUE, export = TRUE)
     session$flushReact()
 
+    # A second upload announces new columns; nothing is read and any prior
+    # working data / filter choice is cleared until the user confirms again.
     session$setInputs(`upload-file` = upload_input_value(second_path))
     session$flushReact()
+
+    expect_null(state$raw_data)
+    expect_null(state$column_filter)
+    expect_null(state$roles)
+    expect_null(state$spec)
+
+    # Continue loads the new data; downstream state stays cleared.
+    cf_continue(session, state)
 
     expect_identical(names(state$raw_data), names(example_admin_claims))
     expect_equal(nrow(state$raw_data), 5)
     expect_false(is.null(state$profile))
     expect_null(state$roles)
-    expect_null(state$column_filter)
     expect_null(state$spec)
     expect_null(state$synthetic)
     expect_null(state$comparison)
@@ -102,6 +119,7 @@ test_that("individual sample loads 200x7 tibble with non-empty filename", {
     session$setInputs(`upload-sample_dataset` = "individual")
     session$setInputs(`upload-load_sample` = 1)
     session$flushReact()
+    cf_continue(session, state)
 
     expect_s3_class(state$raw_data, "tbl_df")
     expect_equal(nrow(state$raw_data), 200)
@@ -120,6 +138,7 @@ test_that("temporal sample loads 365x5 tibble with non-empty filename", {
     session$setInputs(`upload-sample_dataset` = "temporal")
     session$setInputs(`upload-load_sample` = 1)
     session$flushReact()
+    cf_continue(session, state)
 
     expect_s3_class(state$raw_data, "tbl_df")
     expect_equal(nrow(state$raw_data), 365)
@@ -138,6 +157,7 @@ test_that("geographic sample loads 50x5 tibble with non-empty filename", {
     session$setInputs(`upload-sample_dataset` = "regional")
     session$setInputs(`upload-load_sample` = 1)
     session$flushReact()
+    cf_continue(session, state)
 
     expect_s3_class(state$raw_data, "tbl_df")
     expect_equal(nrow(state$raw_data), 50)

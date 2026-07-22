@@ -42,6 +42,7 @@ role_override_host_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     state <- mod_state_server("state")
     mod_upload_server("upload", state)
+    mod_column_filter_server("column_filter", state)
     mod_roles_server("roles", state)
 
     shiny::observe({
@@ -80,6 +81,7 @@ test_that("overriding the type to categorical clears the direct flag and the col
     session$setInputs(`upload-file` = role_override_upload_input(csv_path))
     session$flushReact()
     session$flushReact()
+    cf_continue(session, state)
 
     notes_row <- which(state$roles$variable == "clinical_notes")
     id_row    <- which(state$roles$variable == "record_id")

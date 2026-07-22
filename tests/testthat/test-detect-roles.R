@@ -438,6 +438,30 @@ test_that("scramble_alphanumeric_id passes through NA and empty strings unchange
   expect_false(is.na(out[[1]]))
 })
 
+test_that("scramble_alphanumeric_id de-identifies short numeric IDs (no value survives in place)", {
+  set.seed(1)
+  # A sequential integer ID: single digits and repeated digits cannot be
+  # de-identified by character reordering alone (1..9 have nothing to permute,
+  # 11/22/... permute to themselves), so a plain permutation leaves the
+  # original value in place -- a re-identification leak. The fix must change
+  # every value.
+  x <- as.character(1:200)
+  scrambled <- dataganger:::scramble_alphanumeric_id(x)
+
+  expect_equal(length(scrambled), length(x))
+  expect_false(any(scrambled == x))          # no value survives in its own row
+  expect_equal(nchar(scrambled), nchar(x))   # width/format preserved
+})
+
+test_that("scramble_alphanumeric_id de-identifies repeated-digit values in place", {
+  set.seed(2)
+  x <- c("5", "11", "222", "77", "9")
+  scrambled <- dataganger:::scramble_alphanumeric_id(x)
+  expect_false(any(scrambled == x))
+  expect_true(all(grepl("^[0-9]+$", scrambled)))
+  expect_equal(nchar(scrambled), nchar(x))
+})
+
 test_that("print.dataganger_roles handles subset objects without required columns", {
   roles <- detect_roles(data.frame(age = 1:5, city = letters[1:5]))
 

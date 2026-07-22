@@ -18,6 +18,19 @@ privacy and usability fixes.
 
 ## Disclosure and privacy fixes
 
+*   **The data preview highlights exact-match rows.** When a synthetic row is a
+    verbatim copy of an original row (the disclosure the red EXACT MATCHES stat
+    counts), those rows are now tinted red in the preview panel: the offending
+    rows in the Synthetic tab and the reproduced rows in the Original tab. The
+    highlight uses the same match rule as the stat, so the two always agree, and
+    is visible on every step (including Configure) because the preview panel is.
+*   **Scrambling now de-identifies short numeric identifiers.** Reordering a
+    value's characters cannot change a single digit (`"5"`) or a run of
+    identical digits (`"11"`), so a plain integer ID column left its smallest
+    values in place — a re-identification leak. Such values are now replaced
+    with random digits of the same width instead, guaranteeing every scrambled
+    value differs from the original. Genuine alphanumeric IDs are still
+    reordered (their character multiset is preserved) as before.
 *   **Character-stored dates and times are now synthesised properly.**
     Values such as `"01/08/2020"` or `"14:30"` were previously detected as
     dates but fell through to generic categorical resampling — the original
@@ -59,6 +72,11 @@ privacy and usability fixes.
 *   The upload drop zone now accepts drag-and-drop across the whole upload
     card, and a drag-and-drop column-filter popup appears immediately after
     upload for narrowing wide datasets before configuration.
+*   The column-filter popup now works on column names only and the data is
+    read **after** you click Continue: a column dragged to Drop is never
+    loaded, profiled, role-detected, synthesised, or exported. Previously the
+    Drop choice was recorded but not applied, so dropped columns still flowed
+    into the rest of the workflow.
 
 # dataganger 0.6.1
 

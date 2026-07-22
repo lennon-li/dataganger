@@ -32,6 +32,11 @@ mod_state_server <- function(id) {
     }
 
     state <- shiny::reactiveValues(
+      # Describes a pending upload as {columns, read}: `columns` is the column
+      # names (known up front, drives the column-filter box), `read` is a
+      # closure that loads the full data -- called only when the user clicks
+      # Continue, so dropped columns are never read in.
+      upload_source = NULL,
       raw_data = NULL,
       filename = NULL,
       profile = NULL,
@@ -83,7 +88,10 @@ mod_state_server <- function(id) {
       state$profile <- NULL
       state$roles <- NULL
       state$roles_confirmed <- 0L
-      state$column_filter <- NULL
+      # column_filter is intentionally NOT cleared here: setting raw_data is how
+      # the column-filter step *applies* the user's choice, and this observer
+      # fires on that. A genuinely new upload clears column_filter via the
+      # column-filter module (keyed on state$uploaded_data) instead.
       if (is.null(state$raw_data)) {
         state$filename <- NULL
       }
