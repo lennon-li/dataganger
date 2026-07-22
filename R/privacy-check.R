@@ -168,8 +168,8 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
   }
 
   # 1. ID columns still present in synthetic. Fully-NA masking or scrambling
-  # (no value matching its original row) both count as properly masked;
-  # only a value that survives verbatim is a genuine leak.
+  # (no synthetic ID value equal to any original ID value) both count as
+  # properly masked; only a value that survives verbatim is a genuine leak.
   for (nm in intersect(names(original), names(synthetic_match))) {
     role <- dg_named_lookup(role_map, nm); if (is.na(role)) role <- "unknown"
     if (role == "alphanumeric ID") {
