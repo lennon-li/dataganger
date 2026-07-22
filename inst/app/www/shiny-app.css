@@ -337,6 +337,16 @@ table.data td.name { font-family: var(--font-sans); font-weight: 500; }
    pre-generation panel. */
 .stats.populated .stat { background: var(--real-50); border-color: var(--real-300); }
 .stats.populated .stat .v { color: var(--real-700); }
+
+/* Risk / danger stat variants -- a stat box carrying a real privacy signal
+   (an infeasible k-anonymity result, a HIGH-severity flag count, an
+   exact-row-match count above zero) needs to stand out from the "populated"
+   green treatment above, not blend into it. Selectors repeat the
+   .stats.populated prefix so they win on specificity over that rule. */
+.stat.risk, .stats.populated .stat.risk { background: var(--risk-50); border-color: var(--risk-300); }
+.stat.risk .v, .stats.populated .stat.risk .v { color: var(--risk-700); }
+.stat.danger, .stats.populated .stat.danger { background: var(--danger-50); border-color: var(--danger-500); }
+.stat.danger .v, .stats.populated .stat.danger .v { color: var(--danger-700); }
 .result-ready { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--real-700); }
 .result-ready-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--real-500); color: #fff; font-size: 11px; line-height: 1; }
 

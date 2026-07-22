@@ -346,6 +346,38 @@ test_that("result stats include exact row matches after generation", {
     stats_html <- paste(as.character(output$result_stats), collapse = "\n")
     expect_match(stats_html, "EXACT MATCHES")
     expect_match(stats_html, ">2<")
+    # A synthetic row reproducing a real one verbatim is a direct disclosure,
+    # so the stat box gets the red "danger" treatment, not just neutral.
+    expect_match(stats_html, "stat danger", fixed = TRUE)
+  })
+})
+
+test_that("exact matches stat box is not flagged danger when the count is zero", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "development", seed = 11L)
+  )
+  stubs <- make_stub_bindings()
+  stubs$privacy_check <- local({
+    p <- tibble::tibble()
+    class(p) <- c("dataganger_privacy_check", class(p))
+    attr(p, "exact_row_matches") <- 0L
+    function(...) p
+  })
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    stats_html <- paste(as.character(output$result_stats), collapse = "\n")
+    expect_match(stats_html, ">0<")
+    expect_false(grepl("stat danger", stats_html, fixed = TRUE))
   })
 })
 
