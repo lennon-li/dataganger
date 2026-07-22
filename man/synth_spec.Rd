@@ -71,8 +71,12 @@ the target. The validator allows values down to 2, but automated
 escape-route suggestions never pick a value below 3.
 \item \code{rare_level_min_n} --- integer; category values seen fewer than
 this many times count as rare (then merged or suppressed).
-\item \code{free_text_strategy} --- how free-text columns are treated
-(typically \code{"drop"} or \code{"redact"}); usually set by the purpose preset.
+\item \code{free_text_strategy} --- how free-text columns are treated:
+\code{"categorical"} (default) synthesizes them the same way as any other
+categorical column, with rare/near-unique values collapsed to
+\code{".other"}; \code{"drop"} and \code{"redact"} are also available and are used
+to reinforce privacy hardening when a pre-stage check flags a
+free-text column as high risk.
 \item \code{preserve_missingness} --- how closely to reproduce the original
 pattern of missing (\code{NA}) values (\code{"approx"}, \code{"exact"}, \code{"none"}).
 }}

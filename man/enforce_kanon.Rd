@@ -25,7 +25,15 @@ k-anonymity protection was applied to that output. Default 0.2.}
 \value{
 The shaped \code{synthetic} data frame, with an attribute \code{kanon}
 recording the achieved state (\code{smallest_cell}, \code{suppressed_cells},
-\code{qi_cols}, \code{k}, \code{infeasible}).
+\code{suppressed_rows}, \code{suppressed_row_frac}, \code{qi_cols}, \code{k}, \code{infeasible}).
+\code{suppressed_rows}/\code{suppressed_row_frac} count actual blanked rows across
+the QI columns -- distinct from \code{suppressed_cells}, which counts the
+number of distinct QI combinations folded into suppression. The two can
+differ a lot: reaching k can require absorbing a few whole neighbouring
+cells (suppression works at cell granularity, not row granularity), and
+a handful of small cells sitting next to one dominant cell can end up
+suppressing most or all of a QI column even though only a few original
+cells were actually below k.
 }
 \description{
 Shapes the synthetic output so that no quasi-identifier combination appears

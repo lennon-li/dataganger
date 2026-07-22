@@ -18,7 +18,7 @@ suggest_min_rows(
 
 \item{roles}{Optional; a \code{dataganger_roles} object. When provided together
 with \code{data}, the coverage computation is filtered to only the columns whose
-effective role is synthesizable (excludes ID candidates, free text, and
+effective role is synthesizable (excludes alphanumeric IDs, free text, and
 user-excluded columns).}
 
 \item{data}{Optional; the original data frame. When provided alongside
