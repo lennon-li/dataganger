@@ -130,7 +130,7 @@ synth_spec(purpose = "demo")
 #> • Coarsen dates: TRUE
 #> • Merge rare levels: TRUE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
-#> • Free text strategy: "drop"
+#> • Free text strategy: "categorical"
 #> • Preserve correlations: "none"
 #> • Preserve missingness: "approx"
 #> • Engine: "auto (derived from objective)"
@@ -154,7 +154,7 @@ synth_spec(purpose = "development", n = 200, seed = 42)
 #> • Coarsen dates: FALSE
 #> • Merge rare levels: TRUE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
-#> • Free text strategy: "drop"
+#> • Free text strategy: "categorical"
 #> • Preserve correlations: "moderate"
 #> • Preserve missingness: "approx"
 #> • Engine: "auto (derived from objective)"
@@ -177,7 +177,7 @@ synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 #> • Coarsen dates: FALSE
 #> • Merge rare levels: FALSE (min_n = 5)
 #> • Minimum cell size (k-anonymity): 5
-#> • Free text strategy: "redact"
+#> • Free text strategy: "categorical"
 #> • Preserve correlations: "high"
 #> • Preserve missingness: "approx"
 #> • Engine: "auto (derived from objective)"

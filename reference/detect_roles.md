@@ -97,7 +97,7 @@ detect_roles(df)
 #> 4 columns analysed; 0 user overrides active
 #> 
 #> 
-#> ── id (numeric) -> ID candidate 
+#> ── id (numeric) -> alphanumeric ID 
 #> • Reason: The column name suggests an identifier, such as an ID, record number,
 #> or key.
 #> • Disclosure: direct

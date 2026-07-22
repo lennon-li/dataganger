@@ -2,6 +2,8 @@
 
 ## dataganger 0.6.1
 
+CRAN release: 2026-07-21
+
 CRAN resubmission changes requested on 2026-07-10.
 
 - DESCRIPTION now quotes the package name `'shiny'` correctly in the
