@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,33 @@
       <small>Source: <a href="https://github.com/lennon-li/dataganger/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.7.0" id="dataganger-070">dataganger 0.7.0<a class="anchor" aria-label="anchor" href="#dataganger-070"></a></h2>
+<p>A simpler column-role taxonomy, a de-identify-by-default policy for identifier columns, honest date/time synthesis, and a batch of Configure-page privacy and usability fixes.</p>
+<div class="section level3">
+<h3 id="breaking-changes-0-7-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-7-0"></a></h3>
+<ul><li>
+<strong>Identifier columns are now scrambled by default instead of dropped.</strong> A column classified as a direct or alphanumeric identifier now defaults to <code>simulation = "scramble"</code> — it is kept in the output but de-identified (its letters and digits are reordered while delimiters and length are preserved, so no original value survives) rather than silently removed. Dropping a column is now an explicit action (<code>simulation = "drop"</code>). Recipes or scripts that relied on the old drop-by-default behaviour will now see the column present (scrambled) unless they set <code>simulation: drop</code> explicitly; regenerate affected bundles and update recipes as needed.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="disclosure-and-privacy-fixes-0-7-0">Disclosure and privacy fixes<a class="anchor" aria-label="anchor" href="#disclosure-and-privacy-fixes-0-7-0"></a></h3>
+<ul><li>
+<strong>Character-stored dates and times are now synthesised properly.</strong> Values such as <code>"01/08/2020"</code> or <code>"14:30"</code> were previously detected as dates but fell through to generic categorical resampling — the original values were reshuffled across rows with no date-range synthesis and no <code>coarsen_dates</code> protection. They are now parsed with their own format, synthesised through the date/datetime/time-of-day machinery, and reformatted back to the source pattern. Character-stored dates also now receive the same <code>quasi</code> disclosure default as native <code>Date</code> columns.</li>
+<li>k-anonymity whole-cell suppression volume is now visible: the <code>kanon</code> attribute, <code>manifest.json</code>, and <code>human/human.md</code> carry <code>suppressed_rows</code> and <code>suppressed_row_frac</code>, and <code>dataganger inspect</code> reports k-anonymity status. A single below-k residual cell can cascade into suppressing much more of a quasi-identifier column than its cell count implies; this is existing, intended behaviour, now surfaced rather than hidden.</li>
+<li>The <strong>EXACT MATCHES</strong> statistic box turns red when any synthetic row matches a real row verbatim (a direct disclosure), and the previously inert <code>stat risk</code> styling now renders.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="configure-page-and-role-taxonomy-0-7-0">Configure page and role taxonomy<a class="anchor" aria-label="anchor" href="#configure-page-and-role-taxonomy-0-7-0"></a></h3>
+<ul><li>The column-type taxonomy is simplified: logical is folded into categorical, free text is handled as categorical gated by a new data-size-aware comparison cutoff (<code>dg_max_comparable_levels()</code>), and the former “pseudo identifier” type is merged into a single “alphanumeric ID” identifier catch-all.</li>
+<li>Type overrides on the Configure page now take effect reliably: overriding an identifying column to a non-identifying type no longer silently drops it, and retyping a column away from an identifying type resets its “direct identifier” answer so the change must be re-confirmed.</li>
+<li>The action-override panel now explains the consequence of overriding an ID or free-text column, including a warning when the column will still exceed the Compare page’s comparison cap.</li>
+<li>Added bulk-configure: select multiple columns with checkboxes and apply a type, identifier answer, sensitivity answer, or action to all of them at once, for wide datasets.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="upload-experience-0-7-0">Upload experience<a class="anchor" aria-label="anchor" href="#upload-experience-0-7-0"></a></h3>
+<ul><li>The upload drop zone now accepts drag-and-drop across the whole upload card, and a drag-and-drop column-filter popup appears immediately after upload for narrowing wide datasets before configuration.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.6.1" id="dataganger-061">dataganger 0.6.1<a class="anchor" aria-label="anchor" href="#dataganger-061"></a></h2><p class="text-muted">CRAN release: 2026-07-21</p>
 <p>CRAN resubmission changes requested on 2026-07-10.</p>

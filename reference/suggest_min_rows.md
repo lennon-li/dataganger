@@ -31,7 +31,7 @@ suggest_min_rows(
 
   Optional; a `dataganger_roles` object. When provided together with
   `data`, the coverage computation is filtered to only the columns whose
-  effective role is synthesizable (excludes ID candidates, free text,
+  effective role is synthesizable (excludes alphanumeric IDs, free text,
   and user-excluded columns).
 
 - data:

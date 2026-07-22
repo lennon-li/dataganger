@@ -11,7 +11,7 @@ does not check engine availability - that is done by synthesize_data()."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -138,8 +138,12 @@ the target. The validator allows values down to 2, but automated
 escape-route suggestions never pick a value below 3.</p></li>
 <li><p><code>rare_level_min_n</code> — integer; category values seen fewer than
 this many times count as rare (then merged or suppressed).</p></li>
-<li><p><code>free_text_strategy</code> — how free-text columns are treated
-(typically <code>"drop"</code> or <code>"redact"</code>); usually set by the purpose preset.</p></li>
+<li><p><code>free_text_strategy</code> — how free-text columns are treated:
+<code>"categorical"</code> (default) synthesizes them the same way as any other
+categorical column, with rare/near-unique values collapsed to
+<code>".other"</code>; <code>"drop"</code> and <code>"redact"</code> are also available and are used
+to reinforce privacy hardening when a pre-stage check flags a
+free-text column as high risk.</p></li>
 <li><p><code>preserve_missingness</code> — how closely to reproduce the original
 pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact"</code>, <code>"none"</code>).</p></li>
 </ul></dd>

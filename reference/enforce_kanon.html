@@ -13,7 +13,7 @@ values blanked (NA). Operates on the output only."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,7 +89,15 @@ k-anonymity protection was applied to that output. Default 0.2.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The shaped <code>synthetic</code> data frame, with an attribute <code>kanon</code>
 recording the achieved state (<code>smallest_cell</code>, <code>suppressed_cells</code>,
-<code>qi_cols</code>, <code>k</code>, <code>infeasible</code>).</p>
+<code>suppressed_rows</code>, <code>suppressed_row_frac</code>, <code>qi_cols</code>, <code>k</code>, <code>infeasible</code>).
+<code>suppressed_rows</code>/<code>suppressed_row_frac</code> count actual blanked rows across
+the QI columns – distinct from <code>suppressed_cells</code>, which counts the
+number of distinct QI combinations folded into suppression. The two can
+differ a lot: reaching k can require absorbing a few whole neighbouring
+cells (suppression works at cell granularity, not row granularity), and
+a handful of small cells sitting next to one dominant cell can end up
+suppressing most or all of a QI column even though only a few original
+cells were actually below k.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

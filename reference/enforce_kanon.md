@@ -41,5 +41,13 @@ enforce_kanon(synthetic, roles, k = 5, max_steps = 6L, max_suppress_frac = 0.2)
 ## Value
 
 The shaped `synthetic` data frame, with an attribute `kanon` recording
-the achieved state (`smallest_cell`, `suppressed_cells`, `qi_cols`, `k`,
-`infeasible`).
+the achieved state (`smallest_cell`, `suppressed_cells`,
+`suppressed_rows`, `suppressed_row_frac`, `qi_cols`, `k`, `infeasible`).
+`suppressed_rows`/`suppressed_row_frac` count actual blanked rows across
+the QI columns – distinct from `suppressed_cells`, which counts the
+number of distinct QI combinations folded into suppression. The two can
+differ a lot: reaching k can require absorbing a few whole neighbouring
+cells (suppression works at cell granularity, not row granularity), and
+a handful of small cells sitting next to one dominant cell can end up
+suppressing most or all of a QI column even though only a few original
+cells were actually below k.

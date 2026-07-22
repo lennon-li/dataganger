@@ -1,5 +1,71 @@
 # Changelog
 
+## dataganger 0.7.0
+
+A simpler column-role taxonomy, a de-identify-by-default policy for
+identifier columns, honest date/time synthesis, and a batch of
+Configure-page privacy and usability fixes.
+
+### Breaking changes
+
+- **Identifier columns are now scrambled by default instead of
+  dropped.** A column classified as a direct or alphanumeric identifier
+  now defaults to `simulation = "scramble"` — it is kept in the output
+  but de-identified (its letters and digits are reordered while
+  delimiters and length are preserved, so no original value survives)
+  rather than silently removed. Dropping a column is now an explicit
+  action (`simulation = "drop"`). Recipes or scripts that relied on the
+  old drop-by-default behaviour will now see the column present
+  (scrambled) unless they set `simulation: drop` explicitly; regenerate
+  affected bundles and update recipes as needed.
+
+### Disclosure and privacy fixes
+
+- **Character-stored dates and times are now synthesised properly.**
+  Values such as `"01/08/2020"` or `"14:30"` were previously detected as
+  dates but fell through to generic categorical resampling — the
+  original values were reshuffled across rows with no date-range
+  synthesis and no `coarsen_dates` protection. They are now parsed with
+  their own format, synthesised through the date/datetime/time-of-day
+  machinery, and reformatted back to the source pattern.
+  Character-stored dates also now receive the same `quasi` disclosure
+  default as native `Date` columns.
+- k-anonymity whole-cell suppression volume is now visible: the `kanon`
+  attribute, `manifest.json`, and `human/human.md` carry
+  `suppressed_rows` and `suppressed_row_frac`, and `dataganger inspect`
+  reports k-anonymity status. A single below-k residual cell can cascade
+  into suppressing much more of a quasi-identifier column than its cell
+  count implies; this is existing, intended behaviour, now surfaced
+  rather than hidden.
+- The **EXACT MATCHES** statistic box turns red when any synthetic row
+  matches a real row verbatim (a direct disclosure), and the previously
+  inert `stat risk` styling now renders.
+
+### Configure page and role taxonomy
+
+- The column-type taxonomy is simplified: logical is folded into
+  categorical, free text is handled as categorical gated by a new
+  data-size-aware comparison cutoff (`dg_max_comparable_levels()`), and
+  the former “pseudo identifier” type is merged into a single
+  “alphanumeric ID” identifier catch-all.
+- Type overrides on the Configure page now take effect reliably:
+  overriding an identifying column to a non-identifying type no longer
+  silently drops it, and retyping a column away from an identifying type
+  resets its “direct identifier” answer so the change must be
+  re-confirmed.
+- The action-override panel now explains the consequence of overriding
+  an ID or free-text column, including a warning when the column will
+  still exceed the Compare page’s comparison cap.
+- Added bulk-configure: select multiple columns with checkboxes and
+  apply a type, identifier answer, sensitivity answer, or action to all
+  of them at once, for wide datasets.
+
+### Upload experience
+
+- The upload drop zone now accepts drag-and-drop across the whole upload
+  card, and a drag-and-drop column-filter popup appears immediately
+  after upload for narrowing wide datasets before configuration.
+
 ## dataganger 0.6.1
 
 CRAN release: 2026-07-21
