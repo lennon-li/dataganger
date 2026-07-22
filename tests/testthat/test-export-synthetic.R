@@ -639,3 +639,88 @@ test_that("export_synthetic() exact-row matches respect the privacy role-map exc
   expect_equal(manifest$exact_row_matches, attr(privacy, "exact_row_matches", exact = TRUE))
   expect_gt(manifest$exact_row_matches, exact_row_match_count(original, syn))
 })
+
+test_that("render_kanon_line() surfaces suppressed_row_frac when whole-cell absorption suppressed extra rows", {
+  modest <- list(
+    qi_cols = "x", k = 5L, smallest_cell = 24L,
+    suppressed_cells = 3L, suppressed_rows = 26L, suppressed_row_frac = 0.2166667,
+    infeasible = FALSE
+  )
+  line <- dataganger:::render_kanon_line(modest)
+  expect_match(line, "enforced, k=5, smallest cell=24", fixed = TRUE)
+  expect_match(line, "22% of QI values suppressed", fixed = TRUE)
+
+  clean <- list(
+    qi_cols = "x", k = 5L, smallest_cell = 30L,
+    suppressed_cells = 0L, suppressed_rows = 0L, suppressed_row_frac = 0,
+    infeasible = FALSE
+  )
+  clean_line <- dataganger:::render_kanon_line(clean)
+  expect_false(grepl("suppressed", clean_line, fixed = TRUE))
+})
+
+test_that("export_synthetic() manifest and human report include suppressed_rows fields", {
+  tmp <- withr::local_tempdir()
+  original <- tibble::tibble(
+    id = sprintf("id%02d", 1:20),
+    grp = rep(letters[1:4], each = 5),
+    score = rep(1:5, times = 4)
+  )
+  syn <- original
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 12)
+  attr(syn, "kanon") <- list(
+    qi_cols = "grp", k = 5L, smallest_cell = 20L,
+    suppressed_cells = 1L, suppressed_rows = 5L, suppressed_row_frac = 0.25,
+    infeasible = FALSE
+  )
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  out_dir <- file.path(tmp, "kanon-rows-dir")
+  # syn is a verbatim copy of original for simplicity here, which trips the
+  # (unrelated) exact-row-match warning; this test only cares about the
+  # kanon fields, so that warning is expected and irrelevant.
+  suppressWarnings(
+    export_synthetic(syn, original = original, path = out_dir, format = "dir", include_report = FALSE)
+  )
+
+  manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
+  expect_equal(manifest$kanon$suppressed_rows, 5L)
+  expect_equal(manifest$kanon$suppressed_row_frac, 0.25)
+
+  human_md <- paste(readLines(file.path(out_dir, "human", "human.md")), collapse = "\n")
+  expect_match(human_md, "25% of QI values suppressed", fixed = TRUE)
+})
+
+test_that("cli_kanon_summary_line() covers not-applicable, infeasible, and suppressed cases", {
+  expect_equal(dataganger:::cli_kanon_summary_line(NULL), "not applicable")
+  expect_equal(
+    dataganger:::cli_kanon_summary_line(list(applied = FALSE, qi_cols = character(0), k = 5L)),
+    "not applicable; no quasi-identifier columns"
+  )
+  expect_match(
+    dataganger:::cli_kanon_summary_line(list(infeasible = TRUE, k = 5L)),
+    "not applied \\(k=5 infeasible",
+  )
+  line <- dataganger:::cli_kanon_summary_line(list(
+    applied = TRUE, infeasible = FALSE, k = 5L, smallest_cell = 20L,
+    suppressed_row_frac = 1
+  ))
+  expect_match(line, "enforced, k=5, smallest cell=20", fixed = TRUE)
+  expect_match(line, "100% of QI values suppressed", fixed = TRUE)
+})
+
+test_that("dataganger inspect prints a K-anonymity summary line", {
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  spec_path <- file.path(tmp, "spec.yaml")
+  bundle_path <- file.path(tmp, "bundle.zip")
+  yaml::write_yaml(list(purpose = "demo", n = 5, seed = 123), spec_path)
+  expect_identical(
+    dataganger_cli(c("synthesize", data_path, "--spec", spec_path, "--out", bundle_path), quit = FALSE),
+    0L
+  )
+
+  out <- capture.output(code <- dataganger_cli(c("inspect", bundle_path), quit = FALSE))
+  expect_identical(code, 0L)
+  expect_true(any(grepl("^K-anonymity:", out)))
+})

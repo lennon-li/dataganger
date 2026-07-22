@@ -425,6 +425,8 @@ cli_print_bundle_summary <- function(summary) {
 ", manifest$synthetic_dims$ncol %||% NA_integer_))
   cat(sprintf("Files: %d
 ", length(summary$files)))
+  cat(sprintf("K-anonymity: %s
+", cli_kanon_summary_line(manifest$kanon)))
 
   privacy_lines <- grep("Exact row matches:|^\\[[^]]+\\]", human, value = TRUE)
   cat("Privacy exposure ratings:
@@ -438,6 +440,37 @@ cli_print_bundle_summary <- function(summary) {
 ", line))
     }
   }
+}
+
+# Reads the manifest's structured kanon block (rather than re-parsing
+# human.md text) so `dataganger inspect` surfaces the same suppression
+# volume as the bundle report and the Shiny app's post-generation stats --
+# whole-cell suppression can silently blank far more of a QI column than
+# the number of cells that were actually below k (see enforce_kanon()'s
+# docs), so this is worth a dedicated line rather than folding it into the
+# generic privacy-flag list above.
+cli_kanon_summary_line <- function(kanon) {
+  if (is.null(kanon)) {
+    return("not applicable")
+  }
+  if (isTRUE(kanon$infeasible)) {
+    return(sprintf(
+      "not applied (k=%s infeasible for the selected quasi-identifiers)",
+      kanon$k %||% "unknown"
+    ))
+  }
+  if (!isTRUE(kanon$applied)) {
+    return("not applicable; no quasi-identifier columns")
+  }
+  line <- sprintf(
+    "enforced, k=%s, smallest cell=%s",
+    kanon$k %||% "unknown", kanon$smallest_cell %||% "unknown"
+  )
+  row_frac <- kanon$suppressed_row_frac %||% 0
+  if (row_frac > 0) {
+    line <- sprintf("%s, %s%% of QI values suppressed", line, round(100 * row_frac))
+  }
+  line
 }
 
 cli_cmd_inspect <- function(args) {
