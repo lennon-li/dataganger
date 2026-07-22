@@ -47,7 +47,7 @@ files into a tibble. Dispatches on file extension.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">read_input</span><span class="op">(</span><span class="va">file</span>, sheet <span class="op">=</span> <span class="cn">NULL</span>, encoding <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">read_input</span><span class="op">(</span><span class="va">file</span>, sheet <span class="op">=</span> <span class="cn">NULL</span>, encoding <span class="op">=</span> <span class="cn">NULL</span>, col_select <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -68,6 +68,13 @@ files into a tibble. Dispatches on file extension.</p>
 <code>"latin1"</code>). Passed as <code>readr::locale(encoding = encoding)</code>. Ignored when
 reading non-CSV formats or when the caller already supplies a <code>locale</code>
 argument in <code>...</code>.</p></dd>
+
+
+<dt id="arg-col-select">col_select<a class="anchor" aria-label="anchor" href="#arg-col-select"></a></dt>
+<dd><p>Optional character vector of column names to keep. For CSV
+files the selection is passed directly to <code><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">readr::read_csv()</a></code> so excluded
+columns are never parsed. For other formats columns are subset after
+reading.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

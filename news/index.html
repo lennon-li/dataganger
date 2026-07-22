@@ -48,6 +48,10 @@
 <div class="section level3">
 <h3 id="disclosure-and-privacy-fixes-0-7-0">Disclosure and privacy fixes<a class="anchor" aria-label="anchor" href="#disclosure-and-privacy-fixes-0-7-0"></a></h3>
 <ul><li>
+<strong>The data preview highlights exact-match rows.</strong> When a synthetic row is a verbatim copy of an original row (the disclosure the red EXACT MATCHES stat counts), those rows are now tinted red in the preview panel: the offending rows in the Synthetic tab and the reproduced rows in the Original tab. The highlight uses the same match rule as the stat, so the two always agree, and is visible on every step (including Configure) because the preview panel is.</li>
+<li>
+<strong>Scrambling now de-identifies short numeric identifiers.</strong> Reordering a value’s characters cannot change a single digit (<code>"5"</code>) or a run of identical digits (<code>"11"</code>), so a plain integer ID column left its smallest values in place — a re-identification leak. Such values are now replaced with random digits of the same width instead, guaranteeing every scrambled value differs from the original. Genuine alphanumeric IDs are still reordered (their character multiset is preserved) as before.</li>
+<li>
 <strong>Character-stored dates and times are now synthesised properly.</strong> Values such as <code>"01/08/2020"</code> or <code>"14:30"</code> were previously detected as dates but fell through to generic categorical resampling — the original values were reshuffled across rows with no date-range synthesis and no <code>coarsen_dates</code> protection. They are now parsed with their own format, synthesised through the date/datetime/time-of-day machinery, and reformatted back to the source pattern. Character-stored dates also now receive the same <code>quasi</code> disclosure default as native <code>Date</code> columns.</li>
 <li>k-anonymity whole-cell suppression volume is now visible: the <code>kanon</code> attribute, <code>manifest.json</code>, and <code>human/human.md</code> carry <code>suppressed_rows</code> and <code>suppressed_row_frac</code>, and <code>dataganger inspect</code> reports k-anonymity status. A single below-k residual cell can cascade into suppressing much more of a quasi-identifier column than its cell count implies; this is existing, intended behaviour, now surfaced rather than hidden.</li>
 <li>The <strong>EXACT MATCHES</strong> statistic box turns red when any synthetic row matches a real row verbatim (a direct disclosure), and the previously inert <code>stat risk</code> styling now renders.</li>
@@ -62,6 +66,7 @@
 <div class="section level3">
 <h3 id="upload-experience-0-7-0">Upload experience<a class="anchor" aria-label="anchor" href="#upload-experience-0-7-0"></a></h3>
 <ul><li>The upload drop zone now accepts drag-and-drop across the whole upload card, and a drag-and-drop column-filter popup appears immediately after upload for narrowing wide datasets before configuration.</li>
+<li>The column-filter popup now works on column names only and the data is read <strong>after</strong> you click Continue: a column dragged to Drop is never loaded, profiled, role-detected, synthesised, or exported. Previously the Drop choice was recorded but not applied, so dropped columns still flowed into the rest of the workflow.</li>
 </ul></div>
 </div>
     <div class="section level2">

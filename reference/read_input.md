@@ -6,7 +6,7 @@ files into a tibble. Dispatches on file extension.
 ## Usage
 
 ``` r
-read_input(file, sheet = NULL, encoding = NULL, ...)
+read_input(file, sheet = NULL, encoding = NULL, col_select = NULL, ...)
 ```
 
 ## Arguments
@@ -27,6 +27,14 @@ read_input(file, sheet = NULL, encoding = NULL, ...)
   as `readr::locale(encoding = encoding)`. Ignored when reading non-CSV
   formats or when the caller already supplies a `locale` argument in
   `...`.
+
+- col_select:
+
+  Optional character vector of column names to keep. For CSV files the
+  selection is passed directly to
+  [`readr::read_csv()`](https://readr.tidyverse.org/reference/read_delim.html)
+  so excluded columns are never parsed. For other formats columns are
+  subset after reading.
 
 - ...:
 
