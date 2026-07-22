@@ -136,11 +136,19 @@ mod_column_filter_server <- function(id, state) {
 
       # Data is read for the first time here, on Continue. Keep only the
       # columns the user did not drop.
-      full <- src$read()
+      full <- tryCatch(
+        src$read(),
+        error = function(e) {
+          shiny::showNotification(conditionMessage(e), type = "error")
+          NULL
+        }
+      )
+      if (is.null(full)) {
+        return(invisible(NULL))
+      }
       state$raw_data <- full[, intersect(keep, names(full)), drop = FALSE]
 
       shiny::removeModal()
-    })
 
     invisible(NULL)
   })
