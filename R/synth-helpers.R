@@ -452,8 +452,9 @@ dg_random_like_char <- function(ch) {
 #' mixing characters across rows. When reordering cannot change the value -- a
 #' single character (`"5"`) or all-identical characters (`"11"`, `"222"`), as
 #' with short numeric IDs -- each non-delimiter character is instead replaced
-#' with a random one of the same class. Either way the returned value is
-#' guaranteed to differ from the original, so no identifier survives in place.
+#' with a random one of the same class. For values that contain at least one
+#' alphanumeric non-delimiter character, the returned value will differ from the
+#' original so no identifier survives in place.
 #'
 #' @param x Character vector of original values (`NA` passes through as `NA`).
 #' @return A character vector the same length as `x`.
