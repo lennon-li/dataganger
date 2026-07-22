@@ -441,10 +441,32 @@ scramble_alphanumeric_id <- function(x) {
     }
     chars <- strsplit(val, "", fixed = TRUE)[[1]]
     scramble_idx <- which(!grepl(delim_pattern, chars))
-    if (length(scramble_idx) > 1L) {
-      chars[scramble_idx] <- chars[sample(scramble_idx)]
+    if (length(scramble_idx) <= 1L) {
+      return(val)
     }
-    paste(chars, collapse = "")
+
+    # If there's nothing to permute (all identical), scrambling can't change it.
+    if (length(unique(chars[scramble_idx])) <= 1L) {
+      return(val)
+    }
+
+    # Try a few random permutations; if we still reproduce the original value,
+    # force a swap between two positions with different characters.
+    for (attempt in 1:10) {
+      perm <- sample(scramble_idx)
+      out_chars <- chars
+      out_chars[scramble_idx] <- out_chars[perm]
+      out <- paste(out_chars, collapse = "")
+      if (!identical(out, val)) {
+        return(out)
+      }
+    }
+
+    out_chars <- chars
+    i1 <- scramble_idx[[1]]
+    i2 <- scramble_idx[which(out_chars[scramble_idx] != out_chars[[i1]])[[1]]]
+    out_chars[c(i1, i2)] <- out_chars[c(i2, i1)]
+    paste(out_chars, collapse = "")
   }, character(1), USE.NAMES = FALSE)
 }
 
