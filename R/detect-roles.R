@@ -325,8 +325,8 @@ dg_alphanumeric_id_delimiters <- function() "-_./ "
 # reasonably distinct. Requiring a delimiter distinguishes a structured
 # reference number (account/order/tracking numbers -- a fixed prefix plus a
 # sequence still counts, e.g. invoice numbers) from a plain letter-prefixed
-# ID with no delimiter (e.g. "P1", "P2", ...), which stays a regular pseudo
-# identifier.
+# token with no delimiter; those may still be treated as an alphanumeric ID
+# by the broader identifier heuristics (name pattern / very high cardinality).
 is_alphanumeric_id_candidate <- function(x, n_rows) {
   if (!is.character(x) || all(is.na(x))) {
     return(FALSE)
