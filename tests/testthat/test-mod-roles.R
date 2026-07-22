@@ -711,3 +711,143 @@ test_that("disclosure help uses the attested direct-identifier framing copy", {
   expect_match(html, "Is this column sensitive — would it be considered private or intrusive")
   expect_false(grepl("Yes, directly", html, fixed = TRUE))
 })
+
+# ---- Bulk configure ----
+
+test_that("bulk toolbar prompts for a selection when nothing is checked", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$bulk_toolbar), collapse = "\n")
+    expect_match(html, "Check columns below to bulk-edit", fixed = TRUE)
+    expect_false(grepl("Apply to", html, fixed = TRUE))
+  })
+})
+
+test_that("checking a row via row_select adds it to the selection and the toolbar reflects the count", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$flushReact()
+    expect_identical(selected_vars(), "zip")
+
+    html <- paste(as.character(output$bulk_toolbar), collapse = "\n")
+    expect_match(html, "1 column selected", fixed = TRUE)
+
+    # Unchecking removes it again.
+    session$setInputs(row_select = list(variable = "zip", checked = FALSE))
+    session$flushReact()
+    expect_identical(selected_vars(), character(0))
+  })
+})
+
+test_that("select_all_visible selects and clears every currently visible row", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(select_all_visible = TRUE)
+    session$flushReact()
+    expect_setequal(selected_vars(), c("id", "zip", "income"))
+
+    session$setInputs(select_all_visible = FALSE)
+    session$flushReact()
+    expect_identical(selected_vars(), character(0))
+  })
+})
+
+test_that("bulk_clear empties the selection", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$setInputs(row_select = list(variable = "income", checked = TRUE))
+    session$flushReact()
+    expect_length(selected_vars(), 2L)
+
+    session$setInputs(bulk_clear = 1L)
+    session$flushReact()
+    expect_identical(selected_vars(), character(0))
+  })
+})
+
+test_that("bulk-applying a type change updates every selected row using the same rules as a single edit", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$setInputs(row_select = list(variable = "income", checked = TRUE))
+    session$flushReact()
+
+    session$setInputs(bulk_type_value = "alphanumeric_id")
+    session$setInputs(bulk_apply_type = 1L)
+    session$flushReact()
+
+    roles <- state$roles
+    idx <- roles$variable %in% c("zip", "income")
+    expect_true(all(roles$user_role[idx] == "alphanumeric_id"))
+    # Same consequence as the single-row handler: choosing alphanumeric_id
+    # sets identifies=direct and defaults the action to scramble.
+    expect_true(all(roles$identifies[idx] == "direct"))
+    expect_true(all(roles$simulation[idx] == "scramble"))
+    # The untouched row is unaffected.
+    expect_false(roles$user_role[roles$variable == "id"] %in% "alphanumeric_id")
+  })
+})
+
+test_that("bulk-applying a Q1 answer resets simulation the same way the single dropdown does", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(select_all_visible = TRUE)
+    session$flushReact()
+
+    session$setInputs(bulk_identifies_value = "none")
+    session$setInputs(bulk_apply_identifies = 1L)
+    session$flushReact()
+
+    roles <- state$roles
+    expect_true(all(roles$identifies == "none"))
+    expect_true(all(roles$user_identifies == "none"))
+    expect_true(all(roles$simulation == "synthesize"))
+  })
+})
+
+test_that("bulk-applying an action override sets simulation for every selected row", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "id", checked = TRUE))
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$flushReact()
+
+    session$setInputs(bulk_simulation_value = "drop")
+    session$setInputs(bulk_apply_simulation = 1L)
+    session$flushReact()
+
+    roles <- state$roles
+    expect_equal(roles$simulation[roles$variable == "id"], "drop")
+    expect_equal(roles$simulation[roles$variable == "zip"], "drop")
+    expect_equal(roles$simulation[roles$variable == "income"], "synthesize")
+  })
+})
+
+test_that("bulk apply with an empty selection is a silent no-op", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original <- state$roles
+    session$setInputs(bulk_type_value = "categorical")
+    session$setInputs(bulk_apply_type = 1L)
+    session$flushReact()
+    expect_identical(state$roles, original)
+  })
+})
