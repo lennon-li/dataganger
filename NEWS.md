@@ -18,6 +18,12 @@ privacy and usability fixes.
 
 ## Disclosure and privacy fixes
 
+*   **The data preview highlights exact-match rows.** When a synthetic row is a
+    verbatim copy of an original row (the disclosure the red EXACT MATCHES stat
+    counts), those rows are now tinted red in the preview panel: the offending
+    rows in the Synthetic tab and the reproduced rows in the Original tab. The
+    highlight uses the same match rule as the stat, so the two always agree, and
+    is visible on every step (including Configure) because the preview panel is.
 *   **Scrambling now de-identifies short numeric identifiers.** Reordering a
     value's characters cannot change a single digit (`"5"`) or a run of
     identical digits (`"11"`), so a plain integer ID column left its smallest

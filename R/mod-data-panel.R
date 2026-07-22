@@ -62,6 +62,27 @@ mod_data_panel_server <- function(id, state) {
       active_tab("real")
     })
 
+    # Per-row exact-match flags (which original rows are reproduced verbatim in
+    # the synthetic output, and which synthetic rows are verbatim copies).
+    # Memoised: recomputed only when the data or roles change, not on every
+    # tab switch or table page. NULL until synthetic data exists. Uses the same
+    # role_map (recommended_role) and original-name alignment as the EXACT
+    # MATCHES stat so the highlight and the count always agree.
+    exact_match_flags <- shiny::reactive({
+      orig <- state$raw_data
+      syn <- state$synthetic
+      if (is.null(orig) || is.null(syn)) {
+        return(NULL)
+      }
+      roles <- state$roles
+      role_map <- NULL
+      if (!is.null(roles) && "variable" %in% names(roles) &&
+          "recommended_role" %in% names(roles)) {
+        role_map <- stats::setNames(roles$recommended_role, roles$variable)
+      }
+      exact_row_match_flags(orig, dg_original_names(syn), role_map)
+    })
+
     output$dp_name <- shiny::renderUI({
       if (is.null(state$raw_data)) {
         return(shiny::tags$span(
@@ -228,6 +249,25 @@ mod_data_panel_server <- function(id, state) {
         }
       }
 
+      # Exact-match highlight: append a hidden 0/1 flag column marking rows that
+      # are (Synthetic tab) verbatim copies of an original row, or (Original
+      # tab) reproduced verbatim in the synthetic output. Hidden via columnDefs;
+      # drives the red row style below.
+      match_vec <- rep(FALSE, nrow(df))
+      flags <- exact_match_flags()
+      if (!is.null(flags)) {
+        fv <- if (active_tab() == "synth" && !is.null(state$synthetic)) {
+          flags$synthetic
+        } else {
+          flags$original
+        }
+        if (length(fv) == nrow(df)) {
+          match_vec <- fv
+        }
+      }
+      flag_col_index <- ncol(df)  # 0-based; rownames = FALSE, flag appended last
+      df[[".exact_match"]] <- as.integer(match_vec)
+
       dt <- DT::datatable(
         df,
         # Per-column filter row under the header (search box for text/factor,
@@ -239,6 +279,8 @@ mod_data_panel_server <- function(id, state) {
           scrollX    = TRUE,
           pageLength = 24L,
           lengthChange = FALSE,
+          # Hide the internal exact-match flag column.
+          columnDefs = list(list(visible = FALSE, targets = flag_col_index)),
           # Blank DT's transient "Processing.../No data available" strings so the
           # busy-state spinner (CSS) is the only thing shown mid-refresh, rather
           # than flashing error-looking placeholder text.
@@ -250,7 +292,7 @@ mod_data_panel_server <- function(id, state) {
       )
 
       # Format columns based on original data types (so synth integers display as integers).
-      # Skip ID-candidate columns — they've been coerced to character above and
+      # Skip ID-candidate columns -- they've been coerced to character above and
       # DT::formatRound would parseFloat() them back into "1,078,541.00".
       id_col_set <- if (!is.null(roles) && "recommended_role" %in% names(roles)) {
         eff_role2 <- ifelse(
@@ -271,6 +313,14 @@ mod_data_panel_server <- function(id, state) {
           dt <- DT::formatRound(dt, columns = col_name, digits = 2)
         }
       }
+
+      # Tint exact-match rows red -- the same danger cue as the EXACT MATCHES
+      # stat box. Semi-transparent so it reads on light and dark backgrounds.
+      dt <- DT::formatStyle(
+        dt, ".exact_match",
+        target          = "row",
+        backgroundColor = DT::styleEqual(1L, "rgba(220, 38, 38, 0.16)")
+      )
 
       dt
     })
