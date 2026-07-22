@@ -77,10 +77,10 @@ column_filter_modal <- function(col_names, ns) {
     shiny::tags$p(
       class = "cf-modal-intro",
       "Drag each variable into the box for how it should be treated (or click ",
-      "a variable to cycle it). Any variable in Synthesise or Pass through ",
-      "will be read by the app once you click Continue. Variables in the Drop ",
-      "box will not be read or included in the next steps. Columns that look ",
-      "like IDs are pre-suggested for Drop \u2014 move them out if that's wrong."
+      "a variable to cycle it). Variables in the Drop box will be excluded ",
+      "from all downstream steps (profiling, role detection, synthesis, and ",
+      "export). Columns that look like IDs are pre-suggested for Drop \u2014 ",
+      "move them out if that's wrong."
     ),
     shiny::tags$div(
       class = "cf-zones",
@@ -103,10 +103,10 @@ column_filter_modal <- function(col_names, ns) {
 #' set, driven only by that source's column names (no column values are read
 #' here). Stores the user's choice in `state$column_filter`, a named list
 #' mapping column name to `"synthesize"`, `"pass_through"`, or `"drop"`. On
-#' Continue it loads the data (via `upload_source$read()`) for the first time,
-#' keeping only the non-dropped columns, into `state$raw_data`. Nothing
-#' downstream (profiling, role detection, synthesis, export) ever sees a
-#' dropped column, because it is never read into `state$raw_data`.
+#' Continue it loads the full data (via `upload_source$read()`) and stores only
+#' the non-dropped columns in `state$raw_data`. Nothing downstream (profiling,
+#' role detection, synthesis, export) ever sees a dropped column, because it is
+#' excluded from `state$raw_data`.
 #'
 #' @keywords internal
 #' @noRd
@@ -118,7 +118,7 @@ mod_column_filter_server <- function(id, state) {
 
     # A new upload announces its column NAMES via state$upload_source (no data
     # is read yet). Triage is on names only. Clear any prior working data /
-    # filter choice, and do not load or populate state$raw_data until the user
+    # filter choice, and do not populate state$raw_data until the user
     # confirms which columns to keep.
     shiny::observeEvent(state$upload_source, ignoreNULL = TRUE, {
       state$column_filter <- NULL
@@ -134,8 +134,8 @@ mod_column_filter_server <- function(id, state) {
       src <- state$upload_source
       keep <- setdiff(src$columns, dropped)
 
-      # Data is read for the first time here, on Continue. Keep only the
-      # columns the user did not drop.
+      # Data is read for the first time here, on Continue. Dropped columns
+      # are excluded from state$raw_data so nothing downstream sees them.
       full <- tryCatch(
         src$read(),
         error = function(e) {

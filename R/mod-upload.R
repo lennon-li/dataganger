@@ -138,7 +138,8 @@ mod_upload_server <- function(id, state) {
 
       # Read column NAMES only. The column-filter box triages on names; the
       # actual data is not read until the user clicks Continue (see the `read`
-      # closure below), so a dropped column's values are never loaded.
+      # closure below). Dropped columns are excluded from state$raw_data
+      # before any downstream step sees the data.
       cols <- tryCatch(
         names(read_input(staged_path, n_max = 0L)),
         error = function(e) {
