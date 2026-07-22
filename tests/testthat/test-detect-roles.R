@@ -404,7 +404,7 @@ test_that("detect_roles treats a fixed-prefix reference number as alphanumeric I
   expect_equal(r$recommended_role[1], "alphanumeric ID")
 })
 
-test_that("detect_roles does not classify a plain letter-prefixed ID (no delimiter) as alphanumeric", {
+test_that("detect_roles classifies a plain letter-prefixed ID (no delimiter) as alphanumeric ID", {
   df <- data.frame(token = sprintf("tok%03d", 1:30), stringsAsFactors = FALSE)
   r <- detect_roles(df)
   expect_equal(r$recommended_role[1], "alphanumeric ID")
