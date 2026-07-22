@@ -448,7 +448,13 @@ test_that("synthesize --recipe reads combined spec and roles", {
   expect_false("token" %in% names(syn))
 })
 
-test_that("synthesize --roles reproduces the supplied roles (drops a column marked direct)", {
+test_that("synthesize --roles scrambles a direct alphanumeric-ID column instead of leaking it", {
+  # A column marked `direct` that is also an alphanumeric ID gets the
+  # scramble default (`dg_sync_roles_axes`), and that explicit keep-decision
+  # takes precedence over the direct-ID drop in `enforce_kanon`. The column
+  # therefore survives, but its values are fully replaced -- no original
+  # identifier value leaks. (Dropping a direct ID is now Action-only: the
+  # user selects the "drop" simulation, exercised elsewhere.)
   skip_if_no_synthpop()
   tmp <- withr::local_tempdir()
   dp <- file.path(tmp, "d.csv")
@@ -467,6 +473,9 @@ test_that("synthesize --roles reproduces the supplied roles (drops a column mark
   roles$identifies[roles$variable == "token"] <- "direct"
   roles$identifies[roles$variable == "age"] <- "none"
   roles <- dg_sync_roles_axes(roles)
+  expect_identical(
+    roles$simulation[roles$variable == "token"], "scramble"
+  )
   cli_write_yaml(roles_to_yaml_list(roles), rp)
   yaml::write_yaml(list(purpose = "development", n = 60, seed = 7L), sp)
 
@@ -479,5 +488,7 @@ test_that("synthesize --roles reproduces the supplied roles (drops a column mark
   dir.create(ex)
   utils::unzip(op, exdir = ex)
   syn <- readr::read_csv(file.path(ex, "synthetic_data.csv"), show_col_types = FALSE)
-  expect_false("token" %in% names(syn))
+  # Column is kept (scrambled), but none of the original tokens survive.
+  expect_true("token" %in% names(syn))
+  expect_length(intersect(df$token, syn$token), 0L)
 })
