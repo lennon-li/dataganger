@@ -82,6 +82,24 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       next
     }
 
+    # Character-stored date/time strings (e.g. "01/08/2020", "Jun 8, 2019",
+    # a full datetime, or a bare time). detect_roles() already recognised
+    # these as role "date", but the column is still is.character(x) -- without
+    # this branch it would fall into the generic character dispatch below and
+    # get resampled as plain categorical text instead of synthesized as a
+    # date/time. Falls through to the generic character path if no format is
+    # confidently detected.
+    if (role == "date" && is.character(x)) {
+      date_info <- parse_date_like_character(x)
+      if (!is.null(date_info)) {
+        cols[[i]] <- synth_date_like_character(x, n, date_info,
+          coarsen_dates = coarsen,
+          missing_strategy = missingness
+        )
+        next
+      }
+    }
+
     if (haven::is.labelled(x)) {
       cols[[i]] <- synth_labelled(x, n,
         rare_level_min_n = rare_min_n,

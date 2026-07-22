@@ -687,3 +687,85 @@ test_that("synthesize_data() generic naming still drops direct identifiers befor
   expect_true(length(kanon$qi_cols) > 0L)
   expect_false(any(grepl("patient", names(syn), ignore.case = TRUE)))
 })
+
+# ---- Character-stored date/time synthesis ----
+
+test_that("character-stored ISO date strings are synthesized as dates, not resampled verbatim", {
+  set.seed(1)
+  df <- data.frame(
+    event_date = format(as.Date("2020-01-01") + sample(0:364, 100, TRUE), "%Y-%m-%d"),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "event_date"], "date")
+
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 2, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  # Format is preserved (still "YYYY-MM-DD" strings, not a Date object or a
+  # different pattern).
+  expect_type(syn$event_date, "character")
+  expect_true(all(grepl("^\\d{4}-\\d{2}-\\d{2}$", syn$event_date)))
+  # Values fall within the observed range rather than being copied verbatim.
+  parsed <- as.Date(syn$event_date)
+  expect_true(all(parsed >= as.Date("2020-01-01") & parsed <= as.Date("2020-12-30")))
+  # Not simply the original column reshuffled.
+  expect_false(identical(sort(syn$event_date), sort(df$event_date)))
+})
+
+test_that("character-stored date+time strings preserve both the date range and the time-of-day format", {
+  set.seed(3)
+  df <- data.frame(
+    visit = sprintf(
+      "%s %02d:%02d %s",
+      format(as.Date("2020-01-01") + sample(0:29, 100, TRUE), "%m/%d/%Y"),
+      sample(1:12, 100, TRUE), sample(0:59, 100, TRUE),
+      sample(c("AM", "PM"), 100, TRUE)
+    ),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "visit"], "date")
+
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 4, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} (AM|PM)$", syn$visit)))
+  # The time-of-day component varies rather than collapsing to midnight
+  # (which is what blanket coarsen-to-day would otherwise do).
+  times <- sub("^.* (\\d{2}:\\d{2} (AM|PM))$", "\\1", syn$visit)
+  expect_gt(length(unique(times)), 1L)
+})
+
+test_that("a bare time-of-day column (no date part) is synthesized and stays time-only", {
+  set.seed(5)
+  df <- data.frame(
+    check_in = sprintf("%02d:%02d", sample(6:20, 100, TRUE), sample(0:59, 100, TRUE)),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "check_in"], "date")
+
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 6, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true(all(grepl("^\\d{2}:\\d{2}$", syn$check_in)))
+  # No date leaked into the output.
+  expect_false(any(grepl("[-/]", syn$check_in)))
+  hours <- as.integer(substr(syn$check_in, 1, 2))
+  expect_true(all(hours >= 6 & hours <= 20))
+})
+
+test_that("character-stored dates preserve the original NA rate", {
+  set.seed(7)
+  x <- format(as.Date("2020-01-01") + sample(0:364, 200, TRUE), "%m/%d/%Y")
+  x[sample(seq_along(x), 40)] <- NA
+  df <- data.frame(sched = x, stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+
+  spec <- synth_spec(purpose = "demo", n = 200, seed = 8, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true(any(is.na(syn$sched)))
+  expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4}$", stats::na.omit(syn$sched))))
+})

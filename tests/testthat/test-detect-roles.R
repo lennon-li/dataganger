@@ -284,6 +284,28 @@ test_that("detect_roles() does not classify non-date strings as 'date'", {
                label = "arbitrary code strings should not be classified as date")
 })
 
+test_that("detect_roles() classifies a bare time-of-day column (no date part) as 'date'", {
+  df <- data.frame(
+    check_in = sprintf("%02d:%02d", sample(6:20, 50, TRUE), sample(0:59, 50, TRUE)),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[r$variable == "check_in"], "date")
+})
+
+test_that("detect_roles() classifies a datetime-with-AM/PM-time string as 'date'", {
+  df <- data.frame(
+    visit = sprintf("%02d/%02d/2020 %02d:%02d %s",
+      sample(1:12, 50, TRUE), sample(1:28, 50, TRUE),
+      sample(1:12, 50, TRUE), sample(0:59, 50, TRUE),
+      sample(c("AM", "PM"), 50, TRUE)
+    ),
+    stringsAsFactors = FALSE
+  )
+  r <- detect_roles(df)
+  expect_equal(r$recommended_role[r$variable == "visit"], "date")
+})
+
 test_that("detect_roles leaves uncertain columns unselected (NA disclosure_role)", {
   set.seed(1)
   df <- data.frame(

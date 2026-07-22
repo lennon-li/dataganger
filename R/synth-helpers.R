@@ -161,6 +161,156 @@ coarsen_to_year <- function(dates) {
 }
 
 # ===========================================================================
+# Time-of-day synthesis (no date component) [2.7b]
+# ===========================================================================
+
+synth_time_of_day <- function(x, n, missing_strategy = "approx") {
+  if (all(is.na(x))) {
+    return(rep(as.POSIXct(NA, tz = "UTC"), n))
+  }
+
+  x_obs <- x[!is.na(x)]
+  lt <- as.POSIXlt(x_obs, tz = "UTC")
+  secs_of_day <- lt$hour * 3600L + lt$min * 60L + round(lt$sec)
+  min_s <- min(secs_of_day)
+  max_s <- max(secs_of_day)
+
+  if (max_s <= min_s) {
+    synth_secs <- rep(min_s, n)
+  } else {
+    synth_secs <- sample(min_s:max_s, size = n, replace = TRUE)
+  }
+
+  # Anchored to a fixed reference date -- only the time-of-day component is
+  # meaningful, the date part is discarded when formatting back to text.
+  synth <- as.POSIXct("1970-01-01", tz = "UTC") + synth_secs
+  synth <- apply_missingness(synth, x, n, missing_strategy)
+  synth
+}
+
+# ===========================================================================
+# Character-stored date/time strings [2.7c]
+# ===========================================================================
+#
+# detect_roles() flags date-looking strings (e.g. "01/08/2020", "Jun 8, 2019",
+# "2020-01-15 14:30:00", or a bare time like "14:30") as role "date" even
+# though the column is still a plain character vector. Left to the generic
+# character dispatch, these would be resampled verbatim as if they were
+# arbitrary categorical text -- the exact original date/time values reshuffled
+# across rows, with none of the range-based synthesis or coarsen_dates
+# protection that a native Date/POSIXct column gets. The functions below
+# parse the column using the same format its own values are already in,
+# synthesize through the real date/time/time-of-day machinery, then format
+# the result back to that same pattern so the synthetic output reads like
+# the source data.
+
+# Candidate strptime formats. Not exhaustive -- covers the common patterns
+# detect_roles() itself looks for. %e (space-padded day) variants sit next to
+# their %d (zero-padded) counterparts because strptime parses either
+# leniently regardless of which one is declared -- only round-trip
+# formatting (see detect_date_format()) actually distinguishes them.
+dg_date_format_candidates <- function() {
+  list(
+    list(fmt = "%Y-%m-%dT%H:%M:%OS",     has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%Y-%m-%d %H:%M:%OS",     has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%Y-%m-%d %H:%M",         has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%m/%d/%Y %I:%M:%OS %p",  has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%m/%d/%Y %I:%M %p",      has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%m/%d/%Y %H:%M:%OS",     has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%m/%d/%Y %H:%M",         has_date = TRUE,  has_time = TRUE),
+    list(fmt = "%Y-%m-%d",               has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%Y/%m/%d",               has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%m/%d/%Y",               has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%m/%d/%y",               has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%B %d, %Y",              has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%B %e, %Y",              has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%b %d, %Y",              has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%b %e, %Y",              has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%d %b %Y",               has_date = TRUE,  has_time = FALSE),
+    list(fmt = "%I:%M:%OS %p",           has_date = FALSE, has_time = TRUE),
+    list(fmt = "%I:%M %p",               has_date = FALSE, has_time = TRUE),
+    list(fmt = "%H:%M:%OS",              has_date = FALSE, has_time = TRUE),
+    list(fmt = "%H:%M",                  has_date = FALSE, has_time = TRUE)
+  )
+}
+
+# Picks the candidate format with the best *round-trip* fidelity, not just
+# the first one that parses -- strptime is lenient (e.g. "%B" happily parses
+# "Jun", "%d" happily parses " 2"), so parsing alone cannot distinguish
+# "Jun  2, 2019" from "June 05, 2019". Formatting each successful parse back
+# out with its own candidate format and comparing to the original text picks
+# the format that actually reproduces the source data, which is what makes
+# the synthetic output "look like" the original. Falls back to NULL (the
+# generic character/categorical treatment) if nothing parses confidently
+# (same 90% match-rate threshold detect_roles() uses to flag the column as
+# date-like in the first place).
+detect_date_format <- function(x, tz = "UTC") {
+  x_sample <- x[!is.na(x) & nzchar(trimws(x))]
+  if (length(x_sample) == 0L) {
+    return(NULL)
+  }
+  if (length(x_sample) > 200L) x_sample <- x_sample[seq_len(200L)]
+  x_sample <- trimws(x_sample)
+
+  best <- NULL
+  best_fidelity <- -1
+  for (cand in dg_date_format_candidates()) {
+    parsed <- tryCatch(
+      as.POSIXct(strptime(x_sample, cand$fmt, tz = tz)),
+      error = function(e) rep(as.POSIXct(NA, tz = tz), length(x_sample))
+    )
+    if (mean(!is.na(parsed)) < 0.9) {
+      next
+    }
+    round_trip <- tryCatch(
+      trimws(format(parsed, cand$fmt, tz = tz)),
+      error = function(e) rep(NA_character_, length(x_sample))
+    )
+    fidelity <- mean(round_trip == x_sample, na.rm = TRUE)
+    if (fidelity > best_fidelity) {
+      best_fidelity <- fidelity
+      best <- cand
+    }
+  }
+  if (is.null(best)) {
+    return(NULL)
+  }
+  list(format = best$fmt, has_date = best$has_date, has_time = best$has_time)
+}
+
+# Parses the whole column with the detected format. Returns NULL (rather
+# than a partially-parsed column) when no candidate format fits well enough.
+parse_date_like_character <- function(x, tz = "UTC") {
+  info <- detect_date_format(x, tz = tz)
+  if (is.null(info)) {
+    return(NULL)
+  }
+  parsed <- as.POSIXct(strptime(trimws(x), info$format, tz = tz))
+  list(parsed = parsed, format = info$format, has_date = info$has_date, has_time = info$has_time)
+}
+
+synth_date_like_character <- function(x, n, date_info, coarsen_dates = TRUE,
+                                      missing_strategy = "approx") {
+  parsed <- date_info$parsed
+
+  if (isTRUE(date_info$has_date) && !isTRUE(date_info$has_time)) {
+    synth <- synth_date(as.Date(parsed), n, coarsen_dates = coarsen_dates, missing_strategy = "none")
+  } else if (isTRUE(date_info$has_time) && !isTRUE(date_info$has_date)) {
+    synth <- synth_time_of_day(parsed, n, missing_strategy = "none")
+  } else {
+    synth <- synth_posixct(parsed, n, coarsen_dates = coarsen_dates, missing_strategy = "none")
+  }
+
+  out <- format(synth, date_info$format, tz = "UTC")
+  out[is.na(synth)] <- NA_character_
+
+  # Missingness is applied once here (not inside the synth_* call above) so
+  # the NA rate is estimated from the original character column, matching
+  # how every other column type is handled.
+  apply_missingness(out, x, n, missing_strategy)
+}
+
+# ===========================================================================
 # Logical synthesis [2.8]
 # ===========================================================================
 
