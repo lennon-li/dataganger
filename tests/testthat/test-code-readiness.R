@@ -95,9 +95,9 @@ test_that("check_code_readiness() warns on missingness spike", {
 
 test_that("check_code_readiness() warns on duplicate IDs in synthetic", {
   # Create a column that detect_roles() will flag as ID candidate
-  orig <- data.frame(record_id = paste0("R-", 1:25), stringsAsFactors = FALSE)
+  orig <- data.frame(record_id = paste0("R", 1:25), stringsAsFactors = FALSE)
   # Synthetic has duplicates - a join would give wrong row counts
-  syn  <- data.frame(record_id = c(paste0("R-", 1:20), paste0("R-", 1:5)),
+  syn  <- data.frame(record_id = c(paste0("R", 1:20), paste0("R", 1:5)),
                      stringsAsFactors = FALSE)
   roles <- detect_roles(orig)
   r <- check_code_readiness(orig, syn, roles = roles)

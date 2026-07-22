@@ -433,6 +433,34 @@ test_that("synthesize_data() free text dropped when strategy is drop", {
   expect_false(all(is.na(syn$x)))
 })
 
+test_that("free_text_strategy defaults to categorical, not drop", {
+  spec <- synth_spec(purpose = "demo")
+  expect_equal(spec$free_text_strategy, "categorical")
+})
+
+test_that("synthesize_data() free text is synthesized as categorical by default", {
+  set.seed(1)
+  # Almost every note is unique; a handful repeat often enough to clear
+  # rare_level_min_n (default 5) and should survive rare-level collapsing.
+  common_note <- "Routine follow-up, no concerns to report at this visit."
+  unique_notes <- sprintf(
+    "Patient reports symptom variant number %d during today's visit.", 1:100
+  )
+  notes <- c(rep(common_note, 10), unique_notes)
+  df <- data.frame(notes = notes, x = seq_along(notes))
+  spec <- synth_spec(purpose = "demo", n = 200)
+
+  syn <- synthesize_data(df, spec)
+
+  expect_type(syn$notes, "character")
+  expect_false(all(is.na(syn$notes)))
+  # Every near-unique note collapses to ".other"; none reappear verbatim.
+  expect_false(any(unique_notes %in% syn$notes))
+  # The note repeated often enough (>= rare_level_min_n) is allowed to recur.
+  expect_true(common_note %in% syn$notes)
+  expect_true(all(syn$notes %in% c(common_note, ".other")))
+})
+
 test_that("synthesize_data() marginal mixed types all work", {
   df <- data.frame(
     n = rnorm(10),
@@ -484,6 +512,42 @@ test_that("pass-through treatment falls back gracefully when row count differs",
   expect_true("x" %in% names(syn))
 })
 
+test_that("simulation treatment scrambles an alphanumeric ID column", {
+  set.seed(1)
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    x = 1:30,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$simulation[roles$variable == "order_id"], "scramble")
+  spec <- synth_spec(purpose = "demo", engine = "internal")
+
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true("order_id" %in% names(syn))
+  expect_false(any(syn$order_id %in% df$order_id))
+  expect_true(all(grepl("^..-....-..$", syn$order_id)))
+})
+
+test_that("scramble treatment falls back gracefully when row count differs", {
+  set.seed(1)
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    x = 1:30,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "demo", n = 10, engine = "internal")
+
+  expect_warning(
+    syn <- synthesize_data(df, spec, roles = roles, engine = "internal"),
+    "Scrambled columns"
+  )
+  expect_equal(nrow(syn), 10L)
+  expect_true("x" %in% names(syn))
+})
+
 test_that("name_strategy maps only output columns after drop treatment", {
   df <- data.frame(keep = 1:10, omit = 11:20)
   roles <- detect_roles(df)
@@ -504,7 +568,10 @@ test_that("synthesize_data() handles roles missing one column", {
   roles <- detect_roles(df)
   roles <- roles[roles$variable != "y", , drop = FALSE]
   spec <- synth_spec(purpose = "demo", n = 10)
-  expect_no_error(syn <- synthesize_data(df, spec, roles = roles))
+  # id is an alphanumeric ID (default simulation "scramble"); the row-count
+  # change (20 -> 10) makes scramble fall back to plain synthesis with a
+  # warning, which is expected and irrelevant to this test.
+  expect_no_error(syn <- suppressWarnings(synthesize_data(df, spec, roles = roles)))
   expect_s3_class(syn, "dataganger_synthetic")
 })
 # ---- Phase 2.1 fix tests ----
@@ -520,8 +587,14 @@ test_that("remove_ids masks ID columns with NA", {
   roles$disclosure_role[roles$variable == "x"] <- "none"
   spec <- synth_spec(purpose = "demo", n = 10)
   spec$remove_ids <- TRUE
-  syn <- synthesize_data(df, spec, roles = roles)
-  expect_false("id" %in% names(syn))
+  # "id" is an alphanumeric ID with a default "scramble" simulation, which
+  # exempts it from enforce_kanon's drop -- but remove_ids already masked its
+  # values to NA in synthesize_marginal, so it stays present and fully NA
+  # rather than being dropped as a column. The row-count change (50 -> 10)
+  # also makes scramble fall back to plain synthesis with a warning, which
+  # is expected and irrelevant here since the column is already NA-masked.
+  syn <- suppressWarnings(synthesize_data(df, spec, roles = roles))
+  expect_true(all(is.na(syn$id)))
   expect_false(all(is.na(syn$x)))
 })
 
@@ -587,7 +660,7 @@ test_that("demo schema pipeline completes on example_health_survey", {
 
 test_that("synthesize_data() generic naming still drops direct identifiers before renaming", {
   df <- data.frame(
-    patient_id = sprintf("id-%02d", 1:20),
+    patient_id = sprintf("id%02d", 1:20),
     age_band = rep(c("20s", "30s", "40s", "50s"), each = 5),
     region = rep(c("north", "south"), each = 10),
     stringsAsFactors = FALSE
@@ -597,6 +670,11 @@ test_that("synthesize_data() generic naming still drops direct identifiers befor
   roles$disclosure_role[roles$variable %in% c("age_band", "region")] <- "quasi"
   roles$identifies[roles$variable == "patient_id"] <- "direct"
   roles$identifies[roles$variable %in% c("age_band", "region")] <- "combination"
+  # patient_id defaults to simulation = "scramble" as an alphanumeric ID,
+  # which is an explicit keep-decision exempting it from the drop below.
+  # Force an explicit "drop" decision to test that identifiers are still
+  # dropped before renaming when that decision is made.
+  roles$simulation[roles$variable == "patient_id"] <- "drop"
   spec <- synth_spec(purpose = "demo", n = 20, seed = 11, name_strategy = "generic")
 
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
@@ -608,4 +686,104 @@ test_that("synthesize_data() generic naming still drops direct identifiers befor
   expect_equal(unname(nm[c("age_band", "region")]), c("col_1", "col_2"))
   expect_true(length(kanon$qi_cols) > 0L)
   expect_false(any(grepl("patient", names(syn), ignore.case = TRUE)))
+})
+
+# ---- Character-stored date/time synthesis ----
+
+test_that("character-stored ISO date strings are synthesized as dates, not resampled verbatim", {
+  set.seed(1)
+  df <- data.frame(
+    event_date = format(as.Date("2020-01-01") + sample(0:364, 100, TRUE), "%Y-%m-%d"),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "event_date"], "date")
+  # date-role columns default to being a quasi-identifier (like a native
+  # Date column would), which would otherwise coarsen this to month-level
+  # via enforce_kanon regardless of coarsen_dates -- opt out so this test
+  # isolates marginal-stage format-preserving synthesis.
+  roles$identifies[roles$variable == "event_date"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 2, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  # Format is preserved (still "YYYY-MM-DD" strings, not a Date object or a
+  # different pattern).
+  expect_type(syn$event_date, "character")
+  expect_true(all(grepl("^\\d{4}-\\d{2}-\\d{2}$", syn$event_date)))
+  # Values fall within the observed range rather than being copied verbatim.
+  parsed <- as.Date(syn$event_date)
+  expect_true(all(parsed >= as.Date("2020-01-01") & parsed <= as.Date("2020-12-30")))
+  # Not simply the original column reshuffled.
+  expect_false(identical(sort(syn$event_date), sort(df$event_date)))
+})
+
+test_that("character-stored date+time strings preserve both the date range and the time-of-day format", {
+  set.seed(3)
+  df <- data.frame(
+    visit = sprintf(
+      "%s %02d:%02d %s",
+      format(as.Date("2020-01-01") + sample(0:29, 100, TRUE), "%m/%d/%Y"),
+      sample(1:12, 100, TRUE), sample(0:59, 100, TRUE),
+      sample(c("AM", "PM"), 100, TRUE)
+    ),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "visit"], "date")
+  # Opt out of the quasi-identifier default (see comment in the ISO-date
+  # test above) so this test isolates marginal-stage format preservation.
+  roles$identifies[roles$variable == "visit"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 4, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} (AM|PM)$", syn$visit)))
+  # The time-of-day component varies rather than collapsing to midnight
+  # (which is what blanket coarsen-to-day would otherwise do).
+  times <- sub("^.* (\\d{2}:\\d{2} (AM|PM))$", "\\1", syn$visit)
+  expect_gt(length(unique(times)), 1L)
+})
+
+test_that("a bare time-of-day column (no date part) is synthesized and stays time-only", {
+  set.seed(5)
+  df <- data.frame(
+    check_in = sprintf("%02d:%02d", sample(6:20, 100, TRUE), sample(0:59, 100, TRUE)),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "check_in"], "date")
+  # Opt out of the quasi-identifier default (see comment in the ISO-date
+  # test above) so this test isolates marginal-stage format preservation.
+  roles$identifies[roles$variable == "check_in"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 6, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true(all(grepl("^\\d{2}:\\d{2}$", syn$check_in)))
+  # No date leaked into the output.
+  expect_false(any(grepl("[-/]", syn$check_in)))
+  hours <- as.integer(substr(syn$check_in, 1, 2))
+  expect_true(all(hours >= 6 & hours <= 20))
+})
+
+test_that("character-stored dates preserve the original NA rate", {
+  set.seed(7)
+  x <- format(as.Date("2020-01-01") + sample(0:364, 200, TRUE), "%m/%d/%Y")
+  x[sample(seq_along(x), 40)] <- NA
+  df <- data.frame(sched = x, stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+  # Opt out of the quasi-identifier default (see comment in the ISO-date
+  # test above) so this test isolates marginal-stage format preservation.
+  roles$identifies[roles$variable == "sched"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+
+  spec <- synth_spec(purpose = "demo", n = 200, seed = 8, coarsen_dates = FALSE)
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_true(any(is.na(syn$sched)))
+  expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4}$", stats::na.omit(syn$sched))))
 })

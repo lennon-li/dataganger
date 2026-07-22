@@ -781,11 +781,23 @@ render_kanon_line <- function(kanon, kanon_acknowledged = FALSE) {
   if (length(kanon$qi_cols %||% character(0)) == 0L) {
     return(sprintf("k-anonymity: not applicable; k=%s, no QI columns selected", kanon$k %||% "unknown"))
   }
-  sprintf(
+  line <- sprintf(
     "k-anonymity: enforced, k=%s, smallest cell=%s",
     kanon$k %||% "unknown",
     kanon$smallest_cell %||% "unknown"
   )
+  # Suppression works at whole-cell granularity, not row granularity, so
+  # reaching k can suppress far more rows than the number that were
+  # originally below k (see enforce_kanon()'s docs) -- call that out here
+  # rather than leaving it implicit in smallest_cell alone.
+  row_frac <- kanon$suppressed_row_frac %||% 0
+  if (row_frac > 0) {
+    line <- sprintf(
+      "%s, %s%% of QI values suppressed",
+      line, round(100 * row_frac)
+    )
+  }
+  line
 }
 
 code_readiness_to_json <- function(code_readiness) {
@@ -987,7 +999,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
   raw_rows_included <- length(pass_through_cols) > 0L
   ids_included <- !is.null(pass_through_rows) && any(
     pass_through_rows$identifies %in% "direct" |
-      pass_through_rows$recommended_role %in% "ID candidate",
+      pass_through_rows$recommended_role %in% "alphanumeric ID",
     na.rm = TRUE
   )
   free_text_included <- !is.null(pass_through_rows) && any(
@@ -1020,6 +1032,8 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
           k = NULL,
           smallest_cell = NULL,
           suppressed_cells = NULL,
+          suppressed_rows = NULL,
+          suppressed_row_frac = NULL,
           infeasible = NULL,
           acknowledged = isTRUE(kanon_acknowledged),
           k_default = 5L,
@@ -1031,6 +1045,12 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
           k = kanon$k %||% NULL,
           smallest_cell = kanon$smallest_cell %||% NULL,
           suppressed_cells = kanon$suppressed_cells %||% 0L,
+          # Row-level suppression volume, distinct from suppressed_cells (a
+          # count of distinct QI combinations folded into suppression) --
+          # see enforce_kanon()'s docs. Absent (rather than 0) when
+          # infeasible, since no suppression was actually applied then.
+          suppressed_rows = if (isTRUE(kanon$infeasible)) NULL else kanon$suppressed_rows %||% 0L,
+          suppressed_row_frac = if (isTRUE(kanon$infeasible)) NULL else kanon$suppressed_row_frac %||% 0,
           infeasible = isTRUE(kanon$infeasible),
           acknowledged = isTRUE(kanon_acknowledged),
           k_default = kanon$k_default %||% 5L,

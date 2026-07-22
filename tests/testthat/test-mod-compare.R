@@ -176,6 +176,37 @@ test_that("compare_body excludes identifier variables from navigation", {
   })
 })
 
+test_that("compare_body excludes alpha-numeric ID variables from navigation", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  set.seed(1)
+  raw <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, sample(1:99, 30, TRUE)),
+    age = 1:30,
+    group = rep(c("a", "b"), 15),
+    stringsAsFactors = FALSE
+  )
+  synthetic <- raw
+  synthetic$age <- rev(synthetic$age)
+  roles <- detect_roles(raw)
+  expect_equal(roles$recommended_role[roles$variable == "order_id"], "alphanumeric ID")
+
+  state <- compare_test_state(
+    raw_data = raw,
+    synthetic = synthetic,
+    roles = roles
+  )
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    body_html <- paste(as.character(output$compare_body), collapse = "\n")
+    expect_no_match(body_html, "order_id")
+    expect_match(body_html, "age")
+    expect_match(body_html, "group")
+  })
+})
+
 test_that("go_export sets nav_request to export", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("plotly")
@@ -233,6 +264,57 @@ test_that("geographic-named categorical columns render through the categorical c
     stats_html <- paste(as.character(output$var_stats), collapse = "\n")
     expect_match(stats_html, "TVD =")
     expect_no_match(stats_html, "excluded from distribution comparison")
+  })
+})
+
+test_that("a categorical column with more distinct values than dg_max_comparable_levels is excluded with a warning", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  n <- 10
+  expect_equal(dg_max_comparable_levels(n), 5L)
+
+  # 10 distinct values across only 10 rows -- well above the limit of 5.
+  raw <- data.frame(code = paste0("code_", 1:n), stringsAsFactors = FALSE)
+  synthetic <- data.frame(code = paste0("code_", 1:n), stringsAsFactors = FALSE)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "code"] <- "categorical"
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "Too many to compare reliably")
+    expect_match(stats_html, "excluded from this page")
+    expect_no_match(stats_html, "TVD =")
+
+    plot <- output$var_plot
+    expect_no_error(plot)
+  })
+})
+
+test_that("a categorical column within dg_max_comparable_levels still renders normally", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("plotly")
+
+  n <- 100
+  expect_equal(dg_max_comparable_levels(n), 20L)
+
+  # 3 distinct values across 100 rows -- comfortably under the limit.
+  raw <- data.frame(group = rep(c("a", "b", "c"), length.out = n), stringsAsFactors = FALSE)
+  synthetic <- data.frame(group = rep(c("a", "b", "c"), length.out = n), stringsAsFactors = FALSE)
+  roles <- detect_roles(raw)
+  roles$user_role[roles$variable == "group"] <- "categorical"
+
+  state <- compare_test_state(raw_data = raw, synthetic = synthetic, roles = roles)
+
+  shiny::testServer(mod_compare_server, args = list(state = state), {
+    session$flushReact()
+    stats_html <- paste(as.character(output$var_stats), collapse = "\n")
+    expect_match(stats_html, "TVD =")
+    expect_no_match(stats_html, "Too many to compare reliably")
   })
 })
 

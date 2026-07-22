@@ -18,14 +18,22 @@
 #'
 #' @return The shaped `synthetic` data frame, with an attribute `kanon`
 #'   recording the achieved state (`smallest_cell`, `suppressed_cells`,
-#'   `qi_cols`, `k`, `infeasible`).
+#'   `suppressed_rows`, `suppressed_row_frac`, `qi_cols`, `k`, `infeasible`).
+#'   `suppressed_rows`/`suppressed_row_frac` count actual blanked rows across
+#'   the QI columns -- distinct from `suppressed_cells`, which counts the
+#'   number of distinct QI combinations folded into suppression. The two can
+#'   differ a lot: reaching k can require absorbing a few whole neighbouring
+#'   cells (suppression works at cell granularity, not row granularity), and
+#'   a handful of small cells sitting next to one dominant cell can end up
+#'   suppressing most or all of a QI column even though only a few original
+#'   cells were actually below k.
 #' @export
 enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
                           max_suppress_frac = 0.2) {
   if (is.null(roles) || !"disclosure_role" %in% names(roles)) {
     attr(synthetic, "kanon") <- list(
       qi_cols = character(0), k = k, smallest_cell = NA_integer_,
-      suppressed_cells = 0L
+      suppressed_cells = 0L, suppressed_rows = 0L, suppressed_row_frac = 0
     )
     return(synthetic)
   }
@@ -33,6 +41,20 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
   dr <- stats::setNames(roles$disclosure_role, roles$variable)
 
   direct <- names(dr)[dr %in% "direct"]  # %in% is NA-safe; == returns NA for unselected roles
+
+  # A pass_through or scramble simulation is a keep-decision for the column
+  # (pass_through keeps values verbatim; scramble replaces them), and it takes
+  # precedence over the disclosure-role drop. For alphanumeric IDs the scramble
+  # is the derived default rather than a hand-picked choice, but it is still a
+  # keep-decision the caller can override, so it is honoured the same way.
+  # Only "synthesize" (untouched) and the explicit "drop" reach the direct-ID
+  # drop below.
+  if ("simulation" %in% names(roles)) {
+    sim <- stats::setNames(roles$simulation, roles$variable)
+    kept_by_action <- names(sim)[sim %in% c("pass_through", "scramble")]
+    direct <- setdiff(direct, kept_by_action)
+  }
+
   drop_cols <- intersect(direct, names(synthetic))
   if (length(drop_cols)) {
     synthetic <- synthetic[, !names(synthetic) %in% drop_cols, drop = FALSE]
@@ -42,7 +64,8 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
   if (length(qi_cols) == 0L) {
     attr(synthetic, "kanon") <- list(
       qi_cols = qi_cols, k = k, smallest_cell = NA_integer_,
-      suppressed_cells = 0L, infeasible = FALSE
+      suppressed_cells = 0L, suppressed_rows = 0L, suppressed_row_frac = 0,
+      infeasible = FALSE
     )
     return(synthetic)
   }
@@ -85,7 +108,8 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
     base_res <- assess_kanonymity(base, qi_cols, k)
     attr(base, "kanon") <- list(
       qi_cols = qi_cols, k = k, smallest_cell = base_res$smallest_cell,
-      suppressed_cells = 0L, infeasible = TRUE
+      suppressed_cells = 0L, suppressed_rows = 0L, suppressed_row_frac = 0,
+      infeasible = TRUE
     )
     return(base)
   }
@@ -118,11 +142,14 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
   }
 
   final <- assess_kanonymity(synthetic, qi_cols, k)
+  suppressed_rows <- sum(rowSums(is.na(synthetic[qi_cols])) == length(qi_cols))
   attr(synthetic, "kanon") <- list(
     qi_cols = qi_cols,
     k = k,
     smallest_cell = final$smallest_cell,
     suppressed_cells = suppressed,
+    suppressed_rows = suppressed_rows,
+    suppressed_row_frac = if (n_rows > 0L) suppressed_rows / n_rows else 0,
     infeasible = FALSE
   )
   synthetic

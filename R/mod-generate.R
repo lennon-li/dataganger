@@ -649,8 +649,16 @@ mod_generate_server <- function(id, state) {
       dur <- last_duration()
       dur_label <- if (is.null(dur)) "n/a" else sprintf("%.2fs", dur)
       seed_label <- if (is.null(state$seed_used)) "n/a" else as.character(state$seed_used)
-      exact_row_matches <- attr(state$privacy, "exact_row_matches", exact = TRUE)
-      exact_row_matches <- if (is.null(exact_row_matches)) "unavailable" else as.character(exact_row_matches)
+      exact_row_matches_n <- attr(state$privacy, "exact_row_matches", exact = TRUE)
+      exact_row_matches <- if (is.null(exact_row_matches_n)) "unavailable" else as.character(exact_row_matches_n)
+      # Any exact-row match means a synthetic row reproduces a real record
+      # verbatim -- a direct disclosure, not just a caution, so it gets the
+      # stronger "danger" (red) treatment rather than the amber "risk" one.
+      exact_matches_class <- if (!is.null(exact_row_matches_n) && exact_row_matches_n > 0L) {
+        "stat danger"
+      } else {
+        "stat"
+      }
       high_flags <- if (!is.null(state$privacy) && nrow(state$privacy) > 0L &&
           "severity" %in% names(state$privacy)) {
         sum(state$privacy$severity == "HIGH", na.rm = TRUE)
@@ -669,6 +677,21 @@ mod_generate_server <- function(id, state) {
             "enforced (smallest cell >= %s)",
             kanon$k %||% "k"
           )
+          # Suppression works at whole-cell granularity, not row granularity
+          # -- reaching k can require absorbing a few whole neighbouring
+          # cells, which can blank far more rows than the number that were
+          # actually below k. Surface that here so a QI column that ended
+          # up mostly or fully blanked to reach k is visible, not silent.
+          row_frac <- kanon$suppressed_row_frac %||% 0
+          if (row_frac > 0) {
+            kanon_label <- sprintf(
+              "%s; %s%% of QI values suppressed",
+              kanon_label, round(100 * row_frac)
+            )
+            if (row_frac >= 0.5) {
+              kanon_class <- "stat risk"
+            }
+          }
         }
       }
 
@@ -695,7 +718,7 @@ mod_generate_server <- function(id, state) {
           ),
           stat_cell("SEED", seed_label),
           stat_cell("DURATION", dur_label),
-          stat_cell("EXACT MATCHES", exact_row_matches),
+          stat_cell("EXACT MATCHES", exact_row_matches, exact_matches_class),
           stat_cell(
             shiny::tagList(
               dg_privacy_term("K-anonymity", "k_anonymity"),

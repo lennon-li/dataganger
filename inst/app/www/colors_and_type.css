@@ -53,7 +53,9 @@
   /* Status (info, success, danger) — used SPARINGLY */
   --info-500:    #1F6FB2;
   --success-500: #2F7A3B;
+  --danger-50:   #FBEAE7;
   --danger-500:  #B7321F;
+  --danger-700:  #7A2415;
 
   /* =========================================================
      SEMANTIC — what most components should reference.

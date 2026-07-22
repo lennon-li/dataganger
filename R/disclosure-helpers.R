@@ -106,6 +106,37 @@ dg_id_name_pattern <- function() {
   "(?i)(^id$|_id$|^subject|^patient|^record|^case(_no)?$|uuid|guid|(^|_)(key|code|num|no)$)"
 }
 
+#' Maximum number of distinct levels worth showing on the Compare page
+#'
+#' Scales with sample size rather than using a fixed cutoff: every displayed
+#' level should have, on average, at least `rare_level_min_n` observations --
+#' the same threshold synthesis already uses to decide a category is reliable
+#' enough to keep instead of collapsing into `.other` (see
+#' `synth_categorical()`). A column with more distinct values than this is
+#' excluded from Compare's charts with a warning, since a bar chart with more
+#' groups than that has, on average, too few observations per group to
+#' compare meaningfully -- and free-text-as-categorical columns in particular
+#' will often have close to one distinct value per row.
+#'
+#' @param n Number of rows in the dataset (typically `nrow(original)`).
+#' @param rare_level_min_n Minimum observations per level to be considered
+#'   reliable; default 5, matching `synth_categorical()`'s default.
+#' @param floor_levels Always allow at least this many levels, even for tiny
+#'   datasets (default 5).
+#' @param cap_levels Never allow more than this many levels regardless of `n`,
+#'   so the chart stays legible even for very large datasets (default 30).
+#' @return Integer: the maximum number of distinct levels allowed.
+#' @keywords internal
+#' @noRd
+dg_max_comparable_levels <- function(n, rare_level_min_n = 5,
+                                      floor_levels = 5L, cap_levels = 30L) {
+  if (is.null(n) || length(n) != 1L || is.na(n) || n <= 0) {
+    return(floor_levels)
+  }
+  suggested <- floor(n / rare_level_min_n)
+  as.integer(max(floor_levels, min(cap_levels, suggested)))
+}
+
 #' @keywords internal
 #' @noRd
 dg_named_lookup <- function(x, name) {
@@ -191,7 +222,7 @@ dg_kanon_columns <- function(roles) {
     return(character(0))
   }
 
-  discrete_classes <- c("categorical candidate", "date", "ID candidate", "label_check")
+  discrete_classes <- c("categorical candidate", "date", "alphanumeric ID", "label_check")
   recommended <- if ("recommended_role" %in% names(roles)) {
     roles$recommended_role
   } else {
@@ -254,7 +285,7 @@ dg_suggest_disclosure <- function(class) {
 
   switch(
     class,
-    "ID candidate" = "direct",
+    "alphanumeric ID" = "direct",
     "free text" = "direct",
     "date" = "quasi",
     "Date" = "quasi",
@@ -525,7 +556,19 @@ app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {
       roles$identifies[idx] <- ""
       roles$disclosure_role[idx] <- NA_character_
       roles <- dg_sync_roles_axes(roles)
-      roles$simulation[idx] <- if (identical(mode, "drop")) "drop" else "synthesize"
+      if (identical(mode, "drop")) {
+        roles$simulation[idx] <- "drop"
+      } else {
+        # Alpha-numeric ID's default treatment is to scramble, not synthesize.
+        recommended <- if ("recommended_role" %in% names(roles)) {
+          roles$recommended_role[idx]
+        } else {
+          rep(NA_character_, sum(idx))
+        }
+        roles$simulation[idx] <- ifelse(
+          recommended %in% "alphanumeric ID", "scramble", "synthesize"
+        )
+      }
       state$roles <- roles
       state$fail_safe_status <- "ready"
       state$fail_safe_upload_token <- app_fail_safe_token(state)
@@ -587,6 +630,7 @@ app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {
       state$raw_data <- NULL
       state$profile <- NULL
       state$roles <- NULL
+      state$column_filter <- NULL
       state$filename <- NULL
       state$fail_safe_status <- "idle"
       state$fail_safe_flagged <- app_fail_safe_empty()
@@ -630,7 +674,7 @@ suspected_direct_identifiers <- function(roles) {
 
   reason <- rep(NA_character_, nrow(roles))
   reason[identifies %in% "direct"] <- "marked as a direct identifier"
-  reason[is.na(reason) & recommended_role %in% "ID candidate"] <-
+  reason[is.na(reason) & recommended_role %in% "alphanumeric ID"] <-
     "looks like an ID (high-cardinality / ID-shaped)"
   reason[is.na(reason) & recommended_role %in% "free text"] <-
     "free text may contain names or identifying details"

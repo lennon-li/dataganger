@@ -19,7 +19,7 @@ test_that("synth_spec() maps presets correctly", {
   expect_equal(s$preserve_correlations, "none")
   expect_equal(s$coarsen_dates, TRUE)
   expect_equal(s$name_strategy, "preserve")
-  expect_equal(s$free_text_strategy, "drop")
+  expect_equal(s$free_text_strategy, "categorical")
 
   s <- synth_spec(purpose = "development")
   expect_equal(s$level, "marginal")
@@ -30,7 +30,7 @@ test_that("synth_spec() maps presets correctly", {
   s <- synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
   expect_equal(s$level, "hifi")
   expect_equal(s$preserve_correlations, "high")
-  expect_equal(s$free_text_strategy, "redact")
+  expect_equal(s$free_text_strategy, "categorical")
   expect_equal(s$merge_rare, FALSE)
 })
 

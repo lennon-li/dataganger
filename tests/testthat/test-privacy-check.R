@@ -123,17 +123,41 @@ test_that("privacy_check() post requires synthetic arg", {
   )
 })
 
-test_that("privacy_check() post does not flag IDs once output removal runs", {
+test_that("privacy_check() post does not flag a scrambled alphanumeric ID", {
+  set.seed(1)
   df <- data.frame(
-    id = 1:50,
-    x  = rep(1:5, 10)
+    id = sprintf("REC-%05d", 1:50),
+    x  = rep(1:5, 10),
+    stringsAsFactors = FALSE
   )
   roles <- detect_roles(df)
-  spec <- synth_spec(purpose = "demo", n = 20)
-  syn <- synthesize_data(df, spec, roles = roles)
+  expect_equal(roles$recommended_role[roles$variable == "id"], "alphanumeric ID")
+  expect_equal(roles$simulation[roles$variable == "id"], "scramble")
+  # Same row count as the original so scramble actually applies (not the
+  # row-count-mismatch fallback to plain synthesis).
+  spec <- synth_spec(purpose = "demo", n = nrow(df), engine = "internal")
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
-  expect_false("id" %in% names(syn))
+  expect_true("id" %in% names(syn))
+  expect_false(any(syn$id %in% df$id))
   expect_false(any(grepl("ID", pc$flag) & pc$severity == "HIGH"))
+})
+
+test_that("privacy_check() post flags an ID that ends up unmasked (e.g. scramble skipped by a row-count change)", {
+  df <- data.frame(
+    id = sprintf("REC-%05d", 1:50),
+    x  = rep(1:5, 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  # A row-count change makes scramble/pass-through fall back to plain
+  # synthesis (a warning, not an error) -- the ID column then survives
+  # unprotected, which post-stage privacy_check() must still catch.
+  spec <- synth_spec(purpose = "demo", n = 20, engine = "internal")
+  syn <- suppressWarnings(synthesize_data(df, spec, roles = roles, engine = "internal"))
+  pc <- privacy_check(df, syn, roles = roles, stage = "post")
+  expect_true("id" %in% names(syn))
+  expect_true(any(grepl("ID", pc$flag) & pc$severity == "HIGH"))
 })
 
 test_that("privacy_check() post exact-row match check", {
@@ -143,7 +167,10 @@ test_that("privacy_check() post exact-row match check", {
   )
   roles <- detect_roles(df)
   spec <- synth_spec(purpose = "demo", n = 200, seed = 1)
-  syn <- synthesize_data(df, spec, roles = roles)
+  # id is an alphanumeric ID (default simulation "scramble"); the requested
+  # row count (200) differs from the original (50), so scramble falls back
+  # to plain synthesis with a warning -- expected and irrelevant here.
+  syn <- suppressWarnings(synthesize_data(df, spec, roles = roles))
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   expect_s3_class(pc, "dataganger_privacy_check")
   expect_true(attr(pc, "exact_row_matches") >= 0)
@@ -188,7 +215,10 @@ test_that("privacy_check() post with masked IDs is clean", {
   roles <- detect_roles(df)
   spec <- synth_spec(purpose = "demo", n = 20)
   spec$remove_ids <- TRUE
-  syn <- synthesize_data(df, spec, roles = roles)
+  # record_id's default "scramble" simulation would otherwise fight with
+  # remove_ids's NA-masking on this row-count change (20 vs 50); the warning
+  # from that fallback is expected and irrelevant to this test.
+  syn <- suppressWarnings(synthesize_data(df, spec, roles = roles))
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   # IDs should be all-NA, so no unmasked-ID flag
   id_flags <- pc[grepl("ID", pc$flag) & pc$severity == "HIGH", ]
@@ -277,7 +307,7 @@ test_that("privacy_check() end-to-end on example_health_survey", {
   expect_true(any(pc_pre$severity == "HIGH"))
 
   spec <- synth_spec(purpose = "development", seed = 1, n = 50)
-  syn <- synthesize_data(example_health_survey, spec, roles = roles)
+  syn <- suppressWarnings(synthesize_data(example_health_survey, spec, roles = roles))
   pc_post <- privacy_check(example_health_survey, syn, roles = roles, stage = "post")
   expect_s3_class(pc_post, "dataganger_privacy_check")
 })

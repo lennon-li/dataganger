@@ -188,6 +188,7 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
   treatment <- stats::setNames(treatment, roles$variable)
 
   pass_cols <- intersect(names(treatment)[treatment == "pass_through"], names(original))
+  scramble_cols <- intersect(names(treatment)[treatment == "scramble"], names(original))
   drop_cols <- intersect(names(treatment)[treatment == "drop"], names(syn))
 
   if (length(pass_cols) > 0L && nrow(syn) != nrow(original)) {
@@ -199,10 +200,26 @@ apply_simulation_treatment <- function(syn, original, roles = NULL) {
     pass_cols <- character(0)
   }
 
+  if (length(scramble_cols) > 0L && nrow(syn) != nrow(original)) {
+    cli::cli_warn(c(
+      "Scrambled columns {.val {scramble_cols}} require the same row count as the original data.",
+      "i" = "Row count changed ({nrow(original)} \u2192 {nrow(syn)}); synthesizing those columns instead.",
+      "i" = "Set row count back to {nrow(original)} to use scramble."
+    ))
+    scramble_cols <- character(0)
+  }
+
+  # Set (not just overwrite) so these columns are added back even when an
+  # engine excluded them from its own output entirely -- e.g. the synthpop
+  # engine drops alphanumeric-ID/free-text columns from its own call rather
+  # than synthesizing them, so pass_through/scramble must be able to add
+  # them, not merely overwrite an existing column.
   for (col in pass_cols) {
-    if (col %in% names(syn)) {
-      syn[[col]] <- original[[col]]
-    }
+    syn[[col]] <- original[[col]]
+  }
+
+  for (col in scramble_cols) {
+    syn[[col]] <- scramble_alphanumeric_id(as.character(original[[col]]))
   }
 
   if (length(drop_cols) > 0L) {

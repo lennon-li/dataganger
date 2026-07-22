@@ -49,9 +49,9 @@ roles_test_state <- function() {
   )
   state$roles <- tibble::tibble(
     variable = c("id", "zip", "income"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
-    class = c("ID candidate", "categorical candidate", "numeric"),
+    class = c("alphanumeric ID", "categorical candidate", "numeric"),
     identifies = c("direct", "combination", "none"),
     sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "quasi", "none"),
@@ -73,9 +73,9 @@ roles_test_state_with_unset <- function() {
   )
   state$roles <- tibble::tibble(
     variable = c("id", "zip", "income"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, NA_character_, NA_character_),
-    class = c("ID candidate", "categorical candidate", "categorical candidate"),
+    class = c("alphanumeric ID", "categorical candidate", "categorical candidate"),
     identifies = c("direct", "combination", NA_character_),
     sensitive = c(FALSE, FALSE, FALSE),
     disclosure_role = c("direct", "quasi", ""),
@@ -134,7 +134,9 @@ test_that("editing Action treatment and confirming writes back to state", {
     session$flushReact()
     session$flushReact()
 
-    expect_equal(state$roles$simulation[[1]], "synthesize")
+    # record_id is an alphanumeric ID by default, so its default action is
+    # scramble, not synthesize.
+    expect_equal(state$roles$simulation[[1]], "scramble")
 
     session$setInputs(
       `roles-simulation_change` = list(row = 1L, value = "pass_through")
@@ -201,7 +203,7 @@ test_that("confirming role edits invalidates downstream state", {
     session$flushReact()
 
     session$setInputs(
-      `roles-role_change` = list(row = 1L, value = "identifier")
+      `roles-role_change` = list(row = 1L, value = "numeric")
     )
     session$flushReact()
     session$setInputs(`roles-confirm` = 1L)
@@ -307,6 +309,186 @@ test_that("inline override controls expose drop/pass-through and data type", {
   })
 })
 
+test_that("'identifier' (pseudo identifier) is no longer a selectable type; alphanumeric ID covers it", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_false(grepl('value="identifier"', html, fixed = TRUE))
+    expect_false(grepl("pseudo identifier", html, fixed = TRUE))
+    expect_match(html, 'value="alphanumeric_id"', fixed = TRUE)
+    expect_match(html, "alpha-numeric ID", fixed = TRUE)
+  })
+})
+
+test_that("role_change silently rejects 'identifier' since it is no longer a valid type", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original_user_roles <- state$roles$user_role
+    session$setInputs(role_change = list(row = 1, value = "identifier"))
+    expect_identical(state$roles$user_role, original_user_roles)
+  })
+})
+
+test_that("logical is no longer a selectable type; the dropdown offers categorical instead", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_false(grepl('value="logical"', html, fixed = TRUE))
+    expect_match(html, 'value="categorical"', fixed = TRUE)
+  })
+})
+
+test_that("role_change silently rejects 'logical' since it is no longer a valid type", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original_user_roles <- state$roles$user_role
+    session$setInputs(role_change = list(row = 1, value = "logical"))
+    expect_identical(state$roles$user_role, original_user_roles)
+  })
+})
+
+test_that("the type dropdown offers alpha-numeric ID and the action dropdown offers scramble", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, 'value="alphanumeric_id"', fixed = TRUE)
+    expect_match(html, "alpha-numeric ID", fixed = TRUE)
+    expect_match(html, 'value="scramble"', fixed = TRUE)
+    expect_match(html, "Scramble", fixed = TRUE)
+  })
+})
+
+test_that("'drop' does not appear as a type dropdown option", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    # "drop" must still appear once, as an Action override option, but never
+    # as a value="drop" <option> inside a type (role_change) dropdown.
+    type_selects <- regmatches(html, gregexpr(
+      '(?s)<select[^>]*role_change[^>]*>.*?</select>', html, perl = TRUE
+    ))[[1]]
+    expect_true(length(type_selects) > 0L)
+    expect_false(any(grepl('value="drop"', type_selects, fixed = TRUE)))
+  })
+})
+
+test_that("choosing alpha-numeric ID as the type sets identifies=direct and simulation=scramble", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 3 ("income") starts as a plain non-identifying numeric column.
+    session$setInputs(role_change = list(row = 3, value = "alphanumeric_id"))
+    expect_equal(state$roles$identifies[[3]], "direct")
+    expect_equal(state$roles$disclosure_role[[3]], "direct")
+    expect_equal(state$roles$simulation[[3]], "scramble")
+  })
+})
+
+test_that("retyping a Q1-confirmed direct identifier to categorical resets Q1 instead of staying dropped", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+  # Row 1 ("id") already has identifies="direct" AND a user-confirmed Q1
+  # answer -- simulating a user who earlier answered "yes, this identifies
+  # a person" for the alphanumeric ID column.
+  shiny::isolate({
+    state$roles$user_identifies <- c("direct", NA_character_, NA_character_)
+  })
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+    # The type change is itself an explicit statement that this column is
+    # now ordinary data, so it overrides the earlier Q1 answer instead of
+    # leaving it stuck on "direct" (which would keep forcing a drop).
+    expect_true(is.na(state$roles$identifies[[1]]))
+    expect_true(is.na(state$roles$user_identifies[[1]]))
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+    # Q1 is reset to unanswered (not silently flipped to "none"), so
+    # generation stays blocked until the user re-confirms it.
+    pending <- shiny::isolate(roles_generation_pending(state$roles))
+    expect_true(length(pending) > 0)
+  })
+})
+
+test_that("overriding an alphanumeric ID to categorical shows a plain reset caption", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+    session$flushReact()
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    expect_match(html, "Now treated as ordinary data", fixed = TRUE)
+    expect_match(html, "Q1 was reset", fixed = TRUE)
+    # Only 3 distinct values in a 3-row fixture -- well under the Compare
+    # cap, so no cardinality warning should appear.
+    expect_false(grepl("Compare limit", html, fixed = TRUE))
+  })
+})
+
+test_that("overriding a high-cardinality alphanumeric ID to categorical warns about the Compare limit", {
+  testthat::skip_if_not_installed("shiny")
+  state <- shiny::reactiveValues()
+  state$raw_data <- data.frame(
+    id = sprintf("REC-%03d", 1:50),
+    x  = rep(1:5, 10),
+    stringsAsFactors = FALSE
+  )
+  state$roles <- tibble::tibble(
+    variable = c("id", "x"),
+    recommended_role = c("alphanumeric ID", "numeric"),
+    user_role = c(NA_character_, NA_character_),
+    class = c("alphanumeric ID", "numeric"),
+    identifies = c("direct", "none"),
+    sensitive = c(FALSE, FALSE),
+    disclosure_role = c("direct", "none"),
+    simulation = c("scramble", "synthesize"),
+    reason = c("Looks like an ID.", "Looks numeric."),
+    disclosure_reason = c(NA_character_, NA_character_)
+  )
+  state$profile <- list()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+    session$flushReact()
+    html <- paste(as.character(output$roles_table), collapse = "\n")
+    # 50 distinct values in 50 rows is well above dg_max_comparable_levels(50) = 10.
+    expect_match(html, "distinct values is above", fixed = TRUE)
+    expect_match(html, "Compare limit", fixed = TRUE)
+  })
+})
+
+test_that("the legend shows each type's default treatment", {
+  html <- as.character(type_action_legend_ui())
+  expect_match(html, "Resample")
+  expect_match(html, "Simulate")
+  expect_match(html, "Scramble")
+  expect_match(html, "alpha-numeric ID")
+  expect_false(grepl("pseudo identifier", html, fixed = TRUE))
+})
+
+test_that("a logical/boolean column is classified as categorical, not a distinct logical type", {
+  df <- data.frame(
+    flag = rep(c(TRUE, FALSE), 10),
+    other = 1:20
+  )
+  roles <- detect_roles(df)
+  row <- roles[roles$variable == "flag", ]
+  expect_identical(dg_class_to_role(row$class), "categorical")
+})
+
 test_that("changing identifies derives drop action and changing sensitive keeps synthesis", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
@@ -320,6 +502,79 @@ test_that("changing identifies derives drop action and changing sensitive keeps 
     session$setInputs(sensitive_change = list(row = 2, value = "yes"))
     expect_true(state$roles$sensitive[[2]])
     expect_equal(state$roles$disclosure_role[[2]], "sensitive")
+  })
+})
+
+test_that("overriding the type away from identifier clears the direct disclosure role", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 1 ("id") starts as an auto-detected direct identifier.
+    expect_equal(state$roles$identifies[[1]], "direct")
+    expect_equal(state$roles$disclosure_role[[1]], "direct")
+    expect_equal(state$roles$simulation[[1]], "drop")
+
+    session$setInputs(role_change = list(row = 1, value = "categorical"))
+
+    expect_true(is.na(state$roles$identifies[[1]]))
+    expect_true(is.na(state$roles$disclosure_role[[1]]))
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+  })
+})
+
+test_that("choosing alphanumeric_id or free_text as the type always sets direct, even without a prior direct role", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 3 ("income") starts as a plain non-identifying numeric column.
+    expect_equal(state$roles$identifies[[3]], "none")
+
+    session$setInputs(role_change = list(row = 3, value = "alphanumeric_id"))
+    expect_equal(state$roles$identifies[[3]], "direct")
+    expect_equal(state$roles$disclosure_role[[3]], "direct")
+    expect_equal(state$roles$simulation[[3]], "scramble")
+
+    session$setInputs(role_change = list(row = 3, value = "free_text"))
+    expect_equal(state$roles$identifies[[3]], "direct")
+    expect_equal(state$roles$simulation[[3]], "drop")
+  })
+})
+
+test_that("'drop' is no longer a selectable type; it only lives in Action override", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original_user_roles <- state$roles$user_role
+    original_simulation <- state$roles$simulation
+    # Row 2 ("zip") starts as a quasi-identifier (combination); "drop" is not
+    # a valid type value any more, so the change is silently rejected.
+    session$setInputs(role_change = list(row = 2, value = "drop"))
+    expect_identical(state$roles$user_role, original_user_roles)
+    expect_identical(state$roles$simulation, original_simulation)
+
+    # The Action override dropdown still supports drop directly.
+    session$setInputs(simulation_change = list(row = 2, value = "drop"))
+    expect_equal(state$roles$simulation[[2]], "drop")
+  })
+})
+
+test_that("an explicit Q1 answer is not silently overridden by a later type change", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # User explicitly confirms row 1 ("id") is not identifying via the Q1 dropdown.
+    session$setInputs(identifies_change = list(row = 1, value = "none"))
+    expect_equal(state$roles$identifies[[1]], "none")
+    expect_equal(state$roles$simulation[[1]], "synthesize")
+
+    # Changing the type dropdown afterwards must not clobber that explicit answer.
+    session$setInputs(role_change = list(row = 1, value = "numeric"))
+    expect_equal(state$roles$identifies[[1]], "none")
+    expect_equal(state$roles$simulation[[1]], "synthesize")
   })
 })
 
@@ -455,4 +710,144 @@ test_that("disclosure help uses the attested direct-identifier framing copy", {
   expect_match(html, "Could this column, combined with others, help single out a person\\?")
   expect_match(html, "Is this column sensitive — would it be considered private or intrusive")
   expect_false(grepl("Yes, directly", html, fixed = TRUE))
+})
+
+# ---- Bulk configure ----
+
+test_that("bulk toolbar prompts for a selection when nothing is checked", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    html <- paste(as.character(output$bulk_toolbar), collapse = "\n")
+    expect_match(html, "Check columns below to bulk-edit", fixed = TRUE)
+    expect_false(grepl("Apply to", html, fixed = TRUE))
+  })
+})
+
+test_that("checking a row via row_select adds it to the selection and the toolbar reflects the count", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$flushReact()
+    expect_identical(selected_vars(), "zip")
+
+    html <- paste(as.character(output$bulk_toolbar), collapse = "\n")
+    expect_match(html, "1 column selected", fixed = TRUE)
+
+    # Unchecking removes it again.
+    session$setInputs(row_select = list(variable = "zip", checked = FALSE))
+    session$flushReact()
+    expect_identical(selected_vars(), character(0))
+  })
+})
+
+test_that("select_all_visible selects and clears every currently visible row", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(select_all_visible = TRUE)
+    session$flushReact()
+    expect_setequal(selected_vars(), c("id", "zip", "income"))
+
+    session$setInputs(select_all_visible = FALSE)
+    session$flushReact()
+    expect_identical(selected_vars(), character(0))
+  })
+})
+
+test_that("bulk_clear empties the selection", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$setInputs(row_select = list(variable = "income", checked = TRUE))
+    session$flushReact()
+    expect_length(selected_vars(), 2L)
+
+    session$setInputs(bulk_clear = 1L)
+    session$flushReact()
+    expect_identical(selected_vars(), character(0))
+  })
+})
+
+test_that("bulk-applying a type change updates every selected row using the same rules as a single edit", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$setInputs(row_select = list(variable = "income", checked = TRUE))
+    session$flushReact()
+
+    session$setInputs(bulk_type_value = "alphanumeric_id")
+    session$setInputs(bulk_apply_type = 1L)
+    session$flushReact()
+
+    roles <- state$roles
+    idx <- roles$variable %in% c("zip", "income")
+    expect_true(all(roles$user_role[idx] == "alphanumeric_id"))
+    # Same consequence as the single-row handler: choosing alphanumeric_id
+    # sets identifies=direct and defaults the action to scramble.
+    expect_true(all(roles$identifies[idx] == "direct"))
+    expect_true(all(roles$simulation[idx] == "scramble"))
+    # The untouched row is unaffected.
+    expect_false(roles$user_role[roles$variable == "id"] %in% "alphanumeric_id")
+  })
+})
+
+test_that("bulk-applying a Q1 answer resets simulation the same way the single dropdown does", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(select_all_visible = TRUE)
+    session$flushReact()
+
+    session$setInputs(bulk_identifies_value = "none")
+    session$setInputs(bulk_apply_identifies = 1L)
+    session$flushReact()
+
+    roles <- state$roles
+    expect_true(all(roles$identifies == "none"))
+    expect_true(all(roles$user_identifies == "none"))
+    expect_true(all(roles$simulation == "synthesize"))
+  })
+})
+
+test_that("bulk-applying an action override sets simulation for every selected row", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(row_select = list(variable = "id", checked = TRUE))
+    session$setInputs(row_select = list(variable = "zip", checked = TRUE))
+    session$flushReact()
+
+    session$setInputs(bulk_simulation_value = "drop")
+    session$setInputs(bulk_apply_simulation = 1L)
+    session$flushReact()
+
+    roles <- state$roles
+    expect_equal(roles$simulation[roles$variable == "id"], "drop")
+    expect_equal(roles$simulation[roles$variable == "zip"], "drop")
+    expect_equal(roles$simulation[roles$variable == "income"], "synthesize")
+  })
+})
+
+test_that("bulk apply with an empty selection is a silent no-op", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    original <- state$roles
+    session$setInputs(bulk_type_value = "categorical")
+    session$setInputs(bulk_apply_type = 1L)
+    session$flushReact()
+    expect_identical(state$roles, original)
+  })
 })

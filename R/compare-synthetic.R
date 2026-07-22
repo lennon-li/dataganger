@@ -532,14 +532,21 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
       p_value = double(0), n_terms = integer(0), note = character(0)
     )
   }
+  # Logical/boolean is not a distinct kind -- it is treated as categorical.
+  # Free text is internally synthesized as categorical, so it is compared
+  # (and pairable) the same way. Any ID (alphanumeric ID -- there is no
+  # separate pseudo-identifier type any more) maps to "identifier" and is
+  # never comparable -- its scrambled/dropped values carry no distributional
+  # meaning.
   role_to_kind <- function(role) {
     if (length(role) == 0L || is.na(role) || !nzchar(role)) return(NA_character_)
     lc <- tolower(role)
+    if (grepl("alphanumeric", lc)) return("identifier")
     if (grepl("id\\b|identifier", lc)) return("identifier")
     if (grepl("categor", lc)) return("categorical")
     if (grepl("\\bdate\\b", lc)) return("date")
-    if (grepl("logic|boolean", lc)) return("logical")
-    if (grepl("free.text|free_text", lc)) return("free_text")
+    if (grepl("logic|boolean", lc)) return("categorical")
+    if (grepl("free.text|free_text", lc)) return("categorical")
     if (grepl("geograph", lc)) return("categorical")
     if (grepl("numeric", lc)) return("numeric")
     if (grepl("drop", lc)) return("drop")
@@ -561,7 +568,7 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
         if (!is.na(recommended_kind)) return(recommended_kind)
       }
     }
-    if (is.logical(column)) return("logical")
+    if (is.logical(column)) return("categorical")
     if (inherits(column, c("Date", "POSIXct", "POSIXt"))) return("date")
     if (is.character(column) || is.factor(column)) return("categorical")
     "numeric"
@@ -573,7 +580,7 @@ compare_relationship_interaction <- function(original, synthetic, roles = NULL) 
     function(variable) effective_kind(variable, original[[variable]]),
     character(1)
   ), variables)
-  variables <- variables[!kinds %in% c("identifier", "free_text", "drop")]
+  variables <- variables[!kinds %in% c("identifier", "drop")]
   if (length(variables) < 2L) return(empty())
 
   pairs <- utils::combn(variables, 2L, simplify = FALSE)

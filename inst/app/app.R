@@ -40,6 +40,7 @@ mod_synthesis_controls_objective_ui <- dataganger:::mod_synthesis_controls_objec
 mod_synthesis_controls_spec_ui      <- dataganger:::mod_synthesis_controls_spec_ui
 mod_upload_server             <- dataganger:::mod_upload_server
 mod_upload_ui                 <- dataganger:::mod_upload_ui
+mod_column_filter_server      <- dataganger:::mod_column_filter_server
 mod_data_panel_server         <- dataganger:::mod_data_panel_server
 mod_data_panel_ui             <- dataganger:::mod_data_panel_ui
 dg_sync_roles_axes            <- dataganger:::dg_sync_roles_axes
@@ -314,7 +315,93 @@ ui <- bslib::page(
   tags$head(
     tags$link(rel = "stylesheet", href = css_href("colors_and_type.css")),
     tags$link(rel = "stylesheet", href = css_href("shiny-app.css")),
-    tags$link(rel = "stylesheet", href = css_href("_alignment.css"))
+    tags$link(rel = "stylesheet", href = css_href("_alignment.css")),
+    tags$script(HTML("
+      // Column-filter triage modal: drag (or click-to-cycle) a column chip
+      // between the Synthesise / Pass through / Drop zones. Delegated on
+      // document so it keeps working across repeated showModal() calls.
+      (function() {
+        var BUCKET_ORDER = ['synthesize', 'pass_through', 'drop'];
+
+        function nextBucket(current) {
+          var idx = BUCKET_ORDER.indexOf(current);
+          return BUCKET_ORDER[(idx + 1) % BUCKET_ORDER.length];
+        }
+
+        function moveChip(chip, targetZone) {
+          var chips = targetZone.querySelector('.cf-zone-chips');
+          if (chips) chips.appendChild(chip);
+        }
+
+        document.addEventListener('dragstart', function(e) {
+          var chip = e.target.closest('.cf-chip');
+          if (!chip) return;
+          e.dataTransfer.setData('text/plain', chip.getAttribute('data-col'));
+          e.dataTransfer.effectAllowed = 'move';
+          chip.classList.add('cf-dragging');
+        });
+
+        document.addEventListener('dragend', function(e) {
+          var chip = e.target.closest('.cf-chip');
+          if (chip) chip.classList.remove('cf-dragging');
+        });
+
+        document.addEventListener('dragover', function(e) {
+          if (e.target.closest('.cf-zone')) e.preventDefault();
+        });
+
+        document.addEventListener('dragenter', function(e) {
+          var zone = e.target.closest('.cf-zone');
+          if (zone) zone.classList.add('cf-zone-over');
+        });
+
+        document.addEventListener('dragleave', function(e) {
+          var zone = e.target.closest('.cf-zone');
+          if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('cf-zone-over');
+        });
+
+        document.addEventListener('drop', function(e) {
+          var zone = e.target.closest('.cf-zone');
+          if (!zone) return;
+          e.preventDefault();
+          zone.classList.remove('cf-zone-over');
+          var col = e.dataTransfer.getData('text/plain');
+          if (!col) return;
+          var chip = document.querySelector('.cf-chip[data-col=\"' + CSS.escape(col) + '\"]');
+          if (chip) moveChip(chip, zone);
+        });
+
+        document.addEventListener('keydown', function(e) {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          var chip = e.target.closest('.cf-chip');
+          if (!chip) return;
+          e.preventDefault();
+          chip.click();
+        });
+
+        document.addEventListener('click', function(e) {
+          var chip = e.target.closest('.cf-chip');
+          if (chip) {
+            var zone = chip.closest('.cf-zone');
+            var current = zone ? zone.getAttribute('data-bucket') : 'synthesize';
+            var target = document.querySelector('.cf-zone[data-bucket=\"' + nextBucket(current) + '\"]');
+            if (target) moveChip(chip, target);
+            return;
+          }
+          var btn = e.target.closest('.cf-apply');
+          if (!btn) return;
+          var modalContent = btn.closest('.modal-content') || document;
+          var mapping = {};
+          modalContent.querySelectorAll('.cf-zone').forEach(function(z) {
+            var bucket = z.getAttribute('data-bucket');
+            z.querySelectorAll('.cf-chip').forEach(function(c) {
+              mapping[c.getAttribute('data-col')] = bucket;
+            });
+          });
+          Shiny.setInputValue(btn.getAttribute('data-input-id'), mapping, {priority: 'event'});
+        });
+      })();
+    "))
   ),
   tags$div(
     class = "app",
@@ -357,6 +444,7 @@ server <- function(input, output, session) {
     state$profile             <- NULL
     state$roles               <- NULL
     state$roles_confirmed     <- 0L
+    state$column_filter       <- NULL
     state$objective_confirmed <- 0L
     state$spec                <- NULL
     state$spec_confirmed      <- 0L
@@ -381,6 +469,7 @@ server <- function(input, output, session) {
   })
 
   mod_upload_server("upload", state)
+  mod_column_filter_server("column_filter", state)
   mod_roles_server("roles", state)
   mod_synthesis_controls_server("synthesis_controls", state)
   mod_generate_server("generate", state)
@@ -429,15 +518,26 @@ server <- function(input, output, session) {
     }
   })
 
-  # Auto-detect roles after upload
+  # Auto-detect roles after upload. Gated on state$column_filter so the
+  # column-filter popup's synthesize/pass_through/drop choice (the first,
+  # header-only data filter) is always applied to the freshly detected roles
+  # rather than raced against or silently overwritten.
   observe({
-    req(state$raw_data, state$profile)
+    req(state$raw_data, state$profile, state$column_filter)
     if (is.null(state$roles)) {
       shiny::withProgress(message = "Detecting column roles\u2026", value = 0.5, {
-        state$roles <- dg_timeit(
+        roles <- dg_timeit(
           "configure: detect_roles",
           dg_ensure_ui_roles(detect_roles(state$raw_data, profile = state$profile))
         )
+        column_filter <- state$column_filter
+        for (col in names(column_filter)) {
+          idx <- roles$variable == col
+          if (any(idx)) {
+            roles$simulation[idx] <- column_filter[[col]]
+          }
+        }
+        state$roles <- roles
         shiny::setProgress(value = 1.0)
       })
     }

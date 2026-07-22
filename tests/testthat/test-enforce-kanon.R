@@ -14,6 +14,70 @@ test_that("enforce_kanon removes direct identifiers from output", {
   expect_false("id" %in% names(out))
 })
 
+test_that("enforce_kanon does not remove a direct-identifier column explicitly set to pass_through", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("pass_through", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_true("id" %in% names(out))
+})
+
+test_that("enforce_kanon does not remove a direct-identifier column explicitly set to scramble", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("scramble", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_true("id" %in% names(out))
+})
+
+test_that("enforce_kanon still removes a direct identifier when simulation is the untouched default", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("synthesize", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_false("id" %in% names(out))
+})
+
+test_that("enforce_kanon still removes a direct identifier explicitly set to drop", {
+  syn <- data.frame(
+    id  = sprintf("P%03d", 1:20),
+    sex = rep(c("F", "M"), 10),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("id", "sex"),
+    disclosure_role = c("direct", "quasi"),
+    simulation = c("drop", "synthesize"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(syn, roles = roles, k = 5)
+  expect_false("id" %in% names(out))
+})
+
 test_that("enforce_kanon leaves output with no QI cell smaller than k", {
   syn <- data.frame(
     cat = c(rep("A", 30), rep("B", 30), rep("C", 2)),
@@ -28,9 +92,14 @@ test_that("enforce_kanon leaves output with no QI cell smaller than k", {
 })
 
 test_that("enforce_kanon suppresses residual cells that cannot reach k", {
-  # A small residual that stays under k (here 1 unique value out of 20) is
-  # suppressed; the bulk of the data survives, so the feasibility backstop
-  # does not trip.
+  # The single below-k cell ("uniqueX", 1 row) gets blanked; that 1-row NA
+  # bucket is itself below k, so the absorption pass pads it -- and the only
+  # cell left to absorb from is the entire "common" cell (19 rows), so this
+  # one small residual ends up suppressing the whole column. Suppression
+  # works at whole-cell granularity (cells can't be split without breaking
+  # their internal uniformity), so this is expected, not a feasibility
+  # failure: the upfront backstop only looks at the *initial* below-k count
+  # (1/20 = 5%), which is well under the default cap.
   syn <- data.frame(
     code = c(rep("common", 19), "uniqueX"), stringsAsFactors = FALSE
   )
@@ -43,6 +112,12 @@ test_that("enforce_kanon suppresses residual cells that cannot reach k", {
   expect_true(info$suppressed_cells >= 1)
   res <- assess_kanonymity(out, info$qi_cols, k = 5)
   expect_true(is.na(res$smallest_cell) || res$smallest_cell >= 5)
+  # The actual row-level suppression volume is tracked separately from
+  # suppressed_cells (a count of distinct QI combinations) so callers can
+  # see when whole-cell absorption ends up suppressing far more rows than
+  # the number that were originally below k.
+  expect_equal(info$suppressed_rows, 20L)
+  expect_equal(info$suppressed_row_frac, 1)
 })
 
 test_that("enforce_kanon backs off (no suppression) when k is infeasible", {
@@ -84,6 +159,9 @@ test_that("enforce_kanon NA bucket is padded to k when initial suppression creat
   # Every non-NA cell AND the NA bucket must be >= 8
   expect_true(is.na(res$smallest_cell) || res$smallest_cell >= 8,
     info = sprintf("smallest_cell = %s", res$smallest_cell))
+  # Most of the data survives here (unlike the single-dominant-cell case
+  # above) -- suppressed_row_frac should reflect that modest cost.
+  expect_true(info$suppressed_row_frac > 0 && info$suppressed_row_frac < 0.5)
 })
 
 test_that("enforce_kanon ignores NA (unselected) disclosure roles safely", {
@@ -150,7 +228,13 @@ test_that("synthesize_data emits k-anonymous output over quasi-identifiers", {
 
   syn <- synthesize_data(df, spec = spec, roles = roles)
 
-  expect_false("patient_id" %in% names(syn))
+  # patient_id is an alphanumeric ID with the default "scramble" simulation,
+  # so it is kept (scrambled) rather than dropped. A scramble reorders each
+  # value's characters, so it will not reproduce the original column
+  # verbatim (an occasional single-row coincidence is possible since some
+  # values contain repeated digits, but the whole vector will not match).
+  expect_true("patient_id" %in% names(syn))
+  expect_false(identical(syn$patient_id, df$patient_id))
   info <- attr(syn, "kanon")
   expect_false(is.null(info))
   if (length(info$qi_cols)) {

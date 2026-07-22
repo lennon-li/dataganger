@@ -37,6 +37,7 @@ mod_state_server <- function(id) {
       profile = NULL,
       roles = NULL,
       roles_confirmed = 0L,
+      column_filter = NULL,
       objective_confirmed = 0L,
       spec = NULL,
       spec_confirmed = 0L,
@@ -82,6 +83,7 @@ mod_state_server <- function(id) {
       state$profile <- NULL
       state$roles <- NULL
       state$roles_confirmed <- 0L
+      state$column_filter <- NULL
       if (is.null(state$raw_data)) {
         state$filename <- NULL
       }

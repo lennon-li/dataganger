@@ -346,6 +346,38 @@ test_that("result stats include exact row matches after generation", {
     stats_html <- paste(as.character(output$result_stats), collapse = "\n")
     expect_match(stats_html, "EXACT MATCHES")
     expect_match(stats_html, ">2<")
+    # A synthetic row reproducing a real one verbatim is a direct disclosure,
+    # so the stat box gets the red "danger" treatment, not just neutral.
+    expect_match(stats_html, "stat danger", fixed = TRUE)
+  })
+})
+
+test_that("exact matches stat box is not flagged danger when the count is zero", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "development", seed = 11L)
+  )
+  stubs <- make_stub_bindings()
+  stubs$privacy_check <- local({
+    p <- tibble::tibble()
+    class(p) <- c("dataganger_privacy_check", class(p))
+    attr(p, "exact_row_matches") <- 0L
+    function(...) p
+  })
+  testthat::local_mocked_bindings(
+    synthesize_data   = stubs$synthesize_data,
+    compare_synthetic = stubs$compare_synthetic,
+    privacy_check     = stubs$privacy_check
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    stats_html <- paste(as.character(output$result_stats), collapse = "\n")
+    expect_match(stats_html, ">0<")
+    expect_false(grepl("stat danger", stats_html, fixed = TRUE))
   })
 })
 
@@ -405,9 +437,9 @@ test_that("decision recap renders the revised review columns", {
   )
   state$roles <- tibble::tibble(
     variable = c("name", "zip", "bp"),
-    recommended_role = c("ID candidate", "categorical candidate", "numeric"),
+    recommended_role = c("alphanumeric ID", "categorical candidate", "numeric"),
     user_role = c(NA_character_, "date", NA_character_),
-    class = c("ID candidate", "categorical candidate", "numeric"),
+    class = c("alphanumeric ID", "categorical candidate", "numeric"),
     identifies = c("direct", "combination", "none"),
     sensitive = c(FALSE, TRUE, FALSE),
     simulation = c("drop", "pass_through", "synthesize")
@@ -521,6 +553,65 @@ test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
   expect_false(any(vapply(notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1))))
   expect_true(isTRUE(shiny::isolate(state$kanon$infeasible)))
   expect_false(is.null(shiny::isolate(state$generated_roles)))
+})
+
+test_that("result stats surface heavy QI suppression instead of staying silent", {
+  testthat::skip_if_not_installed("shiny")
+
+  # k-anonymity was successfully enforced (not infeasible), but whole-cell
+  # suppression ended up blanking all the QI rows -- this must be visible in
+  # the stats card, not just reported as a bare "enforced" success.
+  state <- generate_test_state(
+    data = data.frame(qi = rep(letters[1:2], each = 5), value = 1:10),
+    spec = synth_spec(purpose = "development", seed = 1L)
+  )
+  shiny::isolate({
+    roles <- state$roles
+    roles$user_identifies <- "none"
+    roles$user_sensitive <- FALSE
+    roles$identifies <- "none"
+    roles$sensitive <- FALSE
+    roles <- dg_sync_roles_axes(roles)
+    state$roles <- roles
+  })
+
+  toy_synthetic <- structure(
+    data.frame(qi = rep(NA_character_, 10), value = 1:10),
+    class = c("dataganger_synthetic", "data.frame")
+  )
+  attr(toy_synthetic, "kanon") <- list(
+    qi_cols = "qi",
+    k = 5L,
+    smallest_cell = 10L,
+    suppressed_cells = 2L,
+    suppressed_rows = 10L,
+    suppressed_row_frac = 1,
+    infeasible = FALSE
+  )
+  toy_privacy <- tibble::tibble(
+    variable = character(0), flag = character(0),
+    severity = character(0), recommendation = character(0)
+  )
+  class(toy_privacy) <- c("dataganger_privacy_check", class(toy_privacy))
+  attr(toy_privacy, "exact_row_matches") <- 0L
+  result <- list(
+    synthetic = toy_synthetic,
+    comparison = structure(list(), class = "dataganger_comparison"),
+    privacy = toy_privacy,
+    warnings = character(0),
+    kanon = attr(toy_synthetic, "kanon", exact = TRUE)
+  )
+
+  testthat::local_mocked_bindings(run_synthesis_pipeline = function(...) result)
+  withr::local_options(dataganger.synthesis_async = FALSE)
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(generate = 1L)
+    session$flushReact()
+    html <- paste(as.character(output$result_stats), collapse = "\n")
+    expect_match(html, "100% of QI values suppressed", fixed = TRUE)
+    expect_match(html, "stat risk", fixed = TRUE)
+  })
 })
 
 test_that("generate renders the structured k-anon panel after an infeasible run", {

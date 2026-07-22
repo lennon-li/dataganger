@@ -29,7 +29,7 @@ test_that("export_diagnostic_package() column fields are correct", {
   tmp <- withr::local_tempdir()
   out <- file.path(tmp, "diag.json")
   df  <- data.frame(
-    patient_id = sprintf("ID-%03d", 1:30),
+    patient_id = sprintf("ID%03d", 1:30),
     score      = round(rnorm(30), 1),
     stringsAsFactors = FALSE
   )
@@ -41,7 +41,7 @@ test_that("export_diagnostic_package() column fields are correct", {
   score_col <- diag$columns[[2]]
 
   expect_equal(id_col$name,           "patient_id")
-  expect_equal(id_col$role,           "ID candidate")
+  expect_equal(id_col$role,           "alphanumeric ID")
   expect_equal(id_col$disclosure_role, "direct")
   expect_false(isTRUE(id_col$exposed))
   expect_equal(id_col$exposure_level, "blocked")

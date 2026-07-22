@@ -418,30 +418,51 @@ table.dataTable tbody tr:hover {
 
 /* ============ 8 · fileInput inside .upload zone ============ */
 
-.upload .shiny-input-container { margin: 0; width: 100% !important; max-width: 420px; }
-.upload .input-group { flex-wrap: nowrap; }
-.upload .btn-file {
-  background: var(--synth-500) !important;
-  color: white !important;
-  border-color: var(--synth-500) !important;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 14px;
-  border-radius: 4px 0 0 4px !important;
-  padding: 8px 14px !important;
+/* Shiny's fileInputBinding binds all drag/drop handling to the closest
+   div.input-group (see shiny.js zoneOf()), which by default is only the
+   small Browse-button row. We stretch that div over the full .upload card
+   so the whole box — not just the button row — is a working drop target,
+   and hide its native chrome since the card's own icon/copy already
+   communicates the drop affordance. */
+
+.upload { position: relative; }
+
+.upload .shiny-input-container {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  width: 100% !important;
+  max-width: none !important;
 }
-.upload .btn-file:hover {
-  background: var(--synth-700) !important;
-  border-color: var(--synth-700) !important;
+.upload .shiny-input-container > label.control-label { display: none; }
+
+.upload .input-group {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex-wrap: nowrap;
+  opacity: 0;
+  cursor: pointer;
 }
-.upload .form-control[readonly],
-.upload .form-control:read-only {
-  background: var(--paper-100) !important;
-  border-color: var(--paper-300) !important;
-  color: var(--fg-muted) !important;
-  font-family: var(--font-mono) !important;
-  font-size: 12px !important;
-  border-radius: 0 4px 4px 0 !important;
+.upload .input-group .btn-file {
+  width: 100%;
+  height: 100%;
+}
+.upload .input-group .form-control { display: none; }
+
+.upload .progress {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 16px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.upload:has(.input-group.shiny-file-input-over) {
+  border-color: var(--synth-500);
+  background: var(--synth-50);
 }
 
 
@@ -532,3 +553,84 @@ a.btn-primary {
   font-family: inherit;
   line-height: inherit;
 }
+
+/* ============ 11 · Column filter modal (drag-and-drop triage) ============ */
+
+.cf-modal-intro {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg-muted);
+  margin: 0 0 16px;
+}
+
+.cf-zones {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.cf-zone {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px dashed var(--paper-400);
+  border-radius: 8px;
+  background: var(--paper-50);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.cf-zone[data-bucket="pass_through"] { border-color: var(--info-500); }
+.cf-zone[data-bucket="drop"]         { border-color: var(--risk-500); }
+
+.cf-zone.cf-zone-over {
+  border-style: solid;
+  background: var(--synth-50);
+}
+.cf-zone[data-bucket="pass_through"].cf-zone-over { background: rgba(31, 111, 178, 0.08); }
+.cf-zone[data-bucket="drop"].cf-zone-over         { background: var(--risk-50); }
+
+.cf-zone-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--paper-200);
+}
+.cf-zone-title {
+  display: block;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink-900);
+}
+.cf-zone-hint {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--fg-subtle);
+  margin-top: 2px;
+}
+
+.cf-zone-chips {
+  flex: 1 1 auto;
+  min-height: 160px;
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+}
+
+.cf-chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--paper-100);
+  border: 1px solid var(--paper-300);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-900);
+  cursor: grab;
+  user-select: none;
+  transition: opacity 120ms ease, box-shadow 120ms ease;
+}
+.cf-chip:hover { box-shadow: var(--shine); }
+.cf-chip:focus-visible { outline: 2px solid var(--synth-500); outline-offset: 2px; }
+.cf-chip.cf-dragging { opacity: 0.35; cursor: grabbing; }

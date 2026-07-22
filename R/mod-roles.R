@@ -9,11 +9,15 @@ NULL
 dg_rec_to_role <- function(rec) {
   if (is.na(rec) || !nzchar(rec)) return(NA_character_)
   lc <- tolower(rec)
-  if (grepl("id\\b|identifier", lc)) return("identifier")
+  # There is no separate "pseudo identifier" type any more -- anything that
+  # looks like an identifier, structured or not, is an alphanumeric ID.
+  if (grepl("alphanumeric", lc)) return("alphanumeric_id")
+  if (grepl("id\\b|identifier", lc)) return("alphanumeric_id")
   if (grepl("categor", lc)) return("categorical")
   if (grepl("free.text|free_text", lc)) return("free_text")
   if (grepl("\\bdate\\b", lc)) return("date")
-  if (grepl("logic|boolean", lc)) return("logical")
+  # Logical/boolean is not a distinct role -- it is treated as categorical.
+  if (grepl("logic|boolean", lc)) return("categorical")
   if (grepl("numeric", lc)) return("numeric")
   NA_character_
 }
@@ -24,7 +28,8 @@ dg_class_to_role <- function(cls) {
   if (is.na(cls) || !nzchar(cls)) return("numeric")
   lc <- tolower(cls)
   if (grepl("date|posix", lc)) return("date")
-  if (grepl("logical", lc)) return("logical")
+  # Logical/boolean is not a distinct role -- it is treated as categorical.
+  if (grepl("logical", lc)) return("categorical")
   if (grepl("char|factor", lc)) return("categorical")
   "numeric"
 }
@@ -67,7 +72,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           class = "subtitle",
           "DataGangeR auto-detected each column's role. ",
           shiny::tags$strong("Adjust any that look wrong"),
-          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Identifiers and free text are always handled with extra care."
+          " before generating \u2014 roles control whether columns are coarsened, redacted, regenerated, or dropped. Alphanumeric IDs and free text are always handled with extra care."
         )
       ),
       shiny::tags$div(
@@ -138,7 +143,9 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           )
         )
       ),
+      type_action_legend_ui(),
       shiny::uiOutput(ns("disclosure_help")),
+      shiny::uiOutput(ns("bulk_toolbar")),
       shiny::uiOutput(ns("roles_table")),
       shiny::uiOutput(ns("kanon_readout")),
       shiny::uiOutput(ns("disclosure_gate"))
@@ -228,6 +235,42 @@ disclosure_help_ui <- function(attested = FALSE) {
   )
 }
 
+#' Reference card: what each data type does by default
+#'
+#' A quick-reference legend for the type dropdown's default treatment, shown
+#' above the per-column table so the effect of a type is visible before
+#' anyone changes it.
+#'
+#' @keywords internal
+#' @noRd
+type_action_legend_ui <- function() {
+  row <- function(type, action, detail) {
+    shiny::tags$tr(
+      shiny::tags$td(style = "font-family:var(--font-mono); font-size:12px; padding:4px 8px; white-space:nowrap;", type),
+      shiny::tags$td(style = "font-family:var(--font-sans); font-weight:600; font-size:12px; padding:4px 8px; white-space:nowrap;", action),
+      shiny::tags$td(style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); padding:4px 8px;", detail)
+    )
+  }
+  shiny::tags$div(
+    class = "card",
+    style = "margin-bottom:12px;",
+    shiny::tags$div(
+      class = "card-header",
+      shiny::tags$span(class = "title", "What each type does by default"),
+      shiny::tags$span(class = "sub", "override any column with Action override")
+    ),
+    shiny::tags$table(
+      style = "width:100%; border-collapse:collapse;",
+      row("categorical / free text", "Resample",
+          "Recreated from the observed distribution; rare or near-unique values are grouped."),
+      row("numeric / date", "Simulate",
+          "Recreated within the observed distribution/range, with noise or coarsening."),
+      row("alpha-numeric ID", "Scramble",
+          "Any identifier-shaped column. Letters and digits are reordered within each value; delimiters and length are kept.")
+    )
+  )
+}
+
 #' @keywords internal
 #' @noRd
 mod_roles_server <- function(id, state) {
@@ -240,6 +283,11 @@ mod_roles_server <- function(id, state) {
     roles_local <- shiny::reactiveVal(NULL)
     role_filter <- shiny::reactiveVal("all")
     row_map     <- shiny::reactiveVal(integer(0))
+    # Bulk-configure selection, keyed by variable name (not row index) so it
+    # survives filtering/search -- selecting a few columns, filtering to a
+    # different subset, and selecting more before applying one bulk edit is
+    # a deliberate workflow this supports.
+    selected_vars <- shiny::reactiveVal(character(0))
 
     ensure_simulation_column <- function(roles) {
       dg_ensure_ui_roles(roles)
@@ -345,8 +393,8 @@ mod_roles_server <- function(id, state) {
       roles <- roles_local()
       shiny::req(roles)
 
-      all_roles <- c("identifier", "numeric", "categorical", "logical",
-                     "date", "free_text", "drop")
+      all_roles <- c("alphanumeric_id", "numeric", "categorical",
+                     "date", "free_text")
       eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
         eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
       }, character(1))
@@ -373,7 +421,7 @@ mod_roles_server <- function(id, state) {
 
       chips <- list(make_chip("all", "all", nrow(roles)))
       for (r in present) {
-        chips <- c(chips, list(make_chip(r, r, as.integer(counts[r]))))
+        chips <- c(chips, list(make_chip(ROLE_LABELS[[r]] %||% r, r, as.integer(counts[r]))))
       }
       shiny::tagList(chips)
     })
@@ -382,14 +430,84 @@ mod_roles_server <- function(id, state) {
       role_filter(input$role_filter_val)
     })
 
-    ROLE_OPTIONS <- c("identifier", "numeric", "categorical", "logical",
-                      "date", "free_text", "drop")
-    SIMULATION_OPTIONS <- c("synthesize", "pass_through", "drop")
+    # There is no separate "pseudo identifier" type any more -- any column
+    # that looks like an identifier, structured or not, is an alphanumeric
+    # ID, whose default action is scramble rather than drop. "free_text" is
+    # kept unchanged so every existing comparison/dispatch keyed on it keeps
+    # working; only its displayed label differs. Logical is no longer a
+    # distinct role -- it is folded into categorical (see
+    # dg_rec_to_role/dg_class_to_role). "drop" is a data *treatment*, not a
+    # data type -- it lives only in SIMULATION_OPTIONS (Action override) now,
+    # not in the type dropdown.
+    ROLE_OPTIONS <- c("alphanumeric_id", "numeric", "categorical",
+                      "date", "free_text")
+    ROLE_LABELS <- c(
+      alphanumeric_id = "alpha-numeric ID",
+      numeric         = "numeric",
+      categorical     = "categorical",
+      date            = "date",
+      free_text       = "free text"
+    )
+    SIMULATION_OPTIONS <- c("synthesize", "pass_through", "scramble", "drop")
 
     # Role-mapping helpers (rec_to_role/class_to_role/eff_role) are defined at
     # file scope so the Generate page's read-only decision table can reuse them.
     rec_to_role   <- dg_rec_to_role
     class_to_role <- dg_class_to_role
+
+    # ---- Per-row mutation logic, shared by the single-column dropdowns and
+    # the bulk-configure toolbar below, so both apply exactly the same rules
+    # (Q1 reset on a type change away from an identifying type, alphanumeric
+    # ID defaulting to scramble, etc.) instead of two copies drifting apart.
+    # Each takes/returns the whole `roles` object rather than mutating in
+    # place, so a bulk apply can fold a loop of these over multiple rows
+    # before writing back to state once.
+    apply_type_change <- function(roles, orig_row, val) {
+      if (!val %in% ROLE_OPTIONS) return(roles)
+      roles$user_role[[orig_row]] <- val
+      if (val %in% c("free_text", "alphanumeric_id")) {
+        roles$identifies[[orig_row]] <- "direct"
+      } else if (identical(roles$identifies[[orig_row]], "direct")) {
+        roles$identifies[[orig_row]]      <- NA_character_
+        roles$user_identifies[[orig_row]] <- NA_character_
+      }
+      roles <- dg_sync_roles_axes(roles)
+      roles$simulation[[orig_row]] <- if (identical(val, "alphanumeric_id")) {
+        "scramble"
+      } else {
+        dg_derived_action_axes(roles$identifies[[orig_row]], roles$sensitive[[orig_row]])
+      }
+      roles
+    }
+
+    apply_identifies_change <- function(roles, orig_row, val, attested) {
+      if (!val %in% q1_identifies_choices(attested)) return(roles)
+      roles$user_identifies[[orig_row]] <- val
+      roles$identifies[[orig_row]]      <- val
+      roles <- dg_sync_roles_axes(roles)
+      roles$simulation[[orig_row]] <- dg_derived_action_axes(
+        roles$identifies[[orig_row]], roles$sensitive[[orig_row]]
+      )
+      roles
+    }
+
+    apply_sensitive_change <- function(roles, orig_row, val) {
+      if (!val %in% c("yes", "no")) return(roles)
+      val_bool <- identical(val, "yes")
+      roles$user_sensitive[[orig_row]] <- val_bool
+      roles$sensitive[[orig_row]]      <- val_bool
+      roles <- dg_sync_roles_axes(roles)
+      roles$simulation[[orig_row]] <- dg_derived_action_axes(
+        roles$identifies[[orig_row]], roles$sensitive[[orig_row]]
+      )
+      roles
+    }
+
+    apply_simulation_change <- function(roles, orig_row, val) {
+      if (!val %in% SIMULATION_OPTIONS) return(roles)
+      roles$simulation[[orig_row]] <- val
+      roles
+    }
 
     is_whole_number_column <- function(x) {
       if (is.integer(x)) {
@@ -452,13 +570,14 @@ mod_roles_server <- function(id, state) {
           !is.na(recommended_role) && nzchar(recommended_role) &&
           !identical(tolower(effective %||% ""), tolower(class_to_role(class_col) %||% ""))
         opts <- lapply(ROLE_OPTIONS, function(opt) {
+          opt_label <- ROLE_LABELS[[opt]] %||% opt
           shiny::tags$option(
             value    = opt,
             selected = if (identical(opt, effective)) "selected" else NULL,
             if (!is.na(recommended_option) && identical(opt, recommended_option)) {
-              paste0(opt, " (recommended)")
+              paste0(opt_label, " (recommended)")
             } else {
-              opt
+              opt_label
             }
           )
         })
@@ -495,6 +614,7 @@ mod_roles_server <- function(id, state) {
         labels <- c(
           synthesize = "Synthesise",
           pass_through = "Pass through",
+          scramble = "Scramble",
           drop = "Drop"
         )
         opts <- lapply(SIMULATION_OPTIONS, function(opt) {
@@ -571,8 +691,46 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_action_override_controls <- function(orig_row, row_data) {
+      # Explains what a type override actually does once it takes effect --
+      # shown only when moving *away* from an identifying recommended role
+      # (alphanumeric ID / free text) to a plain type, since that is the
+      # override whose consequence (Q1 reset, inclusion in synthesis and
+      # Compare) is easy to miss. If the underlying column still has more
+      # distinct values than the Compare page's dynamic cap, that is called
+      # out too, since the override alone will not make it comparable.
+      override_consequence_caption <- function(recommended_role, user_role, col_data, n_rows) {
+        rec <- tolower(recommended_role %||% "")
+        usr <- tolower(user_role %||% "")
+        was_identifying <- grepl("alphanumeric", rec) || grepl("free.text|free_text", rec)
+        now_plain <- usr %in% c("categorical", "numeric", "date")
+        if (!(was_identifying && now_plain)) {
+          return(NULL)
+        }
+        n_rows <- n_rows %||% length(col_data)
+        n_distinct <- if (!is.null(col_data)) length(unique(col_data[!is.na(col_data)])) else NA_integer_
+        cap <- dg_max_comparable_levels(n_rows)
+        over_cap <- !is.na(n_distinct) && n_distinct > cap
+        text <- if (over_cap) {
+          sprintf(
+            paste(
+              "Now treated as ordinary data, but %s distinct values is above the",
+              "%d-value Compare limit for %s rows -- it will still be hidden there",
+              "and may synthesize as many rare categories. Q1 was reset; confirm it",
+              "again before generating."
+            ),
+            format(n_distinct, big.mark = ","), cap, format(n_rows, big.mark = ",")
+          )
+        } else {
+          "Now treated as ordinary data: synthesized and shown on Compare. Q1 was reset -- confirm it again before generating."
+        }
+        list(text = text, warn = over_cap)
+      }
+
+      make_action_override_controls <- function(orig_row, row_data, col_data, n_rows) {
         simulation_value <- as.character(row_data$simulation[[1]] %||% "synthesize")
+        caption <- override_consequence_caption(
+          row_data$recommended_role[[1]], row_data$user_role[[1]], col_data, n_rows
+        )
         shiny::tags$div(
           style = "display:grid; gap:6px;",
           shiny::tags$div(
@@ -597,10 +755,22 @@ mod_roles_server <- function(id, state) {
               row_data$recommended_role[[1]],
               row_data$class[[1]]
             )
-          )
+          ),
+          if (!is.null(caption)) {
+            shiny::tags$div(
+              style = if (isTRUE(caption$warn)) {
+                "font-size:11px; color:#b7791f; background:#fffbea; border:1px solid #f6e05e; border-radius:3px; padding:4px 6px;"
+              } else {
+                "font-size:11px; color:var(--fg-muted); background:var(--bg-subtle); border-radius:3px; padding:4px 6px;"
+              },
+              caption$text
+            )
+          }
         )
       }
 
+      raw_data <- state$raw_data
+      sel <- selected_vars()
       rows <- lapply(seq_len(nrow(roles)), function(i) {
         orig_row <- map[[i]]
         r <- roles[i, , drop = FALSE]
@@ -609,7 +779,24 @@ mod_roles_server <- function(id, state) {
           storage_signal_for(r$variable[[1]], r$class[[1]]),
           sep = "\n"
         )
+        col_data <- if (!is.null(raw_data) && r$variable[[1]] %in% names(raw_data)) {
+          raw_data[[r$variable[[1]]]]
+        } else {
+          NULL
+        }
         shiny::tags$tr(
+          shiny::tags$td(
+            style = "padding:6px 4px; text-align:center;",
+            shiny::tags$input(
+              type = "checkbox",
+              checked = if (r$variable[[1]] %in% sel) "checked" else NULL,
+              onclick = sprintf(
+                "Shiny.setInputValue('%s', {variable: '%s', checked: this.checked}, {priority:'event'})",
+                session$ns("row_select"),
+                gsub("'", "\\\\'", r$variable[[1]])
+              )
+            )
+          ),
           shiny::tags$td(
             style = "font-family:var(--font-mono); font-size:12px; padding:6px 8px;",
             shiny::tags$div(
@@ -632,16 +819,30 @@ mod_roles_server <- function(id, state) {
           ),
           shiny::tags$td(
             style = "min-width:320px; padding:6px 8px;",
-            make_action_override_controls(orig_row, r)
+            make_action_override_controls(orig_row, r, col_data, nrow(raw_data))
           )
         )
       })
+
+      all_visible_selected <- nrow(roles) > 0L && all(roles$variable %in% sel)
 
       shiny::tags$table(
         class = "data compact",
         style = "width:100%; border-collapse:collapse;",
         shiny::tags$thead(
           shiny::tags$tr(
+            shiny::tags$th(
+              style = "width:28px; padding:6px 4px; text-align:center;",
+              shiny::tags$input(
+                type = "checkbox",
+                title = "Select all shown",
+                checked = if (all_visible_selected) "checked" else NULL,
+                onclick = sprintf(
+                  "Shiny.setInputValue('%s', this.checked, {priority:'event'})",
+                  session$ns("select_all_visible")
+                )
+              )
+            ),
             shiny::tags$th(style = "width:22%; padding:6px 8px;", "Column"),
             shiny::tags$th(style = "width:27%; padding:6px 8px;", "Points to a person? (Q1)"),
             shiny::tags$th(style = "width:12%; padding:6px 8px;", "Sensitive? (Q2)"),
@@ -749,20 +950,20 @@ mod_roles_server <- function(id, state) {
       }
     })
 
+    # The type dropdown doubles as a privacy signal for the options that
+    # always mean "this points to a person": choosing "free_text" or
+    # "alphanumeric_id" only ever strengthens protection, so it is safe to
+    # apply immediately (see apply_type_change() for what moving *away* from
+    # an identifying type does to a previously-confirmed Q1 answer).
     shiny::observeEvent(input$role_change, ignoreNULL = TRUE, {
       change <- input$role_change
       roles  <- roles_local()
       if (is.null(change) || is.null(roles)) return(invisible(NULL))
-
       orig_row <- as.integer(change$row)
-      val      <- as.character(change$value)
-
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) {
         return(invisible(NULL))
       }
-      if (!val %in% ROLE_OPTIONS) return(invisible(NULL))
-
-      roles$user_role[[orig_row]] <- val
+      roles <- apply_type_change(roles, orig_row, as.character(change$value))
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)
@@ -773,17 +974,9 @@ mod_roles_server <- function(id, state) {
       roles  <- roles_local()
       if (is.null(change) || is.null(roles)) return(invisible(NULL))
       orig_row <- as.integer(change$row)
-      val      <- as.character(change$value)
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
-      if (!val %in% q1_identifies_choices(isTRUE(state$attested_no_direct))) {
-        return(invisible(NULL))
-      }
-      roles$user_identifies[[orig_row]] <- val
-      roles$identifies[[orig_row]]      <- val
-      roles <- dg_sync_roles_axes(roles)
-      roles$simulation[[orig_row]] <- dg_derived_action_axes(
-        roles$identifies[[orig_row]],
-        roles$sensitive[[orig_row]]
+      roles <- apply_identifies_change(
+        roles, orig_row, as.character(change$value), isTRUE(state$attested_no_direct)
       )
       roles_local(roles)
       state$roles <- roles
@@ -795,17 +988,8 @@ mod_roles_server <- function(id, state) {
       roles  <- roles_local()
       if (is.null(change) || is.null(roles)) return(invisible(NULL))
       orig_row <- as.integer(change$row)
-      val <- as.character(change$value)
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
-      if (!val %in% c("yes", "no")) return(invisible(NULL))
-      val_bool <- identical(val, "yes")
-      roles$user_sensitive[[orig_row]] <- val_bool
-      roles$sensitive[[orig_row]]      <- val_bool
-      roles <- dg_sync_roles_axes(roles)
-      roles$simulation[[orig_row]] <- dg_derived_action_axes(
-        roles$identifies[[orig_row]],
-        roles$sensitive[[orig_row]]
-      )
+      roles <- apply_sensitive_change(roles, orig_row, as.character(change$value))
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)
@@ -824,14 +1008,164 @@ mod_roles_server <- function(id, state) {
       roles  <- roles_local()
       if (is.null(change) || is.null(roles)) return(invisible(NULL))
       orig_row <- as.integer(change$row)
-      val <- as.character(change$value)
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
-      if (!val %in% SIMULATION_OPTIONS) return(invisible(NULL))
       roles <- ensure_simulation_column(roles)
-      roles$simulation[[orig_row]] <- val
+      roles <- apply_simulation_change(roles, orig_row, as.character(change$value))
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)
+    })
+
+    # ---- Bulk configure ----
+    # Row-selection state and the toolbar that applies one of the four edits
+    # above to every selected row at once, for the common "10 columns, most
+    # of them the same answer" case.
+
+    output$bulk_toolbar <- shiny::renderUI({
+      roles <- roles_local()
+      shiny::req(roles)
+      n_sel <- length(intersect(selected_vars(), roles$variable))
+
+      if (n_sel == 0L) {
+        return(shiny::tags$div(
+          class = "card",
+          style = "margin-bottom:10px; padding:8px 12px; background:var(--bg-subtle);",
+          shiny::tags$span(
+            style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted);",
+            "Check columns below to bulk-edit several at once."
+          )
+        ))
+      }
+
+      attested <- isTRUE(state$attested_no_direct)
+      q1_opts  <- q1_identifies_choices(attested)
+      q1_labels <- stats::setNames(
+        vapply(dg_identifies_option_meta(), function(m) m$label, character(1)),
+        vapply(dg_identifies_option_meta(), function(m) m$value, character(1))
+      )
+
+      bulk_row <- function(label, select_id, apply_id, options, option_labels = NULL) {
+        shiny::tags$div(
+          style = "display:flex; align-items:center; gap:8px; margin-top:6px;",
+          shiny::tags$span(
+            style = "font-family:var(--font-mono); font-size:11px; color:var(--fg-muted); width:150px; flex:none;",
+            label
+          ),
+          shiny::tags$select(
+            id = session$ns(select_id),
+            class = "input",
+            style = "width:200px; padding:2px 6px; font-size:11px; font-family:var(--font-mono);",
+            lapply(options, function(opt) {
+              shiny::tags$option(value = opt, option_labels[[opt]] %||% opt)
+            })
+          ),
+          shiny::actionButton(
+            session$ns(apply_id),
+            sprintf("Apply to %d selected", n_sel),
+            class = "btn btn-sm btn-secondary"
+          )
+        )
+      }
+
+      shiny::tags$div(
+        class = "card",
+        style = "margin-bottom:10px; padding:10px 12px; background:var(--bg-subtle);",
+        shiny::tags$div(
+          style = "display:flex; align-items:center; justify-content:space-between;",
+          shiny::tags$strong(
+            style = "font-family:var(--font-sans); font-size:12px;",
+            sprintf("%d column%s selected", n_sel, if (n_sel == 1L) "" else "s")
+          ),
+          shiny::actionButton(
+            session$ns("bulk_clear"), "Clear selection",
+            class = "btn btn-sm btn-secondary"
+          )
+        ),
+        bulk_row("Type", "bulk_type_value", "bulk_apply_type", ROLE_OPTIONS, ROLE_LABELS),
+        bulk_row("Points to a person? (Q1)", "bulk_identifies_value", "bulk_apply_identifies",
+                 q1_opts, q1_labels),
+        bulk_row("Sensitive? (Q2)", "bulk_sensitive_value", "bulk_apply_sensitive",
+                 c("no", "yes"), c(no = "No", yes = "Yes")),
+        bulk_row("Action override", "bulk_simulation_value", "bulk_apply_simulation",
+                 SIMULATION_OPTIONS, c(
+                   synthesize = "Synthesise", pass_through = "Pass through",
+                   scramble = "Scramble", drop = "Drop"
+                 ))
+      )
+    })
+
+    shiny::observeEvent(input$row_select, ignoreNULL = TRUE, {
+      sel <- input$row_select
+      variable <- as.character(sel$variable)
+      if (is.null(variable) || !nzchar(variable)) return(invisible(NULL))
+      current <- selected_vars()
+      selected_vars(if (isTRUE(sel$checked)) {
+        union(current, variable)
+      } else {
+        setdiff(current, variable)
+      })
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$select_all_visible, ignoreNULL = TRUE, {
+      vr <- visible_roles()
+      shiny::req(vr)
+      visible_vars <- vr$data$variable
+      selected_vars(if (isTRUE(input$select_all_visible)) {
+        union(selected_vars(), visible_vars)
+      } else {
+        setdiff(selected_vars(), visible_vars)
+      })
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$bulk_clear, ignoreNULL = TRUE, {
+      selected_vars(character(0))
+      invisible(NULL)
+    })
+
+    # Applies one of the four per-row mutators to every currently-selected
+    # row, writing the result back once (not once per row) so downstream
+    # observers of state$roles only see a single update.
+    bulk_apply <- function(mutate_row) {
+      roles <- roles_local()
+      if (is.null(roles)) return(invisible(NULL))
+      rows <- match(intersect(selected_vars(), roles$variable), roles$variable)
+      if (!length(rows)) return(invisible(NULL))
+      for (orig_row in rows) {
+        roles <- mutate_row(roles, orig_row)
+      }
+      roles_local(roles)
+      state$roles <- roles
+      shiny::showNotification(
+        sprintf("Updated %d column%s.", length(rows), if (length(rows) == 1L) "" else "s"),
+        type = "message", duration = 2.5
+      )
+      invisible(NULL)
+    }
+
+    shiny::observeEvent(input$bulk_apply_type, ignoreNULL = TRUE, {
+      val <- as.character(input$bulk_type_value)
+      bulk_apply(function(roles, orig_row) apply_type_change(roles, orig_row, val))
+    })
+
+    shiny::observeEvent(input$bulk_apply_identifies, ignoreNULL = TRUE, {
+      val <- as.character(input$bulk_identifies_value)
+      attested <- isTRUE(state$attested_no_direct)
+      bulk_apply(function(roles, orig_row) apply_identifies_change(roles, orig_row, val, attested))
+    })
+
+    shiny::observeEvent(input$bulk_apply_sensitive, ignoreNULL = TRUE, {
+      val <- as.character(input$bulk_sensitive_value)
+      bulk_apply(function(roles, orig_row) apply_sensitive_change(roles, orig_row, val))
+    })
+
+    shiny::observeEvent(input$bulk_apply_simulation, ignoreNULL = TRUE, {
+      val <- as.character(input$bulk_simulation_value)
+      bulk_apply(function(roles, orig_row) {
+        roles <- ensure_simulation_column(roles)
+        apply_simulation_change(roles, orig_row, val)
+      })
     })
 
     do_confirm <- function() {

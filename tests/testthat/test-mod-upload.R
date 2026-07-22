@@ -65,6 +65,7 @@ test_that("second upload replaces raw_data and clears downstream state", {
     session$flushReact()
 
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
+    state$column_filter <- list(x = "drop")
     state$spec <- list(purpose = "development")
     state$synthetic <- tibble::tibble(x = 1)
     state$comparison <- list(ok = TRUE)
@@ -79,6 +80,7 @@ test_that("second upload replaces raw_data and clears downstream state", {
     expect_equal(nrow(state$raw_data), 5)
     expect_false(is.null(state$profile))
     expect_null(state$roles)
+    expect_null(state$column_filter)
     expect_null(state$spec)
     expect_null(state$synthetic)
     expect_null(state$comparison)

@@ -77,7 +77,7 @@ privacy_check_pre <- function(original, roles) {
     disclosure <- dg_named_lookup(disclosure_map, nm); if (is.na(disclosure)) disclosure <- "none"
 
     # ID columns -> HIGH
-    if (role == "ID candidate" || grepl(dg_id_name_pattern(), nm, perl = TRUE)) {
+    if (role == "alphanumeric ID" || grepl(dg_id_name_pattern(), nm, perl = TRUE)) {
       flags[[length(flags) + 1]] <- make_flag(nm, "ID column detected", "HIGH",
         "Review whether this column should be excluded from synthetic output")
       next
@@ -167,15 +167,21 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
     role_map <- stats::setNames(roles$recommended_role, roles$variable)
   }
 
-  # 1. ID columns still present in synthetic
+  # 1. ID columns still present in synthetic. Fully-NA masking or scrambling
+  # (no synthetic ID value equal to any original ID value) both count as
+  # properly masked; only a value that survives verbatim is a genuine leak.
   for (nm in intersect(names(original), names(synthetic_match))) {
     role <- dg_named_lookup(role_map, nm); if (is.na(role)) role <- "unknown"
-    if (role == "ID candidate") {
+    if (role == "alphanumeric ID") {
       id_vals <- synthetic_match[[nm]]
-      if (!all(is.na(id_vals))) {
+      all_masked <- all(is.na(id_vals))
+      orig_vals <- as.character(original[[nm]])
+      no_verbatim_match <- length(orig_vals) == length(id_vals) &&
+        !any(!is.na(id_vals) & as.character(id_vals) %in% orig_vals)
+      if (!all_masked && !no_verbatim_match) {
         flags[[length(flags) + 1]] <- make_flag(nm,
           "ID column not fully masked in synthetic output", "HIGH",
-          "ID columns should be fully masked (all-NA) in synthetic data")
+          "ID columns should be fully masked (all-NA) or scrambled in synthetic data")
       }
     }
   }
@@ -299,7 +305,7 @@ exact_row_match_count <- function(original, synthetic, role_map = NULL) {
   common_cols <- intersect(names(original), names(synthetic))
   id_cols <- character(0)
   if (!is.null(role_map)) {
-    id_cols <- names(role_map)[role_map == "ID candidate"]
+    id_cols <- names(role_map)[role_map == "alphanumeric ID"]
   }
   match_cols <- setdiff(common_cols, id_cols)
 
@@ -411,7 +417,7 @@ synthpop_disclosure_cols <- function(roles) {
   }
 
   roles$variable[
-    role %in% c("ID candidate", "date", "categorical candidate", "label_check") |
+    role %in% c("alphanumeric ID", "date", "categorical candidate", "label_check") |
       disclosure %in% c("quasi", "direct", "sensitive")
   ]
 }

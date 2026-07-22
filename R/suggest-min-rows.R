@@ -23,7 +23,7 @@
 #' @param profile A `dataganger_profile` from [profile_data()].
 #' @param roles Optional; a `dataganger_roles` object. When provided together
 #'   with `data`, the coverage computation is filtered to only the columns whose
-#'   effective role is synthesizable (excludes ID candidates, free text, and
+#'   effective role is synthesizable (excludes alphanumeric IDs, free text, and
 #'   user-excluded columns).
 #' @param data Optional; the original data frame. When provided alongside
 #'   `roles`, coverage is recomputed on the filtered column subset so that the
@@ -57,7 +57,7 @@ suggest_min_rows <- function(profile, roles = NULL, data = NULL, k = 5L,
   n_orig <- profile$n_rows %||% NA_integer_
 
   # When roles + raw data are provided, recompute coverage using only the
-  # columns that roles say should be synthesized (excludes ID candidates,
+  # columns that roles say should be synthesized (excludes alphanumeric IDs,
   # free text, and user-excluded columns). This makes the suggestion react to
   # role changes on the Configure page (P3 UX polish).
   cov <- if (!is.null(roles) && !is.null(data) &&
@@ -67,7 +67,7 @@ suggest_min_rows <- function(profile, roles = NULL, data = NULL, k = 5L,
       !is.na(roles$user_role) & nzchar(roles$user_role),
       roles$user_role, roles$recommended_role
     )
-    excl_roles <- c("ID candidate", "free text", "none", "unknown")
+    excl_roles <- c("alphanumeric ID", "free text", "none", "unknown")
     keep <- roles$variable[!eff_role %in% excl_roles]
     keep <- intersect(keep, names(data))
     if (length(keep) == 0L) {
