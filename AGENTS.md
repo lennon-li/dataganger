@@ -40,9 +40,38 @@ local environment silently skipped tests (PR #39, 2026-07-10).
 - The privacy attestation gate and the Configure-page answer requirement
   (`roles_ready_for_generation()` on user-confirmed answers).
 - Deterministic seeded synthesis: no unseeded randomness in synthesis paths.
-- Enforcement outcomes must stay visible: warnings and the `kanon` attribute
-  are carried through `run_synthesis_pipeline()` to the app UI, `human.md`,
-  and `manifest.json`. Do not re-silence them.
+- Enforcement outcomes must stay visible: warnings, the `kanon` attribute
+  (including `suppressed_rows`/`suppressed_row_frac`, added 2026-07-21
+  because whole-cell k-anon suppression can blank far more of a QI column
+  than its cell count implies), and exact-row-match counts are carried
+  through `run_synthesis_pipeline()` to the app UI (`mod-generate.R`
+  `result_stats`, red "danger" styling when exact matches > 0), `human.md`
+  (`render_kanon_line()`), `manifest.json`, and `dataganger inspect`
+  (`cli_kanon_summary_line()`). Do not re-silence any of these, and keep all
+  four surfaces in sync when one changes.
+- "Alphanumeric ID" is the single catch-all for identifier-shaped columns
+  (structural shape, name pattern, or high cardinality) as of 2026-07-21;
+  there is no separate "pseudo identifier" type. Its default `simulation` is
+  `"scramble"` (keep, de-identified), not `"drop"` -- a deliberate
+  privacy-behavior decision, not a bug. `enforce_kanon()` exempts explicit
+  `pass_through`/`scramble` decisions from the direct-identifier drop for
+  the same reason.
+- Character-stored dates/times (e.g. `"01/08/2020"`, a bare `"14:30"`) must
+  get identical treatment to native `Date`/`POSIXct` columns: same
+  `disclosure_role = "quasi"` default (set explicitly at both call sites in
+  `detect_roles()` - `dg_suggest_disclosure()`'s class-keyed fallback only
+  recognizes the literal R classes `"Date"`/`"POSIXct"`, not `"character"`),
+  and synthesized through the same range/coarsen-aware machinery
+  (`parse_date_like_character()` + `synth_date_like_character()` in
+  `synth-helpers.R`) rather than falling through to generic categorical
+  resampling. Format is preserved via round-trip-fidelity format detection,
+  not just the first format string that happens to parse.
+- Per-row role-mutation logic (type change, Q1/Q2 answer, action override)
+  is centralized in `mod-roles.R`'s `apply_type_change()` /
+  `apply_identifies_change()` / `apply_sensitive_change()` /
+  `apply_simulation_change()`, shared by the single-column dropdowns and the
+  bulk-configure toolbar. Extend those functions, not either caller
+  individually, or the two editing paths will drift out of sync.
 
 ## Useful commands
 
