@@ -103,10 +103,11 @@ column_filter_modal <- function(col_names, ns) {
 #' set, driven only by that source's column names (no column values are read
 #' here). Stores the user's choice in `state$column_filter`, a named list
 #' mapping column name to `"synthesize"`, `"pass_through"`, or `"drop"`. On
-#' Continue it loads the full data (via `upload_source$read()`) and stores only
-#' the non-dropped columns in `state$raw_data`. Nothing downstream (profiling,
-#' role detection, synthesis, export) ever sees a dropped column, because it is
-#' excluded from `state$raw_data`.
+#' Continue it reads only the non-dropped columns (via
+#' `upload_source$read(col_select = keep)`) into `state$raw_data`. For CSV
+#' files, dropped columns are never parsed; for other formats they are read
+#' then immediately discarded. Nothing downstream (profiling, role detection,
+#' synthesis, export) ever sees a dropped column.
 #'
 #' @keywords internal
 #' @noRd
@@ -134,10 +135,10 @@ mod_column_filter_server <- function(id, state) {
       src <- state$upload_source
       keep <- setdiff(src$columns, dropped)
 
-      # Data is read for the first time here, on Continue. Dropped columns
-      # are excluded from state$raw_data so nothing downstream sees them.
+      # Read only the kept columns. For CSV files this means dropped columns
+      # are never parsed; for other formats they are read then discarded.
       full <- tryCatch(
-        src$read(),
+        src$read(col_select = keep),
         error = function(e) {
           shiny::showNotification(conditionMessage(e), type = "error")
           NULL

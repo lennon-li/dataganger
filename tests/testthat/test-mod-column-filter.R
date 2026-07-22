@@ -57,9 +57,9 @@ make_upload_source <- function(data) {
   read_count$n <- 0L
   list(
     columns = names(data),
-    read = function() {
+    read = function(col_select = NULL) {
       read_count$n <- read_count$n + 1L
-      data
+      if (is.null(col_select)) data else data[, intersect(col_select, names(data)), drop = FALSE]
     },
     .read_count = read_count
   )

@@ -154,7 +154,7 @@ mod_upload_server <- function(id, state) {
 
       state$upload_source <- list(
         columns = cols,
-        read = function() read_input(staged_path)
+        read = function(col_select = NULL) read_input(staged_path, col_select = col_select)
       )
       state$filename <- file_info$name
     })
@@ -166,7 +166,9 @@ mod_upload_server <- function(id, state) {
       loaded <- tibble::as_tibble(e[[nm]])
       state$upload_source <- list(
         columns = names(loaded),
-        read = function() loaded
+        read = function(col_select = NULL) {
+          if (is.null(col_select)) loaded else loaded[, intersect(col_select, names(loaded)), drop = FALSE]
+        }
       )
       sample_label <- if (identical(input$sample_dataset, "regional")) "geo\u0067raphic_sample" else paste0(input$sample_dataset, "_sample")
       state$filename <- paste0(sample_label, " (built-in)")
