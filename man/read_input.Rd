@@ -4,7 +4,7 @@
 \alias{read_input}
 \title{Read a data file into a tibble}
 \usage{
-read_input(file, sheet = NULL, encoding = NULL, ...)
+read_input(file, sheet = NULL, encoding = NULL, col_select = NULL, ...)
 }
 \arguments{
 \item{file}{Path to the data file.}
@@ -16,6 +16,11 @@ read_input(file, sheet = NULL, encoding = NULL, ...)
 \code{"latin1"}). Passed as \code{readr::locale(encoding = encoding)}. Ignored when
 reading non-CSV formats or when the caller already supplies a \code{locale}
 argument in \code{...}.}
+
+\item{col_select}{Optional character vector of column names to keep. For CSV
+files the selection is passed directly to \code{\link[readr:read_csv]{readr::read_csv()}} so excluded
+columns are never parsed. For other formats columns are subset after
+reading.}
 
 \item{...}{Additional arguments passed to the underlying reader
 (\code{readr::read_csv()}, \code{readxl::read_excel()}, \code{haven::read_sas()}, or

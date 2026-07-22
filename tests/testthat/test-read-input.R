@@ -93,20 +93,20 @@ test_that("read_input() encoding arg is applied to CSV locale", {
   tmp <- withr::local_tempdir()
   # Write a CSV with a latin1 character (e-acute)
   csv_file <- file.path(tmp, "encoded.csv")
-  writeBin(chartr("é", "e", iconv("name\nAndré", to = "latin1")), csv_file)
+  writeBin(chartr("\u00e9", "e", iconv("name\nAndr\u00e9", to = "latin1")), csv_file)
   con <- file(csv_file, open = "wb")
-  writeBin(iconv("name\nAndré", to = "latin1", toRaw = TRUE)[[1]], con)
+  writeBin(iconv("name\nAndr\u00e9", to = "latin1", toRaw = TRUE)[[1]], con)
   close(con)
   out <- read_input(csv_file, encoding = "latin1")
   expect_s3_class(out, "tbl_df")
-  expect_equal(out$name, "André")
+  expect_equal(out$name, "Andr\u00e9")
 })
 
 test_that("read_input() encoding is ignored when caller supplies locale", {
   tmp <- withr::local_tempdir()
   csv_file <- file.path(tmp, "simple.csv")
   readr::write_csv(data.frame(x = 1:3), csv_file)
-  # Should not error — caller locale wins, encoding arg is silently skipped
+  # Should not error -- caller locale wins, encoding arg is silently skipped
   out <- read_input(csv_file, encoding = "UTF-8",
                     locale = readr::locale(encoding = "UTF-8"))
   expect_s3_class(out, "tbl_df")
@@ -132,4 +132,12 @@ test_that("read_input() CSV round-trips with readr writer", {
   out <- read_input(csv_file)
   expect_equal(out$x, df$x)
   expect_equal(out$y, df$y)
+})
+
+test_that("read_input() CSV col_select keeps only requested columns", {
+  file <- testthat::test_path("fixtures", "tiny.csv")
+  out <- expect_no_warning(read_input(file, col_select = c("id", "group")))
+  expect_named(out, c("id", "group"))
+  expect_equal(ncol(out), 2)
+  expect_equal(nrow(out), 10)
 })

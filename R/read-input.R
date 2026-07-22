@@ -36,11 +36,21 @@ read_input <- function(file, sheet = NULL, encoding = NULL, col_select = NULL, .
   out <- switch(ext,
     csv = {
       if (!is.null(encoding) && !"locale" %in% names(list(...))) {
-        readr::read_csv(file, locale = readr::locale(encoding = encoding),
-                        col_select = col_select, ..., show_col_types = FALSE)
+        if (is.null(col_select)) {
+          readr::read_csv(file, locale = readr::locale(encoding = encoding),
+                          ..., show_col_types = FALSE)
+        } else {
+          readr::read_csv(file, locale = readr::locale(encoding = encoding),
+                          col_select = dplyr::all_of(col_select),
+                          ..., show_col_types = FALSE)
+        }
       } else {
-        readr::read_csv(file, col_select = col_select, ...,
-                        show_col_types = FALSE)
+        if (is.null(col_select)) {
+          readr::read_csv(file, ..., show_col_types = FALSE)
+        } else {
+          readr::read_csv(file, col_select = dplyr::all_of(col_select), ...,
+                          show_col_types = FALSE)
+        }
       }
     },
     xlsx = ,

@@ -150,6 +150,7 @@ mod_column_filter_server <- function(id, state) {
       state$raw_data <- full[, intersect(keep, names(full)), drop = FALSE]
 
       shiny::removeModal()
+    })
 
     invisible(NULL)
   })
