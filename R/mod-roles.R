@@ -706,7 +706,7 @@ mod_roles_server <- function(id, state) {
 
       make_postal_strategy_select <- function(orig_row, current) {
         current <- current %||% "generate"
-        if (!current %in% c("generate", "resample")) current <- "generate"
+        if (is.na(current) || !current %in% c("generate", "resample")) current <- "generate"
         labels <- c(generate = "Generate new", resample = "Resample observed")
         shiny::tags$select(
           class = "input",
