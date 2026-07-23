@@ -787,3 +787,84 @@ test_that("character-stored dates preserve the original NA rate", {
   expect_true(any(is.na(syn$sched)))
   expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4}$", stats::na.omit(syn$sched))))
 })
+
+test_that("synthesize_data generates postal codes for detected postal columns", {
+  df <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9",
+                    "R3C 4A5", "S4P 3B2", "N2L 3G1", "P1A 1B2", "L1A 2B3"),
+    x = 1:10,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 42, engine = "internal")
+  syn <- synthesize_data(df, spec, roles = roles)
+  expect_equal(nrow(syn), 20)
+  expect_true("postal_code" %in% names(syn))
+  reg <- dataganger:::dg_postal_format_registry()
+  expect_true(all(grepl(reg$CA$regex, syn$postal_code[!is.na(syn$postal_code)])))
+})
+
+test_that("synthesize_data resamples postal codes when strategy is resample", {
+  df <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9",
+                    "R3C 4A5", "S4P 3B2", "N2L 3G1", "P1A 1B2", "L1A 2B3"),
+    x = 1:10,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$postal_strategy[roles$variable == "postal_code"] <- "resample"
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 42, engine = "internal")
+  syn <- synthesize_data(df, spec, roles = roles)
+  observed <- unique(df$postal_code)
+  expect_true(all(syn$postal_code[!is.na(syn$postal_code)] %in% observed))
+})
+
+test_that("synthesize_data postal code seeded determinism", {
+  df <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9",
+                    "R3C 4A5", "S4P 3B2", "N2L 3G1", "P1A 1B2", "L1A 2B3"),
+    x = 1:10,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "demo", n = 15, seed = 99, engine = "internal")
+  syn1 <- synthesize_data(df, spec, roles = roles)
+  syn2 <- synthesize_data(df, spec, roles = roles)
+  expect_identical(syn1$postal_code, syn2$postal_code)
+})
+
+test_that("synthesize_data per-column postal strategy", {
+  df <- data.frame(
+    ca_postal = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9",
+                  "R3C 4A5", "S4P 3B2", "N2L 3G1", "P1A 1B2", "L1A 2B3"),
+    us_zip = c("10001", "90210", "60601", "30301", "85001",
+               "20001", "33101", "48201", "55401", "63101"),
+    x = 1:10,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$postal_strategy[roles$variable == "ca_postal"] <- "generate"
+  roles$postal_strategy[roles$variable == "us_zip"] <- "resample"
+  roles$postal_country[roles$variable == "ca_postal"] <- "CA"
+  roles$postal_country[roles$variable == "us_zip"] <- "US"
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 42, engine = "internal")
+  syn <- synthesize_data(df, spec, roles = roles)
+  reg <- dataganger:::dg_postal_format_registry()
+  expect_true(all(grepl(reg$CA$regex, syn$ca_postal[!is.na(syn$ca_postal)])))
+  expect_true(all(syn$us_zip[!is.na(syn$us_zip)] %in% unique(df$us_zip)))
+})
+
+test_that("synthesize_data postal falls through to character when format unknown", {
+  df <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9",
+                    "R3C 4A5", "S4P 3B2", "N2L 3G1", "P1A 1B2", "L1A 2B3"),
+    x = 1:10,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$postal_country[roles$variable == "postal_code"] <- "ZZ"
+  spec <- synth_spec(purpose = "demo", n = 20, seed = 42, engine = "internal")
+  syn <- synthesize_data(df, spec, roles = roles)
+  expect_equal(nrow(syn), 20)
+  expect_true("postal_code" %in% names(syn))
+})

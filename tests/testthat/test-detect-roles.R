@@ -7,6 +7,7 @@ test_that("detect_roles() returns correct S3 class and columns", {
     r,
     c(
       "variable", "class", "recommended_role", "user_role", "simulation",
+      "postal_strategy", "postal_country",
       "reason", "identifies", "sensitive", "disclosure_role", "disclosure_reason",
       "user_identifies", "user_sensitive"
     )
@@ -30,7 +31,7 @@ test_that("detect_roles assigns disclosure_role per the conservative policy", {
   expect_true("disclosure_reason" %in% names(roles))
   dr <- stats::setNames(roles$disclosure_role, roles$variable)
   expect_equal(dr[["patient_id"]], "direct")
-  expect_true(is.na(dr[["zip"]]))
+  expect_equal(dr[["zip"]], "quasi")
   expect_equal(dr[["visit_date"]], "quasi")
   expect_true(is.na(dr[["sex"]]))
   expect_equal(dr[["lab_value"]], "none")
@@ -332,7 +333,7 @@ test_that("detect_roles leaves uncertain columns unselected (NA disclosure_role)
   r <- detect_roles(df)
   dr <- stats::setNames(r$disclosure_role, r$variable)
   expect_equal(dr[["patient_id"]], "direct")
-  expect_true(is.na(dr[["zip"]]))
+  expect_equal(dr[["zip"]], "quasi")
   expect_equal(dr[["visit_date"]], "quasi")
   expect_true(is.na(dr[["sex"]]))
   expect_equal(dr[["case_count"]], "none")
@@ -466,4 +467,51 @@ test_that("print.dataganger_roles handles subset objects without required column
   roles <- detect_roles(data.frame(age = 1:5, city = letters[1:5]))
 
   expect_no_error(print(roles[, c("variable", "identifies")]))
+})
+
+test_that("postal code columns detected by name", {
+  df <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9"),
+    zip = c("10001", "90210", "60601", "30301", "85001"),
+    PLZ = c("10115", "80331", "50667", "60311", "20095"),
+    name = c("Alice", "Bob", "Carol", "Dave", "Eve"),
+    stringsAsFactors = FALSE
+  )
+  roles <- dataganger::detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "postal_code"], "postal code")
+  expect_equal(roles$recommended_role[roles$variable == "zip"], "postal code")
+  expect_equal(roles$recommended_role[roles$variable == "PLZ"], "postal code")
+  expect_equal(roles$recommended_role[roles$variable == "name"], "categorical candidate")
+})
+
+test_that("postal code columns get quasi disclosure role", {
+  df <- data.frame(
+    postcode = c("SW1A 1AA", "EC1A 1BB", "M1 1AE", "LS1 4AP", "B1 1BB"),
+    stringsAsFactors = FALSE
+  )
+  roles <- dataganger::detect_roles(df)
+  expect_equal(roles$disclosure_role[roles$variable == "postcode"], "quasi")
+})
+
+test_that("postal code columns get postal_strategy and postal_country", {
+  df <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9"),
+    stringsAsFactors = FALSE
+  )
+  roles <- dataganger::detect_roles(df)
+  expect_true("postal_strategy" %in% names(roles))
+  expect_true("postal_country" %in% names(roles))
+  expect_equal(roles$postal_strategy[roles$variable == "postal_code"], "generate")
+  expect_true(is.na(roles$postal_country[roles$variable == "postal_code"]))
+})
+
+test_that("non-postal columns have NA postal_strategy", {
+  df <- data.frame(
+    x = 1:10,
+    y = letters[1:10],
+    stringsAsFactors = FALSE
+  )
+  roles <- dataganger::detect_roles(df)
+  expect_true(all(is.na(roles$postal_strategy)))
+  expect_true(all(is.na(roles$postal_country)))
 })

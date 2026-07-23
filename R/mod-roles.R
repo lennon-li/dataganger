@@ -11,6 +11,7 @@ dg_rec_to_role <- function(rec) {
   lc <- tolower(rec)
   # There is no separate "pseudo identifier" type any more -- anything that
   # looks like an identifier, structured or not, is an alphanumeric ID.
+  if (grepl("postal", lc)) return("postal_code")
   if (grepl("alphanumeric", lc)) return("alphanumeric_id")
   if (grepl("id\\b|identifier", lc)) return("alphanumeric_id")
   if (grepl("categor", lc)) return("categorical")
@@ -266,7 +267,9 @@ type_action_legend_ui <- function() {
       row("numeric / date", "Simulate",
           "Recreated within the observed distribution/range, with noise or coarsening."),
       row("alpha-numeric ID", "Scramble",
-          "Any identifier-shaped column. Letters and digits are reordered within each value; delimiters and length are kept.")
+          "Any identifier-shaped column. Letters and digits are reordered within each value; delimiters and length are kept."),
+      row("postal code", "Generate",
+          "New format-valid values in the detected country format; no source values reused. Can switch to resample per column.")
     )
   )
 }
@@ -394,7 +397,7 @@ mod_roles_server <- function(id, state) {
       shiny::req(roles)
 
       all_roles <- c("alphanumeric_id", "numeric", "categorical",
-                     "date", "free_text")
+                     "date", "postal_code", "free_text")
       eff_roles <- vapply(seq_len(nrow(roles)), function(i) {
         eff_role(roles$user_role[[i]], roles$recommended_role[[i]], roles$class[[i]])
       }, character(1))
@@ -440,12 +443,13 @@ mod_roles_server <- function(id, state) {
     # data type -- it lives only in SIMULATION_OPTIONS (Action override) now,
     # not in the type dropdown.
     ROLE_OPTIONS <- c("alphanumeric_id", "numeric", "categorical",
-                      "date", "free_text")
+                      "date", "postal_code", "free_text")
     ROLE_LABELS <- c(
       alphanumeric_id = "alpha-numeric ID",
       numeric         = "numeric",
       categorical     = "categorical",
       date            = "date",
+      postal_code     = "postal code",
       free_text       = "free text"
     )
     SIMULATION_OPTIONS <- c("synthesize", "pass_through", "scramble", "drop")
@@ -476,6 +480,15 @@ mod_roles_server <- function(id, state) {
         "scramble"
       } else {
         dg_derived_action_axes(roles$identifies[[orig_row]], roles$sensitive[[orig_row]])
+      }
+      if (identical(val, "postal_code")) {
+        if (!"postal_strategy" %in% names(roles)) roles$postal_strategy <- NA_character_
+        if (!"postal_country" %in% names(roles)) roles$postal_country <- NA_character_
+        roles$postal_strategy[[orig_row]] <- "generate"
+        roles$postal_country[[orig_row]] <- NA_character_
+      } else {
+        if ("postal_strategy" %in% names(roles)) roles$postal_strategy[[orig_row]] <- NA_character_
+        if ("postal_country" %in% names(roles)) roles$postal_country[[orig_row]] <- NA_character_
       }
       roles
     }
@@ -691,6 +704,55 @@ mod_roles_server <- function(id, state) {
         )
       }
 
+      make_postal_strategy_select <- function(orig_row, current) {
+        current <- current %||% "generate"
+        if (!current %in% c("generate", "resample")) current <- "generate"
+        labels <- c(generate = "Generate new", resample = "Resample observed")
+        shiny::tags$select(
+          class = "input",
+          style = "width:100%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px;",
+          onchange = sprintf(
+            "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
+            session$ns("postal_strategy_change"),
+            orig_row
+          ),
+          lapply(c("generate", "resample"), function(opt) {
+            shiny::tags$option(
+              value = opt,
+              selected = if (identical(opt, current)) "selected" else NULL,
+              labels[[opt]]
+            )
+          })
+        )
+      }
+
+      make_postal_country_select <- function(orig_row, current) {
+        countries <- c(NA, "CA", "US", "UK", "AU", "DE", "FR", "JP", "IN", "BR", "NL")
+        country_labels <- c(
+          "Auto-detect", "Canada", "United States", "United Kingdom",
+          "Australia", "Germany", "France", "Japan", "India", "Brazil",
+          "Netherlands"
+        )
+        if (is.na(current)) current <- ""
+        shiny::tags$select(
+          class = "input",
+          style = "width:100%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px;",
+          onchange = sprintf(
+            "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
+            session$ns("postal_country_change"),
+            orig_row
+          ),
+          lapply(seq_along(countries), function(idx) {
+            val <- if (is.na(countries[idx])) "" else countries[idx]
+            shiny::tags$option(
+              value = val,
+              selected = if (identical(val, current)) "selected" else NULL,
+              country_labels[idx]
+            )
+          })
+        )
+      }
+
       # Explains what a type override actually does once it takes effect --
       # shown only when moving *away* from an identifying recommended role
       # (alphanumeric ID / free text) to a plain type, since that is the
@@ -756,6 +818,31 @@ mod_roles_server <- function(id, state) {
               row_data$class[[1]]
             )
           ),
+          if (identical(eff_role(row_data$user_role[[1]], row_data$recommended_role[[1]], row_data$class[[1]]), "postal_code")) {
+            shiny::tags$div(
+              style = "display:grid; grid-template-columns:1fr 1fr; gap:6px;",
+              shiny::tags$div(
+                shiny::tags$div(
+                  style = "font-size:11px; color:var(--fg-muted);",
+                  "Postal strategy"
+                ),
+                make_postal_strategy_select(
+                  orig_row,
+                  if ("postal_strategy" %in% names(row_data)) row_data$postal_strategy[[1]] else NA_character_
+                )
+              ),
+              shiny::tags$div(
+                shiny::tags$div(
+                  style = "font-size:11px; color:var(--fg-muted);",
+                  "Country format"
+                ),
+                make_postal_country_select(
+                  orig_row,
+                  if ("postal_country" %in% names(row_data)) row_data$postal_country[[1]] else NA_character_
+                )
+              )
+            )
+          },
           if (!is.null(caption)) {
             shiny::tags$div(
               style = if (isTRUE(caption$warn)) {
@@ -1011,6 +1098,35 @@ mod_roles_server <- function(id, state) {
       if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
       roles <- ensure_simulation_column(roles)
       roles <- apply_simulation_change(roles, orig_row, as.character(change$value))
+      roles_local(roles)
+      state$roles <- roles
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$postal_strategy_change, ignoreNULL = TRUE, {
+      change <- input$postal_strategy_change
+      roles  <- roles_local()
+      if (is.null(change) || is.null(roles)) return(invisible(NULL))
+      orig_row <- as.integer(change$row)
+      if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
+      val <- as.character(change$value)
+      if (!val %in% c("generate", "resample")) return(invisible(NULL))
+      if (!"postal_strategy" %in% names(roles)) roles$postal_strategy <- NA_character_
+      roles$postal_strategy[[orig_row]] <- val
+      roles_local(roles)
+      state$roles <- roles
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$postal_country_change, ignoreNULL = TRUE, {
+      change <- input$postal_country_change
+      roles  <- roles_local()
+      if (is.null(change) || is.null(roles)) return(invisible(NULL))
+      orig_row <- as.integer(change$row)
+      if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
+      val <- as.character(change$value)
+      if (!"postal_country" %in% names(roles)) roles$postal_country <- NA_character_
+      roles$postal_country[[orig_row]] <- if (nzchar(val)) val else NA_character_
       roles_local(roles)
       state$roles <- roles
       invisible(NULL)

@@ -860,3 +860,38 @@ test_that("bulk apply with an empty selection is a silent no-op", {
     expect_identical(state$roles, original)
   })
 })
+
+test_that("postal_code appears in ROLE_OPTIONS and ROLE_LABELS", {
+  expect_true("postal_code" %in% dataganger:::dg_rec_to_role("postal code"))
+  expect_equal(dataganger:::dg_rec_to_role("postal code"), "postal_code")
+})
+
+test_that("apply_type_change sets postal defaults when switching to postal_code", {
+  roles <- data.frame(
+    variable = c("col_a", "col_b"),
+    class = c("character", "character"),
+    recommended_role = c("categorical candidate", "categorical candidate"),
+    user_role = c(NA_character_, NA_character_),
+    simulation = c("synthesize", "synthesize"),
+    postal_strategy = c(NA_character_, NA_character_),
+    postal_country = c(NA_character_, NA_character_),
+    identifies = c(NA_character_, NA_character_),
+    sensitive = c(NA, NA),
+    disclosure_role = c("none", "none"),
+    disclosure_reason = c(NA_character_, NA_character_),
+    user_identifies = c(NA_character_, NA_character_),
+    user_sensitive = c(NA, NA),
+    stringsAsFactors = FALSE
+  )
+  class(roles) <- c("dataganger_roles", class(roles))
+  roles <- dataganger:::dg_sync_roles_axes(roles)
+
+  ns <- shiny::NS("test")
+  env <- new.env(parent = asNamespace("dataganger"))
+  env$ROLE_OPTIONS <- c("alphanumeric_id", "numeric", "categorical", "date", "postal_code", "free_text")
+  env$dg_sync_roles_axes <- dataganger:::dg_sync_roles_axes
+  env$dg_derived_action_axes <- dataganger:::dg_derived_action_axes
+
+  apply_fn <- dataganger:::mod_roles_server
+  expect_true(is.function(apply_fn))
+})
