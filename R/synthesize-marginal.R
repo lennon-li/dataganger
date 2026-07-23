@@ -100,15 +100,15 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       }
     }
 
-    if (role == "postal code" && is.character(x)) {
+    idx <- if (!is.null(roles) && "variable" %in% names(roles)) match(col_name, roles$variable) else NA_integer_
+    is_user_postal <- !is.null(roles) && !is.na(idx) && "user_role" %in% names(roles) &&
+      identical(roles$user_role[[idx]], "postal_code")
+    if (is.character(x) && (identical(role, "postal code") || is_user_postal)) {
       postal_strategy <- NA_character_
       postal_country <- NA_character_
-      if (!is.null(roles) && "postal_strategy" %in% names(roles)) {
-        idx <- match(col_name, roles$variable)
-        if (!is.na(idx)) {
-          postal_strategy <- roles$postal_strategy[[idx]]
-          postal_country <- roles$postal_country[[idx]]
-        }
+      if (!is.null(roles) && !is.na(idx) && "postal_strategy" %in% names(roles)) {
+        postal_strategy <- roles$postal_strategy[[idx]]
+        postal_country <- roles$postal_country[[idx]]
       }
       if (is.na(postal_strategy) || !nzchar(postal_strategy)) {
         postal_strategy <- "generate"
