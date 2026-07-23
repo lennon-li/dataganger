@@ -191,22 +191,22 @@ detect_postal_format <- function(x, country_hint = NA_character_) {
     return(NULL)
   }
 
-  matches <- list()
-  for (code in names(registry)) {
-    entry <- registry[[code]]
-    match_rate <- mean(grepl(entry$regex, x_sample))
-    if (match_rate >= 0.9) {
-      matches[[code]] <- entry
-    }
-  }
-
-  if (length(matches) == 0L) {
+  match_rates <- vapply(
+    names(registry),
+    function(code) mean(grepl(registry[[code]]$regex, x_sample)),
+    numeric(1)
+  )
+  candidates <- names(match_rates)[match_rates >= 0.9]
+  if (length(candidates) == 0L) {
     return(NULL)
   }
 
-  result <- matches[[1L]]
-  if (length(matches) > 1L) {
-    attr(result, "ambiguous") <- names(matches)
+  best_rate <- max(match_rates[candidates])
+  best <- candidates[match_rates[candidates] == best_rate]
+
+  result <- registry[[best[[1L]]]]
+  if (length(best) > 1L) {
+    attr(result, "ambiguous") <- best
   }
   result
 }
