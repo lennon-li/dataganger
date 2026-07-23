@@ -22,7 +22,7 @@ synth_postal_code_generate <- function(x, n, postal_info,
   out <- vapply(seq_len(n), function(i) {
     parts <- vapply(slots, function(slot) {
       if (slot$type == "digit") {
-        as.character(sample(0:9, 1L))
+        sample(strsplit(slot$chars, "")[[1L]], 1L)
       } else if (slot$type == "letter") {
         sample(strsplit(slot$chars, "")[[1L]], 1L)
       } else {
