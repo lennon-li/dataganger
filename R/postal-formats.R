@@ -169,10 +169,10 @@ dg_postal_format_registry <- function() {
 #' @keywords internal
 #' @noRd
 detect_postal_format <- function(x, country_hint = NA_character_) {
+  if (!is.na(country_hint) && nzchar(country_hint)) country_hint <- toupper(country_hint)
   x_sample <- x[!is.na(x) & nzchar(trimws(x))]
   if (length(x_sample) > 200L) x_sample <- x_sample[seq_len(200L)]
-  x_sample <- trimws(x_sample)
-
+  x_sample <- toupper(trimws(x_sample))
   if (length(x_sample) < 5L) {
     return(NULL)
   }
