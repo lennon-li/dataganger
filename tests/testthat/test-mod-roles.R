@@ -867,24 +867,20 @@ test_that("postal_code appears in ROLE_OPTIONS and ROLE_LABELS", {
 })
 
 test_that("apply_type_change sets postal defaults when switching to postal_code", {
-  roles <- data.frame(
-    variable = c("col_a", "col_b"),
-    class = c("character", "character"),
-    recommended_role = c("categorical candidate", "categorical candidate"),
-    user_role = c(NA_character_, NA_character_),
-    simulation = c("synthesize", "synthesize"),
-    postal_strategy = c(NA_character_, NA_character_),
-    postal_country = c(NA_character_, NA_character_),
-    identifies = c(NA_character_, NA_character_),
-    sensitive = c(NA, NA),
-    disclosure_role = c("none", "none"),
-    disclosure_reason = c(NA_character_, NA_character_),
-    user_identifies = c(NA_character_, NA_character_),
-    user_sensitive = c(NA, NA),
-    stringsAsFactors = FALSE
-  )
-  class(roles) <- c("dataganger_roles", class(roles))
-  roles <- dataganger:::dg_sync_roles_axes(roles)
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 2L, value = "postal_code"))
+    session$flushReact()
+  })
+
+  roles <- state$roles
+  expect_equal(roles$user_role[[2]], "postal_code")
+  expect_true("postal_strategy" %in% names(roles))
+  expect_true("postal_country" %in% names(roles))
+  expect_equal(roles$postal_strategy[[2]], "generate")
+  expect_true(is.na(roles$postal_country[[2]]))
 
   ns <- shiny::NS("test")
   env <- new.env(parent = asNamespace("dataganger"))
