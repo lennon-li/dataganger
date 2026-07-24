@@ -1,4 +1,4 @@
-# dataganger 0.7.0
+# dataganger 0.7.1
 
 A simpler column-role taxonomy, a de-identify-by-default policy for
 identifier columns, honest date/time synthesis, and a batch of Configure-page
