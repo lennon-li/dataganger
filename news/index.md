@@ -1,5 +1,15 @@
 # Changelog
 
+## dataganger 0.7.2
+
+- Fix CRAN policy violation:
+  [`rmarkdown::render()`](https://pkgs.rstudio.com/rmarkdown/reference/render.html)
+  now passes `intermediates_dir = tempdir()` so knitr writes
+  intermediate files to the R session’s temporary directory rather than
+  to the installed package directory. The package directory is read-only
+  on some CRAN platforms, causing check failures on Debian r-devel and
+  r-patched flavors.
+
 ## dataganger 0.7.1
 
 A simpler column-role taxonomy, a de-identify-by-default policy for

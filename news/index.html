@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,10 @@
       <small>Source: <a href="https://github.com/lennon-li/dataganger/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.7.2" id="dataganger-072">dataganger 0.7.2<a class="anchor" aria-label="anchor" href="#dataganger-072"></a></h2>
+<ul><li>Fix CRAN policy violation: <code><a href="https://pkgs.rstudio.com/rmarkdown/reference/render.html" class="external-link">rmarkdown::render()</a></code> now passes <code>intermediates_dir = tempdir()</code> so knitr writes intermediate files to the R session’s temporary directory rather than to the installed package directory. The package directory is read-only on some CRAN platforms, causing check failures on Debian r-devel and r-patched flavors.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.7.1" id="dataganger-071">dataganger 0.7.1<a class="anchor" aria-label="anchor" href="#dataganger-071"></a></h2>
 <p>A simpler column-role taxonomy, a de-identify-by-default policy for identifier columns, honest date/time synthesis, and a batch of Configure-page privacy and usability fixes.</p>
