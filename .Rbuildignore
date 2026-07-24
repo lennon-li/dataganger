@@ -22,9 +22,11 @@
 ^pkgdown$
 ^dev$
 ^CRAN-SUBMISSION$
-^\.agents$
+^\.agent$
+^\.agent/
 ^\.codex$
-^\.codegraph(/|$)
+^\.codegraph$
+^\.codegraph/
 ^\.hermes$
 ^\.tokensave$
 ^exec$

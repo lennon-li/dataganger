@@ -889,7 +889,8 @@ render_comparison_report <- function(comparison, privacy, synthetic, purpose, ou
     output_file = output_file,
     params = params,
     quiet = TRUE,
-    envir = new.env(parent = baseenv())
+    envir = new.env(parent = baseenv()),
+    intermediates_dir = tempdir()
   )
 
   invisible(output_file)
