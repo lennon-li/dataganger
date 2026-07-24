@@ -211,3 +211,20 @@ test_that("dg_max_comparable_levels is NA/zero-safe", {
   expect_equal(dg_max_comparable_levels(0), 5L)
   expect_equal(dg_max_comparable_levels(NULL), 5L)
 })
+
+test_that("dg_suggest_disclosure returns quasi for postal code", {
+  expect_equal(dataganger:::dg_suggest_disclosure("postal code"), "quasi")
+})
+
+test_that("dg_kanon_columns includes postal code columns", {
+  roles <- data.frame(
+    variable = c("postal_code", "name", "age"),
+    identifies = c("combination", NA, NA),
+    sensitive = c(NA, NA, NA),
+    recommended_role = c("postal code", "categorical candidate", "numeric"),
+    disclosure_role = c("quasi", "none", "none"),
+    stringsAsFactors = FALSE
+  )
+  cols <- dataganger:::dg_kanon_columns(roles)
+  expect_true("postal_code" %in% cols)
+})

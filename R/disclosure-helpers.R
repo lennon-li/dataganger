@@ -222,7 +222,7 @@ dg_kanon_columns <- function(roles) {
     return(character(0))
   }
 
-  discrete_classes <- c("categorical candidate", "date", "alphanumeric ID", "label_check")
+  discrete_classes <- c("categorical candidate", "date", "alphanumeric ID", "label_check", "postal code")
   recommended <- if ("recommended_role" %in% names(roles)) {
     roles$recommended_role
   } else {
@@ -290,6 +290,7 @@ dg_suggest_disclosure <- function(class) {
     "date" = "quasi",
     "Date" = "quasi",
     "POSIXct" = "quasi",
+    "postal code" = "quasi",
     "numeric" = "none",
     "logical" = "none",
     NA_character_

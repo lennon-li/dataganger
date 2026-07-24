@@ -100,6 +100,30 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       }
     }
 
+    idx <- if (!is.null(roles) && "variable" %in% names(roles)) match(col_name, roles$variable) else NA_integer_
+    is_user_postal <- !is.null(roles) && !is.na(idx) && "user_role" %in% names(roles) &&
+      identical(roles$user_role[[idx]], "postal_code")
+    if (is.character(x) && (identical(role, "postal code") || is_user_postal)) {
+      postal_strategy <- NA_character_
+      postal_country <- NA_character_
+      if (!is.null(roles) && !is.na(idx) && "postal_strategy" %in% names(roles)) {
+        postal_strategy <- roles$postal_strategy[[idx]]
+        postal_country <- roles$postal_country[[idx]]
+      }
+      if (is.na(postal_strategy) || !nzchar(postal_strategy)) {
+        postal_strategy <- "generate"
+      }
+      postal_info <- detect_postal_format(x, country_hint = postal_country)
+      if (!is.null(postal_info)) {
+        cols[[i]] <- if (identical(postal_strategy, "resample")) {
+          synth_postal_code_resample(x, n, missing_strategy = missingness)
+        } else {
+          synth_postal_code_generate(x, n, postal_info, missing_strategy = missingness)
+        }
+        next
+      }
+    }
+
     if (haven::is.labelled(x)) {
       cols[[i]] <- synth_labelled(x, n,
         rare_level_min_n = rare_min_n,

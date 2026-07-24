@@ -166,6 +166,20 @@ detect_single_role_inner <- function(x, name, n_rows) {
     }
   }
 
+  # Test 2c: postal code by name
+  if (r_class == "character") {
+    postal_name_rx <- "(?i)(postal|zip|post.?code|plz|cep|code.?postal|postcode|pin.?code)"
+    if (grepl(postal_name_rx, name, perl = TRUE)) {
+      return(make_role_row(
+        name, r_class, "postal code",
+        "The column name suggests a postal or zip code.",
+        "quasi",
+        postal_strategy = "generate",
+        postal_country = NA_character_
+      ))
+    }
+  }
+
   # Test 3: free text
   if (is_free_text_candidate(x)) {
     return(make_role_row(
@@ -296,7 +310,9 @@ is_free_text_candidate <- function(x) {
 }
 
 make_role_row <- function(name, r_class, role, reason, disclosure_role,
-                          default_simulation = "synthesize") {
+                          default_simulation = "synthesize",
+                          postal_strategy = NA_character_,
+                          postal_country = NA_character_) {
   axes <- dg_role_to_axes(disclosure_role)
   tibble::tibble(
     variable         = name,
@@ -304,6 +320,8 @@ make_role_row <- function(name, r_class, role, reason, disclosure_role,
     recommended_role = role,
     user_role        = NA_character_,
     simulation       = default_simulation,
+    postal_strategy  = postal_strategy,
+    postal_country   = postal_country,
     reason           = reason,
     identifies       = axes$identifies,
     sensitive        = axes$sensitive,
