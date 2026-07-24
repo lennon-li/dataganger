@@ -868,26 +868,69 @@ test_that("postal_code appears in ROLE_OPTIONS and ROLE_LABELS", {
 
 test_that("apply_type_change sets postal defaults when switching to postal_code", {
   testthat::skip_if_not_installed("shiny")
-  state <- roles_test_state()
+  state <- shiny::reactiveValues()
+  state$raw_data <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4"),
+    x = 1:3,
+    stringsAsFactors = FALSE
+  )
+  state$roles <- tibble::tibble(
+    variable = c("postal_code", "x"),
+    recommended_role = c("categorical candidate", "numeric"),
+    user_role = c(NA_character_, NA_character_),
+    class = c("character", "numeric"),
+    identifies = c("combination", "none"),
+    sensitive = c(FALSE, FALSE),
+    disclosure_role = c("quasi", "none"),
+    simulation = c("synthesize", "synthesize"),
+    postal_strategy = c(NA_character_, NA_character_),
+    postal_country = c(NA_character_, NA_character_),
+    reason = c("test", "test"),
+    disclosure_reason = c(NA_character_, NA_character_),
+    user_identifies = c(NA_character_, NA_character_),
+    user_sensitive = c(NA, NA)
+  )
+  state$profile <- list()
+  state$attested_no_direct <- TRUE
 
   shiny::testServer(mod_roles_server, args = list(state = state), {
-    session$setInputs(role_change = list(row = 2L, value = "postal_code"))
-    session$flushReact()
+    session$setInputs(role_change = list(row = 1L, value = "postal_code"))
+    expect_equal(state$roles$postal_strategy[[1]], "generate")
+    expect_true(is.na(state$roles$postal_country[[1]]))
+    expect_equal(state$roles$user_role[[1]], "postal_code")
   })
+})
 
-  roles <- state$roles
-  expect_equal(roles$user_role[[2]], "postal_code")
-  expect_true("postal_strategy" %in% names(roles))
-  expect_true("postal_country" %in% names(roles))
-  expect_equal(roles$postal_strategy[[2]], "generate")
-  expect_true(is.na(roles$postal_country[[2]]))
+test_that("apply_type_change clears postal fields when switching away from postal_code", {
+  testthat::skip_if_not_installed("shiny")
+  state <- shiny::reactiveValues()
+  state$raw_data <- data.frame(
+    postal_code = c("K1A 0B1", "M5V 3L9", "H2X 1Y4"),
+    x = 1:3,
+    stringsAsFactors = FALSE
+  )
+  state$roles <- tibble::tibble(
+    variable = c("postal_code", "x"),
+    recommended_role = c("postal code", "numeric"),
+    user_role = c("postal_code", NA_character_),
+    class = c("character", "numeric"),
+    identifies = c("combination", "none"),
+    sensitive = c(FALSE, FALSE),
+    disclosure_role = c("quasi", "none"),
+    simulation = c("synthesize", "synthesize"),
+    postal_strategy = c("generate", NA_character_),
+    postal_country = c(NA_character_, NA_character_),
+    reason = c("test", "test"),
+    disclosure_reason = c(NA_character_, NA_character_),
+    user_identifies = c(NA_character_, NA_character_),
+    user_sensitive = c(NA, NA)
+  )
+  state$profile <- list()
+  state$attested_no_direct <- TRUE
 
-  ns <- shiny::NS("test")
-  env <- new.env(parent = asNamespace("dataganger"))
-  env$ROLE_OPTIONS <- c("alphanumeric_id", "numeric", "categorical", "date", "postal_code", "free_text")
-  env$dg_sync_roles_axes <- dataganger:::dg_sync_roles_axes
-  env$dg_derived_action_axes <- dataganger:::dg_derived_action_axes
-
-  apply_fn <- dataganger:::mod_roles_server
-  expect_true(is.function(apply_fn))
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 1L, value = "categorical"))
+    expect_true(is.na(state$roles$postal_strategy[[1]]))
+    expect_true(is.na(state$roles$postal_country[[1]]))
+  })
 })
