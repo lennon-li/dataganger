@@ -7,6 +7,10 @@
 #' `disclosure_role` value is retained as derived compatibility metadata for
 #' existing synthesis/export/CLI paths.
 #'
+#' Columns whose name matches a postal-code pattern (postal, zip, postcode,
+#' plz, cep, pin_code) are flagged as \code{"postal code"} with a
+#' quasi-identifier disclosure default.
+#'
 #' @param data A data frame.
 #' @param profile Optional; a `dataganger_profile` object from
 #'   [profile_data()]. If `NULL` (the default), profiling is performed
