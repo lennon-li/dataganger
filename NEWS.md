@@ -4,6 +4,13 @@ A simpler column-role taxonomy, a de-identify-by-default policy for
 identifier columns, honest date/time synthesis, and a batch of Configure-page
 privacy and usability fixes.
 
+*   New postal code data type: columns named postal/zip/postcode/plz/cep/pin_code
+    are detected as quasi-identifiers with a 10-country format registry
+    (CA, US, UK, AU, DE, FR, JP, IN, BR, NL). Two per-column synthesis
+    strategies: `generate` (random format-valid values, zero source leakage)
+    and `resample` (observed values). Country format auto-detected from values
+    with explicit override. Postal config round-trips through recipe YAML.
+
 ## Breaking changes
 
 *   **Identifier columns are now scrambled by default instead of dropped.**
