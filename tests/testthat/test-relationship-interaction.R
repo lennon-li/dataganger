@@ -147,17 +147,24 @@ test_that("degenerate relationships return notes instead of errors", {
 test_that("labelled original columns compare with plain synthetic columns", {
   skip_if_not_installed("haven")
 
-  n <- 120
-  x_orig <- haven::labelled(
-    rep(c(10, 20, 30), length.out = n),
-    labels = c(low = 10, middle = 20, high = 30)
-  )
-  y_orig <- haven::labelled(
-    rep(c(0, 1), length.out = n),
-    labels = c(no = 0, yes = 1)
-  )
-  x_synth <- rep(c("low", "middle", "high"), length.out = n)
-  y_synth <- rep(c("no", "yes"), length.out = n)
+  # The arms must carry a real x -> y association. A perfectly balanced design
+  # leaves the binomial likelihood flat, so the fit is floating-point noise and
+  # whether the p-value comes back finite depends on the BLAS (CRAN ATLAS).
+  set.seed(169)
+  n <- 300
+  codes <- c(low = 10, middle = 20, high = 30)
+  prob_yes <- c(low = 0.25, middle = 0.5, high = 0.75)
+  draw_arm <- function() {
+    level <- sample(names(codes), n, replace = TRUE)
+    list(level = level, yes = stats::runif(n) < prob_yes[level])
+  }
+  orig <- draw_arm()
+  synth <- draw_arm()
+
+  x_orig <- haven::labelled(unname(codes[orig$level]), labels = codes)
+  y_orig <- haven::labelled(as.numeric(orig$yes), labels = c(no = 0, yes = 1))
+  x_synth <- synth$level
+  y_synth <- ifelse(synth$yes, "yes", "no")
 
   expect_no_error(
     result <- relationship_interaction(
@@ -166,6 +173,8 @@ test_that("labelled original columns compare with plain synthetic columns", {
     )
   )
   expect_identical(result$family, "binary")
+  expect_identical(result$note, "")
+  expect_gte(result$n_terms, 1L)
   expect_true(is.finite(result$p_value))
 })
 

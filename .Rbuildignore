@@ -24,6 +24,8 @@
 ^CRAN-SUBMISSION$
 ^\.agent$
 ^\.agent/
+^\.agents$
+^\.agents/
 ^\.codex$
 ^\.codegraph$
 ^\.codegraph/
