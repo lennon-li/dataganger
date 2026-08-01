@@ -49,6 +49,14 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
 
     # Determine role for this column
     role <- dg_named_lookup(role_lookup, col_name); if (is.na(role)) role <- "unknown"
+    idx <- if (!is.null(roles) && "variable" %in% names(roles)) match(col_name, roles$variable) else NA_integer_
+    label_strategy <- NA_character_
+    if (!is.null(roles) && !is.na(idx) && "label_strategy" %in% names(roles)) {
+      label_strategy <- roles$label_strategy[[idx]]
+    }
+    if (is.na(label_strategy) || !nzchar(label_strategy)) {
+      label_strategy <- "preserve"
+    }
 
     # remove_ids: mask ID columns with NA
     if (isTRUE(spec$remove_ids) && !is.null(role_lookup) &&
@@ -71,7 +79,8 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
         strategy = free_text_s,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
       next
     }
@@ -100,7 +109,6 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       }
     }
 
-    idx <- if (!is.null(roles) && "variable" %in% names(roles)) match(col_name, roles$variable) else NA_integer_
     is_user_postal <- !is.null(roles) && !is.na(idx) && "user_role" %in% names(roles) &&
       identical(roles$user_role[[idx]], "postal_code")
     if (is.character(x) && (identical(role, "postal code") || is_user_postal)) {
@@ -128,7 +136,8 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       cols[[i]] <- synth_labelled(x, n,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
     } else if (is.numeric(x)) {
       cols[[i]] <- synth_numeric(x, n, missing_strategy = missingness)
@@ -136,13 +145,15 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       cols[[i]] <- synth_character(x, n,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
     } else if (is.factor(x)) {
       cols[[i]] <- synth_categorical(x, n,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
     } else if (inherits(x, "Date")) {
       cols[[i]] <- synth_date(x, n,
@@ -165,7 +176,8 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       cols[[i]] <- synth_character(as.character(x), n,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
     }
   }

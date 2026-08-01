@@ -191,7 +191,8 @@ roles_to_yaml_list <- function(roles, name_map = NULL, include_original_names = 
   keep <- intersect(
     c(
       "variable", "identifies", "sensitive", "simulation",
-      "disclosure_role", "user_role", "postal_strategy", "postal_country"
+      "disclosure_role", "user_role", "postal_strategy", "postal_country",
+      "label_strategy"
     ),
     names(roles)
   )
@@ -233,7 +234,7 @@ cli_read_roles_yaml <- function(path, data) {
     }
 
     for (field in c("identifies", "simulation", "disclosure_role", "user_role",
-                    "postal_strategy", "postal_country")) {
+                    "postal_strategy", "postal_country", "label_strategy")) {
       if (!is.null(entry[[field]])) {
         base[[field]][idx] <- entry[[field]]
       }
