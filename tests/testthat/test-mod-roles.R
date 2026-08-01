@@ -274,8 +274,10 @@ test_that("roles table labels the four configure columns", {
     html <- paste(as.character(output$`roles-roles_table`), collapse = "
 ")
     expect_match(html, ">Column<")
-    expect_match(html, ">Points to a person\\? \\(Q1\\)<")
-    expect_match(html, ">Sensitive\\? \\(Q2\\)<")
+    # Q1 and Q2 now share a single stacked header cell to save horizontal
+    # space, so Q1's label is followed by the line break, not by </th>.
+    expect_match(html, "Points to a person\\? \\(Q1\\)")
+    expect_match(html, "Sensitive\\? \\(Q2\\)")
     expect_match(html, ">Action override<")
     expect_false(grepl(">What we'll do<", html, fixed = TRUE))
     expect_false(grepl(">Action<", html, fixed = TRUE))
@@ -568,6 +570,51 @@ test_that("'drop' is no longer a selectable type; it only lives in Action overri
   })
 })
 
+test_that("an explicit keep decision survives answering Q2 (sensitivity)", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 1 ("id") is seeded as a direct identifier. The user deliberately
+    # keeps it via the Action override.
+    session$setInputs(simulation_change = list(row = 1, value = "pass_through"))
+    expect_equal(state$roles$simulation[[1]], "pass_through")
+
+    # Answering Q2 asks about sensitivity, not about dropping. It previously
+    # re-derived the action and silently turned the keep into "drop" -- and
+    # because Q2 is mandatory, that fired for every direct-seeded column.
+    session$setInputs(sensitive_change = list(row = 1, value = "no"))
+    expect_equal(state$roles$simulation[[1]], "pass_through")
+
+    session$setInputs(sensitive_change = list(row = 1, value = "yes"))
+    expect_equal(state$roles$simulation[[1]], "pass_through")
+  })
+})
+
+test_that("an explicit keep decision survives a later Q1 answer", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(simulation_change = list(row = 1, value = "scramble"))
+    session$setInputs(identifies_change = list(row = 1, value = "combination"))
+    expect_equal(state$roles$simulation[[1]], "scramble")
+  })
+})
+
+test_that("choosing Q1 = direct still drops, so the drop layer is preserved", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # No explicit action chosen: answering Q1 "direct" is itself the drop
+    # decision and must still take effect.
+    session$setInputs(identifies_change = list(row = 2, value = "direct"))
+    expect_equal(state$roles$identifies[[2]], "direct")
+    expect_equal(state$roles$simulation[[2]], "drop")
+  })
+})
+
 test_that("an explicit Q1 answer is not silently overridden by a later type change", {
   testthat::skip_if_not_installed("shiny")
   state <- roles_test_state()
@@ -706,11 +753,22 @@ test_that("roles confirm is blocked until every generated column has an answer",
 })
 
 
-test_that("question 1 options drop 'direct' once the user attests no direct identifiers", {
+test_that("question 1 always offers 'direct', attested or not", {
+  # Hiding 'direct' when attested made a direct-seeded column's own state
+  # unrepresentable in its control: the select rendered with no option
+  # selected and no "needs an answer" styling, so the classification that
+  # decides whether the column is dropped could be neither seen nor changed.
   expect_equal(q1_identifies_choices(attested = FALSE),
                c("none", "combination", "direct"))
   expect_equal(q1_identifies_choices(attested = TRUE),
-               c("none", "combination"))
+               c("none", "combination", "direct"))
+})
+
+test_that("a direct-seeded column renders with its own answer selectable", {
+  meta <- dg_identifies_option_meta()
+  allowed <- q1_identifies_choices(attested = TRUE)
+  shown <- Filter(function(m) m$value %in% allowed, meta)
+  expect_true("direct" %in% vapply(shown, function(m) m$value, character(1)))
 })
 
 test_that("disclosure help uses the attested direct-identifier framing copy", {

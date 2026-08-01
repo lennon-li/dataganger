@@ -38,17 +38,19 @@ dg_class_to_role <- function(cls) {
 
 #' Question-1 (identifies axis) choices.
 #'
-#' After the no-direct-identifier attestation, `direct` is removed because it
-#' would contradict the attestation.
+#' All three choices are always offered, including after the
+#' no-direct-identifier attestation. Hiding `direct` when attested made a
+#' column's own state unrepresentable in its control: columns seeded as direct
+#' rendered with no option selected and no "needs an answer" styling, so the
+#' user could neither see nor change the classification that decides whether
+#' the column is dropped. An attestation that contradicts a column-level answer
+#' is surfaced as a warning instead of by removing the answer.
+#'
+#' @param attested Retained for call-site compatibility; no longer filters.
 #' @keywords internal
 #' @noRd
-q1_identifies_choices <- function(attested) {
-  choices <- c("none", "combination", "direct")
-  if (isTRUE(attested)) {
-    choices[choices != "direct"]
-  } else {
-    choices
-  }
+q1_identifies_choices <- function(attested = FALSE) {
+  c("none", "combination", "direct")
 }
 
 
@@ -498,9 +500,20 @@ mod_roles_server <- function(id, state) {
       roles$user_identifies[[orig_row]] <- val
       roles$identifies[[orig_row]]      <- val
       roles <- dg_sync_roles_axes(roles)
-      roles$simulation[[orig_row]] <- dg_derived_action_axes(
-        roles$identifies[[orig_row]], roles$sensitive[[orig_row]]
-      )
+      # Answering Q1 re-derives the action, because Q1 *is* the drop decision:
+      # choosing "direct" means drop. But an explicit action the user picked
+      # themselves wins -- re-deriving over it is what silently discarded
+      # keep-decisions before.
+      chosen <- if ("user_simulation" %in% names(roles)) {
+        roles$user_simulation[[orig_row]]
+      } else {
+        NA_character_
+      }
+      if (is.na(chosen) || !nzchar(chosen)) {
+        roles$simulation[[orig_row]] <- dg_derived_action_axes(
+          roles$identifies[[orig_row]], roles$sensitive[[orig_row]]
+        )
+      }
       roles
     }
 
@@ -509,16 +522,25 @@ mod_roles_server <- function(id, state) {
       val_bool <- identical(val, "yes")
       roles$user_sensitive[[orig_row]] <- val_bool
       roles$sensitive[[orig_row]]      <- val_bool
-      roles <- dg_sync_roles_axes(roles)
-      roles$simulation[[orig_row]] <- dg_derived_action_axes(
-        roles$identifies[[orig_row]], roles$sensitive[[orig_row]]
-      )
-      roles
+      # Sensitivity does not decide whether a column is kept or dropped, so it
+      # must not touch `simulation`. It used to re-derive the action here, which
+      # silently converted an explicit keep (pass_through/scramble) into "drop"
+      # for any column seeded as a direct identifier -- and answering Q2 is
+      # mandatory, so that fired for effectively every such column.
+      dg_sync_roles_axes(roles)
     }
 
     apply_simulation_change <- function(roles, orig_row, val) {
       if (!val %in% SIMULATION_OPTIONS) return(roles)
       roles$simulation[[orig_row]] <- val
+      # Record the action as a user override, alongside user_role /
+      # user_identifies / user_sensitive. Without this the choice lives only in
+      # the derived `simulation` column and any later re-derivation silently
+      # discards it.
+      if (!"user_simulation" %in% names(roles)) {
+        roles$user_simulation <- NA_character_
+      }
+      roles$user_simulation[[orig_row]] <- val
       roles
     }
 
@@ -896,13 +918,15 @@ mod_roles_server <- function(id, state) {
               )
             )
           ),
+          # Q1 and Q2 share one cell, stacked vertically, so the disclosure
+          # questions cost one column of horizontal space instead of two.
           shiny::tags$td(
             style = "min-width:260px; padding:4px 8px;",
-            make_identifies_select(orig_row, r$user_identifies[[1]], session$ns)
-          ),
-          shiny::tags$td(
-            style = "min-width:120px; padding:4px 8px;",
-            make_sensitive_select(orig_row, r$user_sensitive[[1]], session$ns)
+            shiny::tags$div(
+              style = "display:flex; flex-direction:column; gap:4px;",
+              make_identifies_select(orig_row, r$user_identifies[[1]], session$ns),
+              make_sensitive_select(orig_row, r$user_sensitive[[1]], session$ns)
+            )
           ),
           shiny::tags$td(
             style = "min-width:320px; padding:6px 8px;",
@@ -930,10 +954,17 @@ mod_roles_server <- function(id, state) {
                 )
               )
             ),
-            shiny::tags$th(style = "width:22%; padding:6px 8px;", "Column"),
-            shiny::tags$th(style = "width:27%; padding:6px 8px;", "Points to a person? (Q1)"),
-            shiny::tags$th(style = "width:12%; padding:6px 8px;", "Sensitive? (Q2)"),
-            shiny::tags$th(style = "width:39%; padding:6px 8px;", "Action override")
+            shiny::tags$th(style = "width:24%; padding:6px 8px;", "Column"),
+            shiny::tags$th(
+              style = "width:32%; padding:6px 8px;",
+              "Points to a person? (Q1)",
+              shiny::tags$br(),
+              shiny::tags$span(
+                style = "font-weight:normal; color:var(--fg-muted);",
+                "Sensitive? (Q2)"
+              )
+            ),
+            shiny::tags$th(style = "width:44%; padding:6px 8px;", "Action override")
           )
         ),
         shiny::tags$tbody(rows)
@@ -1007,12 +1038,28 @@ mod_roles_server <- function(id, state) {
             shiny::tags$ul(lapply(worst_lines, shiny::tags$li))
           )
         },
-        if (length(direct)) {
+        # Report what is *actually* dropped, from the effective action -- not
+        # from disclosure_role. A direct identifier the user chose to keep
+        # (pass_through/scramble) stays in the output, and saying otherwise
+        # here would misreport the disclosure.
+        local({
+          treatment <- dg_role_treatment(roles)
+          dropped <- intersect(names(treatment)[treatment %in% "drop"], names(data))
+          if (!length(dropped)) return(NULL)
           shiny::tags$div(
-            style = "font-size:12px; color:var(--fg-muted); margin-top:4px;",
-            sprintf("Direct identifiers removed from output: %s", paste(direct, collapse = ", "))
+            class = "banner risk",
+            style = "margin-top:6px; font-size:12px;",
+            shiny::tags$strong(sprintf(
+              "\u26a0 %d column(s) will be removed from the output: ",
+              length(dropped)
+            )),
+            paste(dropped, collapse = ", "),
+            shiny::tags$div(
+              style = "font-weight:normal; margin-top:2px;",
+              "Set Action override to keep a column instead."
+            )
           )
-        }
+        })
       )
     })
 
