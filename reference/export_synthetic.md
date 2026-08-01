@@ -22,6 +22,7 @@ export_synthetic(
   fail_on_exact_match = FALSE,
   include_report = TRUE,
   kanon_acknowledged = FALSE,
+  exact_match_acknowledged = FALSE,
   include_dictionary = TRUE,
   code_readiness = NULL,
   compact = FALSE,
@@ -108,6 +109,14 @@ export_synthetic(
   bundle whose k-anonymity backstop was infeasible. Interactive UI
   export uses this to clear the bundle blocker; non-interactive exports
   leave it `FALSE`.
+
+- exact_match_acknowledged:
+
+  Logical. Records whether a human explicitly acknowledged exporting a
+  bundle in which synthetic rows reproduce real records verbatim,
+  including values marked sensitive. Interactive UI export sets this
+  only when the user ticks the override; non-interactive exports leave
+  it `FALSE`.
 
 - include_dictionary:
 

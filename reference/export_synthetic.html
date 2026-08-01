@@ -67,6 +67,7 @@ zip archive.</p>
 <span>  fail_on_exact_match <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_report <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  kanon_acknowledged <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  exact_match_acknowledged <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_dictionary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  code_readiness <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  compact <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -149,6 +150,14 @@ the report is skipped with a message instead of an error.</p></dd>
 acknowledged exporting a bundle whose k-anonymity backstop was infeasible.
 Interactive UI export uses this to clear the bundle blocker; non-interactive
 exports leave it <code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-exact-match-acknowledged">exact_match_acknowledged<a class="anchor" aria-label="anchor" href="#arg-exact-match-acknowledged"></a></dt>
+<dd><p>Logical. Records whether a human explicitly
+acknowledged exporting a bundle in which synthetic rows reproduce real
+records verbatim, including values marked sensitive. Interactive UI export
+sets this only when the user ticks the override; non-interactive exports
+leave it <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-include-dictionary">include_dictionary<a class="anchor" aria-label="anchor" href="#arg-include-dictionary"></a></dt>

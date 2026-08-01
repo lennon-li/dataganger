@@ -82,6 +82,12 @@ An S3 object of class `dataganger_roles`, a tibble with columns:
 
   Justification for the auto-assigned disclosure role.
 
+## Details
+
+Columns whose name matches a postal-code pattern (postal, zip, postcode,
+plz, cep, pin_code) are flagged as `"postal code"` with a
+quasi-identifier disclosure default.
+
 ## Examples
 
 ``` r
