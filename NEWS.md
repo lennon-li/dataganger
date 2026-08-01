@@ -1,5 +1,38 @@
 # dataganger 0.7.2
 
+*   Fix silent data loss on the Configure step: a column you had explicitly
+    kept (Action = pass through or scramble) was reset to `drop` as soon as
+    you answered question 2 (Is it sensitive?). Sensitivity is not a keep/drop
+    decision, but the question-2 handler re-derived the column action anyway,
+    overwriting the choice. Because question 2 is mandatory, this affected
+    effectively every column detected as a direct identifier. Explicit column
+    actions are now recorded as a sticky override and are no longer clobbered
+    by either disclosure question.
+
+*   Question 1 on the Configure step always offers "Yes, it identifies a
+    person on its own". Previously, attesting at upload that the file held no
+    direct identifiers removed that option, which left any column detected as
+    a direct identifier displaying no answer at all, with no way to correct
+    it. Answering "yes" still drops the column, by design, and now says so.
+
+*   The Configure step stacks questions 1 and 2 in a single column to save
+    horizontal space, and the drop notice is now driven by the effective
+    column action rather than the disclosure role, so a direct identifier you
+    chose to keep is no longer reported as removed.
+
+*   New "Exact matches" tab in the data preview, shown when synthetic rows
+    reproduce a real record verbatim. It lists one entry per row and column
+    involved, with the row numbers in both tables and whether the column was
+    marked sensitive in question 2. The Original and Synthetic previews now
+    carry a row-number column so those references can be located.
+
+*   Rows reproduced verbatim are tinted amber, or red when they expose a value
+    marked sensitive. Red rows block the browser export: the bundle cannot be
+    downloaded until a regeneration clears them, after which an explicit
+    acknowledgment is required and is recorded in `agent/manifest.json` as
+    `exact_match_acknowledged`. `export_synthetic()` gains a matching
+    `exact_match_acknowledged` argument, defaulting to `FALSE`.
+
 *   Fix CRAN policy violation: `rmarkdown::render()` now passes
     `intermediates_dir = tempdir()` so knitr writes intermediate files to the
     R session's temporary directory rather than to the installed package

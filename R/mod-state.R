@@ -51,6 +51,12 @@ mod_state_server <- function(id) {
       compare_selected_var = NULL,
       privacy = NULL,
       seed_used = NULL,
+      # Number of synthesis runs in this session. The exact-match export gate
+      # blocks outright on the first run and only offers the acknowledged
+      # override once the user has actually tried regenerating, so a run that
+      # cannot be cleared (low-cardinality data, where every synthetic row
+      # collides by construction) does not lock the user out permanently.
+      generation_count = 0L,
       nav_request = NULL,
       active_step = "upload",
       attested_no_direct = FALSE,

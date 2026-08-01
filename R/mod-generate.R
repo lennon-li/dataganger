@@ -505,6 +505,7 @@ mod_generate_server <- function(id, state) {
       spec_with_seed$seed <- seed
       state$kanon_acknowledged <- FALSE
       state$kanon_escape_routes <- NULL
+      state$generation_count <- (state$generation_count %||% 0L) + 1L
       run_started_at(Sys.time())
       run_seed(seed)
       dg_log(sprintf(

@@ -32,6 +32,7 @@ mod_export_ui <- function(id) {
     stale_banner_ui("export", ns = ns),
     shiny::tags$div(class = "double-rule"),
     shiny::uiOutput(ns("export_summary")),
+    shiny::uiOutput(ns("exact_match_export_gate")),
     shiny::uiOutput(ns("kanon_export_gate")),
     shiny::tags$div(
       class = "card",
@@ -122,6 +123,89 @@ mod_export_server <- function(id, state) {
       )
     })
 
+    # Exact-match detail for the export gate. Computed on the same inputs and
+    # via the same helper the data panel uses, so the gate and the "Exact
+    # matches" tab can never disagree about what is blocking.
+    exact_match_detail_r <- shiny::reactive({
+      orig <- state$raw_data
+      syn <- state$synthetic
+      if (is.null(orig) || is.null(syn)) {
+        return(NULL)
+      }
+      roles <- state$generated_roles %||% state$roles
+      role_map <- NULL
+      if (!is.null(roles) && "variable" %in% names(roles) &&
+          "recommended_role" %in% names(roles)) {
+        role_map <- stats::setNames(roles$recommended_role, roles$variable)
+      }
+      exact_match_detail(orig, dg_original_names(syn), roles, role_map)
+    })
+
+    # Number of reproduced rows exposing a sensitive value. Non-zero blocks the
+    # browser export.
+    exact_match_blockers <- function() {
+      exact_match_sensitive_count(exact_match_detail_r())
+    }
+
+    output$exact_match_export_gate <- shiny::renderUI({
+      n_red <- exact_match_blockers()
+      if (n_red == 0L) {
+        return(NULL)
+      }
+
+      # Only offer the override once the user has regenerated at least once.
+      # Some datasets (few columns, all low-cardinality) collide by
+      # construction and no seed will clear them -- without this the user
+      # would be locked out of their own export.
+      may_override <- (state$generation_count %||% 0L) >= 2L
+
+      shiny::tags$div(
+        class = "card",
+        style = "margin-top:12px; border-left:4px solid var(--danger-500, #dc2626);",
+        shiny::tags$div(
+          class = "card-header",
+          shiny::tags$span(class = "title", "Exact matches on sensitive columns"),
+          shiny::tags$span(class = "sub", "export blocked")
+        ),
+        shiny::tags$p(
+          style = "margin-top:8px;",
+          sprintf(
+            paste0(
+              "%d synthetic row(s) reproduce a real record verbatim, including ",
+              "at least one value you marked sensitive. See the Exact matches ",
+              "tab in the data preview for the exact rows and columns."
+            ),
+            n_red
+          )
+        ),
+        if (may_override) {
+          shiny::tagList(
+            shiny::tags$p(
+              class = "help",
+              paste0(
+                "Regenerating has not cleared these. With few, low-cardinality ",
+                "columns some collisions are unavoidable. You can proceed, but ",
+                "the decision is recorded in the bundle manifest."
+              )
+            ),
+            shiny::checkboxInput(
+              session$ns("exact_match_acknowledged"),
+              label = paste0(
+                "I understand that this output reproduces real records ",
+                "including sensitive values, and I still want to export it."
+              ),
+              value = FALSE
+            )
+          )
+        } else {
+          shiny::tags$p(
+            class = "help",
+            "Go back to Generate and regenerate with a new seed."
+          )
+        }
+      )
+    })
+
     output$kanon_export_gate <- shiny::renderUI({
       kanon <- state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE)
       if (is.null(kanon) || !isTRUE(kanon$infeasible)) {
@@ -173,6 +257,41 @@ mod_export_server <- function(id, state) {
         )
       }
 
+      # Reproduced rows that expose a sensitive value block the export. Before
+      # the user has regenerated there is no override at all; afterwards an
+      # explicit acknowledgment is required and is recorded in the manifest.
+      n_red <- shiny::isolate(exact_match_blockers())
+      exact_match_acknowledged <- isTRUE(shiny::isolate(input$exact_match_acknowledged))
+      if (n_red > 0L) {
+        may_override <- (shiny::isolate(state$generation_count) %||% 0L) >= 2L
+        if (!may_override) {
+          stop(
+            sprintf(
+              paste0(
+                "%d synthetic row(s) reproduce a real record verbatim including ",
+                "sensitive values. Regenerate with a new seed before exporting."
+              ),
+              n_red
+            ),
+            call. = FALSE
+          )
+        }
+        if (!exact_match_acknowledged) {
+          stop(
+            sprintf(
+              paste0(
+                "Export requires explicit acknowledgment because %d synthetic ",
+                "row(s) reproduce real records including sensitive values."
+              ),
+              n_red
+            ),
+            call. = FALSE
+          )
+        }
+      } else {
+        exact_match_acknowledged <- FALSE
+      }
+
       export_roles <- shiny::isolate(state$generated_roles %||% state$roles)
       if (is.null(export_roles) && !is.null(state$raw_data)) {
         export_roles <- detect_roles(state$raw_data)
@@ -191,7 +310,8 @@ mod_export_server <- function(id, state) {
         fail_on_exact_match = FALSE,
         roles = export_roles,
         include_original_names = use_original_names(),
-        kanon_acknowledged = kanon_acknowledged
+        kanon_acknowledged = kanon_acknowledged,
+        exact_match_acknowledged = exact_match_acknowledged
       )
 
       zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))

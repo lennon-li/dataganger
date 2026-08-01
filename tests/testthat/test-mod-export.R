@@ -220,3 +220,104 @@ test_that("export module records acknowledgment and clears blockers once approve
   expect_true(isTRUE(manifest$kanon$acknowledged))
   expect_length(manifest$blockers, 0L)
 })
+
+# --- Exact-match export gate -------------------------------------------------
+
+# 30 rows clears the >= 20 threshold in exact_row_match_flags(); `dx` is marked
+# sensitive in question 2, so the reproduced rows expose a sensitive value.
+exact_match_gate_state <- function(generation_count = 1L, n_match = 2L) {
+  original <- data.frame(
+    a  = sprintf("%02d", 1:30),
+    dx = rep(c("flu", "cold"), 15),
+    stringsAsFactors = FALSE
+  )
+  synthetic <- data.frame(
+    a  = sprintf("%02d", 31:60),
+    dx = rep(c("cold", "flu"), 15),
+    stringsAsFactors = FALSE
+  )
+  if (n_match > 0) {
+    rows <- seq_len(n_match)
+    synthetic[rows, ] <- original[rows, ]
+  }
+
+  shiny::reactiveValues(
+    synthetic = synthetic,
+    raw_data = original,
+    roles = data.frame(
+      variable = c("a", "dx"), sensitive = c(FALSE, TRUE),
+      stringsAsFactors = FALSE
+    ),
+    spec = synth_spec(purpose = "development", seed = 1L),
+    comparison = NULL,
+    privacy = NULL,
+    seed_used = 1L,
+    generation_count = generation_count,
+    nav_request = NULL,
+    stale = list(synthesis = FALSE, comparison = FALSE, export = FALSE)
+  )
+}
+
+test_that("exact matches on sensitive columns block the export on the first run", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 1L)
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    expect_equal(exact_match_blockers(), 2L)
+
+    gate <- paste(as.character(output$exact_match_export_gate), collapse = "\n")
+    expect_match(gate, "Exact matches on sensitive columns")
+    expect_match(gate, "regenerate with a new seed", ignore.case = TRUE)
+    # No override is offered until the user has actually regenerated.
+    expect_false(grepl("exact_match_acknowledged", gate, fixed = TRUE))
+
+    expect_error(build_export(tempfile()), "Regenerate with a new seed")
+  })
+})
+
+test_that("the override appears only after a regeneration, and must be ticked", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 2L)
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+
+    gate <- paste(as.character(output$exact_match_export_gate), collapse = "\n")
+    expect_match(gate, "exact_match_acknowledged")
+
+    # Offered but not ticked: still blocked.
+    expect_error(build_export(tempfile()), "requires explicit acknowledgment")
+  })
+})
+
+test_that("no sensitive exact matches means no gate and no block", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 1L, n_match = 0L)
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    expect_equal(exact_match_blockers(), 0L)
+    expect_null(output$exact_match_export_gate)
+  })
+})
+
+test_that("exact matches on non-sensitive columns do not block the export", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 1L)
+  # Same reproduced rows, but nothing is marked sensitive in question 2.
+  state$roles <- data.frame(
+    variable = c("a", "dx"), sensitive = c(FALSE, FALSE),
+    stringsAsFactors = FALSE
+  )
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    expect_equal(exact_match_blockers(), 0L)
+    expect_null(output$exact_match_export_gate)
+  })
+})

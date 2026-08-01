@@ -62,25 +62,26 @@ mod_data_panel_server <- function(id, state) {
       active_tab("real")
     })
 
-    # Per-row exact-match flags (which original rows are reproduced verbatim in
-    # the synthetic output, and which synthetic rows are verbatim copies).
-    # Memoised: recomputed only when the data or roles change, not on every
+    # Per-row exact-match detail: which rows are reproduced verbatim, at what
+    # severity (1 = match, 2 = match exposing a value the user marked sensitive
+    # in question 2), plus the per-column breakdown behind the Exact matches
+    # tab. Memoised: recomputed only when the data or roles change, not on every
     # tab switch or table page. NULL until synthetic data exists. Uses the same
     # role_map (recommended_role) and original-name alignment as the EXACT
     # MATCHES stat so the highlight and the count always agree.
-    exact_match_flags <- shiny::reactive({
+    exact_match_detail_r <- shiny::reactive({
       orig <- state$raw_data
       syn <- state$synthetic
       if (is.null(orig) || is.null(syn)) {
         return(NULL)
       }
-      roles <- state$roles
+      roles <- state$generated_roles %||% state$roles
       role_map <- NULL
       if (!is.null(roles) && "variable" %in% names(roles) &&
           "recommended_role" %in% names(roles)) {
         role_map <- stats::setNames(roles$recommended_role, roles$variable)
       }
-      exact_row_match_flags(orig, dg_original_names(syn), role_map)
+      exact_match_detail(orig, dg_original_names(syn), roles, role_map)
     })
 
     output$dp_name <- shiny::renderUI({
@@ -107,7 +108,7 @@ mod_data_panel_server <- function(id, state) {
       has_synth <- !is.null(state$synthetic)
       tab       <- active_tab()
 
-      real_active  <- tab != "synth"
+      real_active  <- !tab %in% c("synth", "matches")
       synth_active <- tab == "synth"
 
       real_btn <- shiny::tags$button(
@@ -143,10 +144,35 @@ mod_data_panel_server <- function(id, state) {
         synth_lbl
       )
 
+      # Exact matches tab: only meaningful once synthetic data exists, and only
+      # shown when there is something to look at, so a clean run does not carry
+      # a permanently empty tab.
+      detail <- exact_match_detail_r()
+      n_match <- if (is.null(detail)) 0L else sum(detail$synthetic_severity > 0L)
+      matches_btn <- NULL
+      if (has_synth && n_match > 0L) {
+        n_red <- exact_match_sensitive_count(detail)
+        matches_btn <- shiny::tags$button(
+          id      = session$ns("tab_matches"),
+          class   = paste0(
+            "dp-tab matches",
+            if (identical(tab, "matches")) " active" else "",
+            if (n_red > 0L) " danger" else ""
+          ),
+          onclick = sprintf(
+            "Shiny.setInputValue('%s', 'matches', {priority:'event'})",
+            session$ns("active_tab")
+          ),
+          shiny::tags$span(class = "dot"),
+          sprintf("Exact matches (%d)", n_match)
+        )
+      }
+
       shiny::tags$div(
         class = "dp-tabs",
         real_btn,
-        synth_btn
+        synth_btn,
+        matches_btn
       )
     })
 
@@ -175,6 +201,50 @@ mod_data_panel_server <- function(id, state) {
           shiny::tags$div(
             class = "dp-scroll",
             DT::DTOutput(session$ns("dp_compare_table"), height = "auto")
+          )
+        ))
+      }
+
+      # Exact matches tab: the per-column breakdown of every reproduced row.
+      if (identical(active_tab(), "matches") && !is.null(state$synthetic)) {
+        detail <- exact_match_detail_r()
+        n_match <- if (is.null(detail)) 0L else sum(detail$synthetic_severity > 0L)
+        n_red <- exact_match_sensitive_count(detail)
+        note <- if (n_red > 0L) {
+          shiny::tags$div(
+            class = "banner danger",
+            style = "margin:8px 0;",
+            sprintf(
+              paste0(
+                "\u26a0 %d of %d reproduced row(s) expose a value you marked ",
+                "sensitive. Regenerate before exporting."
+              ),
+              n_red, n_match
+            )
+          )
+        } else {
+          shiny::tags$div(
+            class = "banner risk",
+            style = "margin:8px 0;",
+            sprintf(
+              paste0(
+                "%d synthetic row(s) reproduce a real record verbatim. No ",
+                "sensitive value is exposed, so export is not blocked."
+              ),
+              n_match
+            )
+          )
+        }
+        return(shiny::tagList(
+          note,
+          shiny::tags$div(
+            class = "dp-scroll",
+            DT::DTOutput(session$ns("dp_matches_table"), height = "auto")
+          ),
+          shiny::tags$div(
+            class = "dp-footer",
+            shiny::tags$span(sprintf("%d row \u00d7 column pair(s)", nrow(detail$breakdown))),
+            shiny::tags$span("row numbers match the Original / Synthetic tabs")
           )
         ))
       }
@@ -249,24 +319,30 @@ mod_data_panel_server <- function(id, state) {
         }
       }
 
-      # Exact-match highlight: append a hidden 0/1 flag column marking rows that
+      # Explicit row-number column rather than DT rownames: it survives the
+      # column filters and paging unchanged, so the number the user reads here
+      # is the same number the Exact matches tab points at.
+      df <- cbind(`#` = seq_len(nrow(df)), df)
+
+      # Exact-match highlight: append a hidden severity column marking rows that
       # are (Synthetic tab) verbatim copies of an original row, or (Original
-      # tab) reproduced verbatim in the synthetic output. Hidden via columnDefs;
-      # drives the red row style below.
-      match_vec <- rep(FALSE, nrow(df))
-      flags <- exact_match_flags()
-      if (!is.null(flags)) {
-        fv <- if (active_tab() == "synth" && !is.null(state$synthetic)) {
-          flags$synthetic
+      # tab) reproduced verbatim in the synthetic output. 1 = reproduced,
+      # 2 = reproduced *and* exposing a value marked sensitive in question 2.
+      # Hidden via columnDefs; drives the amber/red row style below.
+      sev_vec <- rep(0L, nrow(df))
+      detail <- exact_match_detail_r()
+      if (!is.null(detail)) {
+        sv <- if (active_tab() == "synth" && !is.null(state$synthetic)) {
+          detail$synthetic_severity
         } else {
-          flags$original
+          detail$original_severity
         }
-        if (length(fv) == nrow(df)) {
-          match_vec <- fv
+        if (length(sv) == nrow(df)) {
+          sev_vec <- sv
         }
       }
       flag_col_index <- ncol(df)  # 0-based; rownames = FALSE, flag appended last
-      df[[".exact_match"]] <- as.integer(match_vec)
+      df[[".exact_match"]] <- as.integer(sev_vec)
 
       dt <- DT::datatable(
         df,
@@ -314,17 +390,69 @@ mod_data_panel_server <- function(id, state) {
         }
       }
 
-      # Tint exact-match rows red -- the same danger cue as the EXACT MATCHES
-      # stat box. Semi-transparent so it reads on light and dark backgrounds.
+      # Tint reproduced rows: red when the row exposes a sensitive value (the
+      # same danger cue as the EXACT MATCHES stat box, and the condition that
+      # blocks export), amber when the row is reproduced but discloses nothing
+      # marked sensitive. Semi-transparent so both read on light and dark
+      # backgrounds.
       dt <- DT::formatStyle(
         dt, ".exact_match",
         target          = "row",
-        backgroundColor = DT::styleEqual(1L, "rgba(220, 38, 38, 0.16)")
+        backgroundColor = DT::styleEqual(
+          c(1L, 2L),
+          c("rgba(217, 119, 6, 0.14)", "rgba(220, 38, 38, 0.16)")
+        )
       )
 
       dt
     })
 
+
+    # One row per (reproduced row x match column). A match is a whole-row
+    # collision, so every match column participates -- listing them per column
+    # is what lets the user jump to a cell instead of scanning a wide table.
+    output$dp_matches_table <- DT::renderDT({
+      shiny::req(state$raw_data, state$synthetic)
+      detail <- exact_match_detail_r()
+      shiny::req(detail)
+      b <- detail$breakdown
+      shiny::req(nrow(b) > 0)
+
+      out <- data.frame(
+        Column      = b$column,
+        `Synth row` = b$synthetic_row,
+        `Orig row`  = b$original_row,
+        Sensitive   = ifelse(b$sensitive, "Yes", "No"),
+        Value       = ifelse(is.na(b$value), "\u2014", b$value),
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      )
+      # Hidden severity flag: a sensitive column with an actual value is what
+      # makes the row red and blocks export; a blank one does not.
+      out[[".sens"]] <- as.integer(b$sensitive & !is.na(b$value))
+
+      dt <- DT::datatable(
+        out,
+        filter  = "top",
+        options = list(
+          dom          = "tp",
+          ordering     = FALSE,
+          scrollX      = TRUE,
+          pageLength   = 24L,
+          lengthChange = FALSE,
+          columnDefs   = list(list(visible = FALSE, targets = ncol(out) - 1L)),
+          language     = list(processing = "", emptyTable = "", zeroRecords = "")
+        ),
+        rownames  = FALSE,
+        class     = "compact",
+        selection = "none"
+      )
+      DT::formatStyle(
+        dt, ".sens",
+        target          = "row",
+        backgroundColor = DT::styleEqual(1L, "rgba(220, 38, 38, 0.16)")
+      )
+    })
 
     output$dp_compare_table <- DT::renderDT({
       shiny::req(

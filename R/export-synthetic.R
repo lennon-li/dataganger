@@ -39,6 +39,11 @@
 #'   acknowledged exporting a bundle whose k-anonymity backstop was infeasible.
 #'   Interactive UI export uses this to clear the bundle blocker; non-interactive
 #'   exports leave it `FALSE`.
+#' @param exact_match_acknowledged Logical. Records whether a human explicitly
+#'   acknowledged exporting a bundle in which synthetic rows reproduce real
+#'   records verbatim, including values marked sensitive. Interactive UI export
+#'   sets this only when the user ticks the override; non-interactive exports
+#'   leave it `FALSE`.
 #' @param include_dictionary Deprecated, ignored.
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
@@ -72,6 +77,7 @@ export_synthetic <- function(synthetic,
                              fail_on_exact_match = FALSE,
                              include_report = TRUE,
                              kanon_acknowledged = FALSE,
+                             exact_match_acknowledged = FALSE,
                              include_dictionary = TRUE,
                              code_readiness = NULL,
                              compact = FALSE,
@@ -117,6 +123,10 @@ export_synthetic <- function(synthetic,
 
   if (!is.logical(kanon_acknowledged) || length(kanon_acknowledged) != 1) {
     cli::cli_abort("{.arg kanon_acknowledged} must be TRUE or FALSE")
+  }
+
+  if (!is.logical(exact_match_acknowledged) || length(exact_match_acknowledged) != 1) {
+    cli::cli_abort("{.arg exact_match_acknowledged} must be TRUE or FALSE")
   }
 
   if (!is.logical(include_dictionary) || length(include_dictionary) != 1) {
@@ -243,7 +253,8 @@ export_synthetic <- function(synthetic,
     include_original_names = include_original_names,
     original               = original,
     roles                  = export_roles,
-    kanon_acknowledged     = kanon_acknowledged
+    kanon_acknowledged     = kanon_acknowledged,
+    exact_match_acknowledged = exact_match_acknowledged
   )
 
   if (identical(format, "zip")) {
@@ -974,7 +985,8 @@ html_escape <- function(x) {
 
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
                            include_original_names = TRUE, original = NULL, roles = NULL,
-                           kanon_acknowledged = FALSE) {
+                           kanon_acknowledged = FALSE,
+                           exact_match_acknowledged = FALSE) {
   files <- list.files(bundle_dir, full.names = TRUE, recursive = TRUE, all.files = FALSE, no.. = TRUE)
   rel_files <- sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE))
   keep <- rel_files != "agent/manifest.json"
@@ -1026,6 +1038,10 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     spec = spec_for_manifest,
     spec_hash = spec_hash,
     exact_row_matches = exact_row_matches,
+    # Records that a human explicitly accepted an export in which synthetic
+    # rows reproduce real records including sensitive values. FALSE whenever
+    # there was nothing to accept.
+    exact_match_acknowledged = isTRUE(exact_match_acknowledged),
     kanon = {
       if (is.null(kanon)) {
         list(
