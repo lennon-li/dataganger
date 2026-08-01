@@ -42,6 +42,11 @@ axes used by the Configure step: whether a column points to a person
 \code{disclosure_role} value is retained as derived compatibility metadata for
 existing synthesis/export/CLI paths.
 }
+\details{
+Columns whose name matches a postal-code pattern (postal, zip, postcode,
+plz, cep, pin_code) are flagged as \code{"postal code"} with a
+quasi-identifier disclosure default.
+}
 \examples{
 df <- data.frame(
   id   = 1:50,

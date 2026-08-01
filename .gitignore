@@ -7,6 +7,7 @@
 /doc/
 /Meta/
 /docs/
+.agent/
 .agents/
 .claude/
 .codex/
@@ -15,3 +16,5 @@
 .tokensave/
 dev/
 exec/
+*.Rcheck/
+..Rcheck/

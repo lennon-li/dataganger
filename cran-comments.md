@@ -1,7 +1,10 @@
-## Resubmission
+## Submission
 
-This release addresses the check failures reported for 0.6.1 on the CRAN
-check page (notified 2026-07-27, correction requested before 2026-08-21).
+This release does two things: it corrects the check failures reported for
+0.6.1 on the CRAN check page (notified 2026-07-27, correction requested before
+2026-08-21), and it ships the feature work accumulated since 0.6.1.
+
+## Corrections to the reported check failures
 
 **1. ERROR on r-devel-linux-x86_64-debian-clang, r-devel-linux-x86_64-debian-gcc,
 r-patched-linux-x86_64 and r-release-linux-x86_64 ("checking tests").**
@@ -17,7 +20,8 @@ manifest and CLI tests.
 intermediates are written to the session temporary directory. Verified by
 installing the package into a library made read-only with `chmod -R a-w` and
 confirming the full bundle is produced; the same probe reproduces the failure
-on 0.6.1.
+on 0.6.1. This was the only `rmarkdown::render()` / `knitr::knit()` call in the
+package, and an audit found no other writes outside `tempdir()`/`tempfile()`.
 
 **2. Additional issue (ATLAS).**
 
@@ -30,9 +34,38 @@ predictor and the outcome, so the model is well identified and the result is
 stable across platforms. No package code was changed for this: returning `NA`
 for a degenerate fit is the intended behaviour.
 
-This version also includes feature work accumulated since 0.6.1, most notably
-postal codes as a distinct semantic data type and quasi-identifier, and
-k-anonymity suppression-volume reporting. See NEWS.md.
+## User-visible changes since 0.6.1
+
+This release also contains substantial feature and disclosure-control work.
+The full list is in NEWS.md; the items most relevant to review are:
+
+**Breaking change — identifier columns are now scrambled by default rather
+than dropped.** A column classified as a direct or alphanumeric identifier
+defaults to `simulation = "scramble"`: it is kept in the output but
+de-identified, rather than silently removed. Dropping is now an explicit
+`simulation = "drop"`. Recipes relying on the previous drop-by-default
+behaviour will see the column present (scrambled) unless they set `drop`
+explicitly. This is documented under "Breaking changes" in NEWS.md.
+
+- New `postal_code` semantic type, treated as a quasi-identifier, with a
+  10-country format registry (CA, US, UK, AU, DE, FR, JP, IN, BR, NL) and two
+  per-column synthesis strategies: `generate` (format-valid values with no
+  source-value leakage) and `resample`. All recognition and generation is
+  local; the package makes no network calls.
+- Character-stored dates and times are now parsed and synthesised through the
+  date/datetime machinery and reformatted to the source pattern, instead of
+  falling through to categorical resampling, and take the same `quasi`
+  disclosure default as native `Date` columns.
+- Scrambling now de-identifies short numeric identifiers, which character
+  reordering alone could not change.
+- k-anonymity suppression *volume* (`suppressed_rows`, `suppressed_row_frac`)
+  is now reported in the `kanon` attribute, `manifest.json`, `human/human.md`
+  and `dataganger inspect`.
+- A simplified column-type taxonomy, bulk configuration for wide datasets, and
+  a batch of Shiny Configure/upload usability fixes.
+
+`.Rbuildignore` was also updated so development-only directories are excluded
+from the build.
 
 ## Test environments
 
@@ -47,15 +80,7 @@ k-anonymity suppression-volume reporting. See NEWS.md.
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
-
-**Note 1 — days since last update:**
-
-    checking CRAN incoming feasibility ... NOTE
-    Maintainer: 'Lennon Li <yeli@biostats.ai>'
-    Days since last update: 6
-
-The short interval is a direct response to the check failures reported above.
+0 errors | 0 warnings | 0 notes
 
 ## Downstream dependencies
 
