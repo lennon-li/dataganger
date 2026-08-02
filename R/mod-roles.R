@@ -273,32 +273,6 @@ mod_roles_ui <- function(id, embedded = FALSE) {
           style = "margin-left:auto; width:200px; padding:4px 8px; font-size:12px;"
         )
       ),
-      shiny::tags$div(
-        style = "margin:8px 0; display:flex; align-items:center; gap:10px;",
-        shiny::tags$label(
-          style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
-          shiny::tagList(
-            "Minimum ",
-            dg_privacy_term("k", "k"),
-            " for ",
-            dg_privacy_term("k-anonymity", "k_anonymity")
-          )
-        ),
-        shiny::numericInput(ns("k_anon"), label = NULL, value = 5, min = 2, step = 1,
-                            width = "80px"),
-        shiny::tags$span(
-          style = "font-size:12px; color:var(--fg-subtle);",
-          shiny::tagList(
-            "No ",
-            dg_privacy_term("quasi-identifier (QI)", "qi"),
-            " ",
-            dg_privacy_term("cell", "cell"),
-            " in the synthetic output will appear in fewer than ",
-            dg_privacy_term("k", "k"),
-            " rows."
-          )
-        )
-      ),
       type_action_legend_ui(),
       shiny::uiOutput(ns("disclosure_help")),
       shiny::uiOutput(ns("bulk_toolbar")),
@@ -1140,7 +1114,9 @@ mod_roles_server <- function(id, state) {
       if (is.null(roles) || is.null(data) || !"disclosure_role" %in% names(roles)) {
         return(NULL)
       }
-      k <- state$k_anon %||% 5
+      # k is owned by the Generate advanced slider now; the spec is the more
+      # authoritative of the two once one has been confirmed.
+      k <- state$spec$k_anon %||% state$k_anon %||% 5
       qi <- intersect(dg_kanon_columns(roles), names(data))
       direct <- intersect(roles$variable[roles$disclosure_role %in% "direct"], names(data))
 
@@ -1289,14 +1265,6 @@ mod_roles_server <- function(id, state) {
       roles <- apply_sensitive_change(roles, orig_row, as.character(change$value))
       roles_local(roles)
       state$roles <- roles
-      invisible(NULL)
-    })
-
-    shiny::observeEvent(input$k_anon, ignoreNULL = TRUE, {
-      k <- suppressWarnings(as.integer(input$k_anon))
-      if (is.na(k) || k < 2L) return(invisible(NULL))
-      if (!is.null(state$spec)) state$spec$k_anon <- k
-      state$k_anon <- k
       invisible(NULL)
     })
 

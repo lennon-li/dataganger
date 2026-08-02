@@ -457,7 +457,20 @@ mod_synthesis_controls_server <- function(id, state) {
           max = 30,
           value = preset$rare_level_min_n
         ),
-        setting_hint("Category values seen fewer than this many times count as rare, so they can be merged or suppressed to limit disclosure risk."),
+        setting_hint("Counts how often a single value appears in a single column. A value seen fewer times than this counts as rare, because the value itself can name someone."),
+        shiny::uiOutput(session$ns("rare_hint")),
+        shiny::sliderInput(
+          inputId = session$ns("k_anon"),
+          label = "Minimum group size",
+          min = 2,
+          max = 30,
+          value = preset$k_anon %||% 5
+        ),
+        # Deliberately contrasted with the rare-category threshold above: that
+        # one counts one value in one column, this one counts rows sharing a
+        # combination across the columns marked as identifying in combination.
+        setting_hint("Counts how many rows share the same combination of the columns you marked as identifying in combination. Combinations held by fewer rows than this are coarsened, then blanked."),
+        shiny::uiOutput(session$ns("kanon_hint")),
         shiny::checkboxInput(
           inputId = session$ns("coarsen_dates"),
           label = "Coarsen dates",
@@ -470,11 +483,6 @@ mod_synthesis_controls_server <- function(id, state) {
           value = isTRUE(preset$merge_rare)
         ),
         setting_hint("Combines infrequent category values into an 'other' group to reduce re-identification risk."),
-        shiny::p(
-          shiny::tags$strong("Free-text handling:"),
-          paste(preset$free_text_strategy)
-        ),
-        setting_hint("How free-text columns are treated. Set automatically by your objective."),
         shiny::selectInput(
           inputId = session$ns("preserve_missingness"),
           label = "Preserve missing values",
@@ -497,6 +505,131 @@ mod_synthesis_controls_server <- function(id, state) {
           type = "warning"
         )
       }
+    })
+
+    # Both sliders get a live readout of what the current value does to THIS
+    # dataset. The two settings are easy to confuse -- they share a default of
+    # 5 but one is univariate and the other is not -- so each readout names the
+    # thing it counts (values in a column vs combinations across columns).
+    hint_box <- function(...) {
+      shiny::tags$p(
+        class = "text-muted",
+        style = paste(
+          "margin-top:-6px;margin-bottom:14px;font-size:12px;",
+          "padding:6px 10px;border-left:2px solid var(--border, #d4d4d4);"
+        ),
+        ...
+      )
+    }
+
+    output$rare_hint <- shiny::renderUI({
+      data <- state$raw_data
+      thr  <- suppressWarnings(as.integer(input$rare_level_min_n))
+      if (is.null(data) || !nrow(data) || is.na(thr)) {
+        return(NULL)
+      }
+
+      is_cat <- vapply(data, function(col) {
+        is.character(col) || is.factor(col)
+      }, logical(1))
+      cat_cols <- names(data)[is_cat]
+      if (length(cat_cols) == 0L) {
+        return(hint_box(
+          "No text or category columns in this dataset, so this setting has ",
+          "nothing to act on."
+        ))
+      }
+
+      counts <- vapply(cat_cols, function(nm) {
+        tbl <- table(as.character(data[[nm]]), useNA = "no")
+        c(rare = sum(tbl < thr), total = length(tbl))
+      }, numeric(2))
+      n_rare  <- sum(counts["rare", ])
+      n_total <- sum(counts["total", ])
+      n_cols  <- sum(counts["rare", ] > 0)
+
+      roles <- state$roles
+      n_masked <- if (!is.null(roles) && "label_strategy" %in% names(roles)) {
+        sum(roles$label_strategy %in% "mask_rare", na.rm = TRUE)
+      } else {
+        0L
+      }
+
+      hint_box(
+        shiny::tags$strong(sprintf("At %d: ", thr)),
+        sprintf(
+          "%s of %s distinct values are rare, spread over %s of %s text or category %s. ",
+          format(n_rare, big.mark = ","), format(n_total, big.mark = ","),
+          n_cols, length(cat_cols),
+          if (length(cat_cols) == 1L) "column" else "columns"
+        ),
+        if (n_masked > 0L) {
+          sprintf(
+            "%s %s set to mask rare values, so each rare value there is replaced by a neutral placeholder. Any column not set to mask keeps its values unchanged.",
+            n_masked,
+            if (n_masked == 1L) "column is" else "columns are"
+          )
+        } else {
+          "No column is set to mask rare values, so nothing is replaced -- this threshold only feeds the privacy report. Set a column's action to 'Resample (rare levels masked)' on the Configure step to act on it."
+        }
+      )
+    })
+
+    output$kanon_hint <- shiny::renderUI({
+      data  <- state$raw_data
+      roles <- state$roles
+      k     <- suppressWarnings(as.integer(input$k_anon))
+      if (is.null(data) || !nrow(data) || is.null(roles) || is.na(k)) {
+        return(NULL)
+      }
+
+      qi <- intersect(dg_kanon_columns(roles), names(data))
+      if (length(qi) == 0L) {
+        return(hint_box(
+          "No columns are marked as identifying in combination, so this ",
+          "setting has nothing to act on. Mark them on the Configure step."
+        ))
+      }
+
+      res <- assess_kanonymity(data, qi, k = k)
+      # Combination count is derived here rather than read off
+      # res$worst_cells, which disclosure-risk.R caps at 10 rows for display.
+      # The separator only has to be unlikely in real values; this readout is
+      # informational and is not the enforcement path.
+      key <- do.call(paste, c(lapply(data[qi], function(col) {
+        col <- as.character(col)
+        col[is.na(col)] <- "<NA>"
+        col
+      }), sep = "|~|"))
+      combo_counts <- table(key)
+      n_combos <- length(combo_counts)
+      n_small  <- sum(combo_counts < k)
+
+      hint_box(
+        shiny::tags$strong(sprintf("At %d: ", k)),
+        sprintf(
+          "your %s combination %s (%s) %s %s distinct %s in this data. ",
+          length(qi),
+          if (length(qi) == 1L) "column" else "columns",
+          paste(utils::head(qi, 4L), collapse = ", "),
+          if (length(qi) > 4L) sprintf("and %d more form", length(qi) - 4L) else "form",
+          format(n_combos, big.mark = ","),
+          if (n_combos == 1L) "combination" else "combinations"
+        ),
+        if (n_small == 0L) {
+          "None are held by too few rows, so nothing will be coarsened or blanked."
+        } else {
+          sprintf(
+            "%s of them %s held by fewer than %d rows, covering %s of %s rows (%.0f%%). Those cells are coarsened first, and blanked if coarsening is not enough.",
+            format(n_small, big.mark = ","),
+            if (n_small == 1L) "is" else "are",
+            k,
+            format(res$n_below, big.mark = ","),
+            format(nrow(data), big.mark = ","),
+            res$pct_below
+          )
+        }
+      )
     })
 
     output$rows_hint <- shiny::renderUI({
@@ -579,6 +712,7 @@ mod_synthesis_controls_server <- function(id, state) {
           seed = seed_arg,
           acknowledge_risk = isTRUE(input$acknowledge_risk),
           rare_level_min_n = input$rare_level_min_n %||% preset$rare_level_min_n,
+          k_anon = input$k_anon %||% preset$k_anon %||% 5,
           coarsen_dates = isTRUE(input$coarsen_dates %||% preset$coarsen_dates),
           merge_rare = isTRUE(input$merge_rare %||% preset$merge_rare),
           free_text_strategy = preset$free_text_strategy,
@@ -626,6 +760,9 @@ mod_synthesis_controls_server <- function(id, state) {
       }
 
       state$spec <- spec
+      # Keeps the Configure page's k-anonymity readout in step with the slider,
+      # which now owns k. The Generate escape route writes both fields too.
+      state$k_anon <- spec$k_anon
       state$spec_confirmed <- (state$spec_confirmed %||% 0L) + 1L
       invisible(NULL)
     })
