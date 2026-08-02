@@ -103,7 +103,7 @@ test_that("profile_data() flags free-text columns", {
     "very_long_unique_text_for_testing_free_text_detection_number_%030d",
     1:30
   )
-  # 30 unique long strings, 10 NAs → n_distinct=30, nrow=40
+  # 30 unique long strings, 10 NAs -> n_distinct=30, nrow=40
   df <- data.frame(
     notes = c(long_strings, rep(NA_character_, 10)),
     stringsAsFactors = FALSE

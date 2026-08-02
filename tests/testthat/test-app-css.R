@@ -5,28 +5,46 @@ skip_if_not_installed("chromote")
 
 library(shinytest2)
 
+# Chrome cannot open its own sandbox inside a container or CI runner. Harmless
+# on a desktop, where a headless throwaway session does not need the sandbox.
+chromote::set_chrome_args(c(
+  chromote::default_chrome_args(),
+  "--no-sandbox",
+  "--disable-dev-shm-usage"
+))
+
 test_that("design system CSS loads and tokens are applied", {
   testthat::skip_if(
     dataganger:::synthesis_dev_loaded(),
     "shinytest2 subprocess requires an installed package; skipping under devtools::load_all()"
   )
+  # 60s because the app loads bslib, DT and the full module tree before it is
+  # ready, which exceeds 15s on a cold cache.
+  #
+  # Known limitation: on some Linux setups AppDriver still fails here with
+  # "Chromote: timed out waiting for response to command Page.navigate", and
+  # raising this timeout does not help -- a standalone ChromoteSession can
+  # navigate to the same running app, so the fault is in AppDriver's shiny
+  # subprocess plus chromote child-loop combination, not in the app. Use
+  # tests/manual/verify-app-browser.R to confirm the app in a real browser when
+  # this harness cannot start.
   app <- AppDriver$new(
     system.file("app", package = "dataganger"),
     name = "css-check",
     height = 800,
     width = 1200,
-    load_timeout = 15000
+    load_timeout = 60000
   )
   on.exit(app$stop())
 
-  # 1. CSS files served — check network resources loaded
+  # 1. CSS files served -- check network resources loaded
   html <- app$get_html("html")
   expect_true(grepl("www/colors_and_type.css", html),
               label = "colors_and_type.css link tag present in HTML")
   expect_true(grepl("www/shiny-app.css", html),
               label = "shiny-app.css link tag present in HTML")
 
-  # 2. Background token applied — body or #app background should be warm off-white
+  # 2. Background token applied -- body or #app background should be warm off-white
   bg <- app$get_js(
     "getComputedStyle(document.body).backgroundColor"
   )

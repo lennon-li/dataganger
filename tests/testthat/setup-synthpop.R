@@ -6,7 +6,7 @@
 #
 # Exception: a dedicated CI job sets DATAGANGER_TEST_SYNTHPOP=true to actually
 # exercise the synthpop path (with a job timeout as the hang guard). CRAN runs
-# the synthpop tests, so CI must too on at least one job — otherwise synthpop
+# the synthpop tests, so CI must too on at least one job -- otherwise synthpop
 # regressions stay invisible until CRAN sees them.
 if (isTRUE(as.logical(Sys.getenv("CI", "false"))) &&
     !isTRUE(as.logical(Sys.getenv("DATAGANGER_TEST_SYNTHPOP", "false")))) {

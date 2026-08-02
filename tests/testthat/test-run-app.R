@@ -5,7 +5,7 @@ test_that("run_app() errors cleanly when shiny is absent", {
     requireNamespace("shiny", quietly = TRUE) &&
       requireNamespace("bslib", quietly = TRUE) &&
       requireNamespace("DT", quietly = TRUE),
-    "shiny, bslib, and DT are installed — skipping absent-package test"
+    "shiny, bslib, and DT are installed -- skipping absent-package test"
   )
   expect_error(run_app())
 })
