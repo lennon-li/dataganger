@@ -88,9 +88,20 @@ mask_rare_category_labels <- function(x_obs, levs, tbl_nms, tbl_counts,
   rare_counts <- tbl_counts[rare_mask]
   rare_order <- order(-rare_counts, rare_vals, method = "radix")
   rare_vals <- rare_vals[rare_order]
-  placeholders <- paste("Other category", seq_along(rare_vals))
-  names(placeholders) <- rare_vals
 
+  occupied <- unique(c(levs, x_obs))
+  placeholder_numbers <- integer(length(rare_vals))
+  next_number <- 1L
+  for (i in seq_along(rare_vals)) {
+    while (paste("Other category", next_number) %in% occupied) {
+      next_number <- next_number + 1L
+    }
+    placeholder_numbers[[i]] <- next_number
+    occupied <- c(occupied, paste("Other category", next_number))
+    next_number <- next_number + 1L
+  }
+  placeholders <- paste("Other category", placeholder_numbers)
+  names(placeholders) <- rare_vals
   is_rare <- x_obs %in% rare_vals
   x_obs[is_rare] <- unname(placeholders[x_obs[is_rare]])
   level_idx <- match(rare_vals, levs)
