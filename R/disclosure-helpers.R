@@ -533,6 +533,226 @@ app_fail_safe_modal <- function(flagged, ns = shiny::NS(NULL)) {
   )
 }
 
+#' Replace disclosure jargon with plain language for user-facing strings.
+#'
+#' The disclosure-risk modal must not show terms users do not understand
+#' ("k-anonymity", "k-anon", "quasi-identifier"). Flag text built elsewhere
+#' (e.g. `privacy_check_post()`) can contain them, so it is passed through here
+#' at display time. This is a presentation-layer transform only: the source
+#' strings in other files are left untouched.
+#'
+#' @keywords internal
+#' @noRd
+dg_plain_language <- function(x) {
+  if (is.null(x)) {
+    return(x)
+  }
+  # Replace the longer forms first so their substrings are not mangled:
+  # "k-anon" is a prefix of "k-anonymity", "quasi-identifier" of the plural.
+  x <- gsub("quasi-identifiers", "grouping columns", x, ignore.case = TRUE)
+  x <- gsub("quasi-identifier", "grouping column", x, ignore.case = TRUE)
+  x <- gsub("k-anonymity", "group-size protection", x, ignore.case = TRUE)
+  x <- gsub("k-anon", "group-size", x, ignore.case = TRUE)
+
+  # The HIGH-severity flag privacy_check_post() raises when the target is
+  # missed reads "Synthetic output has a QI cell of size 3 (< k=5)", with the
+  # recommendation "review enforce_kanon settings". None of the forms above
+  # touch it: it says "QI", not "quasi-identifier", and "k=5", not
+  # "k-anonymity". That is the flag a user most needs to understand, so the
+  # abbreviation, the bare k notation, and the internal function name are
+  # translated too.
+  x <- gsub("QI cell", "group", x)
+  x <- gsub("\\bQIs\\b", "grouping columns", x)
+  x <- gsub("\\bQI\\b", "grouping column", x)
+  x <- gsub("review enforce_kanon settings",
+            "review the minimum group size setting", x)
+  x <- gsub("\\benforce_kanon\\b", "the minimum group size setting", x)
+  x <- gsub("\\(< *k *= *([0-9]+)\\)", "(fewer than the \\1 required)", x)
+  x <- gsub("\\bk *= *([0-9]+)", "a minimum group size of \\1", x)
+  x
+}
+
+#' Informational disclosure-risk modal shown on arrival at the Export step.
+#'
+#' Pure presentation: it briefs the user on the protections applied and the
+#' risks that remain, and grants nothing. The inline acknowledgment gates and
+#' the `build_export()` stops are untouched. User-facing copy describes what
+#' each protection DOES and avoids jargon; flag text from `privacy_check_post()`
+#' is passed through `dg_plain_language()` for the same reason.
+#'
+#' @param kanon The stored `kanon` attribute (or NULL). Fields used: `k`,
+#'   `infeasible`, `qi_cols`, `suppressed_rows`, `suppressed_row_frac`.
+#' @param n_exact Number of synthetic rows reproducing a source row exactly.
+#' @param n_sensitive Of those, the number exposing a populated sensitive value.
+#' @param privacy_flags A flags frame from `privacy_check_post()` (or NULL).
+#' @keywords internal
+#' @noRd
+disclosure_risk_modal <- function(kanon = NULL,
+                                  n_exact = 0L,
+                                  n_sensitive = 0L,
+                                  privacy_flags = NULL) {
+  section_style <- "margin-top:16px;"
+  label_style <- paste(
+    "font-weight:700; font-size:12px; text-transform:uppercase;",
+    "letter-spacing:.05em; color:var(--fg-muted, #6b7280); margin-bottom:6px;"
+  )
+
+  col_chips <- function(cols) {
+    if (length(cols) == 0L) {
+      return(shiny::tags$p(class = "help", "No columns were grouped."))
+    }
+    shiny::tagList(
+      shiny::tags$div(style = "margin-top:6px;", "Columns this applies to:"),
+      shiny::tags$div(
+        style = "display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;",
+        lapply(cols, function(col) shiny::tags$code(col))
+      )
+    )
+  }
+
+  k_section <- if (is.null(kanon)) {
+    shiny::tags$div(
+      style = section_style,
+      shiny::tags$div(style = label_style, "Group size protection"),
+      shiny::tags$p("No group-size protection was measured for this output.")
+    )
+  } else if (isTRUE(kanon$infeasible)) {
+    shiny::tags$div(
+      style = section_style,
+      shiny::tags$div(style = label_style, "Group size protection"),
+      shiny::tags$p(
+        "This protection could not be applied to this output. Some rows may ",
+        "still stand out because of the columns below."
+      ),
+      col_chips(kanon$qi_cols)
+    )
+  } else {
+    k <- kanon$k
+    sentence <- if (is.null(k) || length(k) != 1L || is.na(k)) {
+      paste(
+        "Every combination of the columns below appears in enough rows that",
+        "no individual row stands out."
+      )
+    } else {
+      sprintf(
+        paste(
+          "Every combination of the columns below appears at least %s times in",
+          "the synthetic data, so no individual row stands out."
+        ),
+        format(k, trim = TRUE)
+      )
+    }
+    suppressed_rows <- kanon$suppressed_rows %||% 0L
+    frac <- kanon$suppressed_row_frac %||% 0
+    blanked <- if (suppressed_rows > 0L) {
+      sprintf(
+        paste(
+          "To reach this, %d row(s) (%.1f%% of the data) had their values in",
+          "these columns blanked."
+        ),
+        suppressed_rows, 100 * frac
+      )
+    } else {
+      "No rows needed to be blanked to reach this."
+    }
+    shiny::tags$div(
+      style = section_style,
+      shiny::tags$div(style = label_style, "Group size protection"),
+      shiny::tags$p(sentence),
+      col_chips(kanon$qi_cols),
+      shiny::tags$p(class = "help", style = "margin-top:6px;", blanked)
+    )
+  }
+
+  exact_section <- shiny::tags$div(
+    style = section_style,
+    shiny::tags$div(style = label_style, "Exact copies of real records"),
+    shiny::tags$p(
+      sprintf("%d synthetic row(s) reproduce a real record exactly.", n_exact)
+    ),
+    shiny::tags$p(
+      if (n_sensitive > 0L) {
+        sprintf("Of those, %d expose a value you marked sensitive.", n_sensitive)
+      } else {
+        "None of those expose a value you marked sensitive."
+      }
+    )
+  )
+
+  severity_badge <- function(severity) {
+    palette <- list(
+      HIGH   = c(bg = "#FEE2E2", fg = "#B91C1C", border = "#FCA5A5"),
+      MEDIUM = c(bg = "#FEF3C7", fg = "#B45309", border = "#FCD34D"),
+      LOW    = c(bg = "#DBEAFE", fg = "#1D4ED8", border = "#93C5FD")
+    )
+    col <- palette[[severity]] %||% palette[["LOW"]]
+    shiny::tags$span(
+      style = sprintf(
+        paste(
+          "display:inline-block; font-size:10px; font-weight:700; padding:1px 6px;",
+          "border-radius:999px; background:%s; color:%s; border:1px solid %s;",
+          "margin-right:6px;"
+        ),
+        col[["bg"]], col[["fg"]], col[["border"]]
+      ),
+      severity
+    )
+  }
+
+  flags_section <- if (is.null(privacy_flags) || nrow(privacy_flags) == 0L) {
+    shiny::tags$div(
+      style = section_style,
+      shiny::tags$div(style = label_style, "Other checks"),
+      shiny::tags$p("No other disclosure risks were flagged.")
+    )
+  } else {
+    items <- lapply(seq_len(nrow(privacy_flags)), function(i) {
+      variable <- dg_plain_language(as.character(privacy_flags$variable[i]))
+      flag <- dg_plain_language(as.character(privacy_flags$flag[i]))
+      recommendation <- dg_plain_language(as.character(privacy_flags$recommendation[i]))
+      severity <- as.character(privacy_flags$severity[i])
+      shiny::tags$li(
+        style = "margin-bottom:8px;",
+        severity_badge(severity),
+        shiny::tags$strong(variable),
+        ": ",
+        flag,
+        shiny::tags$div(
+          class = "help",
+          style = "margin-top:2px;",
+          "Recommendation: ", recommendation
+        )
+      )
+    })
+    shiny::tags$div(
+      style = section_style,
+      shiny::tags$div(style = label_style, "Other checks"),
+      shiny::tags$ul(
+        style = "list-style:none; padding-left:0; margin:6px 0 0;",
+        items
+      )
+    )
+  }
+
+  shiny::modalDialog(
+    title = shiny::tags$span(
+      style = "font-weight:700;",
+      "Disclosure risk of this bundle"
+    ),
+    shiny::tags$p(
+      "A quick brief on the protections applied and the risks that remain in ",
+      "the bundle you are about to download. This does not change any of the ",
+      "checks on the page."
+    ),
+    k_section,
+    exact_section,
+    flags_section,
+    footer = shiny::modalButton("Continue"),
+    easyClose = TRUE,
+    size = "l"
+  )
+}
+
 #' @keywords internal
 #' @noRd
 app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {

@@ -147,6 +147,46 @@ mod_export_server <- function(id, state) {
       exact_match_sensitive_count(exact_match_detail_r())
     }
 
+    # Disclosure-risk brief shown when the user arrives at the Export step.
+    # Pure report: it grants nothing. The inline acknowledgment gates above and
+    # the build_export() stops below are untouched. Reads the stored kanon
+    # attribute and the same exact-match detail the gate uses, so the brief and
+    # the gate cannot disagree. n_exact equals exact_row_match_count() by
+    # construction (both come from the same per-row flags).
+    disclosure_modal <- function() {
+      orig <- state$raw_data
+      syn <- state$synthetic
+      if (is.null(orig) || is.null(syn)) {
+        return(NULL)
+      }
+      kanon <- state$kanon %||% attr(syn, "kanon", exact = TRUE)
+      detail <- exact_match_detail_r()
+      n_exact <- if (is.null(detail)) {
+        0L
+      } else {
+        as.integer(sum(detail$synthetic_severity > 0L))
+      }
+      n_sensitive <- exact_match_sensitive_count(detail)
+      roles <- state$generated_roles %||% state$roles
+      flags <- privacy_check_post(orig, syn, roles, state$spec)
+      disclosure_risk_modal(
+        kanon = kanon,
+        n_exact = n_exact,
+        n_sensitive = n_sensitive,
+        privacy_flags = flags
+      )
+    }
+
+    shiny::observeEvent(state$active_tab, ignoreNULL = TRUE, {
+      if (!identical(state$active_tab, "export")) {
+        return()
+      }
+      modal <- disclosure_modal()
+      if (!is.null(modal)) {
+        shiny::showModal(modal)
+      }
+    })
+
     output$exact_match_export_gate <- shiny::renderUI({
       n_red <- exact_match_blockers()
       if (n_red == 0L) {

@@ -321,3 +321,211 @@ test_that("exact matches on non-sensitive columns do not block the export", {
     expect_null(output$exact_match_export_gate)
   })
 })
+
+# --- Disclosure-risk modal on entering Export --------------------------------
+
+# Attach a kanon attribute to a state's synthetic output, mirroring how the
+# generate step stores it (both on the attribute and in state$kanon).
+attach_kanon <- function(state, kanon) {
+  shiny::isolate({
+    synthetic <- state$synthetic
+    attr(synthetic, "kanon") <- kanon
+    state$synthetic <- synthetic
+    state$kanon <- kanon
+  })
+  state
+}
+
+test_that("disclosure modal reports the group size in plain language", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 2L, n_match = 2L)
+  attach_kanon(state, list(
+    qi_cols = c("age", "sex"), k = 5L, smallest_cell = 5L,
+    suppressed_cells = 1L, suppressed_rows = 7L,
+    suppressed_row_frac = 7 / 30, infeasible = FALSE
+  ))
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(disclosure_modal()), collapse = "\n")
+    # The plain-language k sentence, with the value substituted in.
+    expect_match(html, "at least 5 times", fixed = TRUE)
+    expect_match(html, "no individual row stands out", fixed = TRUE)
+    # The columns the protection applies to.
+    expect_match(html, "<code>age</code>", fixed = TRUE)
+    expect_match(html, "<code>sex</code>", fixed = TRUE)
+    # How many rows were blanked, with the fraction.
+    expect_match(html, "7 row(s)", fixed = TRUE)
+    expect_match(html, "23.3%", fixed = TRUE)
+  })
+})
+
+test_that("disclosure modal says plainly when the protection was infeasible", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 2L, n_match = 0L)
+  attach_kanon(state, list(
+    qi_cols = c("age", "sex"), k = 5L, smallest_cell = 1L,
+    suppressed_cells = 0L, suppressed_rows = 0L,
+    suppressed_row_frac = 0, infeasible = TRUE
+  ))
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(disclosure_modal()), collapse = "\n")
+    expect_match(html, "could not be applied to this output", fixed = TRUE)
+    expect_match(html, "<code>age</code>", fixed = TRUE)
+  })
+})
+
+test_that("disclosure modal reports exact-match and sensitive counts", {
+  testthat::skip_if_not_installed("shiny")
+
+  # 2 reproduced rows, dx marked sensitive and populated -> both disclose.
+  state <- exact_match_gate_state(generation_count = 2L, n_match = 2L)
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(disclosure_modal()), collapse = "\n")
+    expect_match(html, "2 synthetic row(s) reproduce a real record exactly.", fixed = TRUE)
+    expect_match(html, "Of those, 2 expose a value you marked sensitive.", fixed = TRUE)
+  })
+})
+
+test_that("disclosure modal reports privacy_check_post() flags with severity and advice", {
+  testthat::skip_if_not_installed("shiny")
+
+  # 30 rows with 2 exact matches -> privacy_check_post() raises an exact-row
+  # match flag (HIGH) plus a rare-category flag, both surfaced in the modal.
+  state <- exact_match_gate_state(generation_count = 2L, n_match = 2L)
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(disclosure_modal()), collapse = "\n")
+    expect_match(html, "Other checks", fixed = TRUE)
+    expect_match(html, "HIGH", fixed = TRUE)
+    expect_match(html, "exact-row match", fixed = TRUE)
+    expect_match(html, "Recommendation:", fixed = TRUE)
+  })
+})
+
+test_that("disclosure modal never shows jargon the user will not understand", {
+  testthat::skip_if_not_installed("shiny")
+
+  # Poisoned flags straight from privacy_check_post()-shaped output, containing
+  # every forbidden term, must be scrubbed at display time.
+  poisoned <- data.frame(
+    variable = c("(quasi-identifiers)", "x"),
+    flag = c(
+      "Synthetic output has a QI cell of size 1 (< k=5)",
+      "k-anonymity not reached"
+    ),
+    severity = c("HIGH", "HIGH"),
+    recommendation = c(
+      "k-anonymity enforcement did not reach the target",
+      "review the quasi-identifier set"
+    ),
+    stringsAsFactors = FALSE
+  )
+  modal <- disclosure_risk_modal(
+    kanon = list(qi_cols = "x", k = 5L, smallest_cell = 5L,
+                 suppressed_rows = 0L, suppressed_row_frac = 0, infeasible = FALSE),
+    n_exact = 0L, n_sensitive = 0L, privacy_flags = poisoned
+  )
+  html <- tolower(paste(as.character(modal), collapse = "\n"))
+  expect_false(grepl("k-anon", html, fixed = TRUE))
+  expect_false(grepl("quasi-identifier", html, fixed = TRUE))
+
+  # And a realistic, module-built modal is clean too.
+  state <- exact_match_gate_state(generation_count = 2L, n_match = 2L)
+  attach_kanon(state, list(
+    qi_cols = c("age", "sex"), k = 5L, smallest_cell = 5L,
+    suppressed_cells = 0L, suppressed_rows = 0L,
+    suppressed_row_frac = 0, infeasible = FALSE
+  ))
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    live_html <- tolower(paste(as.character(disclosure_modal()), collapse = "\n"))
+    expect_false(grepl("k-anon", live_html, fixed = TRUE))
+    expect_false(grepl("quasi-identifier", live_html, fixed = TRUE))
+  })
+})
+
+test_that("arriving on the export step builds and shows the disclosure brief", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- exact_match_gate_state(generation_count = 2L, n_match = 2L)
+  attach_kanon(state, list(
+    qi_cols = c("age", "sex"), k = 5L, smallest_cell = 5L,
+    suppressed_cells = 0L, suppressed_rows = 0L,
+    suppressed_row_frac = 0, infeasible = FALSE
+  ))
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    modal <- disclosure_modal()
+    expect_false(is.null(modal))
+    html <- paste(as.character(modal), collapse = "\n")
+    expect_match(html, "Disclosure risk of this bundle", fixed = TRUE)
+
+    # The single Continue button dismisses; the modal grants nothing.
+    expect_match(html, "Continue", fixed = TRUE)
+
+    # Setting the active tab to export fires the observer (showModal); this
+    # must run without error and must not alter any gate.
+    expect_no_error({
+      state$active_tab <- "export"
+      session$flushReact()
+    })
+  })
+})
+
+test_that("build_export() keeps all three refusal conditions after the modal change", {
+  testthat::skip_if_not_installed("shiny")
+
+  # 1. Infeasible group-size protection, unacknowledged.
+  state_kanon <- export_test_state()
+  attach_kanon(state_kanon, list(
+    qi_cols = c("age", "sex"), k = 5L, smallest_cell = 1L,
+    suppressed_cells = 0L, infeasible = TRUE
+  ))
+  shiny::testServer(mod_export_server, args = list(state = state_kanon), {
+    expect_error(build_export(tempfile()), "requires explicit acknowledgment")
+  })
+
+  # 2. Sensitive exact matches on the first run: hard block, no override.
+  state_hard <- exact_match_gate_state(generation_count = 1L)
+  shiny::testServer(mod_export_server, args = list(state = state_hard), {
+    session$flushReact()
+    expect_error(build_export(tempfile()), "Regenerate with a new seed")
+  })
+
+  # 3. Sensitive exact matches after regenerating, override not ticked.
+  state_override <- exact_match_gate_state(generation_count = 2L)
+  shiny::testServer(mod_export_server, args = list(state = state_override), {
+    session$flushReact()
+    expect_error(build_export(tempfile()), "requires explicit acknowledgment")
+  })
+})
+
+test_that("plain language covers the real privacy_check_post flag wording", {
+  # Both strings are copied verbatim from R/privacy-check.R -- the HIGH flag
+  # raised when the minimum group size is not reached. Asserting against the
+  # real wording rather than an invented input is the point: an earlier version
+  # of this suite poisoned a flag with only the terms the scrubber already
+  # handled, so it passed while this exact flag reached users untouched. That
+  # flag says "QI" and "k=5", not "quasi-identifier" and "k-anonymity".
+  flag <- sprintf("Synthetic output has a QI cell of size %d (< k=%d)", 3L, 5L)
+  recommendation <- paste(
+    "k-anonymity enforcement did not reach the target;",
+    "review enforce_kanon settings"
+  )
+  jargon <- "k-anon|quasi-identifier|\\bQI\\b|\\bk *= *[0-9]|enforce_kanon"
+
+  expect_false(grepl(jargon, dg_plain_language(flag), ignore.case = TRUE))
+  expect_false(grepl(jargon, dg_plain_language(recommendation),
+                     ignore.case = TRUE))
+  expect_true(grepl("fewer than the 5 required",
+                    dg_plain_language(flag), fixed = TRUE))
+})

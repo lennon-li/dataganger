@@ -477,6 +477,12 @@ server <- function(input, output, session) {
   mod_export_server("export", state)
   mod_data_panel_server("data_panel", state)
 
+  # Record the visible step so modules can react to arrival. mod_export_server
+  # shows the disclosure-risk brief when this becomes "export".
+  shiny::observeEvent(input$app_tabs, ignoreNULL = TRUE, {
+    state$active_tab <- input$app_tabs
+  })
+
   # Set initial step state
   session$onFlushed(function() {
     send_step_state(0L)
