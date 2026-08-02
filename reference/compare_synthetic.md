@@ -39,6 +39,9 @@ An S3 object of class `dataganger_comparison`, a list with components
 dat <- data.frame(x = 1:10, y = letters[1:10])
 spec <- synth_spec(purpose = "demo")
 syn <- synthesize_data(dat, spec)
+#> Warning: Cannot guarantee level presence for columns: y (10 levels at k = 5 require
+#> minimum n = 50). Largest minimum n = 50; output has n = 10. Restoring as many
+#> levels as fit without removing another level's last copy.
 compare_synthetic(dat, syn)
 #> ℹ Not enough numeric columns (1) for correlation comparison.
 #>   Need at least 2 numeric columns with non-zero variance.
@@ -54,11 +57,11 @@ compare_synthetic(dat, syn)
 #> 
 #> ── Numeric -- top 3 by |standardized difference| ──
 #> 
-#> • x: std diff = -0.727
+#> • x: std diff = -0.429
 #> Orig mean (SD): 5.5 (3.03)
 #> 
 #> ── Categorical -- top 3 by distributional difference ──
 #> 
-#> • y: p = 0.0293, TVD = 1
-#> Levels: 10 (orig) -> 1 (syn)
+#> • y: p = 0.395, TVD = 1
+#> Levels: 10 (orig) -> 10 (syn)
 ```

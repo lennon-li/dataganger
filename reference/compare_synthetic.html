@@ -11,7 +11,7 @@ correlations. Returns a structured dataganger_comparison object."><meta property
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,6 +81,9 @@ components <code>dataset</code>, <code>numeric</code>, <code>categorical</code>,
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">10</span>, y <span class="op">=</span> <span class="va">letters</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="synth_spec.html">synth_spec</a></span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"demo"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">syn</span> <span class="op">&lt;-</span> <span class="fu"><a href="synthesize_data.html">synthesize_data</a></span><span class="op">(</span><span class="va">dat</span>, <span class="va">spec</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Cannot guarantee level presence for columns: y (10 levels at k = 5 require</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> minimum n = 50). Largest minimum n = 50; output has n = 10. Restoring as many</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> levels as fit without removing another level's last copy.</span>
 <span class="r-in"><span><span class="fu">compare_synthetic</span><span class="op">(</span><span class="va">dat</span>, <span class="va">syn</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Not enough numeric columns (1) for correlation comparison.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span>   Need at least 2 numeric columns with non-zero variance.</span>
@@ -96,13 +99,13 @@ components <code>dataset</code>, <code>numeric</code>, <code>categorical</code>,
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Numeric -- top 3 by |standardized difference|</span> ──</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • <span style="color: #00BB00;">x</span>: std diff = -0.727</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • <span style="color: #00BB00;">x</span>: std diff = -0.429</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Orig mean (SD): 5.5 (3.03)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Categorical -- top 3 by distributional difference</span> ──</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • <span style="color: #00BB00;">y</span>: p = 0.0293, TVD = 1</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Levels: 10 (orig) -&gt; 1 (syn)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • <span style="color: #00BB00;">y</span>: p = 0.395, TVD = 1</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Levels: 10 (orig) -&gt; 10 (syn)</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

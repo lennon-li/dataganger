@@ -13,7 +13,7 @@ objectives that request moderate or high relationship preservation."><meta prope
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,7 +83,10 @@ Informs column treatment but does not override the spec.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An S3 object of class <code>dataganger_synthetic</code>, a tibble with
-attributes <code>spec</code>, <code>original_dims</code>, <code>seed_used</code>, and <code>generated_at</code>.</p>
+attributes <code>spec</code>, <code>original_dims</code>, <code>seed_used</code>, and <code>generated_at</code>.
+Categorical and other non-numeric text columns are returned as plain
+<code>character</code>; numeric, logical, date, and datetime columns retain their
+corresponding types.</p>
     </div>
     <div class="section level2">
     <h2 id="disabling-synthpop">Disabling synthpop<a class="anchor" aria-label="anchor" href="#disabling-synthpop"></a></h2>
@@ -102,6 +105,9 @@ honoured; only objective-derived routing is affected.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, y <span class="op">=</span> <span class="va">letters</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="synth_spec.html">synth_spec</a></span><span class="op">(</span>purpose <span class="op">=</span> <span class="st">"demo"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">syn</span> <span class="op">&lt;-</span> <span class="fu">synthesize_data</span><span class="op">(</span><span class="va">dat</span>, <span class="va">spec</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Cannot guarantee level presence for columns: y (5 levels at k = 5 require</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> minimum n = 25). Largest minimum n = 25; output has n = 5. Restoring as many</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> levels as fit without removing another level's last copy.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

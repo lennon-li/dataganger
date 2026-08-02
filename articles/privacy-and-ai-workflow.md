@@ -169,7 +169,7 @@ user does not falsely feel “done” after removing names.
 library(dataganger)
 ```
 
-    ## dataganger 0.7.2
+    ## dataganger 0.8.0
     ##   Start the app: dataganger::run_app()
 
 ``` r
@@ -301,9 +301,9 @@ kable(individual_table, col.names = c("Option", "Feasible at k", "Cost"))
 | Option | Feasible at k | Cost |
 |:---|:---|:---|
 | Keep age + sex + education + smoker at k = 5 | No | No k-anonymity protection applied |
-| Apply k = 3 | Yes (k = 3) | 29 suppressed QI cells |
-| Generate 1000 rows at k = 5 | Yes (k = 5) | 54 suppressed QI cells |
-| Mark age as not part of the QI set | Yes (k = 5) | 6 suppressed QI cells |
+| Apply k = 3 | Yes (k = 3) | 12 suppressed QI cells |
+| Generate 1000 rows at k = 5 | Yes (k = 5) | 11 suppressed QI cells |
+| Mark age as not part of the QI set | Yes (k = 5) | 2 suppressed QI cells |
 
 This is the person-level example where k-anonymity matters. The current
 four-column QI set is too sparse at `k = 5`, but the code above shows

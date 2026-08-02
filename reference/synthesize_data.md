@@ -38,7 +38,10 @@ synthesize_data(data, spec, roles = NULL, engine = NULL)
 ## Value
 
 An S3 object of class `dataganger_synthetic`, a tibble with attributes
-`spec`, `original_dims`, `seed_used`, and `generated_at`.
+`spec`, `original_dims`, `seed_used`, and `generated_at`. Categorical
+and other non-numeric text columns are returned as plain `character`;
+numeric, logical, date, and datetime columns retain their corresponding
+types.
 
 ## Disabling synthpop
 
@@ -55,4 +58,7 @@ routing is affected.
 dat <- data.frame(x = 1:5, y = letters[1:5])
 spec <- synth_spec(purpose = "demo")
 syn <- synthesize_data(dat, spec)
+#> Warning: Cannot guarantee level presence for columns: y (5 levels at k = 5 require
+#> minimum n = 25). Largest minimum n = 25; output has n = 5. Restoring as many
+#> levels as fit without removing another level's last copy.
 ```

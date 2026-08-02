@@ -11,7 +11,7 @@ does not check engine availability - that is done by synthesize_data()."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">dataganger</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -130,6 +130,8 @@ relationships are retained (<code>"none"</code>, <code>"moderate"</code>, <code>
 so an exact event date cannot single out an individual.</p></li>
 <li><p><code>merge_rare</code> — logical; combine infrequent category values into
 an <code>"other"</code> group to reduce re-identification risk.</p></li>
+<li><p><code>label_strategy</code> — whether categorical labels are preserved or
+rare labels are replaced with distinct neutral placeholders.</p></li>
 <li><p><code>k_anon</code> — minimum cell size for k-anonymity. Here, a
 quasi-identifier (QI) is a column that can identify someone only when
 combined with others, a cell is one shared QI combination, and
@@ -169,7 +171,8 @@ pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── Key settings </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Name strategy: <span style="color: #0000BB;">"preserve"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Coarsen dates: TRUE</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Merge rare levels: TRUE (min_n = 5)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Merge rare levels: FALSE (min_n = 5)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Rare label strategy: <span style="color: #0000BB;">"mask_rare"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Minimum cell size (k-anonymity): 5</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Free text strategy: <span style="color: #0000BB;">"categorical"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve correlations: <span style="color: #0000BB;">"none"</span></span>
@@ -193,7 +196,8 @@ pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact
 <span class="r-msg co"><span class="r-pr">#&gt;</span> ── Key settings </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Name strategy: <span style="color: #0000BB;">"preserve"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Coarsen dates: FALSE</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> • Merge rare levels: TRUE (min_n = 5)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Merge rare levels: FALSE (min_n = 5)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Rare label strategy: <span style="color: #0000BB;">"mask_rare"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Minimum cell size (k-anonymity): 5</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Free text strategy: <span style="color: #0000BB;">"categorical"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve correlations: <span style="color: #0000BB;">"moderate"</span></span>
@@ -217,6 +221,7 @@ pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Name strategy: <span style="color: #0000BB;">"preserve"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Coarsen dates: FALSE</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Merge rare levels: FALSE (min_n = 5)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Rare label strategy: <span style="color: #0000BB;">"preserve"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Minimum cell size (k-anonymity): 5</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Free text strategy: <span style="color: #0000BB;">"categorical"</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • Preserve correlations: <span style="color: #0000BB;">"high"</span></span>

@@ -92,6 +92,9 @@ synth_spec(
   - `merge_rare` — logical; combine infrequent category values into an
     `"other"` group to reduce re-identification risk.
 
+  - `label_strategy` — whether categorical labels are preserved or rare
+    labels are replaced with distinct neutral placeholders.
+
   - `k_anon` — minimum cell size for k-anonymity. Here, a
     quasi-identifier (QI) is a column that can identify someone only
     when combined with others, a cell is one shared QI combination, and
@@ -132,7 +135,8 @@ synth_spec(purpose = "demo")
 #> ── Key settings 
 #> • Name strategy: "preserve"
 #> • Coarsen dates: TRUE
-#> • Merge rare levels: TRUE (min_n = 5)
+#> • Merge rare levels: FALSE (min_n = 5)
+#> • Rare label strategy: "mask_rare"
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "categorical"
 #> • Preserve correlations: "none"
@@ -156,7 +160,8 @@ synth_spec(purpose = "development", n = 200, seed = 42)
 #> ── Key settings 
 #> • Name strategy: "preserve"
 #> • Coarsen dates: FALSE
-#> • Merge rare levels: TRUE (min_n = 5)
+#> • Merge rare levels: FALSE (min_n = 5)
+#> • Rare label strategy: "mask_rare"
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "categorical"
 #> • Preserve correlations: "moderate"
@@ -180,6 +185,7 @@ synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
 #> • Name strategy: "preserve"
 #> • Coarsen dates: FALSE
 #> • Merge rare levels: FALSE (min_n = 5)
+#> • Rare label strategy: "preserve"
 #> • Minimum cell size (k-anonymity): 5
 #> • Free text strategy: "categorical"
 #> • Preserve correlations: "high"

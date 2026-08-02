@@ -54,18 +54,18 @@ An S3 object of class `dataganger_code_readiness` with components:
 orig <- data.frame(x = 1:10, y = factor(letters[1:10]))
 spec <- synth_spec(purpose = "demo")
 syn  <- synthesize_data(orig, spec)
+#> Warning: Cannot guarantee level presence for columns: y (10 levels at k = 5 require
+#> minimum n = 50). Largest minimum n = 50; output has n = 10. Restoring as many
+#> levels as fit without removing another level's last copy.
 check_code_readiness(orig, syn)
 #> 
 #> ── DataGangeR Code Readiness ───────────────────────────────────────────────────
-#> 9 pass, 1 warn, 1 fail
-#> ✖ Not ready: 1 blocking issue
+#> 8 pass, 0 warn, 2 fail
+#> ✖ Not ready: 2 blocking issues
 #> 
 #> 
 #> ── Failures ──
 #> 
 #> ✖ [x] class mismatch: original 'integer' vs synthetic 'numeric'
-#> 
-#> ── Warnings ──
-#> 
-#> ! [y] Synthetic column has <= 1 unique value; model formulas using this column may fail
+#> ✖ [y] class mismatch: original 'factor' vs synthetic 'character'
 ```

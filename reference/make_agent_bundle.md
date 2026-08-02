@@ -67,4 +67,7 @@ make_agent_bundle(
   purpose = "demo",
   seed = 1
 )
+#> Warning: Cannot guarantee level presence for columns: grp (2 levels at k = 5 require
+#> minimum n = 10). Largest minimum n = 10; output has n = 4. Restoring as many
+#> levels as fit without removing another level's last copy.
 ```
