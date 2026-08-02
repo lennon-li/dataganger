@@ -168,7 +168,7 @@ mod_export_server <- function(id, state) {
       }
       n_sensitive <- exact_match_sensitive_count(detail)
       roles <- state$generated_roles %||% state$roles
-      flags <- privacy_check_post(orig, syn, roles, state$spec)
+      flags <- state$privacy %||% privacy_check(orig, syn, roles = roles, stage = "post", spec = state$spec)
       disclosure_risk_modal(
         kanon = kanon,
         n_exact = n_exact,
