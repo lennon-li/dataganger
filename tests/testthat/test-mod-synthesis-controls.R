@@ -199,3 +199,219 @@ test_that("Configure confirm still blocks a synthesized column with missing UI a
     expect_equal(state$spec_confirmed %||% 0L, 0L)
   })
 })
+
+
+
+# --- live threshold readouts --------------------------------------------------
+# The two Advanced sliders share a default of 5 but count different things:
+# rare_level_min_n counts one value inside one column, k_anon counts rows
+# sharing a combination across columns. Each readout is asserted against a
+# fixture with a hand-checked answer, so a wrong count cannot pass silently.
+#
+# These drive mod_synthesis_controls_server() directly rather than through the
+# host wrapper used above: the sliders are created inside renderUI, and
+# setInputs() on the host does not reach a nested module's dynamic inputs.
+
+hint_fixture <- function() {
+  data.frame(
+    # 3 groups of 4 rows, so every (city, band) combination is below k = 5 and
+    # none is below k = 4.
+    city  = rep(c("alpha", "beta", "gamma"), each = 4L),
+    band  = rep("x", 12L),
+    # 2 rare labels (1 row each) alongside 1 common label (10 rows).
+    grade = c(rep("common", 10L), "r1", "r2"),
+    stringsAsFactors = FALSE
+  )
+}
+
+hint_roles <- function(df, combination = c("city", "band")) {
+  roles <- dg_ensure_ui_roles(detect_roles(df))
+  roles$identifies <- ifelse(roles$variable %in% combination,
+                             "combination", "none")
+  roles$sensitive <- FALSE
+  roles
+}
+
+hint_state <- function(df, roles) {
+  shiny::reactiveValues(raw_data = df, roles = roles)
+}
+
+hint_html <- function(out) as.character(out$html)
+
+test_that("k readout counts combinations and rows below the chosen k", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, hint_roles(df))),
+    {
+      session$setInputs(purpose_group = "development", k_anon = 5L)
+      session$flushReact()
+
+      html <- hint_html(output$kanon_hint)
+
+      expect_match(html, "At 5:", fixed = TRUE)
+      expect_match(html, "your 2 combination columns (city, band)", fixed = TRUE)
+      expect_match(html, "3 distinct combinations", fixed = TRUE)
+      expect_match(html, "3 of them are held by fewer than 5 rows", fixed = TRUE)
+      expect_match(html, "12 of 12 rows (100%)", fixed = TRUE)
+    }
+  )
+})
+
+test_that("k readout reports nothing to suppress when every group is large enough", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, hint_roles(df))),
+    {
+      # Groups are exactly 4 rows, so k = 4 is satisfied where k = 5 was not.
+      session$setInputs(purpose_group = "development", k_anon = 4L)
+      session$flushReact()
+
+      html <- hint_html(output$kanon_hint)
+
+      expect_match(html, "At 4:", fixed = TRUE)
+      expect_match(html, "None are held by too few rows", fixed = TRUE)
+      expect_no_match(html, "coarsened first", fixed = TRUE)
+    }
+  )
+})
+
+test_that("k readout reports the empty state when nothing identifies in combination", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  roles <- hint_roles(df, combination = character(0))
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, roles)),
+    {
+      session$setInputs(purpose_group = "development", k_anon = 5L)
+      session$flushReact()
+
+      html <- hint_html(output$kanon_hint)
+
+      expect_match(html, "No columns are marked as identifying in combination",
+                   fixed = TRUE)
+      expect_no_match(html, "distinct combinations", fixed = TRUE)
+    }
+  )
+})
+
+test_that("k readout keys on factor codes so separator-like values cannot collide", {
+  testthat::skip_if_not_installed("shiny")
+
+  # ("a|~|b", "c") and ("a", "b|~|c") are distinct combinations that a naive
+  # paste with "|~|" would fold into one. There are 2 combinations here, not 1.
+  df <- data.frame(
+    p = c("a|~|b", "a", "a|~|b", "a"),
+    q = c("c", "b|~|c", "c", "b|~|c"),
+    stringsAsFactors = FALSE
+  )
+  roles <- hint_roles(df, combination = c("p", "q"))
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, roles)),
+    {
+      session$setInputs(purpose_group = "development", k_anon = 5L)
+      session$flushReact()
+
+      expect_match(hint_html(output$kanon_hint), "2 distinct combinations",
+                   fixed = TRUE)
+    }
+  )
+})
+
+test_that("rare readout counts rare values and says when nothing masks them", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, hint_roles(df))),
+    {
+      session$setInputs(purpose_group = "development", rare_level_min_n = 5L)
+      session$flushReact()
+
+      html <- hint_html(output$rare_hint)
+
+      # city: 3 levels of 4 rows, all rare. band: 1 level of 12, not rare.
+      # grade: "common" not rare, "r1"/"r2" rare. So 5 rare of 7 distinct,
+      # over 2 of the 3 text columns.
+      expect_match(html, "At 5:", fixed = TRUE)
+      expect_match(html, "5 of 7 distinct values are rare", fixed = TRUE)
+      expect_match(html, "2 of 3 text or category columns", fixed = TRUE)
+      expect_match(html, "No column is set to mask rare values", fixed = TRUE)
+    }
+  )
+})
+
+test_that("rare readout reports how many columns are set to mask", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  roles <- hint_roles(df)
+  roles$label_strategy <- ifelse(roles$variable == "grade",
+                                 "mask_rare", "preserve")
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, roles)),
+    {
+      session$setInputs(purpose_group = "development", rare_level_min_n = 5L)
+      session$flushReact()
+
+      html <- hint_html(output$rare_hint)
+
+      expect_match(html, "1 column is set to mask rare values", fixed = TRUE)
+      expect_no_match(html, "No column is set to mask", fixed = TRUE)
+    }
+  )
+})
+
+test_that("rare readout lowers its count as the threshold drops", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, hint_roles(df))),
+    {
+      # At 2, only the single-row grade labels stay rare; the 4-row city
+      # levels no longer qualify.
+      session$setInputs(purpose_group = "development", rare_level_min_n = 2L)
+      session$flushReact()
+
+      html <- hint_html(output$rare_hint)
+
+      expect_match(html, "At 2:", fixed = TRUE)
+      expect_match(html, "2 of 7 distinct values are rare", fixed = TRUE)
+      expect_match(html, "1 of 3 text or category columns", fixed = TRUE)
+    }
+  )
+})
+
+test_that("both threshold sliders step in whole numbers", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, hint_roles(df))),
+    {
+      session$setInputs(purpose_group = "development")
+      session$flushReact()
+
+      html <- as.character(output$advanced_settings$html)
+
+      # Both are integer counts; a fractional slider value would be silently
+      # truncated by the as.integer() coercion downstream.
+      expect_match(html, "data-step=\"1\"")
+      expect_equal(lengths(regmatches(html, gregexpr("data-step=\"1\"", html))),
+                   2L)
+    }
+  )
+})

@@ -455,7 +455,8 @@ mod_synthesis_controls_server <- function(id, state) {
           label = "Rare category threshold",
           min = 2,
           max = 30,
-          value = preset$rare_level_min_n
+          value = preset$rare_level_min_n,
+          step = 1
         ),
         setting_hint("Counts how often a single value appears in a single column. A value seen fewer times than this counts as rare, because the value itself can name someone."),
         shiny::uiOutput(session$ns("rare_hint")),
@@ -464,7 +465,8 @@ mod_synthesis_controls_server <- function(id, state) {
           label = "Minimum group size",
           min = 2,
           max = 30,
-          value = preset$k_anon %||% 5
+          value = preset$k_anon %||% 5,
+          step = 1
         ),
         # Deliberately contrasted with the rare-category threshold above: that
         # one counts one value in one column, this one counts rows sharing a
@@ -594,13 +596,12 @@ mod_synthesis_controls_server <- function(id, state) {
       res <- assess_kanonymity(data, qi, k = k)
       # Combination count is derived here rather than read off
       # res$worst_cells, which disclosure-risk.R caps at 10 rows for display.
-      # The separator only has to be unlikely in real values; this readout is
-      # informational and is not the enforcement path.
+      # Rows are keyed on per-column factor codes rather than on the values
+      # themselves, so no separator can collide with real data: an integer
+      # code cannot contain the comma that joins them. NA is its own level.
       key <- do.call(paste, c(lapply(data[qi], function(col) {
-        col <- as.character(col)
-        col[is.na(col)] <- "<NA>"
-        col
-      }), sep = "|~|"))
+        as.integer(factor(as.character(col), exclude = NULL))
+      }), sep = ","))
       combo_counts <- table(key)
       n_combos <- length(combo_counts)
       n_small  <- sum(combo_counts < k)
