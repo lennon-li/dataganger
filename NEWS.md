@@ -1,5 +1,14 @@
 # dataganger 0.8.0
 
+*   Arriving at the Export step now opens a disclosure-risk brief: the minimum
+    group size and which columns it covers, how many rows were blanked to reach
+    it, how many synthetic rows reproduce a real record and how many of those
+    expose a sensitive value, and the remaining privacy-check findings with
+    their severity. The brief is informational only -- the existing export
+    checks are unchanged, including the block on reproduced rows that expose a
+    sensitive value. Its wording describes what each protection does rather
+    than naming the technique.
+
 *   Categorical output is now always plain character. Factors and
     `haven_labelled` columns are normalized at synthesis input and are no
     longer produced or returned by dataganger. A factor level declared with
