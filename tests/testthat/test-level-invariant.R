@@ -268,7 +268,7 @@ for (i in seq_len(nrow(level_cases))) {
       result <- results[[1L]]
       if (!all(census$pass)) {
         failed_result <- results[[which(!census$pass)[[1L]]]]
-        skip(level_invariant_violation(
+        testthat::fail(level_invariant_violation(
           case$purpose, case$label_strategy, case$engine, case$col,
           census, failed_result$synthetic
         ))
