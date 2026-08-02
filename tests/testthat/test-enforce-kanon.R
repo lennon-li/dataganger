@@ -91,6 +91,13 @@ test_that("enforce_kanon leaves output with no QI cell smaller than k", {
   expect_true(all(tab >= 5))
 })
 
+test_that("merge_rarest_level suppresses rather than inventing a category", {
+  out <- merge_rarest_level(c("common", "common", "rare"))
+
+  expect_equal(out, c("common", "common", NA_character_))
+  expect_false(any(out %in% "(other)", na.rm = TRUE))
+})
+
 test_that("enforce_kanon suppresses residual cells that cannot reach k", {
   # The single below-k cell ("uniqueX", 1 row) gets blanked; that 1-row NA
   # bucket is itself below k, so the absorption pass pads it -- and the only

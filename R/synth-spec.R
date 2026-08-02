@@ -40,6 +40,8 @@
 #'       so an exact event date cannot single out an individual.
 #'     \item `merge_rare` --- logical; combine infrequent category values into
 #'       an `"other"` group to reduce re-identification risk.
+#'     \item `label_strategy` --- whether categorical labels are preserved or
+#'       rare labels are replaced with distinct neutral placeholders.
 #'     \item `k_anon` --- minimum cell size for k-anonymity. Here, a
 #'       quasi-identifier (QI) is a column that can identify someone only when
 #'       combined with others, a cell is one shared QI combination, and
@@ -147,7 +149,8 @@ preset_table <- function(purpose) {
       n                   = NULL,
       preserve_correlations = "none",
       coarsen_dates       = TRUE,
-      merge_rare          = TRUE,
+      merge_rare          = FALSE,
+      label_strategy      = "mask_rare",
       free_text_strategy  = "categorical",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
@@ -160,7 +163,8 @@ preset_table <- function(purpose) {
       n                   = NULL,
       preserve_correlations = "moderate",
       coarsen_dates       = FALSE,
-      merge_rare          = TRUE,
+      merge_rare          = FALSE,
+      label_strategy      = "mask_rare",
       free_text_strategy  = "categorical",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
@@ -174,6 +178,7 @@ preset_table <- function(purpose) {
       preserve_correlations = "high",
       coarsen_dates       = FALSE,
       merge_rare          = FALSE,
+      label_strategy      = "preserve",
       free_text_strategy  = "categorical",
       name_strategy       = "preserve",
       rare_level_min_n    = 5,
@@ -263,6 +268,16 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     ))
   }
 
+  # Validate label_strategy
+  valid_label_strategies <- c("preserve", "mask_rare")
+  if (!is.null(spec$label_strategy) &&
+      !spec$label_strategy %in% valid_label_strategies) {
+    cli::cli_abort(c(
+      "Invalid label_strategy: {.val {spec$label_strategy}}",
+      "i" = "Valid values: {.val {valid_label_strategies}}"
+    ))
+  }
+
   invisible(spec)
 }
 
@@ -341,6 +356,7 @@ print.dataganger_spec <- function(x, ...) {
   cli::cli_li("Name strategy: {.val {x$name_strategy}}")
   cli::cli_li("Coarsen dates: {x$coarsen_dates}")
   cli::cli_li("Merge rare levels: {x$merge_rare} (min_n = {x$rare_level_min_n})")
+  cli::cli_li("Rare label strategy: {.val {x$label_strategy}}")
   cli::cli_li("Minimum cell size (k-anonymity): {x$k_anon}")
   cli::cli_li("Free text strategy: {.val {x$free_text_strategy}}")
   cli::cli_li("Preserve correlations: {.val {x$preserve_correlations}}")

@@ -16,7 +16,9 @@ test_that("kanon_escape_routes finds the largest feasible k and the driver colum
   routes <- kanon_escape_routes(individual_sample, roles, 5)
 
   expect_equal(routes$feasible_k, 3)
-  expect_equal(routes$feasible_k_suppressed_cells, 29)
+  # NA coarsening now merges into the existing <NA> bucket, so fewer
+  # suppression events are needed; the privacy guarantee is unchanged.
+  expect_equal(routes$feasible_k_suppressed_cells, 12)
   expect_identical(routes$driver_col, "age")
 })
 

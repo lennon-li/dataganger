@@ -12,6 +12,7 @@ synthesize_synthpop <- function(data, spec, roles = NULL) {
     ))
   }
 
+  data <- synthpop_mask_rare_inputs(data, spec, roles)
   dg_log("synthesize_synthpop: building synthpop args")
   syn_args <- spec_to_synthpop_args(spec, roles, data)
   dg_log(
@@ -38,6 +39,98 @@ synthesize_synthpop <- function(data, spec, roles = NULL) {
   }
 
   syn
+}
+
+synthpop_mask_rare_inputs <- function(data, spec, roles = NULL) {
+  role_data <- roles %||% detect_roles(data)
+  out <- data
+
+  for (col_name in names(out)) {
+    idx <- if (!is.null(role_data) && "variable" %in% names(role_data)) {
+      match(col_name, role_data$variable)
+    } else {
+      NA_integer_
+    }
+    action <- synthpop_role_action(role_data, idx)
+    if (action %in% c("drop", "pass_through", "scramble")) {
+      next
+    }
+
+    x <- out[[col_name]]
+    role <- synthpop_effective_role(role_data, idx, x)
+    if (!identical(role, "categorical")) {
+      next
+    }
+    if (!identical(dg_effective_label_strategy(spec, role_data, idx), "mask_rare")) {
+      next
+    }
+
+    out[[col_name]] <- synthpop_mask_rare_level_values(
+      x,
+      rare_level_min_n = spec$rare_level_min_n %||% 5
+    )
+  }
+
+  out
+}
+
+synthpop_role_action <- function(roles, idx) {
+  if (is.null(roles) || is.na(idx)) {
+    return("synthesize")
+  }
+  action_col <- if ("simulation" %in% names(roles)) {
+    "simulation"
+  } else if ("treatment" %in% names(roles)) {
+    "treatment"
+  } else {
+    NULL
+  }
+  if (is.null(action_col)) {
+    return("synthesize")
+  }
+  action <- roles[[action_col]][[idx]]
+  if (is.na(action) || !nzchar(action)) "synthesize" else action
+}
+
+synthpop_effective_role <- function(roles, idx, x) {
+  if (is.null(roles) || is.na(idx)) {
+    return(dg_class_to_role(class(x)[[1L]]))
+  }
+  user_role <- if ("user_role" %in% names(roles)) roles$user_role[[idx]] else NA_character_
+  recommended_role <- if ("recommended_role" %in% names(roles)) {
+    roles$recommended_role[[idx]]
+  } else {
+    NA_character_
+  }
+  class_col <- if ("class" %in% names(roles)) roles$class[[idx]] else class(x)[[1L]]
+  eff_role(user_role, recommended_role, class_col)
+}
+
+synthpop_mask_rare_level_values <- function(x, rare_level_min_n = 5L) {
+  values <- as.character(x)
+  counts <- table(values[!is.na(values)])
+  rare <- names(counts)[counts < rare_level_min_n]
+  if (length(rare) == 0L) {
+    return(values)
+  }
+
+  rare <- rare[order(-as.integer(counts[rare]), rare, method = "radix")]
+  placeholder_numbers <- integer(length(rare))
+  occupied <- unique(values[!is.na(values)])
+  next_number <- 1L
+  for (i in seq_along(rare)) {
+    while (paste("Other category", next_number) %in% occupied) {
+      next_number <- next_number + 1L
+    }
+    placeholder_numbers[[i]] <- next_number
+    next_number <- next_number + 1L
+  }
+  placeholders <- stats::setNames(
+    paste("Other category", placeholder_numbers),
+    rare
+  )
+
+  unname(ifelse(values %in% names(placeholders), placeholders[values], values))
 }
 
 spec_to_synthpop_args <- function(spec, roles, data) {
@@ -108,7 +201,7 @@ synthpop_bridge_cols <- function(roles, data) {
   bridge
 }
 
-# All columns excluded from synthpop::syn() — both truly-excluded and bridge.
+# All columns excluded from synthpop::syn() -- both truly-excluded and bridge.
 synthpop_excluded_cols <- function(roles, data = NULL) {
   unique(c(synthpop_role_excluded_cols(roles), synthpop_bridge_cols(roles, data)))
 }

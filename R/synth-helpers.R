@@ -107,22 +107,22 @@ mask_rare_category_labels <- function(x_obs, levs, tbl_nms, tbl_counts,
 #' @keywords internal
 #' @noRd
 synth_categorical <- function(x, n, rare_level_min_n = 5,
-                              merge_rare = TRUE, missing_strategy = "approx",
+                              merge_rare = FALSE, missing_strategy = "approx",
                               label_strategy = "preserve") {
   validate_label_strategy(label_strategy)
   if (all(is.na(x))) {
     return(rep(NA_character_, n))
   }
 
-  x_obs <- x[!is.na(x)]
-
-  # Handle factor levels
-  if (is.factor(x_obs)) {
-    levs <- levels(x_obs)
-    x_obs <- as.character(x_obs)
-  } else {
-    levs <- unique(x_obs)
-  }
+  # Levels come from the observed values only. A factor input can declare a
+  # level with zero rows, and the ingest conversion to character drops that
+  # declaration deliberately: a level with no rows in the source should have
+  # no rows in the synthetic copy. Carrying it forward would push sampling
+  # into the "every category appears at least once" branch below and invent
+  # rows of a category that was never observed -- fabricated data, and a
+  # k-anonymity singleton on top.
+  x_obs <- as.character(x[!is.na(x)])
+  levs <- sort(unique(x_obs))
 
   # Count occurrences
   tbl <- table(x_obs)
@@ -155,8 +155,10 @@ synth_categorical <- function(x, n, rare_level_min_n = 5,
   }
 
   # Proportion sampling
-  probs <- tbl_counts / sum(tbl_counts)
-  pool <- tbl_nms
+  pool <- sort(unique(c(tbl_nms, levs)))
+  pool_counts <- stats::setNames(integer(length(pool)), pool)
+  pool_counts[tbl_nms] <- tbl_counts
+  probs <- pool_counts / sum(pool_counts)
   if (length(pool) <= n) {
     # Every sampled category must exercise downstream code paths at least once.
     synth <- c(
@@ -171,22 +173,10 @@ synth_categorical <- function(x, n, rare_level_min_n = 5,
     synth <- sample(pool, size = n, replace = TRUE, prob = probs)
   }
 
-  # Convert back to factor if input was factor
-  if (is.factor(x)) {
-    if (identical(label_strategy, "mask_rare")) {
-      all_levs <- levs
-    } else if (".other" %in% synth && !".other" %in% levels(x)) {
-      all_levs <- c(levels(x), ".other")
-    } else {
-      all_levs <- levels(x)
-    }
-    synth <- factor(synth, levels = all_levs)
-  }
-
   # Apply missingness
   synth <- apply_missingness(synth, x, n, missing_strategy)
 
-  synth
+  as.character(synth)
 }
 
 # ===========================================================================
@@ -409,44 +399,15 @@ synth_logical <- function(x, n, missing_strategy = "approx") {
 # ===========================================================================
 
 synth_character <- function(x, n, rare_level_min_n = 5,
-                            merge_rare = TRUE, missing_strategy = "approx",
+                            merge_rare = FALSE, missing_strategy = "approx",
                             label_strategy = "preserve") {
-  validate_label_strategy(label_strategy)
-  if (all(is.na(x))) {
-    return(rep(NA_character_, n))
-  }
-
-  # Treat as categorical
-  x_obs <- x[!is.na(x)]
-  tbl <- table(x_obs)
-  tbl_nms <- names(tbl)
-  tbl_counts <- as.integer(tbl)
-
-  if (identical(label_strategy, "mask_rare")) {
-    masked <- mask_rare_category_labels(
-      x_obs, character(), tbl_nms, tbl_counts, rare_level_min_n
-    )
-    x_obs <- masked$x_obs
-    tbl <- table(x_obs)
-    tbl_nms <- names(tbl)
-    tbl_counts <- as.integer(tbl)
-  } else if (isTRUE(merge_rare)) {
-    # Rare-level merge
-    rare_mask <- tbl_counts < rare_level_min_n
-    if (any(rare_mask)) {
-      rare_vals <- tbl_nms[rare_mask]
-      x_obs[x_obs %in% rare_vals] <- ".other"
-      tbl <- table(x_obs)
-      tbl_nms <- names(tbl)
-      tbl_counts <- as.integer(tbl)
-    }
-  }
-
-  probs <- tbl_counts / sum(tbl_counts)
-  synth <- sample(tbl_nms, size = n, replace = TRUE, prob = probs)
-
-  synth <- apply_missingness(synth, x, n, missing_strategy)
-  synth
+  synth_categorical(
+    x, n,
+    rare_level_min_n = rare_level_min_n,
+    merge_rare = merge_rare,
+    missing_strategy = missing_strategy,
+    label_strategy = label_strategy
+  )
 }
 
 # ===========================================================================
@@ -454,24 +415,23 @@ synth_character <- function(x, n, rare_level_min_n = 5,
 # ===========================================================================
 
 synth_labelled <- function(x, n, rare_level_min_n = 5,
-                           merge_rare = TRUE, missing_strategy = "approx",
+                           merge_rare = FALSE, missing_strategy = "approx",
                            label_strategy = "preserve") {
   validate_label_strategy(label_strategy)
   if (all(is.na(x))) {
     return(rep(NA_character_, n))
   }
 
-  # Convert to factor for synthesis
-  x_factor <- haven::as_factor(x)
-  synth_factor <- synth_categorical(
-    x_factor, n,
+  x_labels <- as.character(haven::as_factor(x))
+  synth <- synth_categorical(
+    x_labels, n,
     rare_level_min_n = rare_level_min_n,
     merge_rare = merge_rare,
     missing_strategy = missing_strategy,
     label_strategy = label_strategy
   )
 
-  as.character(synth_factor)
+  synth
 }
 
 # ===========================================================================
@@ -479,7 +439,7 @@ synth_labelled <- function(x, n, rare_level_min_n = 5,
 # ===========================================================================
 
 synth_free_text <- function(x, n, strategy = "categorical",
-                            rare_level_min_n = 5, merge_rare = TRUE,
+                            rare_level_min_n = 5, merge_rare = FALSE,
                             missing_strategy = "approx",
                             label_strategy = "preserve") {
   validate_label_strategy(label_strategy)

@@ -1,12 +1,16 @@
 # synth_categorical() is the shared resampling path for categorical *and*
 # free-text columns (synth_free_text() delegates to it), so its rare-level
 # handling is a disclosure control, not just a fidelity knob.
+#
+# merge_rare defaults to FALSE, matching every purpose preset. The tests below
+# that exercise the ".other" merge therefore request merge_rare = TRUE
+# explicitly: the merge is still supported, it is just no longer the default.
 
 test_that("rare levels are never drawn into the synthetic output", {
   set.seed(1)
   x <- c(rep("Hypertension", 40), rep("Diabetes", 20),
          "Wilson disease", "Fabry disease")
-  syn <- synth_categorical(x, n = 500, rare_level_min_n = 5)
+  syn <- synth_categorical(x, n = 500, rare_level_min_n = 5, merge_rare = TRUE)
 
   expect_false("Wilson disease" %in% syn)
   expect_false("Fabry disease" %in% syn)
@@ -15,28 +19,33 @@ test_that("rare levels are never drawn into the synthetic output", {
   expect_true(all(c("Hypertension", "Diabetes") %in% syn))
 })
 
-test_that("factor levels preserve merged rare values", {
+test_that("categorical values preserve the merged rare slot", {
   set.seed(1)
-  x <- factor(c(rep("Hypertension", 40), rep("Diabetes", 20),
-                "Wilson disease", "Fabry disease"))
-  syn <- synth_categorical(x, n = 62, rare_level_min_n = 5)
+  x <- c(rep("Hypertension", 40), rep("Diabetes", 20),
+         "Wilson disease", "Fabry disease")
+  syn <- synth_categorical(x, n = 62, rare_level_min_n = 5, merge_rare = TRUE)
 
-  expect_s3_class(syn, "factor")
-  expect_true("Wilson disease" %in% levels(syn))
-  expect_true("Fabry disease" %in% levels(syn))
-  expect_true(".other" %in% levels(syn))
-  expect_true(all(c("Hypertension", "Diabetes") %in% levels(syn)))
+  expect_type(syn, "character")
+  expect_setequal(
+    sort(unique(syn)),
+    c("Hypertension", "Diabetes", ".other")
+  )
 })
 
-test_that("levels the caller declared but never used are preserved", {
+test_that("unused declared levels are not emitted as character values", {
   set.seed(1)
-  # An unused level is schema the user supplied, not a value observed in the
-  # source, so the rare-value merge leaves it alone.
+  # A factor input can declare a level with zero rows ("c" below). Ingest
+  # converts to character, which drops the declaration on purpose: a category
+  # with no rows in the source gets no rows in the synthetic copy, and is
+  # never invented as a value.
   x <- factor(c(rep("a", 20), rep("b", 20)), levels = c("a", "b", "c"))
-  syn <- synth_categorical(x, n = 40, rare_level_min_n = 5)
+  syn <- synth_categorical(
+    as.character(x), n = 40, rare_level_min_n = 5
+  )
 
-  expect_true("c" %in% levels(syn))
-  expect_equal(sum(syn == "c", na.rm = TRUE), 0L)
+  expect_type(syn, "character")
+  expect_false("c" %in% sort(unique(syn)))
+  expect_setequal(sort(unique(syn)), c("a", "b"))
 })
 
 test_that("merge_rare = FALSE resamples rare values verbatim", {
@@ -60,13 +69,13 @@ test_that("categorical sampling includes every pool level", {
   }
 })
 
-test_that("factor sampling includes every observed level and preserves levels", {
-  x <- factor(c(rep("common", 100), "rare", "uncommon"))
+test_that("categorical sampling includes every observed level", {
+  x <- c(rep("common", 100), "rare", "uncommon")
   set.seed(1)
   syn <- synth_categorical(x, n = 20, merge_rare = FALSE)
 
-  expect_true(all(levels(x) %in% syn))
-  expect_true(all(levels(x) %in% levels(syn)))
+  expect_type(syn, "character")
+  expect_true(all(sort(unique(x)) %in% syn))
 })
 
 test_that("categorical sampling warns when the pool exceeds output size", {
@@ -93,15 +102,18 @@ test_that("rare_level_min_n sets the threshold", {
   set.seed(1)
   x <- c(rep("a", 30), rep("b", 6))
   # b (n = 6) survives a threshold of 5 but not one of 10.
-  expect_true("b" %in% synth_categorical(x, n = 300, rare_level_min_n = 5))
-  expect_false("b" %in% synth_categorical(x, n = 300, rare_level_min_n = 10))
+  expect_true("b" %in% synth_categorical(x, n = 300, rare_level_min_n = 5,
+    merge_rare = TRUE))
+  expect_false("b" %in% synth_categorical(x, n = 300, rare_level_min_n = 10,
+    merge_rare = TRUE))
 })
 
 test_that("free text routes through the same rare-level control", {
   set.seed(1)
   notes <- c(rep("no concerns", 40),
              "left-handed pilot from Sudbury with Fabry disease")
-  syn <- synth_free_text(notes, n = 500, strategy = "categorical")
+  syn <- synth_free_text(notes, n = 500, strategy = "categorical",
+                         merge_rare = TRUE)
 
   expect_false("left-handed pilot from Sudbury with Fabry disease" %in% syn)
 })
@@ -130,22 +142,23 @@ test_that("mask_rare replaces each rare categorical label without merging levels
   expect_identical(syn, repeated)
 })
 
-test_that("mask_rare overrides rare merging and preserves factor levels", {
-  x <- factor(c(rep("common", 12), "alpha rare", "beta rare"))
+test_that("mask_rare overrides rare merging and preserves distinct values", {
+  x <- c(rep("common", 12), "alpha rare", "beta rare")
   set.seed(1)
   syn <- synth_categorical(
     x, n = 40, rare_level_min_n = 5,
     merge_rare = TRUE, label_strategy = "mask_rare"
   )
 
-  expect_s3_class(syn, "factor")
-  expect_false(any(c("alpha rare", "beta rare") %in% levels(syn)))
+  expect_type(syn, "character")
+  syn_values <- sort(unique(syn))
+  expect_false(any(c("alpha rare", "beta rare") %in% syn_values))
   expect_setequal(
-    grep("^Other category [0-9]+$", levels(syn), value = TRUE),
+    grep("^Other category [0-9]+$", syn_values, value = TRUE),
     c("Other category 1", "Other category 2")
   )
   expect_false(".other" %in% syn)
-  expect_equal(length(levels(syn)), length(levels(x)))
+  expect_equal(length(syn_values), length(sort(unique(x))))
 })
 
 test_that("free text categorical synthesis honours mask_rare", {

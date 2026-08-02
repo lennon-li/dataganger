@@ -297,7 +297,7 @@ cli_read_spec_yaml <- function(path) {
   allowed <- c(
     "level", "n", "name_strategy", "seed", "engine", "preserve_correlations",
     "coarsen_dates", "merge_rare", "free_text_strategy", "geography_strategy",
-    "rare_level_min_n", "preserve_missingness", "k_anon"
+    "rare_level_min_n", "preserve_missingness", "label_strategy", "k_anon"
   )
   override <- raw[intersect(names(raw), allowed)]
   acknowledge_risk <- raw$acknowledge_risk %||% raw$acknowledged_risk %||% FALSE
@@ -360,6 +360,7 @@ cli_cmd_synthesize <- function(args) {
     preserve_correlations = spec$preserve_correlations,
     coarsen_dates = spec$coarsen_dates,
     merge_rare = spec$merge_rare,
+    label_strategy = spec$label_strategy,
     free_text_strategy = spec$free_text_strategy,
     geography_strategy = spec$geography_strategy,
     rare_level_min_n = spec$rare_level_min_n,

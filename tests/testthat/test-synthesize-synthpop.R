@@ -121,14 +121,14 @@ test_that("synthesize_synthpop() stitches bridge columns back into original orde
   expect_equal(names(syn), c("d_str", "score", "group"))
 })
 
-# Regression: Bug 5 — CUSUM-shaped data (char-stored date + high-cardinality
+# Regression: Bug 5 -- CUSUM-shaped data (char-stored date + high-cardinality
 # char predictor) used to hang synthpop's CART. Verify completion < 30 s.
 test_that("synthesize_data() with high-cardinality char date column completes without hang", {
   skip_if_no_synthpop()
   set.seed(42)
   n <- 500L
   df <- data.frame(
-    case_id   = sprintf("CASE-%05d", 1:n),         # ID → excluded
+    case_id   = sprintf("CASE-%05d", 1:n),         # ID -> excluded
     date_str  = format(seq.Date(as.Date("2019-01-01"), by = "day",
                                 length.out = n), "%b %e, %Y"),  # date bridge
     month     = rep(month.abb, length.out = n),    # 12 distinct char
@@ -162,4 +162,47 @@ test_that("synthesize_data() derives roles for synthpop so high-cardinality IDs 
   expect_equal(attr(syn, "engine"), "synthpop")
   expect_s3_class(syn, "dataganger_synthetic")
   expect_equal(nrow(syn), 60L)
+})
+
+test_that("labelled columns with a rare level survive the synthpop path", {
+  skip_if_no_synthpop()
+
+  # Regression: synthpop's sequential CART calls t() on the response, and
+  # t.haven_labelled() does not exist. Under label_strategy = "preserve" the
+  # column previously reached syn() still classed as haven_labelled and the
+  # call hard-errored with "`t.haven_labelled()` not supported".
+  #
+  # The distribution matters: a balanced labelled column did not trigger it,
+  # so the fixture below is deliberately skewed with a level seen twice in
+  # 300 rows. That is the normal shape of a coded survey or clinical variable,
+  # and "analytics" defaults to label_strategy = "preserve", so this was
+  # reachable with default settings on real data.
+  n <- 300L
+  df <- data.frame(
+    low = rep(c("A", "B", "C"), length.out = n),
+    num = seq_len(n),
+    stringsAsFactors = FALSE
+  )
+  df$coded <- haven::labelled(
+    c(rep(1, 290L), rep(2, 8L), 3, 3),
+    labels = c(Alpha = 1, Bravo = 2, Charlie = 3)
+  )
+
+  roles <- detect_roles(df)
+  roles$user_role[roles$variable %in% c("low", "coded")] <- "categorical"
+  roles$user_role[roles$variable == "num"] <- "numeric"
+  roles$label_strategy[roles$variable %in% c("low", "coded")] <- "preserve"
+
+  for (purpose in c("development", "analytics")) {
+    spec <- synth_spec(
+      purpose = purpose, seed = 1L,
+      acknowledge_risk = identical(purpose, "analytics")
+    )
+    syn <- suppressWarnings(synthesize_data(df, spec, roles = roles))
+
+    expect_equal(nrow(syn), n, info = purpose)
+
+    observed <- sort(unique(as.character(syn$coded)))
+    expect_setequal(observed, c("Alpha", "Bravo", "Charlie"))
+  }
 })

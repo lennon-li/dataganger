@@ -63,6 +63,8 @@ relationships are retained (\code{"none"}, \code{"moderate"}, \code{"high"}).
 so an exact event date cannot single out an individual.
 \item \code{merge_rare} --- logical; combine infrequent category values into
 an \code{"other"} group to reduce re-identification risk.
+\item \code{label_strategy} --- whether categorical labels are preserved or
+rare labels are replaced with distinct neutral placeholders.
 \item \code{k_anon} --- minimum cell size for k-anonymity. Here, a
 quasi-identifier (QI) is a column that can identify someone only when
 combined with others, a cell is one shared QI combination, and

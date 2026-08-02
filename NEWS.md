@@ -1,8 +1,32 @@
-# dataganger 0.7.2
+# dataganger 0.8.0
+
+*   Categorical output is now always plain character. Factors and
+    `haven_labelled` columns are normalized at synthesis input and are no
+    longer produced or returned by dataganger. A factor level declared with
+    zero rows is dropped: a category absent from the source stays absent from
+    the synthetic copy rather than being invented.
+
+*   Logical columns now keep the `logical` type on both engines. Previously a
+    logical column came back as `"TRUE"`/`"FALSE"` text from the synthpop
+    engine because synthpop models it as a two-level factor.
+
+*   The internal categorical resamplers no longer default to merging rare
+    values into `.other`. Every purpose preset already set `merge_rare = FALSE`,
+    so the old default matched no preset.
+
+*   Demo and development synthesis now mask rare category labels instead of
+    merging them into `.other`, so every observed category keeps its own slot.
+
+*   Every category observed in the source now appears in synthetic output for
+    demo and development purposes, while k-anonymity suppression no longer
+    introduces an `(other)` category.
 
 *   Categorical resampling now guarantees every sampled category level appears
     at least once whenever the requested output has enough rows; this preserves
     level presence for downstream code paths, joins, and facets.
+
+*   Capacity warnings for level-presence restoration are now combined into one
+    warning per synthesis output while retaining affected columns and sizes.
 
 *   Categorical and free-text columns gain a `label_strategy` setting and a
     "Resample (rare levels masked)" action. It preserves each observed level's
