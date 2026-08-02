@@ -36,6 +36,7 @@ Imports:
 Suggests:
     bslib,
     callr,
+    chromote,
     DT,
     ggplot2,
     knitr,
