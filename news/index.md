@@ -33,6 +33,15 @@
   for demo and development purposes, while k-anonymity suppression no
   longer introduces an `(other)` category.
 
+- Fix a stale `merge_rare = TRUE` fallback in the marginal engine. Every
+  purpose preset and every `synth_*()` helper defaults to `FALSE`, but a
+  spec that omitted the field entirely still merged rare labels into
+  `.other`. A spec built by
+  [`synth_spec()`](https://dataganger.biostats.ai/reference/synth_spec.md)
+  always carries the field, so this was reachable only through a
+  hand-built spec, a recipe that omitted the key, or
+  `synth_spec(merge_rare = NULL)` – assigning `NULL` drops the element.
+
 - Categorical resampling now guarantees every sampled category level
   appears at least once whenever the requested output has enough rows;
   this preserves level presence for downstream code paths, joins, and
