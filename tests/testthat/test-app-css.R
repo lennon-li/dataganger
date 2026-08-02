@@ -28,6 +28,18 @@ test_that("design system CSS loads and tokens are applied", {
   # subprocess plus chromote child-loop combination, not in the app. Use
   # tests/manual/verify-app-browser.R to confirm the app in a real browser when
   # this harness cannot start.
+  # Chrome writes scratch directories (com.google.Chrome.*,
+  # com.google.Chrome.scoped_dir.*) straight into TMPDIR and does not remove
+  # them, which R CMD check reports as "checking for detritus in the temp
+  # directory ... NOTE". Chrome inherits TMPDIR from this process when chromote
+  # spawns it, so pointing it at R's own session temp directory puts that
+  # scratch inside RtmpXXXX, which R deletes when the session ends. R's
+  # tempdir() is fixed at startup and is not itself moved by this. TMP/TEMP are
+  # set alongside TMPDIR because Windows Chrome reads those instead.
+  withr::local_envvar(
+    TMPDIR = tempdir(), TMP = tempdir(), TEMP = tempdir()
+  )
+
   app <- AppDriver$new(
     system.file("app", package = "dataganger"),
     name = "css-check",
