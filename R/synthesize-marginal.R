@@ -29,7 +29,10 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
   }
 
   rare_min_n <- spec$rare_level_min_n %||% 5
-  merge_rare  <- spec$merge_rare %||% TRUE
+  # FALSE matches every purpose preset and the synth_categorical() default;
+  # a TRUE fallback here would merge rare labels into ".other" for any spec
+  # that omits the field.
+  merge_rare  <- spec$merge_rare %||% FALSE
   coarsen     <- spec$coarsen_dates %||% TRUE
   missingness <- spec$preserve_missingness %||% "approx"
   free_text_s <- spec$free_text_strategy %||% "categorical"
