@@ -992,3 +992,130 @@ test_that("apply_type_change clears postal fields when switching away from posta
     expect_true(is.na(state$roles$postal_country[[1]]))
   })
 })
+
+test_that("action options are type-aware", {
+  # Free text gains both resample and scramble; neither makes sense for a
+  # numeric column, and an alphanumeric ID has no meaningful resample.
+  expect_identical(
+    dg_action_options("free_text"),
+    c("synthesize", "mask_rare", "scramble", "pass_through", "drop")
+  )
+  expect_true("mask_rare" %in% dg_action_options("categorical"))
+  expect_false("mask_rare" %in% dg_action_options("numeric"))
+  expect_false("mask_rare" %in% dg_action_options("date"))
+  expect_false("mask_rare" %in% dg_action_options("postal_code"))
+  expect_false("mask_rare" %in% dg_action_options("alphanumeric_id"))
+  expect_false("scramble" %in% dg_action_options("numeric"))
+  expect_false("synthesize" %in% dg_action_options("alphanumeric_id"))
+  # Postal strategy is an action now, not a second dropdown.
+  expect_true("postal_resample" %in% dg_action_options("postal_code"))
+  # Every type offers a way out.
+  for (role in c("alphanumeric_id", "free_text", "categorical", "numeric",
+                 "date", "postal_code")) {
+    expect_true(all(c("pass_through", "drop") %in% dg_action_options(role)))
+  }
+})
+
+test_that("one stored action is labelled for the type it applies to", {
+  expect_equal(dg_action_label("synthesize", "free_text"), "Resample")
+  expect_equal(dg_action_label("synthesize", "categorical"), "Resample")
+  expect_equal(dg_action_label("synthesize", "numeric"), "Simulate")
+  expect_equal(dg_action_label("synthesize", "date"), "Simulate")
+  expect_equal(dg_action_label("synthesize", "postal_code"), "Generate new")
+  # Postal resample is the same action under the same name; only the stored
+  # representation differs.
+  expect_equal(dg_action_label("postal_resample", "postal_code"), "Resample")
+  expect_equal(dg_action_label("mask_rare", "categorical"), "Resample (rare levels masked)")
+  expect_equal(dg_action_label("scramble", "free_text"), "Scramble")
+})
+
+test_that("masked-resample action translates through label_strategy", {
+  roles <- tibble::tibble(
+    simulation = "synthesize",
+    variable = "category"
+  )
+
+  masked <- dg_apply_action_token(roles, 1L, "mask_rare", "categorical")
+  expect_equal(masked$simulation[[1]], "synthesize")
+  expect_equal(masked$label_strategy[[1]], "mask_rare")
+  expect_equal(
+    action_token(masked$simulation[[1]], "categorical", label_strategy = masked$label_strategy[[1]]),
+    "mask_rare"
+  )
+
+  preserved <- dg_apply_action_token(masked, 1L, "synthesize", "categorical")
+  expect_equal(preserved$simulation[[1]], "synthesize")
+  expect_equal(preserved$label_strategy[[1]], "preserve")
+})
+
+test_that("an action the type does not offer is rejected", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    # Row 3 ("income") is numeric. Scramble runs the identifier scrambler,
+    # which is meaningless over numbers -- the dropdown never offers it, and a
+    # hand-crafted browser message must not be able to set it either.
+    before <- state$roles$simulation[[3]]
+    session$setInputs(simulation_change = list(row = 3, value = "scramble"))
+    expect_equal(state$roles$simulation[[3]], before)
+  })
+})
+
+test_that("free text accepts both resample and scramble", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 2, value = "free_text"))
+    expect_equal(state$roles$user_role[[2]], "free_text")
+
+    session$setInputs(simulation_change = list(row = 2, value = "scramble"))
+    expect_equal(state$roles$simulation[[2]], "scramble")
+
+    # "Resample" is the free-text label for the stored `synthesize` action;
+    # the storage vocabulary is the bundle contract and does not change.
+    session$setInputs(simulation_change = list(row = 2, value = "synthesize"))
+    expect_equal(state$roles$simulation[[2]], "synthesize")
+  })
+})
+
+test_that("postal strategy is chosen through the action dropdown", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 2, value = "postal_code"))
+    expect_equal(state$roles$postal_strategy[[2]], "generate")
+
+    session$setInputs(simulation_change = list(row = 2, value = "postal_resample"))
+    # The UI-only token is translated, never persisted: `simulation` keeps its
+    # contract vocabulary and the strategy lands in its own column.
+    expect_equal(state$roles$simulation[[2]], "synthesize")
+    expect_equal(state$roles$postal_strategy[[2]], "resample")
+
+    session$setInputs(simulation_change = list(row = 2, value = "synthesize"))
+    expect_equal(state$roles$postal_strategy[[2]], "generate")
+  })
+})
+
+test_that("a sticky action invalid for a new type is discarded", {
+  testthat::skip_if_not_installed("shiny")
+  state <- roles_test_state()
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$setInputs(role_change = list(row = 2, value = "free_text"))
+    session$setInputs(simulation_change = list(row = 2, value = "scramble"))
+    expect_equal(state$roles$user_simulation[[2]], "scramble")
+
+    # Retyping to numeric leaves scramble meaningless. If the override
+    # survived, a later Q1 answer would restore an action this type never
+    # offers.
+    session$setInputs(role_change = list(row = 2, value = "numeric"))
+    expect_true(is.na(state$roles$user_simulation[[2]]))
+    expect_true(state$roles$simulation[[2]] %in% dg_action_options("numeric"))
+
+    session$setInputs(identifies_change = list(row = 2, value = "combination"))
+    expect_true(state$roles$simulation[[2]] %in% dg_action_options("numeric"))
+  })
+})

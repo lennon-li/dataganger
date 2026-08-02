@@ -31,7 +31,7 @@ test_that("synthesize_data() schema preserves types", {
   syn <- synthesize_data(df, spec)
   expect_type(syn$num, "double")
   expect_type(syn$chr, "character")
-  expect_s3_class(syn$fac, "factor")
+  expect_type(syn$fac, "character")
   expect_type(syn$lgl, "logical")
   expect_s3_class(syn$dt, "Date")
 })
@@ -94,7 +94,7 @@ test_that("synthesize_data() marginal factor column", {
   df <- data.frame(group = factor(rep(c("A", "B", "C"), each = 10)))
   spec <- synth_spec(purpose = "demo", n = 50)
   syn <- synthesize_data(df, spec)
-  expect_s3_class(syn$group, "factor")
+  expect_type(syn$group, "character")
   expect_true(all(as.character(syn$group) %in% c("A", "B", "C")))
 })
 
@@ -125,7 +125,13 @@ test_that("synthesize_data() marginal haven_labelled column", {
   spec <- synth_spec(purpose = "demo", n = 20, merge_rare = FALSE)
   syn <- synthesize_data(df, spec)
   expect_type(syn$status, "character")
-  expect_true(all(stats::na.omit(syn$status) %in% c("Active", "Inactive")))
+  # mask_rare replaced the old merge_rare default, so rare labels may be
+  # represented by distinct neutral placeholders.
+  expect_true(all(
+    is.na(syn$status) |
+      syn$status %in% c("Active", "Inactive") |
+      grepl("^Other category [0-9]+$", syn$status)
+  ))
 })
 
 test_that("synthesize_data() marginal POSIXct column", {
@@ -309,7 +315,7 @@ test_that("synthesize_data() 1-level factor does not error", {
   df <- data.frame(f = factor(rep("only", 10)))
   spec <- synth_spec(purpose = "demo", n = 20)
   expect_no_error(syn <- synthesize_data(df, spec))
-  expect_s3_class(syn$f, "factor")
+  expect_type(syn$f, "character")
 })
 
 test_that("synthesize_data() 0-row input schema works", {
@@ -413,7 +419,13 @@ test_that("synthesize_data() marginal with character column", {
   spec <- synth_spec(purpose = "demo", n = 20, merge_rare = FALSE)
   syn <- synthesize_data(df, spec)
   expect_type(syn$txt, "character")
-  expect_true(all(syn$txt %in% c("hello", "world", "foo", "bar", NA)))
+  # mask_rare replaced the old merge_rare behavior, so placeholders are now
+  # valid output values for labels below the rarity threshold.
+  expect_true(all(
+    is.na(syn$txt) |
+      syn$txt %in% c("hello", "world", "foo", "bar") |
+      grepl("^Other category [0-9]+$", syn$txt)
+  ))
 })
 
 test_that("synthesize_data() default n equals nrow(original)", {
@@ -454,11 +466,16 @@ test_that("synthesize_data() free text is synthesized as categorical by default"
 
   expect_type(syn$notes, "character")
   expect_false(all(is.na(syn$notes)))
-  # Every near-unique note collapses to ".other"; none reappear verbatim.
+  # Every near-unique note is masked by the new mask_rare behavior; none
+  # reappear verbatim.
   expect_false(any(unique_notes %in% syn$notes))
   # The note repeated often enough (>= rare_level_min_n) is allowed to recur.
   expect_true(common_note %in% syn$notes)
-  expect_true(all(syn$notes %in% c(common_note, ".other")))
+  expect_true(all(
+    is.na(syn$notes) |
+      syn$notes == common_note |
+      grepl("^Other category [0-9]+$", syn$notes)
+  ))
 })
 
 test_that("synthesize_data() marginal mixed types all work", {
@@ -612,14 +629,19 @@ test_that("schema synthesis handles haven_labelled column without error", {
 })
 
 # Fix 3 - factor levels preserved for rare levels
-test_that("factor synthesis preserves rare levels in levels()", {
+test_that("categorical synthesis preserves rare level slots", {
   df <- data.frame(
     f = factor(c(rep("common", 199), "rare"))
   )
   spec <- synth_spec(purpose = "demo", n = 10)
   syn <- synthesize_data(df, spec)
-  expect_s3_class(syn$f, "factor")
-  expect_true("rare" %in% levels(syn$f))
+  # mask_rare replaced the old merge_rare behavior: preserve the level slot
+  # count while withholding the literal rare label.
+  syn_values <- sort(unique(syn$f[!is.na(syn$f)]))
+  source_values <- sort(unique(df$f[!is.na(df$f)]))
+  expect_equal(length(syn_values), length(source_values))
+  expect_true(any(grepl("^Other category [0-9]+$", syn_values)))
+  expect_false("rare" %in% syn_values)
 })
 
 # Fix 4 - name_map stored inside spec attribute
@@ -644,7 +666,7 @@ test_that("rare-merge uses .other sentinel not other", {
                      rare_level_min_n = 5)
   syn <- synthesize_data(df, spec)
   # "other" was common so should survive; "x" and "y" merge to ".other"
-  expect_true("other" %in% levels(syn$f) || "other" %in% syn$f)
+  expect_true("other" %in% sort(unique(syn$f)))
 })
 
 # Safer_external end-to-end pipeline test

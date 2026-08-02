@@ -1,5 +1,5 @@
 
-# Tests for privacy_check() — [3.6]-[3.8]
+# Tests for privacy_check() -- [3.6]-[3.8]
 
 # Bind the real exports explicitly so these tests are insulated from any mocked
 # bindings left by earlier Shiny module tests under testthat::test_local().
@@ -92,7 +92,7 @@ test_that("privacy_check() pre flags geography columns", {
 })
 
 test_that("privacy_check() pre flags free-text columns", {
-  # 60 rows, 40 unique long strings — moderate cardinality to avoid ID candidate
+  # 60 rows, 40 unique long strings -- moderate cardinality to avoid ID candidate
   long_strings <- c(
     sprintf("very_long_text_for_privacy_test_number_%040d", 1:40),
     sample(sprintf("very_long_text_for_privacy_test_number_%040d", 1:40), 20, replace = TRUE)

@@ -7,7 +7,7 @@ test_that("detect_roles() returns correct S3 class and columns", {
     r,
     c(
       "variable", "class", "recommended_role", "user_role", "simulation",
-      "postal_strategy", "postal_country",
+      "postal_strategy", "postal_country", "label_strategy",
       "reason", "identifies", "sensitive", "disclosure_role", "disclosure_reason",
       "user_identifies", "user_sensitive"
     )

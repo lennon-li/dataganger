@@ -895,6 +895,24 @@ render_comparison_report <- function(comparison, privacy, synthetic, purpose, ou
     generated_at = as.character(Sys.time())
   )
 
+  # Two separate hazards, both of which broke
+  # `dataganger synthesize --out <relative-path>` -- the form a user actually
+  # types. Every CLI test used tempfile(), which is absolute, so the suite
+  # never covered either one.
+  #
+  # 1. rmarkdown resolves a relative output_file against the template's
+  #    directory rather than the working directory, sending the report into
+  #    inst/templates and aborting with "The directory ... does not exist".
+  # 2. rmarkdown::render() does not restore the working directory on exit. It
+  #    leaves it at intermediates_dir or at the template's directory, so every
+  #    later relative path in the export silently resolves against the wrong
+  #    root and the next write fails with "No such file or directory".
+  output_file <- file.path(
+    normalizePath(dirname(output_file), winslash = "/", mustWork = TRUE),
+    basename(output_file)
+  )
+  withr::local_dir(getwd())
+
   rmarkdown::render(
     input = template,
     output_file = output_file,
@@ -1188,11 +1206,28 @@ hash_files <- function(files) {
 zip_bundle <- function(bundle_dir, output_path) {
   files <- list.files(bundle_dir, recursive = TRUE, all.files = FALSE, no.. = TRUE, full.names = TRUE)
   files <- files[!file.info(files)$isdir]
-  zip::zip(
-    zipfile = output_path,
-    files = sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE)),
-    root = bundle_dir
+
+  # Resolve every path BEFORE calling zip::zip(). zip() switches the working
+  # directory to `root` and only then forces its lazily-evaluated `files`
+  # argument, so computing normalizePath(mustWork = TRUE) inline resolves the
+  # relative staging paths against the wrong directory and aborts with
+  # "path[1]=...: No such file or directory". An absolute bundle_dir happens to
+  # be immune, which is why every tempfile()-based test passed while
+  # `dataganger synthesize --out <relative-path>` failed.
+  root <- normalizePath(bundle_dir, winslash = "/", mustWork = TRUE)
+  rel_files <- sub(
+    paste0("^", root, "/?"), "",
+    normalizePath(files, winslash = "/", mustWork = TRUE)
   )
+
+  # Same reason: a relative zipfile would be created inside `root` rather than
+  # where the caller asked for it.
+  output_path <- file.path(
+    normalizePath(dirname(output_path), winslash = "/", mustWork = TRUE),
+    basename(output_path)
+  )
+
+  zip::zip(zipfile = output_path, files = rel_files, root = root)
 
   invisible(output_path)
 }

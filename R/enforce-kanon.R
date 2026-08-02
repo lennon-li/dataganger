@@ -184,8 +184,8 @@ coarsen_qi_step <- function(x, step) {
   if (inherits(x, "POSIXct")) {
     return(as.Date(x))
   }
-  if (is.character(x) || is.factor(x)) {
-    chr <- as.character(x)
+  if (is.character(x)) {
+    chr <- x
     if (is_range_label(chr)) {
       return(chr)
     }
@@ -228,6 +228,6 @@ merge_rarest_level <- function(chr) {
     return(chr)
   }
   rarest <- names(tab)[1]
-  chr[!is.na(chr) & chr == rarest] <- "(other)"
+  chr[!is.na(chr) & chr == rarest] <- NA_character_
   chr
 }

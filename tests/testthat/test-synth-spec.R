@@ -1,5 +1,5 @@
 
-# Tests for synth_spec() — [2.1]-[2.4]
+# Tests for synth_spec() -- [2.1]-[2.4]
 
 test_that("synth_spec() returns dataganger_spec for each valid purpose", {
   purposes <- c("demo", "development", "analytics")
@@ -20,18 +20,23 @@ test_that("synth_spec() maps presets correctly", {
   expect_equal(s$coarsen_dates, TRUE)
   expect_equal(s$name_strategy, "preserve")
   expect_equal(s$free_text_strategy, "categorical")
+  expect_equal(s$merge_rare, FALSE)
+  expect_equal(s$label_strategy, "mask_rare")
 
   s <- synth_spec(purpose = "development")
   expect_equal(s$level, "marginal")
   expect_equal(s$preserve_correlations, "moderate")
   expect_equal(s$coarsen_dates, FALSE)
   expect_equal(s$name_strategy, "preserve")
+  expect_equal(s$merge_rare, FALSE)
+  expect_equal(s$label_strategy, "mask_rare")
 
   s <- synth_spec(purpose = "analytics", acknowledge_risk = TRUE)
   expect_equal(s$level, "hifi")
   expect_equal(s$preserve_correlations, "high")
   expect_equal(s$free_text_strategy, "categorical")
   expect_equal(s$merge_rare, FALSE)
+  expect_equal(s$label_strategy, "preserve")
 })
 
 test_that("synth_spec() rejects invalid purpose", {
@@ -89,6 +94,32 @@ test_that("synth_spec() rejects invalid name_strategy", {
     synth_spec(purpose = "demo", name_strategy = "encrypt"),
     "Invalid name_strategy"
   )
+})
+
+test_that("synth_spec() rejects an invalid label_strategy", {
+  expect_error(
+    synth_spec(purpose = "demo", label_strategy = "merge_rare"),
+    "Invalid label_strategy"
+  )
+})
+
+test_that("synthpop label masking preserves rare-level slots", {
+  data <- data.frame(
+    category = factor(c(rep("common", 8L), "beta rare", "alpha rare")),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(data)
+  roles$user_role[roles$variable == "category"] <- "categorical"
+  spec <- synth_spec(purpose = "development", rare_level_min_n = 3L)
+
+  masked <- synthpop_mask_rare_inputs(data, spec, roles)
+
+  expect_false(any(c("alpha rare", "beta rare") %in% masked$category))
+  expect_setequal(
+    grep("^Other category [0-9]+$", masked$category, value = TRUE),
+    c("Other category 1", "Other category 2")
+  )
+  expect_equal(length(unique(masked$category)), length(unique(data$category)))
 })
 
 test_that("synth_spec() accepts exact missingness", {

@@ -4,6 +4,18 @@
 # the helpers from synth-helpers.R. Honors spec parameters for
 # missingness, rare-level merging, date coarsening, and free text.
 
+dg_effective_label_strategy <- function(spec, roles = NULL, idx = NA_integer_) {
+  label_strategy <- NA_character_
+  if (!is.null(roles) && !is.na(idx) && "label_strategy" %in% names(roles)) {
+    label_strategy <- roles$label_strategy[[idx]]
+  }
+  if (is.na(label_strategy) || !nzchar(label_strategy)) {
+    label_strategy <- spec$label_strategy %||% "preserve"
+  }
+  validate_label_strategy(label_strategy)
+  label_strategy
+}
+
 synthesize_marginal <- function(data, spec, roles = NULL) {
   if (!is.data.frame(data)) {
     cli::cli_abort("{.arg data} must be a data frame")
@@ -49,6 +61,8 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
 
     # Determine role for this column
     role <- dg_named_lookup(role_lookup, col_name); if (is.na(role)) role <- "unknown"
+    idx <- if (!is.null(roles) && "variable" %in% names(roles)) match(col_name, roles$variable) else NA_integer_
+    label_strategy <- dg_effective_label_strategy(spec, roles, idx)
 
     # remove_ids: mask ID columns with NA
     if (isTRUE(spec$remove_ids) && !is.null(role_lookup) &&
@@ -71,7 +85,8 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
         strategy = free_text_s,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
       next
     }
@@ -100,7 +115,6 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       }
     }
 
-    idx <- if (!is.null(roles) && "variable" %in% names(roles)) match(col_name, roles$variable) else NA_integer_
     is_user_postal <- !is.null(roles) && !is.na(idx) && "user_role" %in% names(roles) &&
       identical(roles$user_role[[idx]], "postal_code")
     if (is.character(x) && (identical(role, "postal code") || is_user_postal)) {
@@ -124,25 +138,14 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       }
     }
 
-    if (haven::is.labelled(x)) {
-      cols[[i]] <- synth_labelled(x, n,
-        rare_level_min_n = rare_min_n,
-        merge_rare = merge_rare,
-        missing_strategy = missingness
-      )
-    } else if (is.numeric(x)) {
+    if (is.numeric(x)) {
       cols[[i]] <- synth_numeric(x, n, missing_strategy = missingness)
     } else if (is.character(x)) {
       cols[[i]] <- synth_character(x, n,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
-      )
-    } else if (is.factor(x)) {
-      cols[[i]] <- synth_categorical(x, n,
-        rare_level_min_n = rare_min_n,
-        merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
     } else if (inherits(x, "Date")) {
       cols[[i]] <- synth_date(x, n,
@@ -165,7 +168,8 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
       cols[[i]] <- synth_character(as.character(x), n,
         rare_level_min_n = rare_min_n,
         merge_rare = merge_rare,
-        missing_strategy = missingness
+        missing_strategy = missingness,
+        label_strategy = label_strategy
       )
     }
   }
@@ -209,17 +213,11 @@ coarsen_posixct_to_day <- function(ts) {
 }
 
 typed_missing_vector <- function(x, n) {
-  if (haven::is.labelled(x)) {
-    return(rep(NA_character_, n))
-  }
   if (inherits(x, "Date")) {
     return(rep(as.Date(NA), n))
   }
   if (inherits(x, "POSIXct")) {
     return(rep(as.POSIXct(NA, tz = attr(x, "tzone") %||% "UTC"), n))
-  }
-  if (is.factor(x)) {
-    return(factor(rep(NA_character_, n), levels = levels(x)))
   }
   if (is.numeric(x)) {
     return(rep(NA_real_, n))

@@ -36,6 +36,159 @@ dg_class_to_role <- function(cls) {
 }
 
 
+#' Which actions a data type may be given, in display order
+#'
+#' The Action dropdown is type-aware: a free-text column has no meaningful
+#' "simulate from a distribution" behaviour, and an alphanumeric ID has no
+#' meaningful resample, so offering every action on every column invited
+#' choices that silently did something other than their label.
+#'
+#' These are *UI tokens*, not storage values. The stored `simulation` column
+#' keeps its four-value vocabulary (synthesize / pass_through / scramble /
+#' drop) because it is the agent-bundle and CLI recipe contract; the extra
+#' tokens here (`postal_resample` and `mask_rare`) are translated on write,
+#' never persisted in `simulation`.
+#' The first entry is the default for that type.
+#'
+#' @param role Effective data type, e.g. `"free_text"`.
+#' @return Character vector of action tokens.
+#' @keywords internal
+#' @noRd
+dg_action_options <- function(role) {
+  switch(
+    role %||% "",
+    alphanumeric_id = c("scramble", "pass_through", "drop"),
+    free_text       = c("synthesize", "mask_rare", "scramble", "pass_through", "drop"),
+    postal_code     = c("synthesize", "postal_resample", "pass_through", "drop"),
+    categorical     = c("synthesize", "mask_rare", "pass_through", "drop"),
+    numeric         = c("synthesize", "pass_through", "drop"),
+    date            = c("synthesize", "pass_through", "drop"),
+    c("synthesize", "pass_through", "drop")
+  )
+}
+
+#' Display label for an action, which depends on the type it applies to
+#'
+#' One stored action can be honestly described several ways: `synthesize`
+#' resamples observed values for categorical and free-text columns, draws from
+#' a fitted distribution for numeric and date columns, and builds new
+#' format-valid values for postal codes. The old single label "Synthesise"
+#' covered all three and told the user nothing about which they were getting.
+#'
+#' @param action Action token from [dg_action_options()].
+#' @param role Effective data type.
+#' @return A single display string.
+#' @keywords internal
+#' @noRd
+dg_action_label <- function(action, role) {
+  # Postal resample is the same action as categorical/free-text resample --
+  # draw from the values observed in the data -- so it carries the same label.
+  # Within a postal column the contrast is "Generate new" vs "Resample", which
+  # needs no further qualifier.
+  if (identical(action, "postal_resample")) {
+    return("Resample")
+  }
+  if (identical(action, "mask_rare")) {
+    return("Resample (rare levels masked)")
+  }
+  if (identical(action, "synthesize")) {
+    return(switch(
+      role %||% "",
+      categorical = "Resample",
+      free_text   = "Resample",
+      postal_code = "Generate new",
+      "Simulate"
+    ))
+  }
+  switch(
+    action %||% "",
+    scramble     = "Scramble",
+    pass_through = "Pass through",
+    drop         = "Drop",
+    action
+  )
+}
+
+#' Stored action plus strategy -> the token the dropdown shows
+#'
+#' Inverse of the translation [dg_apply_action_token()] performs on write.
+#' Postal codes and masked categorical labels store `simulation ==
+#' "synthesize"` for both strategies, so the separate strategy is what
+#' distinguishes them.
+#'
+#' @param simulation Stored `simulation` value.
+#' @param role Effective data type.
+#' @param postal_strategy Stored `postal_strategy`, or `NA`.
+#' @param label_strategy Stored `label_strategy`, or `NA`.
+#' @return A single action token.
+#' @keywords internal
+#' @noRd
+action_token <- function(simulation, role, postal_strategy = NA_character_,
+                         label_strategy = NA_character_) {
+  sim <- simulation %||% "synthesize"
+  if (is.na(sim) || !nzchar(sim)) sim <- "synthesize"
+  if (identical(role, "postal_code") && identical(sim, "synthesize") &&
+      !is.na(postal_strategy) && identical(postal_strategy, "resample")) {
+    return("postal_resample")
+  }
+  if (role %in% c("categorical", "free_text") && identical(sim, "synthesize") &&
+      identical(label_strategy, "mask_rare")) {
+    return("mask_rare")
+  }
+  sim
+}
+
+#' Write an action token onto a roles row
+#'
+#' Translates a UI token into the stored columns: `simulation` keeps its
+#' four-value contract vocabulary, and per-column strategies are written
+#' separately.
+#' Rejects any token the type does not offer, so a hand-crafted browser
+#' message cannot set an action the dropdown would never have shown -- e.g.
+#' `scramble` on a numeric column, which would run the identifier scrambler
+#' over numbers.
+#'
+#' @param roles Roles data frame.
+#' @param orig_row Row index into `roles`.
+#' @param token Action token from [dg_action_options()].
+#' @param role Effective data type for that row.
+#' @return The modified `roles`, or unchanged when `token` is not allowed.
+#' @keywords internal
+#' @noRd
+dg_apply_action_token <- function(roles, orig_row, token, role) {
+  if (!token %in% dg_action_options(role)) {
+    return(roles)
+  }
+  if (identical(token, "postal_resample")) {
+    roles$simulation[[orig_row]] <- "synthesize"
+    if (!"postal_strategy" %in% names(roles)) roles$postal_strategy <- NA_character_
+    roles$postal_strategy[[orig_row]] <- "resample"
+  } else if (identical(token, "mask_rare")) {
+    roles$simulation[[orig_row]] <- "synthesize"
+    if (!"label_strategy" %in% names(roles)) roles$label_strategy <- NA_character_
+    roles$label_strategy[[orig_row]] <- "mask_rare"
+  } else {
+    roles$simulation[[orig_row]] <- token
+    if (identical(role, "postal_code") && identical(token, "synthesize")) {
+      if (!"postal_strategy" %in% names(roles)) roles$postal_strategy <- NA_character_
+      roles$postal_strategy[[orig_row]] <- "generate"
+    }
+    if (role %in% c("categorical", "free_text") && identical(token, "synthesize")) {
+      if (!"label_strategy" %in% names(roles)) roles$label_strategy <- NA_character_
+      roles$label_strategy[[orig_row]] <- "preserve"
+    }
+  }
+  # Record the action as a user override, alongside user_role /
+  # user_identifies / user_sensitive. Without this the choice lives only in
+  # the derived `simulation` column and any later re-derivation silently
+  # discards it.
+  if (!"user_simulation" %in% names(roles)) {
+    roles$user_simulation <- NA_character_
+  }
+  roles$user_simulation[[orig_row]] <- roles$simulation[[orig_row]]
+  roles
+}
+
 #' Question-1 (identifies axis) choices.
 #'
 #' All three choices are always offered, including after the
@@ -238,19 +391,27 @@ disclosure_help_ui <- function(attested = FALSE) {
   )
 }
 
-#' Reference card: what each data type does by default
+#' Reference card: what each action does, and which types offer it
 #'
-#' A quick-reference legend for the type dropdown's default treatment, shown
-#' above the per-column table so the effect of a type is visible before
-#' anyone changes it.
+#' Keyed by *action* rather than by type. A user scanning the Action dropdown
+#' is asking "what does this choice do to my data", so the action is the
+#' entry point and the types it applies to are the qualifier -- the reverse
+#' of the type-first legend this replaces, which forced the reader to find
+#' their type before learning the consequence.
 #'
 #' @keywords internal
 #' @noRd
 type_action_legend_ui <- function() {
-  row <- function(type, action, detail) {
+  row <- function(action, types, detail, danger = FALSE) {
     shiny::tags$tr(
-      shiny::tags$td(style = "font-family:var(--font-mono); font-size:12px; padding:4px 8px; white-space:nowrap;", type),
-      shiny::tags$td(style = "font-family:var(--font-sans); font-weight:600; font-size:12px; padding:4px 8px; white-space:nowrap;", action),
+      shiny::tags$td(
+        style = paste0(
+          "font-family:var(--font-sans); font-weight:600; font-size:12px; padding:4px 8px; white-space:nowrap;",
+          if (danger) " color:#b7791f;" else ""
+        ),
+        action
+      ),
+      shiny::tags$td(style = "font-family:var(--font-mono); font-size:12px; padding:4px 8px;", types),
       shiny::tags$td(style = "font-family:var(--font-sans); font-size:12px; color:var(--fg-muted); padding:4px 8px;", detail)
     )
   }
@@ -259,19 +420,32 @@ type_action_legend_ui <- function() {
     style = "margin-bottom:12px;",
     shiny::tags$div(
       class = "card-header",
-      shiny::tags$span(class = "title", "What each type does by default"),
-      shiny::tags$span(class = "sub", "override any column with Action override")
+      shiny::tags$span(class = "title", "What each action does"),
+      shiny::tags$span(class = "sub", "the Action dropdown offers only the actions that fit a column's type")
     ),
     shiny::tags$table(
       style = "width:100%; border-collapse:collapse;",
-      row("categorical / free text", "Resample",
-          "Recreated from the observed distribution; rare or near-unique values are grouped."),
-      row("numeric / date", "Simulate",
-          "Recreated within the observed distribution/range, with noise or coarsening."),
-      row("alpha-numeric ID", "Scramble",
-          "Any identifier-shaped column. Letters and digits are reordered within each value; delimiters and length are kept."),
-      row("postal code", "Generate",
-          "New format-valid values in the detected country format; no source values reused. Can switch to resample per column.")
+      row("Resample", "categorical, free text, postal code",
+          shiny::tagList(
+            "Values are drawn from the ones observed in your data. For categorical and free text, anything appearing only a handful of times is grouped first, so near-unique values do not reappear. ",
+            shiny::tags$span(
+              style = "color:#b7791f;",
+              "This means some levels may be missing from the result -- grouped away, or crowded out when there are more levels than rows. Use Resample (rare levels masked) when every observed level must survive without revealing rare labels."
+            ),
+            " Postal codes are reused as-is, because they are geographic codes rather than categories."
+          )),
+      row("Resample (rare levels masked)", "categorical, free text",
+          "Every level survives with its own slot and its observed frequency, but a level seen only a handful of times has its label replaced by a neutral placeholder. Nothing is grouped together and no category is invented -- only the rare text is withheld."),
+      row("Simulate", "numeric, date",
+          "Recreated within the observed distribution and range, with noise or coarsening."),
+      row("Scramble", "alpha-numeric ID, free text",
+          "Characters are reordered within each value, keeping length and punctuation in place. Nothing is carried across rows."),
+      row("Generate new", "postal code",
+          "Fresh format-valid values in the detected country format; no source value is reused."),
+      row("Pass through", "any type",
+          "The real values are copied across unchanged. Verify before sharing.", danger = TRUE),
+      row("Drop", "any type",
+          "The column is removed from the synthetic data entirely.")
     )
   )
 }
@@ -483,6 +657,19 @@ mod_roles_server <- function(id, state) {
       } else {
         dg_derived_action_axes(roles$identifies[[orig_row]], roles$sensitive[[orig_row]])
       }
+      # A sticky action from the previous type may be meaningless for the new
+      # one -- scramble chosen on free text, then retyped to numeric. Leaving
+      # it set would let a later Q1 answer restore an action this type never
+      # offers, so drop the override and fall back to the type's default.
+      if (!roles$simulation[[orig_row]] %in% dg_action_options(val)) {
+        roles$simulation[[orig_row]] <- dg_action_options(val)[[1]]
+      }
+      if ("user_simulation" %in% names(roles)) {
+        stale <- roles$user_simulation[[orig_row]]
+        if (!is.na(stale) && !stale %in% dg_action_options(val)) {
+          roles$user_simulation[[orig_row]] <- NA_character_
+        }
+      }
       if (identical(val, "postal_code")) {
         if (!"postal_strategy" %in% names(roles)) roles$postal_strategy <- NA_character_
         if (!"postal_country" %in% names(roles)) roles$postal_country <- NA_character_
@@ -491,6 +678,14 @@ mod_roles_server <- function(id, state) {
       } else {
         if ("postal_strategy" %in% names(roles)) roles$postal_strategy[[orig_row]] <- NA_character_
         if ("postal_country" %in% names(roles)) roles$postal_country[[orig_row]] <- NA_character_
+      }
+      if (val %in% c("categorical", "free_text")) {
+        if (!"label_strategy" %in% names(roles)) roles$label_strategy <- NA_character_
+        if (is.na(roles$label_strategy[[orig_row]]) || !nzchar(roles$label_strategy[[orig_row]])) {
+          roles$label_strategy[[orig_row]] <- "preserve"
+        }
+      } else if ("label_strategy" %in% names(roles)) {
+        roles$label_strategy[[orig_row]] <- NA_character_
       }
       roles
     }
@@ -531,17 +726,12 @@ mod_roles_server <- function(id, state) {
     }
 
     apply_simulation_change <- function(roles, orig_row, val) {
-      if (!val %in% SIMULATION_OPTIONS) return(roles)
-      roles$simulation[[orig_row]] <- val
-      # Record the action as a user override, alongside user_role /
-      # user_identifies / user_sensitive. Without this the choice lives only in
-      # the derived `simulation` column and any later re-derivation silently
-      # discards it.
-      if (!"user_simulation" %in% names(roles)) {
-        roles$user_simulation <- NA_character_
-      }
-      roles$user_simulation[[orig_row]] <- val
-      roles
+      role <- eff_role(
+        roles$user_role[[orig_row]],
+        roles$recommended_role[[orig_row]],
+        roles$class[[orig_row]]
+      )
+      dg_apply_action_token(roles, orig_row, val, role)
     }
 
     is_whole_number_column <- function(x) {
@@ -641,22 +831,19 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_simulation_select <- function(orig_row, simulation) {
-        current <- simulation %||% "synthesize"
-        if (!current %in% SIMULATION_OPTIONS) {
-          current <- "synthesize"
+      make_simulation_select <- function(orig_row, simulation, role,
+                                         postal_strategy = NA_character_,
+                                         label_strategy = NA_character_) {
+        allowed <- dg_action_options(role)
+        current <- action_token(simulation, role, postal_strategy, label_strategy)
+        if (!current %in% allowed) {
+          current <- allowed[[1]]
         }
-        labels <- c(
-          synthesize = "Synthesise",
-          pass_through = "Pass through",
-          scramble = "Scramble",
-          drop = "Drop"
-        )
-        opts <- lapply(SIMULATION_OPTIONS, function(opt) {
+        opts <- lapply(allowed, function(opt) {
           shiny::tags$option(
             value    = opt,
             selected = if (identical(opt, current)) "selected" else NULL,
-            labels[[opt]]
+            dg_action_label(opt, role)
           )
         })
         shiny::tags$select(
@@ -726,28 +913,6 @@ mod_roles_server <- function(id, state) {
         )
       }
 
-      make_postal_strategy_select <- function(orig_row, current) {
-        current <- current %||% "generate"
-        if (is.na(current) || !current %in% c("generate", "resample")) current <- "generate"
-        labels <- c(generate = "Generate new", resample = "Resample observed")
-        shiny::tags$select(
-          class = "input",
-          style = "width:100%; padding:2px 6px; font-size:11px; font-family:var(--font-mono); border-radius:2px;",
-          onchange = sprintf(
-            "Shiny.setInputValue('%s', {row: %d, value: this.value}, {priority:'event'})",
-            session$ns("postal_strategy_change"),
-            orig_row
-          ),
-          lapply(c("generate", "resample"), function(opt) {
-            shiny::tags$option(
-              value = opt,
-              selected = if (identical(opt, current)) "selected" else NULL,
-              labels[[opt]]
-            )
-          })
-        )
-      }
-
       make_postal_country_select <- function(orig_row, current) {
         countries <- c(NA, "CA", "US", "UK", "AU", "DE", "FR", "JP", "IN", "BR", "NL")
         country_labels <- c(
@@ -812,6 +977,9 @@ mod_roles_server <- function(id, state) {
 
       make_action_override_controls <- function(orig_row, row_data, col_data, n_rows) {
         simulation_value <- as.character(row_data$simulation[[1]] %||% "synthesize")
+        effective_role <- eff_role(
+          row_data$user_role[[1]], row_data$recommended_role[[1]], row_data$class[[1]]
+        )
         caption <- override_consequence_caption(
           row_data$recommended_role[[1]], row_data$user_role[[1]], col_data, n_rows
         )
@@ -822,7 +990,11 @@ mod_roles_server <- function(id, state) {
               style = "font-size:11px; color:var(--fg-muted);",
               "Action override"
             ),
-            make_simulation_select(orig_row, simulation_value)
+            make_simulation_select(
+              orig_row, simulation_value, effective_role,
+              if ("postal_strategy" %in% names(row_data)) row_data$postal_strategy[[1]] else NA_character_,
+              if ("label_strategy" %in% names(row_data)) row_data$label_strategy[[1]] else NA_character_
+            )
           ),
           shiny::tags$div(
             style = "font-size:11px; color:var(--fg-muted);",
@@ -840,28 +1012,19 @@ mod_roles_server <- function(id, state) {
               row_data$class[[1]]
             )
           ),
-          if (identical(eff_role(row_data$user_role[[1]], row_data$recommended_role[[1]], row_data$class[[1]]), "postal_code")) {
+          # Postal strategy is no longer its own dropdown -- "Generate new" and
+          # "Resample observed" are actions, so they belong in the Action
+          # select with every other action. Country format stays separate
+          # because it is a parameter of the action, not an alternative to it.
+          if (identical(effective_role, "postal_code")) {
             shiny::tags$div(
-              style = "display:grid; grid-template-columns:1fr 1fr; gap:6px;",
               shiny::tags$div(
-                shiny::tags$div(
-                  style = "font-size:11px; color:var(--fg-muted);",
-                  "Postal strategy"
-                ),
-                make_postal_strategy_select(
-                  orig_row,
-                  if ("postal_strategy" %in% names(row_data)) row_data$postal_strategy[[1]] else NA_character_
-                )
+                style = "font-size:11px; color:var(--fg-muted);",
+                "Country format"
               ),
-              shiny::tags$div(
-                shiny::tags$div(
-                  style = "font-size:11px; color:var(--fg-muted);",
-                  "Country format"
-                ),
-                make_postal_country_select(
-                  orig_row,
-                  if ("postal_country" %in% names(row_data)) row_data$postal_country[[1]] else NA_character_
-                )
+              make_postal_country_select(
+                orig_row,
+                if ("postal_country" %in% names(row_data)) row_data$postal_country[[1]] else NA_character_
               )
             )
           },
@@ -1150,21 +1313,6 @@ mod_roles_server <- function(id, state) {
       invisible(NULL)
     })
 
-    shiny::observeEvent(input$postal_strategy_change, ignoreNULL = TRUE, {
-      change <- input$postal_strategy_change
-      roles  <- roles_local()
-      if (is.null(change) || is.null(roles)) return(invisible(NULL))
-      orig_row <- as.integer(change$row)
-      if (is.na(orig_row) || orig_row < 1L || orig_row > nrow(roles)) return(invisible(NULL))
-      val <- as.character(change$value)
-      if (!val %in% c("generate", "resample")) return(invisible(NULL))
-      if (!"postal_strategy" %in% names(roles)) roles$postal_strategy <- NA_character_
-      roles$postal_strategy[[orig_row]] <- val
-      roles_local(roles)
-      state$roles <- roles
-      invisible(NULL)
-    })
-
     shiny::observeEvent(input$postal_country_change, ignoreNULL = TRUE, {
       change <- input$postal_country_change
       roles  <- roles_local()
@@ -1249,9 +1397,13 @@ mod_roles_server <- function(id, state) {
                  q1_opts, q1_labels),
         bulk_row("Sensitive? (Q2)", "bulk_sensitive_value", "bulk_apply_sensitive",
                  c("no", "yes"), c(no = "No", yes = "Yes")),
+        # A bulk selection can span types, so this offers the stored actions
+        # under type-neutral labels rather than one type's vocabulary. Rows
+        # whose type does not offer the chosen action are skipped, and the
+        # notification reports how many actually changed.
         bulk_row("Action override", "bulk_simulation_value", "bulk_apply_simulation",
                  SIMULATION_OPTIONS, c(
-                   synthesize = "Synthesise", pass_through = "Pass through",
+                   synthesize = "Resample / simulate", pass_through = "Pass through",
                    scramble = "Scramble", drop = "Drop"
                  ))
       )
@@ -1295,13 +1447,25 @@ mod_roles_server <- function(id, state) {
       if (is.null(roles)) return(invisible(NULL))
       rows <- match(intersect(selected_vars(), roles$variable), roles$variable)
       if (!length(rows)) return(invisible(NULL))
+      changed <- 0L
       for (orig_row in rows) {
-        roles <- mutate_row(roles, orig_row)
+        before <- roles[orig_row, , drop = FALSE]
+        roles  <- mutate_row(roles, orig_row)
+        if (!identical(before, roles[orig_row, , drop = FALSE])) changed <- changed + 1L
       }
       roles_local(roles)
       state$roles <- roles
+      skipped <- length(rows) - changed
       shiny::showNotification(
-        sprintf("Updated %d column%s.", length(rows), if (length(rows) == 1L) "" else "s"),
+        sprintf(
+          "Updated %d column%s.%s",
+          changed, if (changed == 1L) "" else "s",
+          if (skipped > 0L) {
+            sprintf(" %d skipped -- that action does not apply to their type.", skipped)
+          } else {
+            ""
+          }
+        ),
         type = "message", duration = 2.5
       )
       invisible(NULL)

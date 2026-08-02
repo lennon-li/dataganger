@@ -16,6 +16,9 @@
 #'
 #' @return An S3 object of class `dataganger_synthetic`, a tibble with
 #'   attributes `spec`, `original_dims`, `seed_used`, and `generated_at`.
+#'   Categorical and other non-numeric text columns are returned as plain
+#'   `character`; numeric, logical, date, and datetime columns retain their
+#'   corresponding types.
 #'
 #' @section Disabling synthpop:
 #' Set `options(dataganger.disable_synthpop = TRUE)` to steer
@@ -40,6 +43,8 @@ synthesize_data <- function(data, spec, roles = NULL,
   if (!inherits(spec, "dataganger_spec")) {
     cli::cli_abort("{.arg spec} must be a {.cls dataganger_spec} object")
   }
+
+  data <- normalize_categorical_input(data)
 
   # "marginal" is a user-friendly alias for "internal" (per todo.md API)
   spec_engine <- spec[["engine", exact = TRUE]]
@@ -84,8 +89,16 @@ synthesize_data <- function(data, spec, roles = NULL,
     attr(syn, "seed_used")     <- spec$seed
     attr(syn, "generated_at")  <- Sys.time()
     class(syn) <- c("dataganger_synthetic", class(syn))
+    # synthpop uses factors inside its models. Flatten before our own level
+    # restoration and k-anonymity passes so both engines see character data.
+    syn <- flatten_to_character(syn)
+    syn <- ensure_levels_present(syn, data, roles, spec)
     syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
+    # Before apply_name_strategy: columns are matched to the original by name,
+    # and the "generic" strategy renames them to col_1, col_2, ...
+    syn <- restore_logical_columns(syn, data)
     syn <- apply_name_strategy(syn, spec, data)
+    syn <- flatten_to_character(syn)
     attr(syn, "engine")        <- "synthpop"
     return(syn)
   }
@@ -129,10 +142,12 @@ synthesize_data <- function(data, spec, roles = NULL,
   attr(syn, "generated_at")  <- Sys.time()
   class(syn) <- c("dataganger_synthetic", class(syn))
 
+  syn <- ensure_levels_present(syn, data, roles, spec)
   syn <- enforce_kanon(syn, roles = roles, k = spec$k_anon %||% 5)
   # [2.13] Apply name_strategy after k-anonymity so the mapping only records
   # columns that survive direct-ID dropping and suppression shaping.
   syn <- apply_name_strategy(syn, spec, data)
+  syn <- flatten_to_character(syn)
   attr(syn, "engine") <- "internal"
 
   syn

@@ -22,6 +22,9 @@ Informs column treatment but does not override the spec.}
 \value{
 An S3 object of class \code{dataganger_synthetic}, a tibble with
 attributes \code{spec}, \code{original_dims}, \code{seed_used}, and \code{generated_at}.
+Categorical and other non-numeric text columns are returned as plain
+\code{character}; numeric, logical, date, and datetime columns retain their
+corresponding types.
 }
 \description{
 Creates a synthetic copy of a dataset using the specified specification

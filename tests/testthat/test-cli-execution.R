@@ -492,3 +492,40 @@ test_that("synthesize --roles scrambles a direct alphanumeric-ID column instead 
   expect_true("token" %in% names(syn))
   expect_length(intersect(df$token, syn$token), 0L)
 })
+
+test_that("synthesize accepts a relative --out path", {
+  # Regression: every other CLI test builds paths from withr::local_tempdir(),
+  # which is absolute, so nothing covered the form a user actually types:
+  #   dataganger synthesize data.csv --spec spec.yaml --out bundle.zip
+  #
+  # Two distinct failures hid behind that gap. rmarkdown::render() resolves a
+  # relative output_file against the template directory and does not restore
+  # the working directory afterwards; and zip::zip() switches to `root` before
+  # forcing its lazily-evaluated `files` argument, so paths normalized inline
+  # resolved against the wrong directory. Both are invisible with an absolute
+  # path and fatal with a relative one.
+  tmp <- withr::local_tempdir()
+  data_path <- cli_fixture_csv(tmp)
+  withr::local_dir(tmp)
+
+  spec_result <- run_cli(c("spec", "--purpose", "demo", "--out", "spec.yaml"))
+  expect_identical(spec_result$code, 0L)
+
+  result <- run_cli(c(
+    "synthesize", basename(data_path),
+    "--spec", "spec.yaml",
+    "--out", "bundle.zip"
+  ))
+
+  expect_identical(result$code, 0L)
+  expect_true(file.exists("bundle.zip"))
+
+  entries <- utils::unzip("bundle.zip", list = TRUE)$Name
+  expect_true(all(
+    c("agent/manifest.json", "agent/AGENT.md", "human/human.md",
+      "synthetic_data.csv") %in% entries
+  ))
+
+  # The staging directory is created alongside the output; it must not survive.
+  expect_length(list.files(".", pattern = "^\\.bundle-", all.files = TRUE), 0L)
+})

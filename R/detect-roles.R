@@ -316,7 +316,8 @@ is_free_text_candidate <- function(x) {
 make_role_row <- function(name, r_class, role, reason, disclosure_role,
                           default_simulation = "synthesize",
                           postal_strategy = NA_character_,
-                          postal_country = NA_character_) {
+                          postal_country = NA_character_,
+                          label_strategy = NA_character_) {
   axes <- dg_role_to_axes(disclosure_role)
   tibble::tibble(
     variable         = name,
@@ -326,6 +327,7 @@ make_role_row <- function(name, r_class, role, reason, disclosure_role,
     simulation       = default_simulation,
     postal_strategy  = postal_strategy,
     postal_country   = postal_country,
+    label_strategy   = label_strategy,
     reason           = reason,
     identifies       = axes$identifies,
     sensitive        = axes$sensitive,

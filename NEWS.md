@@ -1,4 +1,62 @@
-# dataganger 0.7.2
+# dataganger 0.8.0
+
+*   Categorical output is now always plain character. Factors and
+    `haven_labelled` columns are normalized at synthesis input and are no
+    longer produced or returned by dataganger. A factor level declared with
+    zero rows is dropped: a category absent from the source stays absent from
+    the synthetic copy rather than being invented.
+
+*   Logical columns now keep the `logical` type on both engines. Previously a
+    logical column came back as `"TRUE"`/`"FALSE"` text from the synthpop
+    engine because synthpop models it as a two-level factor.
+
+*   The internal categorical resamplers no longer default to merging rare
+    values into `.other`. Every purpose preset already set `merge_rare = FALSE`,
+    so the old default matched no preset.
+
+*   Demo and development synthesis now mask rare category labels instead of
+    merging them into `.other`, so every observed category keeps its own slot.
+
+*   Every category observed in the source now appears in synthetic output for
+    demo and development purposes, while k-anonymity suppression no longer
+    introduces an `(other)` category.
+
+*   Categorical resampling now guarantees every sampled category level appears
+    at least once whenever the requested output has enough rows; this preserves
+    level presence for downstream code paths, joins, and facets.
+
+*   Capacity warnings for level-presence restoration are now combined into one
+    warning per synthesis output while retaining affected columns and sizes.
+
+*   Categorical and free-text columns gain a `label_strategy` setting and a
+    "Resample (rare levels masked)" action. It preserves each observed level's
+    slot and frequency while replacing rare labels with distinct neutral
+    placeholders, without merging categories into `.other`.
+
+*   The Action dropdown on the Configure step now offers only the actions that
+    make sense for a column's data type, and names them for that type. Free
+    text gains an explicit choice between "Resample" and "Scramble"; numeric
+    and date columns no longer offer "Scramble", which would have run the
+    identifier scrambler over numbers; and alphanumeric IDs no longer offer a
+    resample. The single label "Synthesise" is replaced by the treatment it
+    actually applies -- "Resample" for categorical and free text, "Simulate"
+    for numeric and date, "Generate new" for postal codes. The stored action
+    vocabulary in `roles$simulation` is unchanged, so agent bundles and CLI
+    recipes are unaffected.
+
+*   Postal-code columns lose their separate strategy dropdown: "Generate new"
+    and "Resample" are actions, so they are now chosen in the Action
+    dropdown alongside every other action. A postal column is configured with
+    two controls instead of four. Country format remains its own control, as a
+    parameter of the action rather than an alternative to it.
+
+*   The Configure step's reference card is keyed by action rather than by data
+    type, so the question it answers is "what will this choice do to my data"
+    rather than "what type am I looking at".
+
+*   An action override that a later type change makes meaningless is now
+    discarded rather than left set, where it could be restored by a
+    subsequent answer to question 1.
 
 *   Fix silent data loss on the Configure step: a column you had explicitly
     kept (Action = pass through or scramble) was reset to `drop` as soon as
