@@ -281,7 +281,7 @@ for (i in seq_len(nrow(level_cases))) {
           level_values(result$synthetic[[case$col]]),
           identical(case$engine, "synthpop") || !identical(case$purpose, "demo")
         )
-        skip(paste0(
+        testthat::fail(paste0(
           "VIOLATION: purpose=", case$purpose,
           ", label_strategy=", case$label_strategy,
           ", engine=", case$engine,
