@@ -1,8 +1,11 @@
 ## Submission
 
-This release does two things: it corrects the check failures reported for
-0.6.1 on the CRAN check page (notified 2026-07-27, correction requested before
-2026-08-21), and it ships the feature work accumulated since 0.6.1.
+This is version 0.8.0. It does two things: it corrects the check failures
+reported for 0.6.1 on the CRAN check page (notified 2026-07-27, correction
+requested before 2026-08-21), and it ships the feature work accumulated since
+0.6.1. The version on CRAN is 0.6.1; the intervening 0.7.x versions were
+development releases and were not submitted, so the changes listed below cover
+everything since the current CRAN version.
 
 ## Corrections to the reported check failures
 
@@ -34,19 +37,45 @@ predictor and the outcome, so the model is well identified and the result is
 stable across platforms. No package code was changed for this: returning `NA`
 for a degenerate fit is the intended behaviour.
 
-## User-visible changes since 0.6.1
+## Breaking changes since 0.6.1
 
 This release also contains substantial feature and disclosure-control work.
-The full list is in NEWS.md; the items most relevant to review are:
+The full list is in NEWS.md; the changes that alter existing behaviour are:
 
-**Breaking change — identifier columns are now scrambled by default rather
-than dropped.** A column classified as a direct or alphanumeric identifier
-defaults to `simulation = "scramble"`: it is kept in the output but
-de-identified, rather than silently removed. Dropping is now an explicit
-`simulation = "drop"`. Recipes relying on the previous drop-by-default
-behaviour will see the column present (scrambled) unless they set `drop`
-explicitly. This is documented under "Breaking changes" in NEWS.md.
+**Identifier columns are now scrambled by default rather than dropped.**
+A column classified as a direct or alphanumeric identifier defaults to
+`simulation = "scramble"`: it is kept in the output but de-identified, rather
+than silently removed. Dropping is now an explicit `simulation = "drop"`.
+Recipes relying on the previous drop-by-default behaviour will see the column
+present (scrambled) unless they set `drop` explicitly.
 
+**Categorical output is now always plain character.** Factors and
+`haven_labelled` columns are normalised at synthesis input and are no longer
+produced or returned. Code that expected a factor back from `synthesize_data()`
+will now receive a character vector. A factor level declared with zero rows is
+dropped, so a category absent from the source stays absent from the synthetic
+copy rather than being invented.
+
+**Logical columns now keep the `logical` type on both engines.** Previously a
+logical column came back as `"TRUE"`/`"FALSE"` character from the synthpop
+engine, which models it as a two-level factor.
+
+**`export_synthetic()` gains an `exact_match_acknowledged` argument, defaulting
+to `FALSE`.** In the Shiny app, synthetic rows that reproduce a real record
+verbatim *and* expose a value marked sensitive block the download until a
+regeneration clears them or a human acknowledges them; the acknowledgment is
+recorded in `agent/manifest.json`. The R function records the same field so a
+scripted bundle is self-describing. `export_synthetic()` itself is not gated by
+it, so existing scripted calls behave as before and gain one manifest field.
+
+## Other user-visible changes since 0.6.1
+
+- Arriving at the Export step in the Shiny app opens a disclosure-risk brief:
+  the minimum group size and the columns it covers, how many rows were blanked
+  to reach it, how many synthetic rows reproduce a real record and how many of
+  those expose a sensitive value, and the remaining privacy-check findings with
+  their severity. It is informational; the export checks themselves are
+  unchanged.
 - New `postal_code` semantic type, treated as a quasi-identifier, with a
   10-country format registry (CA, US, UK, AU, DE, FR, JP, IN, BR, NL) and two
   per-column synthesis strategies: `generate` (format-valid values with no
@@ -58,11 +87,19 @@ explicitly. This is documented under "Breaking changes" in NEWS.md.
   disclosure default as native `Date` columns.
 - Scrambling now de-identifies short numeric identifiers, which character
   reordering alone could not change.
+- Rare category labels are masked with distinct neutral placeholders rather
+  than merged into a single `.other` bucket, so each observed level keeps its
+  own slot and frequency. `merge_rare` defaults to `FALSE` throughout; every
+  purpose preset already set it, so specs built with `synth_spec()` are
+  unaffected.
 - k-anonymity suppression *volume* (`suppressed_rows`, `suppressed_row_frac`)
   is now reported in the `kanon` attribute, `manifest.json`, `human/human.md`
-  and `dataganger inspect`.
-- A simplified column-type taxonomy, bulk configuration for wide datasets, and
-  a batch of Shiny Configure/upload usability fixes.
+  and `dataganger inspect`; suppression no longer introduces an `(other)`
+  category.
+- A simplified column-type taxonomy, bulk configuration for wide datasets, an
+  action vocabulary on the Configure step restricted to what each data type
+  supports, and a batch of Shiny Configure/upload usability and data-loss
+  fixes.
 
 `.Rbuildignore` was also updated so development-only directories are excluded
 from the build.
