@@ -271,31 +271,36 @@ dg_disable_slider_tag <- function(tag) {
 
 #' Are both Configure questions answered for every column?
 #'
-#' Gate predicate for the k-anonymity slider. This deliberately delegates to
-#' roles_generation_pending() rather than testing `identifies`/`sensitive`
-#' directly, because those two columns are SEEDED by detect_roles(): a freshly
-#' uploaded file already carries `identifies = "none"/"combination"/"direct"`
-#' and `sensitive = FALSE` for every column before the user has answered
-#' anything. Reading them treats a machine guess as a human answer, which
-#' unlocks the slider at upload on any dataset whose columns all classify.
-#' The user's real answers live in `user_identifies`/`user_sensitive`, which is
-#' what roles_generation_pending() reads (and it also exempts dropped and
-#' passed-through columns, and handles the CLI shape where the user_* columns
-#' are all NA).
+#' Gate predicate for the k-anonymity slider. This is deliberately the SAME
+#' predicate the Confirm button on the same step uses, so the two cannot
+#' disagree: the slider unlocks exactly when Confirm unlocks. It is a thin
+#' wrapper rather than a second implementation, because a parallel "all
+#' answered" check would be free to drift away from the real one.
 #'
-#' Sharing that predicate is the point: the slider now unlocks exactly when the
-#' Confirm button on the same step unlocks, so the two cannot disagree.
+#' roles_ready_for_generation() reads `user_identifies`/`user_sensitive`, not
+#' `identifies`/`sensitive`. That matters: the latter pair are SEEDED by
+#' detect_roles(), so a freshly uploaded file already carries
+#' `identifies = "none"/"combination"/"direct"` and `sensitive = FALSE` for
+#' every column before the user has answered anything. A predicate reading them
+#' would treat a machine guess as a human answer and unlock the slider at upload
+#' on any dataset whose columns all classify. Delegating also inherits the
+#' exemption for dropped and passed-through columns, and the CLI shape where the
+#' user_* columns are all NA.
 #'
-#' NULL roles and an empty roles table count as unanswered -- there is nothing
-#' to configure yet, so the slider stays gated.
+#' The only thing added here is a type guard: roles_ready_for_generation()
+#' calls nrow() unguarded, so a non-data-frame reaches `if (!nrow(x))` with a
+#' zero-length condition and errors. Inside a renderUI that would surface as a
+#' broken panel, so anything that is not a roles table is simply "unanswered".
+#' NULL and an empty table are unanswered for the same reason -- there is
+#' nothing to configure yet, so the slider stays gated.
 #'
 #' @keywords internal
 #' @noRd
 dg_roles_all_answered <- function(roles) {
-  if (is.null(roles) || !is.data.frame(roles) || nrow(roles) == 0L) {
+  if (!is.data.frame(roles)) {
     return(FALSE)
   }
-  length(roles_generation_pending(roles)) == 0L
+  roles_ready_for_generation(roles)
 }
 
 #' @keywords internal

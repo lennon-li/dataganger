@@ -500,11 +500,12 @@ test_that("the gate reads the user's answers, not detect_roles() seeds", {
 test_that("the k gate opens exactly when the Confirm gate opens", {
   df <- hint_fixture()
 
-  # Sharing roles_generation_pending() is the point: the slider and the
-  # Confirm button sit on the same step and must not disagree.
+  # Sharing roles_ready_for_generation() is the point: that is literally the
+  # predicate the Confirm button uses, and the two sit on the same step, so
+  # they must not disagree. Comparing against it (rather than re-deriving the
+  # answer here) is what would catch the gate growing its own second opinion.
   agrees <- function(roles) {
-    identical(dg_roles_all_answered(roles),
-              length(roles_generation_pending(roles)) == 0L)
+    identical(dg_roles_all_answered(roles), roles_ready_for_generation(roles))
   }
 
   answered <- gate_roles_answered(df)
@@ -615,38 +616,66 @@ test_that("k slider is enabled once every column is answered", {
 # it re-renders whenever an answer changes. The slider is created inside that
 # same renderUI, so its value has to be carried across by an isolate()d read --
 # without it the user's chosen k silently snaps back to the preset every time
-# they answer another column. The gate flip below proves the re-render really
-# happened, so the value assertion cannot pass vacuously.
-test_that("answering a column re-renders the k slider without losing its value", {
+# they touch the table.
+#
+# Every step below is reachable through the UI, which matters: k can only be
+# set while the gate is OPEN, so a test that sets it while gated would assert
+# carry-forward across a transition the gate itself makes impossible. The route
+# in is the Action dropdown -- a dropped column needs no answers, so switching
+# it back to "synthesize" re-opens the questions and closes the gate again. The
+# two gate flips prove the output really re-rendered, so neither value
+# assertion can pass vacuously.
+test_that("changing the table re-renders the k slider without losing its value", {
   testthat::skip_if_not_installed("shiny")
 
   df <- hint_fixture()
+
+  # Everything answered except one column, which is dropped and so exempt.
+  # The gate is open: this is a spec the user could confirm.
+  start <- gate_roles_answered(df)
+  start$simulation[2L] <- "drop"
+  start$user_identifies[2L] <- ""
+  start$user_sensitive[2L] <- NA
+
   shiny::testServer(
     mod_synthesis_controls_server,
-    args = list(state = hint_state(df, gate_roles_unanswered(df))),
+    args = list(state = hint_state(df, start)),
     {
       session$setInputs(purpose_group = "development")
       session$flushReact()
 
       before <- hint_html(output$kanon_control)
-      expect_match(before, "pointer-events:none", fixed = TRUE)
+      expect_no_match(before, "pointer-events:none", fixed = TRUE)
       # Preset default, so a later data-from="9" cannot be a leftover.
       expect_match(before, "data-from=\"5\"", fixed = TRUE)
 
-      # The user drags to a non-default k while the table is still incomplete.
+      # Only now, with the slider live, can the user drag it to a non-default k.
       session$setInputs(k_anon = 9L)
       session$flushReact()
 
-      # Now every column is answered. This must re-render kanon_control.
-      state$roles <- gate_roles_answered(df)
+      # The user puts that column back into the output. It now needs answers it
+      # does not have, so the gate closes -- and closing is only observable if
+      # kanon_control re-rendered.
+      roles <- state$roles
+      roles$simulation[2L] <- "synthesize"
+      state$roles <- roles
+      session$flushReact()
+
+      gated <- hint_html(output$kanon_control)
+      expect_match(gated, "pointer-events:none", fixed = TRUE)
+      expect_match(gated, "data-from=\"9\"", fixed = TRUE)
+      expect_no_match(gated, "data-from=\"5\"", fixed = TRUE)
+
+      # The user answers it. The gate re-opens -- a second re-render -- and the
+      # chosen 9 has to survive both of them.
+      roles <- state$roles
+      roles$user_identifies[2L] <- "none"
+      roles$user_sensitive[2L] <- FALSE
+      state$roles <- roles
       session$flushReact()
 
       after <- hint_html(output$kanon_control)
-
-      # The gate opened, which is only observable if the output re-rendered.
       expect_no_match(after, "pointer-events:none", fixed = TRUE)
-
-      # ... and the re-render preserved the user's 9 instead of resetting to 5.
       expect_match(after, "data-from=\"9\"", fixed = TRUE)
       expect_no_match(after, "data-from=\"5\"", fixed = TRUE)
     }
