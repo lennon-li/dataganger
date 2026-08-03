@@ -415,3 +415,22 @@ test_that("both threshold sliders step in whole numbers", {
     }
   )
 })
+
+# Regression: the sliders are created inside renderUI, so on the first render
+# pass input$rare_level_min_n / input$k_anon are still NULL. as.integer(NULL) is
+# integer(0), and `... || is.na(integer(0))` aborts the render with "missing
+# value where TRUE/FALSE needed" -- the hint would have thrown on every startup
+# where the readout rendered before the slider registered. Copilot found this.
+test_that("hint readouts survive sliders that have not initialised yet", {
+  df    <- hint_fixture()
+  roles <- hint_roles(df)
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, roles)),
+    {
+      session$setInputs(rare_level_min_n = NULL, k_anon = NULL)
+      expect_null(output$rare_hint)
+      expect_null(output$kanon_hint)
+    }
+  )
+})

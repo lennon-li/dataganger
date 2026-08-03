@@ -526,8 +526,12 @@ mod_synthesis_controls_server <- function(id, state) {
 
     output$rare_hint <- shiny::renderUI({
       data <- state$raw_data
+      # length(thr) must be tested before is.na(): the sliders are created
+      # inside renderUI, so on the first pass the input is still NULL,
+      # as.integer(NULL) is integer(0), and `|| is.na(integer(0))` aborts the
+      # render with "missing value where TRUE/FALSE needed".
       thr  <- suppressWarnings(as.integer(input$rare_level_min_n))
-      if (is.null(data) || !nrow(data) || is.na(thr)) {
+      if (is.null(data) || !nrow(data) || !length(thr) || is.na(thr)) {
         return(NULL)
       }
 
@@ -580,8 +584,11 @@ mod_synthesis_controls_server <- function(id, state) {
     output$kanon_hint <- shiny::renderUI({
       data  <- state$raw_data
       roles <- state$roles
+      # See the rare_level_min_n guard above: length() first, or the initial
+      # render throws before the slider input exists.
       k     <- suppressWarnings(as.integer(input$k_anon))
-      if (is.null(data) || !nrow(data) || is.null(roles) || is.na(k)) {
+      if (is.null(data) || !nrow(data) || is.null(roles) ||
+          !length(k) || is.na(k)) {
         return(NULL)
       }
 
