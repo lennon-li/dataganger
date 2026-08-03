@@ -51,3 +51,55 @@ test_that("looks_aggregated flags count-style tables and clears plain microdata"
   )
   expect_false(looks_aggregated(micro)$aggregated)
 })
+
+# Regression: kanon_key() used to paste quasi-identifier values together under
+# a "\u0001" separator, with NA rewritten to the literal "<NA>". Both are
+# values that can occur in real data, so two genuinely distinct combinations
+# could collide into one -- and a collision always makes a cell look BIGGER
+# than it is, i.e. it understates disclosure risk. The tests below are built so
+# that the collided cell clears k while the true cells do not.
+
+test_that("assess_kanonymity does not merge combinations that collide on the separator", {
+  df <- data.frame(
+    a = c(rep("x\u0001y", 3), rep("x", 2), rep("p", 6)),
+    b = c(rep("z", 3), rep("y\u0001z", 2), rep("q", 6)),
+    stringsAsFactors = FALSE
+  )
+  res <- assess_kanonymity(df, qi_cols = c("a", "b"), k = 5)
+
+  # Under the old keying the first five rows share one key, so the cell reads
+  # as size 5 and nothing is below k.
+  expect_equal(res$smallest_cell, 2L)
+  expect_equal(res$n_below, 5L)
+})
+
+test_that("assess_kanonymity does not merge real NA with the literal string <NA>", {
+  df <- data.frame(
+    zip = c(rep("A", 6), NA, NA, NA, "<NA>", "<NA>"),
+    stringsAsFactors = FALSE
+  )
+  res <- assess_kanonymity(df, qi_cols = "zip", k = 5)
+
+  # Old keying: three NA plus two "<NA>" become one cell of 5, clearing k.
+  expect_equal(res$smallest_cell, 2L)
+  expect_equal(res$n_below, 5L)
+})
+
+test_that("enforce_kanon suppresses combinations that collide on the separator", {
+  df <- data.frame(
+    a = c(rep("x\u0001y", 3), rep("x", 2), rep("p", 6)),
+    b = c(rep("z", 3), rep("y\u0001z", 2), rep("q", 6)),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("a", "b"),
+    disclosure_role = c("quasi", "quasi"),
+    stringsAsFactors = FALSE
+  )
+  out <- enforce_kanon(df, roles = roles, k = 5)
+  rep <- attr(out, "kanon")
+
+  # The colliding rows are genuinely below k, so enforcement must act on them
+  # rather than pass them through as one safe cell.
+  expect_true(rep$suppressed_rows > 0L)
+})

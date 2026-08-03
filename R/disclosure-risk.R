@@ -26,12 +26,9 @@ assess_kanonymity <- function(data, qi_cols, k = 5) {
     ))
   }
 
-  key_df <- lapply(data[qi_cols], function(col) {
-    col <- as.character(col)
-    col[is.na(col)] <- "<NA>"
-    col
-  })
-  key <- do.call(paste, c(key_df, sep = "\u0001"))
+  # Shares kanon_key() with the enforcement path so that what this reports and
+  # what enforce_kanon() acts on can never disagree about what a combination is.
+  key <- kanon_key(data, qi_cols)
   counts <- table(key)
   cell_n <- as.integer(counts[key])
 
