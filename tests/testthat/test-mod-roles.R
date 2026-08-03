@@ -296,7 +296,11 @@ test_that("Configure table shows both axis selects, examples, and inline overrid
     expect_match(html, "on its own")
     expect_match(html, "Action override")
     expect_match(html, "Data type override")
-    expect_match(html, "Pass through keeps the real values")
+    # The always-on "Pass through keeps the real values" hint was removed from
+    # every row: it warned about an action almost no row uses. The warning is
+    # not gone -- it is in the legend's amber Pass through row, and the export
+    # path still flags raw columns before the bundle is written.
+    expect_false(grepl("Pass through keeps the real values", html, fixed = TRUE))
     expect_false(grepl("What we.ll do", html))
     expect_false(grepl(">Action<", html, fixed = TRUE))
     expect_false(grepl(">TYPE<", html, fixed = TRUE))
@@ -311,8 +315,11 @@ test_that("inline override controls expose drop/pass-through and data type", {
   shiny::testServer(mod_roles_server, args = list(state = state), {
     html <- paste(as.character(output$roles_table), collapse = "\n")
     expect_match(html, "Action override")
+    # "Pass through" remains as a dropdown option; only the always-on hint
+    # under every dropdown was removed. See the legend test for where the
+    # warning now lives.
     expect_match(html, "Pass through")
-    expect_match(html, "verify before sharing")
+    expect_false(grepl("verify before sharing", html, fixed = TRUE))
     expect_false(grepl("<summary", html, fixed = TRUE))
     expect_false(grepl("<details", html, fixed = TRUE))
   })
@@ -486,6 +493,19 @@ test_that("the legend shows each type's default treatment", {
   expect_match(html, "Scramble")
   expect_match(html, "alpha-numeric ID")
   expect_false(grepl("pseudo identifier", html, fixed = TRUE))
+
+  # The legend is now the only place on this step that warns about Pass
+  # through, so the warning and its amber styling have to stay put.
+  expect_match(html, "The real values are copied across unchanged", fixed = TRUE)
+  expect_match(html, "Verify before sharing", fixed = TRUE)
+  expect_match(html, "#b7791f", fixed = TRUE)
+
+  # The mask_rare qualifier is broken onto a second line to keep the action
+  # column narrow; the dropdown keeps the one-line label (an <option> cannot
+  # hold a line break), so the two labels are deliberately not shared.
+  expect_match(html, "(rare levels masked)", fixed = TRUE)
+  expect_match(html, "<br/>", fixed = TRUE)
+  expect_false(grepl("white-space:nowrap", html, fixed = TRUE))
 })
 
 test_that("a logical/boolean column is classified as categorical, not a distinct logical type", {

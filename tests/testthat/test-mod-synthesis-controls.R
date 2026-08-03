@@ -405,13 +405,20 @@ test_that("both threshold sliders step in whole numbers", {
       session$setInputs(purpose_group = "development")
       session$flushReact()
 
-      html <- as.character(output$advanced_settings$html)
+      # The two sliders no longer render into the same output: k_anon lives in
+      # kanon_control so its answer gate cannot re-render the whole panel.
+      # Count across both, so this still asserts "both sliders", not "one".
+      panel <- as.character(output$advanced_settings$html)
+      kanon <- as.character(output$kanon_control$html)
+
+      steps <- function(html) {
+        lengths(regmatches(html, gregexpr("data-step=\"1\"", html)))
+      }
 
       # Both are integer counts; a fractional slider value would be silently
       # truncated by the as.integer() coercion downstream.
-      expect_match(html, "data-step=\"1\"")
-      expect_equal(lengths(regmatches(html, gregexpr("data-step=\"1\"", html))),
-                   2L)
+      expect_equal(steps(panel), 1L)
+      expect_equal(steps(kanon), 1L)
     }
   )
 })
@@ -431,6 +438,217 @@ test_that("hint readouts survive sliders that have not initialised yet", {
       session$setInputs(rare_level_min_n = NULL, k_anon = NULL)
       expect_null(output$rare_hint)
       expect_null(output$kanon_hint)
+    }
+  )
+})
+
+# --- k_anon answer gate -----------------------------------------------------
+# The slider only acts on columns marked "identifies in combination", so until
+# every column carries both Configure answers it is inert: dragging it changes
+# nothing and it reads as broken. It is disabled until the table is complete.
+
+# These fixtures deliberately go through dg_ensure_ui_roles(detect_roles(df)),
+# the exact shape the app installs at upload, and answer via user_identifies /
+# user_sensitive. Setting `identifies` instead would not exercise the gate at
+# all: detect_roles() SEEDS identifies/sensitive for every column, so a table
+# that has been answered by nobody already looks answered on those columns.
+
+# Straight off the uploader: seeded axes populated, user axes still blank.
+gate_roles_unanswered <- function(df) {
+  dg_ensure_ui_roles(detect_roles(df))
+}
+
+# Every column answered by the user.
+gate_roles_answered <- function(df) {
+  roles <- gate_roles_unanswered(df)
+  roles$user_identifies <- "none"
+  roles$user_sensitive <- FALSE
+  roles
+}
+
+test_that("the gate reads the user's answers, not detect_roles() seeds", {
+  # Columns that all classify (numeric, date, ID) are the case that exposes
+  # this: detect_roles() seeds every one of them with a non-empty identifies
+  # value. An all-character frame seeds identifies = "" instead, which would
+  # hide the bug, so this fixture is chosen deliberately.
+  df <- data.frame(
+    age   = c(31, 45, 29, 50),
+    visit = as.Date("2024-01-01") + 0:3,
+    id    = c("A1", "B2", "C3", "D4"),
+    stringsAsFactors = FALSE
+  )
+  fresh <- dg_ensure_ui_roles(detect_roles(df))
+
+  # Nobody has answered anything, yet both seeded axes are already populated.
+  # A predicate reading them would call this fully answered and unlock the
+  # slider at upload.
+  expect_true(all(nzchar(fresh$identifies)))
+  expect_false(any(is.na(fresh$sensitive)))
+
+  # The user axes tell the truth: still blank.
+  expect_false(any(nzchar(fresh$user_identifies)))
+  expect_true(all(is.na(fresh$user_sensitive)))
+
+  expect_false(dg_roles_all_answered(fresh))
+
+  answered <- fresh
+  answered$user_identifies <- "none"
+  answered$user_sensitive <- FALSE
+  expect_true(dg_roles_all_answered(answered))
+})
+
+test_that("the k gate opens exactly when the Confirm gate opens", {
+  df <- hint_fixture()
+
+  # Sharing roles_generation_pending() is the point: the slider and the
+  # Confirm button sit on the same step and must not disagree.
+  agrees <- function(roles) {
+    identical(dg_roles_all_answered(roles),
+              length(roles_generation_pending(roles)) == 0L)
+  }
+
+  answered <- gate_roles_answered(df)
+  expect_true(agrees(gate_roles_unanswered(df)))
+  expect_true(agrees(answered))
+
+  one_missing <- answered
+  one_missing$user_identifies[2L] <- ""
+  expect_false(dg_roles_all_answered(one_missing))
+  expect_true(agrees(one_missing))
+
+  # A dropped column needs no answers, for the gate as for Confirm.
+  dropped <- one_missing
+  dropped$simulation <- ifelse(seq_len(nrow(dropped)) == 2L, "drop", "synthesize")
+  expect_true(dg_roles_all_answered(dropped))
+  expect_true(agrees(dropped))
+})
+
+test_that("dg_disable_slider_tag marks the slider input, not the wrapper", {
+  tag <- dg_disable_slider_tag(
+    shiny::sliderInput("k", "L", min = 2, max = 30, value = 5, step = 1)
+  )
+  html <- as.character(tag)
+
+  # The attributes must land on the js-range-slider input itself; putting them
+  # on the enclosing div would leave the real control focusable.
+  expect_match(html, "js-range-slider", fixed = TRUE)
+  expect_match(html, "data-disable=\"true\"", fixed = TRUE)
+  expect_match(html, "aria-disabled=\"true\"", fixed = TRUE)
+  input_tag <- regmatches(html, regexpr("<input[^>]*>", html))
+  expect_match(input_tag, "data-disable=\"true\"", fixed = TRUE)
+  expect_match(input_tag, "tabindex=\"-1\"", fixed = TRUE)
+
+  # Located by class, not position, and a tag without a slider is untouched.
+  plain <- shiny::tags$div(shiny::tags$p("no slider here"))
+  expect_identical(as.character(dg_disable_slider_tag(plain)),
+                   as.character(plain))
+})
+
+test_that("dg_roles_all_answered rejects missing and empty roles", {
+  df <- hint_fixture()
+
+  expect_false(dg_roles_all_answered(NULL))
+  expect_false(dg_roles_all_answered(gate_roles_answered(df)[0L, ]))
+  expect_false(dg_roles_all_answered(data.frame(variable = "a")))
+})
+
+test_that("k slider is disabled while any column is unanswered", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, gate_roles_unanswered(df))),
+    {
+      session$setInputs(purpose_group = "development")
+      session$flushReact()
+
+      html <- hint_html(output$kanon_control)
+
+      # pointer-events:none is what actually blocks the drag; shinyjs is not
+      # a dependency of this package and must not become one.
+      expect_match(html, "pointer-events:none", fixed = TRUE)
+      expect_match(html, "Answer both questions for every column", fixed = TRUE)
+
+      # pointer-events:none stops the mouse but not the keyboard, so the
+      # gate also has to remove the slider from the tab order and tell
+      # ionRangeSlider to disable itself. Without these a user could tab to
+      # the "disabled" slider and change k with the arrow keys.
+      expect_match(html, "data-disable=\"true\"", fixed = TRUE)
+      expect_match(html, "tabindex=\"-1\"", fixed = TRUE)
+      expect_match(html, "aria-disabled=\"true\"", fixed = TRUE)
+
+      # The readout is suppressed while gated: its "nothing to act on" message
+      # would only restate the reason line above it.
+      expect_no_match(html, "kanon_hint", fixed = TRUE)
+    }
+  )
+})
+
+test_that("k slider is enabled once every column is answered", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, gate_roles_answered(df))),
+    {
+      session$setInputs(purpose_group = "development")
+      session$flushReact()
+
+      html <- hint_html(output$kanon_control)
+
+      expect_no_match(html, "pointer-events:none", fixed = TRUE)
+      expect_no_match(html, "Answer both questions for every column",
+                      fixed = TRUE)
+      expect_match(html, "kanon_hint", fixed = TRUE)
+
+      # The enabled slider must carry none of the disabling marks.
+      expect_no_match(html, "data-disable", fixed = TRUE)
+      expect_no_match(html, "tabindex=\"-1\"", fixed = TRUE)
+      expect_no_match(html, "aria-disabled", fixed = TRUE)
+    }
+  )
+})
+
+# Regression for the re-render trap. kanon_control depends on state$roles, so
+# it re-renders whenever an answer changes. The slider is created inside that
+# same renderUI, so its value has to be carried across by an isolate()d read --
+# without it the user's chosen k silently snaps back to the preset every time
+# they answer another column. The gate flip below proves the re-render really
+# happened, so the value assertion cannot pass vacuously.
+test_that("answering a column re-renders the k slider without losing its value", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, gate_roles_unanswered(df))),
+    {
+      session$setInputs(purpose_group = "development")
+      session$flushReact()
+
+      before <- hint_html(output$kanon_control)
+      expect_match(before, "pointer-events:none", fixed = TRUE)
+      # Preset default, so a later data-from="9" cannot be a leftover.
+      expect_match(before, "data-from=\"5\"", fixed = TRUE)
+
+      # The user drags to a non-default k while the table is still incomplete.
+      session$setInputs(k_anon = 9L)
+      session$flushReact()
+
+      # Now every column is answered. This must re-render kanon_control.
+      state$roles <- gate_roles_answered(df)
+      session$flushReact()
+
+      after <- hint_html(output$kanon_control)
+
+      # The gate opened, which is only observable if the output re-rendered.
+      expect_no_match(after, "pointer-events:none", fixed = TRUE)
+
+      # ... and the re-render preserved the user's 9 instead of resetting to 5.
+      expect_match(after, "data-from=\"9\"", fixed = TRUE)
+      expect_no_match(after, "data-from=\"5\"", fixed = TRUE)
     }
   )
 })

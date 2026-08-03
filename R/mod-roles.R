@@ -379,8 +379,11 @@ type_action_legend_ui <- function() {
   row <- function(action, types, detail, danger = FALSE) {
     shiny::tags$tr(
       shiny::tags$td(
+        # No white-space:nowrap here: the longest action label carries a
+        # parenthetical qualifier that is broken onto its own line below, and
+        # nowrap would force the column wide enough to defeat that.
         style = paste0(
-          "font-family:var(--font-sans); font-weight:600; font-size:12px; padding:4px 8px; white-space:nowrap;",
+          "font-family:var(--font-sans); font-weight:600; font-size:12px; padding:4px 8px;",
           if (danger) " color:#b7791f;" else ""
         ),
         action
@@ -401,15 +404,19 @@ type_action_legend_ui <- function() {
       style = "width:100%; border-collapse:collapse;",
       row("Resample", "categorical, free text, postal code",
           shiny::tagList(
-            "Values are drawn from the ones observed in your data. For categorical and free text, anything appearing only a handful of times is grouped first, so near-unique values do not reappear. ",
+            "Draws from the values observed in your data; rare ones are grouped first. ",
             shiny::tags$span(
               style = "color:#b7791f;",
-              "This means some levels may be missing from the result -- grouped away, or crowded out when there are more levels than rows. Use Resample (rare levels masked) when every observed level must survive without revealing rare labels."
+              "Some levels may not survive -- grouped away, or crowded out."
             ),
-            " Postal codes are reused as-is, because they are geographic codes rather than categories."
+            " Postal codes are reused as-is."
           )),
-      row("Resample (rare levels masked)", "categorical, free text",
-          "Every level survives with its own slot and its observed frequency, but a level seen only a handful of times has its label replaced by a neutral placeholder. Nothing is grouped together and no category is invented -- only the rare text is withheld."),
+      # The qualifier is broken onto its own line so the action column stays
+      # narrow. The Action dropdown keeps the single-line label: an <option>
+      # cannot contain a line break, so the two cannot be shared.
+      row(shiny::tagList("Resample", shiny::tags$br(), "(rare levels masked)"),
+          "categorical, free text",
+          "Every level survives at its observed frequency; only rare labels are swapped for a neutral placeholder. Nothing is grouped, nothing invented."),
       row("Simulate", "numeric, date",
           "Recreated within the observed distribution and range, with noise or coarsening."),
       row("Scramble", "alpha-numeric ID, free text",
@@ -969,10 +976,6 @@ mod_roles_server <- function(id, state) {
               if ("postal_strategy" %in% names(row_data)) row_data$postal_strategy[[1]] else NA_character_,
               if ("label_strategy" %in% names(row_data)) row_data$label_strategy[[1]] else NA_character_
             )
-          ),
-          shiny::tags$div(
-            style = "font-size:11px; color:var(--fg-muted);",
-            "Pass through keeps the real values - verify before sharing."
           ),
           shiny::tags$div(
             shiny::tags$div(
