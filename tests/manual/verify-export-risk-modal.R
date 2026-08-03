@@ -25,26 +25,37 @@
 # Usage, from the package root, against an INSTALLED dataganger (>= 0.8.0):
 #   R CMD INSTALL . && Rscript tests/manual/verify-export-risk-modal.R
 #
-# STATUS AS COMMITTED -- INCOMPLETE. Do not read a silent run as a pass.
-# Last run 2026-08-02 against 0.8.0 (feat/kanon-slider). It gets four steps in:
+# STATUS -- INCOMPLETE. Do not read a silent run as a pass.
+# Last run 2026-08-02 against 0.8.0 (feat/kanon-slider). It now clears the whole
+# Configure step and stalls at generation:
 #
 #   attestation answered            PASS
 #   sample loaded, triaged          PASS
 #   objective step reached          PASS
 #   configure step reached          PASS
-#   -> STOPS at "configure: answer landing for smoker" (exit 2)
+#   all columns answered (Q1+Q2)    PASS
+#   sensitive column marked (Q2)    PASS
+#   spec confirmed, generate step   PASS
+#   -> STOPS at "synthesis completion" (exit 2)
 #
-# So none of assertions 1-4 above has ever actually been evaluated. The stall is
-# in this harness's Configure loop, not a reproduced app defect: it sets each
-# column's answer with Shiny.setInputValue and then polls the re-rendered table
-# until the <select> reports the new value, and for "smoker" that poll times out
-# at 20s. Unconfirmed suspicion: the row index is parsed out of the select's
-# onchange attribute, and the table rebuilds after every answer, so the index
-# can go stale mid-loop. apply_sensitive_change() (R/mod-roles.R:689) does
-# accept "no" and clears the unset state, so the app side looks correct.
+# So assertions 1-4 above -- the entire point of this file, the disclosure
+# brief -- still have never been evaluated.
 #
-# Fixing the loop is the next step for anyone picking this up; until then this
-# file is scaffolding, not evidence.
+# The remaining blocker is NOT a package defect. Generation sits at
+# "Synthesizing..." until this harness's 360s budget expires, while the
+# identical data, roles and spec complete in ~3.1s outside the harness
+# (run_synthesis_pipeline) and start_synthesis_process() returns in ~4s against
+# the installed build. The app also handles a dead subprocess correctly and
+# surfaces its error (R/mod-generate.R:561), and no error appears -- so the
+# subprocess is alive and simply not progressing when the app is itself hosted
+# in a callr subprocess. Spawning synthesis as a grandchild of the test process
+# is the prime suspect; a blocked stdout pipe was ruled out by sending both app
+# streams to files, which changed nothing.
+#
+# Anyone picking this up: prove or disprove the grandchild-process theory first
+# (e.g. host the app with a plain detached process instead of callr::r_bg, or
+# log from inside start_synthesis_process). Raising the 360s budget is NOT a
+# fix -- 3s of work is not slow, it is stuck.
 
 stopifnot(
   requireNamespace("chromote", quietly = TRUE),
@@ -65,9 +76,30 @@ report <- function(name, ok) {
   cat(sprintf("%-40s %s\n", name, if (isTRUE(ok)) "PASS" else "FAIL"))
   invisible(ok)
 }
+# callr captures the app subprocess's stderr, but nothing used to read it, so a
+# condition raised inside a Shiny observer was discarded: the DOM simply never
+# updated and the harness stalled with no explanation. Always print the app log
+# on abort -- it is usually the only place the real cause appears.
+# Route the app's stderr to a file rather than reading it off the process:
+# callr's read_all_error() blocks until the process exits, and the server is
+# still alive at abort time, so calling it hung the harness instead of
+# reporting -- a 40-minute timeout with no output.
+app_err <- tempfile(fileext = ".err.log")
+app_out <- tempfile(fileext = ".out.log")
+app_log <- function() {
+  if (!file.exists(app_err)) return("app log: (not created)")
+  txt <- unlist(lapply(c(app_err, app_out), function(f) {
+    if (!file.exists(f)) return(character(0))
+    tryCatch(readLines(f, warn = FALSE), error = function(e) character(0))
+  }))
+  if (!length(txt)) return("app log: (empty)")
+  paste0("--- app stderr (last 40 lines) ---\n",
+         paste(utils::tail(txt, 40L), collapse = "\n"))
+}
 abort_walk <- function(step, detail = "") {
   cat(sprintf("\nWALKTHROUGH STOPPED at step: %s\n", step))
   if (nzchar(detail)) cat(detail, "\n")
+  cat(app_log(), "\n")
   cat("This is a walkthrough failure, not an assertion result (exit 2).\n")
   quit(status = 2L)
 }
@@ -82,11 +114,41 @@ port <- 5097L
 url <- sprintf("http://127.0.0.1:%d/", port)
 app_dir <- system.file("app", package = "dataganger")
 
+# Fail loudly if the port is already held. A previous run that was killed
+# before its on.exit() could fire leaves an orphaned app server on 5097; the
+# new server then dies with "address already in use" while chromote happily
+# drives the STALE process, so the harness reports on an app that is not the
+# one under test. Silent cross-run contamination is worse than not running.
+port_in_use <- function(p) {
+  con <- suppressWarnings(tryCatch(
+    socketConnection("127.0.0.1", p, open = "r+", timeout = 1, blocking = TRUE),
+    error = function(e) NULL
+  ))
+  if (is.null(con)) return(FALSE)
+  close(con)
+  TRUE
+}
+if (port_in_use(port)) {
+  abort_walk("port check", sprintf(
+    paste0("port %d is already in use, most likely an orphaned app server from ",
+           "an earlier run.\nKill it before re-running:\n  pkill -f 'shiny::runApp'"),
+    port
+  ))
+}
+
 server <- callr::r_bg(
   function(dir, port) {
     shiny::runApp(dir, port = port, host = "127.0.0.1", launch.browser = FALSE)
   },
-  args = list(dir = app_dir, port = port)
+  args = list(dir = app_dir, port = port),
+  # BOTH streams must go to files, not pipes. callr's default pipes are never
+  # read by this harness, so once the OS pipe buffer fills the app blocks on
+  # its next write and never recovers. The app and synthpop are both very
+  # chatty, so this is reached during generation -- which is why synthesis sat
+  # at "Synthesizing..." for six minutes here while the identical data, roles
+  # and spec complete in ~3s outside the harness.
+  stdout = app_out,
+  stderr = app_err
 )
 on.exit(server$kill(), add = TRUE)
 
@@ -160,6 +222,16 @@ dom_state <- function() {
     "if(modals.length){lines.push('modal text: '+modals[modals.length-1].innerText.slice(0,200));}",
     "var notif=document.querySelector('.shiny-notification');",
     "if(notif){lines.push('notification: '+notif.innerText.slice(0,200));}",
+    # Marker list only reports selectors we already expect. When none matches,
+    # that prints an empty line and says nothing about where the app actually
+    # is -- so also dump the active pane's id and text, and every visible
+    # button id, which is what identifies an unexpected state.
+    "for(var j=0;j<panes.length;j++){if(!panes[j].classList.contains('active'))continue;",
+    "lines.push('active pane id: '+(panes[j].getAttribute('data-value')||panes[j].id||'?'));",
+    "lines.push('active pane text: '+panes[j].innerText.replace(/\\s+/g,' ').slice(0,400));}",
+    "var btns=[];document.querySelectorAll('button,a.btn').forEach(function(b){",
+    "if(b.offsetParent!==null&&b.id)btns.push(b.id);});",
+    "lines.push('visible buttons: '+(btns.join(', ')||'none'));",
     "return lines.join('\\n')||'no active pane / no modal / no notification';})()"
   ))
   paste0("--- DOM state ---\n", paste(txt, collapse = "\n"), "\n-----------------")
@@ -204,16 +276,28 @@ click("#synthesis_controls-confirm_objective")
 wait_for(function() visible("#synthesis_controls-confirm"), 60, "configure step", dom_state)
 report("walk: configure step reached", TRUE)
 
+# Identify the two question selects by the input they post to, NOT by their
+# position. The answer cell also carries the action select and, for postal
+# columns, a country select (R/mod-roles.R:792, :827, :902), so the earlier
+# cells[2] index-0/index-1 assumption silently picked up the wrong control for
+# any column that renders an extra one -- which is what stalled this harness at
+# "smoker". Matching on the onchange target is stable against both the cell
+# layout and the number of extra selects.
 roles_rows_js <- paste0(
   "(function(){var out=[];",
   "var rows=document.querySelectorAll('#roles-roles_table table tbody tr');",
   "rows.forEach(function(tr){var cells=tr.querySelectorAll('td');",
   "if(cells.length<3)return;",
   "var s=cells[1].querySelector('span');",
-  "var rec={name: s ? s.innerText.trim() : cells[1].innerText.trim()};",
-  "['q1','q2'].forEach(function(key,i){var sel=cells[2].querySelectorAll('select')[i];",
-  "if(!sel){rec[key+'_row']=null;rec[key+'_val']=null;return;}",
-  "var m=(sel.getAttribute('onchange')||'').match(/row:\\s*(\\d+)/);",
+  "var rec={name: s ? s.innerText.trim() : cells[1].innerText.trim(),",
+  "q1_row:null,q1_val:null,q2_row:null,q2_val:null};",
+  "tr.querySelectorAll('select').forEach(function(sel){",
+  "var oc=sel.getAttribute('onchange')||'';",
+  "var key=null;",
+  "if(oc.indexOf('identifies_change')>-1){key='q1';}",
+  "else if(oc.indexOf('sensitive_change')>-1){key='q2';}",
+  "if(!key)return;",
+  "var m=oc.match(/row:\\s*(\\d+)/);",
   "rec[key+'_row']=m?parseInt(m[1],10):null; rec[key+'_val']=sel.value;});",
   "out.push(rec);});return out;})()"
 )
@@ -223,13 +307,47 @@ set_role_answer <- function(input_suffix, row_idx, value) {
     input_suffix, row_idx, value
   )))
 }
+# On timeout, report what the select actually holds. The previous version died
+# with only the column name, which said nothing about whether the answer was
+# rejected, landed on a different row, or was never scraped at all.
 wait_row_answered <- function(name, field, expected) {
+  seen <- function() {
+    rows <- evaluate(roles_rows_js)
+    if (!is.list(rows)) return("<roles table did not scrape>")
+    hit <- Filter(function(r) identical(r$name, name), rows)
+    if (length(hit) == 0L) {
+      return(sprintf("column not in table; saw: %s",
+                     paste(vapply(rows, function(r) r$name %||% "?", character(1)),
+                           collapse = ", ")))
+    }
+    sprintf("%s = %s (row %s), wanted %s", field,
+            format(hit[[1]][[field]] %||% "<null>"),
+            format(hit[[1]][[sub("_val$", "_row", field)]] %||% "<null>"),
+            expected)
+  }
+  # Dump every row, not just the stuck one: a stall here has repeatedly turned
+  # out to be about which row index the app is willing to accept, which is only
+  # visible next to the other rows.
+  table_dump <- function() {
+    rows <- evaluate(roles_rows_js)
+    if (!is.list(rows)) return("roles table did not scrape")
+    paste(c(
+      sprintf("roles table (%d rows):", length(rows)),
+      vapply(rows, function(r) sprintf(
+        "  %-14s q1=%-12s (row %s)  q2=%-5s (row %s)",
+        r$name %||% "?",
+        format(r$q1_val %||% "<null>"), format(r$q1_row %||% "-"),
+        format(r$q2_val %||% "<null>"), format(r$q2_row %||% "-")
+      ), character(1)),
+      dom_state()
+    ), collapse = "\n")
+  }
   wait_for(function() {
     rows <- evaluate(roles_rows_js)
     if (!is.list(rows)) return(FALSE)
     hit <- Filter(function(r) identical(r$name, name), rows)
     length(hit) > 0 && identical(hit[[1]][[field]], expected)
-  }, 20, sprintf("configure: answer landing for %s", name), dom_state)
+  }, 45, sprintf("configure: answer landing for %s [%s]", name, seen()), table_dump)
 }
 
 # Wait for the roles table to render (role detection runs after triage).
@@ -265,20 +383,35 @@ if (!any(vapply(targets, function(t) identical(t[["sens"]], "yes"), logical(1)))
 # One change at a time, then poll until the re-rendered table reflects it.
 # Firing all answers at once is racy: each change rebuilds #roles-roles_table,
 # so a second dispatch against the stale DOM node would get lost.
+# Fire, then re-fire until the answer shows up in the re-rendered table.
+#
+# The previous version dispatched each answer exactly once and then only
+# waited. Answering a column rebuilds #roles-roles_table, and an event
+# dispatched while that rebuild is in flight can be lost -- after which the
+# wait can never succeed, because nothing will send it again. That is what
+# stalled this harness on "smoker": the app side is fine (the observer at
+# R/mod-roles.R:1259 sets row 5 correctly under testServer), the event simply
+# never arrived. Re-sending is safe because the input carries an explicit row
+# and value, so a duplicate is idempotent rather than a second toggle.
+set_and_wait <- function(nm, suffix, field, expected) {
+  row_field <- sub("_val$", "_row", field)
+  deadline  <- Sys.time() + 45
+  repeat {
+    cur <- Filter(function(r) identical(r$name, nm), evaluate(roles_rows_js))
+    if (length(cur) && identical(cur[[1]][[field]], expected)) return(invisible(TRUE))
+    if (length(cur) && !is.null(cur[[1]][[row_field]])) {
+      set_role_answer(suffix, cur[[1]][[row_field]], expected)
+    }
+    if (Sys.time() > deadline) break
+    Sys.sleep(1.5)
+  }
+  wait_row_answered(nm, field, expected)  # one last poll, for its diagnostics
+}
+
 for (nm in names(targets)) {
   tgt <- targets[[nm]]
-  cur <- Filter(function(r) identical(r$name, nm), evaluate(roles_rows_js))[[1]]
-  if (!identical(cur$q1_val, tgt[["ids"]])) {
-    stopifnot(!is.null(cur$q1_row))
-    set_role_answer("identifies_change", cur$q1_row, tgt[["ids"]])
-    wait_row_answered(nm, "q1_val", tgt[["ids"]])
-  }
-  cur <- Filter(function(r) identical(r$name, nm), evaluate(roles_rows_js))[[1]]
-  if (!identical(cur$q2_val, tgt[["sens"]])) {
-    stopifnot(!is.null(cur$q2_row))
-    set_role_answer("sensitive_change", cur$q2_row, tgt[["sens"]])
-    wait_row_answered(nm, "q2_val", tgt[["sens"]])
-  }
+  set_and_wait(nm, "identifies_change", "q1_val", tgt[["ids"]])
+  set_and_wait(nm, "sensitive_change",  "q2_val", tgt[["sens"]])
 }
 
 rows <- evaluate(roles_rows_js)
