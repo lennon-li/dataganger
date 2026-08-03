@@ -155,13 +155,20 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
   synthetic
 }
 
+# Builds one key per row identifying that row's combination of
+# quasi-identifier values. Rows are keyed on per-column factor codes rather
+# than on the values themselves, so no separator can collide with real data:
+# an integer code cannot contain the comma that joins them. A previous version
+# pasted the values under a "\u0001" separator and mapped NA to the literal
+# "<NA>"; a value containing that control character, or the literal text
+# "<NA>", could merge two distinct combinations into one and understate the
+# risk. `exclude = NULL` keeps NA as its own level, so missing values cannot
+# mask a small cell.
 kanon_key <- function(data, qi_cols) {
   parts <- lapply(data[qi_cols], function(col) {
-    col <- as.character(col)
-    col[is.na(col)] <- "<NA>"
-    col
+    as.integer(factor(as.character(col), exclude = NULL))
   })
-  do.call(paste, c(parts, sep = "\u0001"))
+  do.call(paste, c(parts, sep = ","))
 }
 
 coarsen_qi_step <- function(x, step) {

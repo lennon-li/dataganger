@@ -596,12 +596,10 @@ mod_synthesis_controls_server <- function(id, state) {
       res <- assess_kanonymity(data, qi, k = k)
       # Combination count is derived here rather than read off
       # res$worst_cells, which disclosure-risk.R caps at 10 rows for display.
-      # Rows are keyed on per-column factor codes rather than on the values
-      # themselves, so no separator can collide with real data: an integer
-      # code cannot contain the comma that joins them. NA is its own level.
-      key <- do.call(paste, c(lapply(data[qi], function(col) {
-        as.integer(factor(as.character(col), exclude = NULL))
-      }), sep = ","))
+      # kanon_key() is the same keying the enforcement path uses, so this
+      # readout cannot describe a different set of combinations than the one
+      # enforce_kanon() will act on.
+      key <- kanon_key(data, qi)
       combo_counts <- table(key)
       n_combos <- length(combo_counts)
       n_small  <- sum(combo_counts < k)
