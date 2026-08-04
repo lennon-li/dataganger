@@ -524,6 +524,73 @@ test_that("the k gate opens exactly when the Confirm gate opens", {
   expect_true(agrees(dropped))
 })
 
+test_that("the gated wrapper is inert, so it is not a dead tab stop", {
+  html <- as.character(dg_gate_slider_tag(
+    shiny::sliderInput("k", "L", min = 2, max = 30, value = 5, step = 1)
+  ))
+
+  # ionRangeSlider builds its own focusable <span class="irs-line" tabindex="0">
+  # on the client, which no attribute on the input can reach. Without inert the
+  # gated slider still takes focus: a greyed control that does nothing and
+  # announces nothing. Verified in Chrome -- with inert, Tab skips it entirely
+  # and even a forced .focus() does not land.
+  expect_match(html, "inert", fixed = TRUE)
+  expect_match(html, "pointer-events:none", fixed = TRUE)
+  expect_match(html, "data-disable=\"true\"", fixed = TRUE)
+})
+
+test_that("answering a column does not rebuild the Advanced settings panel", {
+  testthat::skip_if_not_installed("shiny")
+
+  # The panel reaches state$roles through default_n() -> suggested_rows() ->
+  # suggest_min_rows(). Read reactively, that rebuilt the whole panel every
+  # time the user answered a column, silently resetting rows_n, engine, seed
+  # and the rest to preset defaults mid-workflow.
+  #
+  # The mock makes the suggestion swing on the answers, which is what exposes
+  # the dependency: a rebuild would stamp 999 into the rows_n slider, an
+  # isolated read keeps the 100 it was built with. Without this the test cannot
+  # discriminate -- the real suggestion happens not to move for this fixture,
+  # so the panel re-renders to byte-identical HTML and testServer, which does
+  # not model the DOM replacement that actually loses the user's values, sees
+  # nothing. Call counting does not work either: other consumers of
+  # suggested_rows() move the count on their own.
+  testthat::local_mocked_bindings(
+    suggest_min_rows = function(profile, roles, ...) {
+      n <- if (all(nzchar(roles$user_identifies %||% ""))) 999L else 100L
+      list(n = n, combination_count = NA_integer_, original_n = 100L,
+           n_below = 0L, pct_below = 0)
+    }
+  )
+
+  df <- hint_fixture()
+  # suggested_rows() short-circuits on a NULL profile, so the panel only has
+  # the roles dependency at all once a profile exists -- as it does in the app.
+  state <- hint_state(df, gate_roles_unanswered(df))
+  state$profile <- profile_data(df)
+
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = state),
+    {
+      session$setInputs(purpose_group = "development")
+      session$flushReact()
+
+      before <- hint_html(output$advanced_settings)
+      expect_match(before, "value=\"100\"", fixed = TRUE)
+
+      state$roles <- gate_roles_answered(df)
+      session$flushReact()
+      after <- hint_html(output$advanced_settings)
+
+      # The panel must be untouched by the answer.
+      expect_match(after, "value=\"100\"", fixed = TRUE)
+      expect_no_match(after, "999", fixed = TRUE)
+      expect_identical(before, after)
+    }
+  )
+})
+
 test_that("dg_disable_slider_tag marks the slider input, not the wrapper", {
   tag <- dg_disable_slider_tag(
     shiny::sliderInput("k", "L", min = 2, max = 30, value = 5, step = 1)

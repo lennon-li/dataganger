@@ -224,18 +224,53 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
   )
 }
 
+#' Wrap a sliderInput so it is fully gated, without shinyjs
+#'
+#' Three layers, each doing something the others cannot:
+#'   * `opacity` + `pointer-events:none` -- signals the state and blocks the
+#'     mouse. Same visual idiom as the disabled selects in mod-roles.R.
+#'   * `dg_disable_slider_tag()` -- blocks the keyboard, by telling
+#'     ionRangeSlider to disable itself before it binds `keydown`.
+#'   * `inert` -- ionRangeSlider generates its own focusable
+#'     `<span class="irs-line" tabindex="0">` at init time, so without this the
+#'     gated slider is still a tab stop: keyboard users land on a greyed
+#'     control that does nothing and announces nothing. `inert` removes the
+#'     whole subtree from the tab order and the accessibility tree, which no
+#'     attribute on the input can do, because that span does not exist until
+#'     the client renders it. Purely additive: where `inert` is unsupported the
+#'     value is still protected by the layer above.
+#'
+#' @keywords internal
+#' @noRd
+dg_gate_slider_tag <- function(slider) {
+  shiny::tags$div(
+    style = "opacity:0.5; pointer-events:none;",
+    inert = NA,
+    dg_disable_slider_tag(slider)
+  )
+}
+
 #' Mark a sliderInput tag as disabled, without shinyjs
 #'
-#' A wrapper styled `pointer-events:none` stops the mouse but NOT the keyboard:
-#' shiny renders the slider with `data-keyboard="true"`, so a user who tabs to
-#' it can still change the value with the arrow keys. That makes the gate look
-#' enforced while leaving it open, which is the worst of both.
+#' A wrapper styled `pointer-events:none` stops the mouse but NOT the keyboard.
+#' ionRangeSlider builds its own widget at init time and binds the arrow keys to
+#' a generated `<span class="irs-line" tabindex="0">`, not to the input shiny
+#' renders, so CSS on the wrapper leaves the value fully editable. That would
+#' make the gate look enforced while leaving it open, which is the worst of
+#' both.
 #'
-#' This adds the missing half on the input itself:
-#'   * `data-disable="true"` -- ionRangeSlider (bundled with shiny) reads its
-#'     options from these data attributes, and `disable` is the documented one.
-#'   * `tabindex="-1"`       -- takes the control out of the tab order.
-#'   * `aria-disabled`       -- so assistive tech is told, not just shown.
+#' `data-disable="true"` is what actually closes it. ionRangeSlider reads its
+#' options from the input's data attributes and applies them LAST
+#' (`$.extend(config, config_from_data)`), so they beat anything shiny passes --
+#' shiny's binding only supplies `prettify`. With `disable` set, ionRangeSlider
+#' sets `input.disabled`, appends its own `irs-disable-mask`, and skips
+#' `bindEvents()` altogether, which is where the `keydown` handler would be
+#' registered. No handler, no arrow keys. Verified in Chrome: six ArrowRight
+#' presses moved an ungated control from 5 to 11 and left the gated one at 5.
+#'
+#' `tabindex="-1"` and `aria-disabled` go on the input for assistive tech.
+#' They are not what blocks the keyboard -- ionRangeSlider sets `tabindex=-1`
+#' on that input itself regardless -- so they are correctness, not enforcement.
 #'
 #' The input is located by its `js-range-slider` class rather than by position,
 #' so a change in how shiny nests the tag cannot silently break this. If no
@@ -439,7 +474,16 @@ mod_synthesis_controls_server <- function(id, state) {
       purpose <- current_purpose()
       shiny::req(purpose)
       preset <- current_preset()
-      current_n <- default_n()
+      # isolate()d on purpose: default_n() reaches state$roles through
+      # suggested_rows(), so reading it reactively rebuilt this whole panel
+      # every time the user answered a column question -- silently resetting
+      # rows_n, engine, seed, name_strategy, the rare threshold and the
+      # checkboxes to preset defaults mid-workflow. This value is only a
+      # starting point for the row slider; the live suggestion still tracks the
+      # roles through output$rows_hint below, which re-renders on its own.
+      # The panel now rebuilds only when the objective changes, which is the
+      # one time its presets genuinely change.
+      current_n <- shiny::isolate(default_n())
 
       shiny::tagList(
         # Five controls that protect the people in the data stay open; the
@@ -471,20 +515,8 @@ mod_synthesis_controls_server <- function(id, state) {
         setting_hint("Counts how often a single value appears in a single column. A value seen fewer times than this counts as rare, because the value itself can name someone."),
         shiny::uiOutput(session$ns("rare_hint")),
         # The k_anon slider, its hint and its readout live in their own
-        # renderUI (kanon_control below), so that gating the slider on the
-        # column answers does not add a SECOND, unisolated read of state$roles
-        # to this panel. k_anon is the one control here whose value survives a
-        # re-render, because kanon_control isolate()s it.
-        #
-        # Known, pre-existing, and NOT fixed by this split: this panel already
-        # depends on state$roles transitively --
-        #   advanced_settings -> default_n() -> suggested_rows()
-        #     -> suggest_min_rows(state$profile, state$roles, ...)
-        # -- so answering a column question re-renders it and resets rows_n,
-        # engine, seed and the other controls to preset defaults. That chain
-        # predates this change (it is identical at HEAD) and is deliberately
-        # left alone here; fixing it means isolating or restructuring the whole
-        # panel, which is a larger change than this UI pass.
+        # renderUI (kanon_control below) because the gate has to track the
+        # column answers, and this panel deliberately no longer does.
         shiny::uiOutput(session$ns("kanon_control")),
         shiny::checkboxInput(
           inputId = session$ns("coarsen_dates"),
@@ -591,16 +623,7 @@ mod_synthesis_controls_server <- function(id, state) {
         if (answered) {
           slider
         } else {
-          # Dependency-free disable (shinyjs is not available), in two halves
-          # because neither is sufficient alone: pointer-events:none blocks the
-          # mouse and opacity signals the state, while dg_disable_slider_tag()
-          # takes the control out of the tab order and tells ionRangeSlider to
-          # disable itself, so the value cannot be changed with arrow keys.
-          # Same visual idiom as the disabled selects in mod-roles.R.
-          shiny::tags$div(
-            style = "opacity:0.5; pointer-events:none;",
-            dg_disable_slider_tag(slider)
-          )
+          dg_gate_slider_tag(slider)
         },
         # Deliberately contrasted with the rare-category threshold above: that
         # one counts one value in one column, this one counts rows sharing a
