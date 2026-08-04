@@ -68,11 +68,15 @@ reviewed on the Generate step:
 |----|----|----|
 | identifies = none | Synthesized; distribution kept, exact values not. | Recreated from its distribution; exact values are not copied — attribute-level protection is not yet applied. |
 | identifies = combination | Coarsened & grouped (k-anonymity), then synthesized. | Synthesized; grouped with k-anonymity so no rare combination survives. |
-| identifies = direct | **Removed** from the output. | **Removed** from the output. |
+| identifies = direct | **Drop** is derived by default. A deliberate Scramble or Pass through override is preserved. | **Drop** is derived by default. A deliberate Scramble or Pass through override is preserved. |
 
-Direct identifiers always drop. Everything non-direct is synthesized.
-Every column still needs an explicit answer to the first question before
-you can generate.
+Choosing **Yes, directly** derives a Drop action unless you explicitly
+override it. Identifier-shaped columns retained from upload can instead
+be scrambled, which preserves their structural shape without preserving
+the original value. Pass through copies real values and therefore
+carries a visible warning. Every eligible column needs explicit answers
+to both questions before you can generate; columns already dropped or
+passed through are exempt from that gate.
 
 **Synthesis settings.** The objective you picked presets safe defaults.
 The app keeps overrides in a collapsed **Advanced settings** disclosure;
@@ -85,9 +89,9 @@ open it only when you need to change one of these:
 | **Engine** | *Auto* (from objective), *Internal* (per-column, fast, ignores relationships), or *synthpop* (relationship-aware, higher fidelity). |
 | **Column name handling** | Keep original names, replace with generic names, or anonymize names and keep the mapping. |
 | **Rare category threshold** | Values seen fewer than this many times count as rare, so they can be merged or suppressed. |
+| **Minimum group size** | Requires combinations of the columns marked as identifying in combination to be shared by at least this many rows; the control unlocks only after all required answers are complete. |
 | **Coarsen dates** | Round dates (e.g. to month/year) so an exact date can’t single out an individual. |
 | **Merge rare categories** | Combine infrequent values into an “other” group to reduce re-identification risk. |
-| **Free-text handling** | How free-text columns are treated (usually set by your objective). |
 | **Preserve missing values** | How closely to reproduce the original pattern of missing (`NA`) values. |
 
 Defaults are safe for the objective you picked — leave them unless you
@@ -107,9 +111,13 @@ plain-English **What we’ll do** for each column. Hover a column name to
 see how it will be modelled. If anything looks wrong, use **← Adjust
 settings** to go back; otherwise generate the synthetic double. The
 banner reinforces those choices rather than implying that generation has
-already started. The summary then reports row and column counts, the
-engine used, and the elapsed time, and the right panel automatically
-previews the synthetic records after every generation.
+already started. The KPI row reports row and column counts, seed,
+elapsed time, and exact matches. The k-anonymity outcome appears in a
+status card at the bottom of the page. If it could not be applied, the
+card is yellow and offers computed regenerate choices plus a shortcut
+that opens the minimum group size control in Configure’s **Advanced
+settings**. The right panel automatically previews the synthetic records
+after every generation.
 
 ![](step-4-generate.png)
 
@@ -131,13 +139,24 @@ every eligible unordered pair, with the earlier data column used as X.
 
 ## 6. Export
 
+Arriving at Export first opens a plain-language disclosure-risk brief.
+It summarizes the minimum group size, blanked rows, exact reproductions
+of real records, sensitive exact matches, and remaining privacy
+findings. Sensitive exact matches block the first export attempt;
+regenerate first, and explicitly acknowledge the residual risk only if a
+later run still cannot clear them. The page leads with **What’s in the
+bundle** rather than repeating the Generation summary. If k-anonymity
+could not be applied, the required acknowledgment names the run’s actual
+k and QI columns and reports the smallest observed combination, so the
+shortfall is concrete before you choose whether to export.
+
 The download is a single bundle: the synthetic CSV at the root, plus one
 folder for the human and one for the agent.
 
     synthetic_data.csv            # the synthetic stand-in — the product
     human/human.md                # what was done, plus the privacy notes
     human/comparison_report.html  # real vs. synthetic fidelity (if generated)
-    agent/recipe.yaml             # spec + roles + seed — regenerate safe data
+    agent/recipe.yaml             # spec + roles + seed — regenerate approved data
     agent/AGENT.md                # the agent workflow guide
     agent/manifest.json
 
@@ -162,7 +181,7 @@ from R:
 
 ``` r
 
-report_issue("The export summary was confusing", context = "Shiny app")
+report_issue("The export risk explanation was confusing", context = "Shiny app")
 ```
 
 The Shiny app also includes a **Report a problem** button in the

@@ -16,8 +16,8 @@
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Getting started with the app">
-<meta name="description" content="A screenshot walkthrough of the six-step DataGangeR workflow, from picking an objective to exporting a synthetic data bundle.">
-<meta property="og:description" content="A screenshot walkthrough of the six-step DataGangeR workflow, from picking an objective to exporting a synthetic data bundle.">
+<meta name="description" content="A screenshot walkthrough of the six-step DataGangeR workflow, from loading data to exporting a synthetic data bundle.">
+<meta property="og:description" content="A screenshot walkthrough of the six-step DataGangeR workflow, from loading data to exporting a synthetic data bundle.">
 <meta property="og:image" content="https://dataganger.biostats.ai/logo.png">
 </head>
 <body>
@@ -174,15 +174,21 @@ survives.</td>
 <tr class="odd">
 <td>identifies = direct</td>
 <td>
-<strong>Removed</strong> from the output.</td>
+<strong>Drop</strong> is derived by default. A deliberate Scramble
+or Pass through override is preserved.</td>
 <td>
-<strong>Removed</strong> from the output.</td>
+<strong>Drop</strong> is derived by default. A deliberate Scramble
+or Pass through override is preserved.</td>
 </tr>
 </tbody>
 </table>
-<p>Direct identifiers always drop. Everything non-direct is synthesized.
-Every column still needs an explicit answer to the first question before
-you can generate.</p>
+<p>Choosing <strong>Yes, directly</strong> derives a Drop action unless
+you explicitly override it. Identifier-shaped columns retained from
+upload can instead be scrambled, which preserves their structural shape
+without preserving the original value. Pass through copies real values
+and therefore carries a visible warning. Every eligible column needs
+explicit answers to both questions before you can generate; columns
+already dropped or passed through are exempt from that gate.</p>
 <p><strong>Synthesis settings.</strong> The objective you picked presets
 safe defaults. The app keeps overrides in a collapsed <strong>Advanced
 settings</strong> disclosure; open it only when you need to change one
@@ -224,19 +230,20 @@ and keep the mapping.</td>
 merged or suppressed.</td>
 </tr>
 <tr class="even">
+<td><strong>Minimum group size</strong></td>
+<td>Requires combinations of the columns marked as identifying in
+combination to be shared by at least this many rows; the control unlocks
+only after all required answers are complete.</td>
+</tr>
+<tr class="odd">
 <td><strong>Coarsen dates</strong></td>
 <td>Round dates (e.g. to month/year) so an exact date can’t single out
 an individual.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><strong>Merge rare categories</strong></td>
 <td>Combine infrequent values into an “other” group to reduce
 re-identification risk.</td>
-</tr>
-<tr class="even">
-<td><strong>Free-text handling</strong></td>
-<td>How free-text columns are treated (usually set by your
-objective).</td>
 </tr>
 <tr class="odd">
 <td><strong>Preserve missing values</strong></td>
@@ -263,9 +270,13 @@ plain-English <strong>What we’ll do</strong> for each column. Hover a
 column name to see how it will be modelled. If anything looks wrong, use
 <strong>← Adjust settings</strong> to go back; otherwise generate the
 synthetic double. The banner reinforces those choices rather than
-implying that generation has already started. The summary then reports
-row and column counts, the engine used, and the elapsed time, and the
-right panel automatically previews the synthetic records after every
+implying that generation has already started. The KPI row reports row
+and column counts, seed, elapsed time, and exact matches. The
+k-anonymity outcome appears in a status card at the bottom of the page.
+If it could not be applied, the card is yellow and offers computed
+regenerate choices plus a shortcut that opens the minimum group size
+control in Configure’s <strong>Advanced settings</strong>. The right
+panel automatically previews the synthetic records after every
 generation.</p>
 <p><img src="step-4-generate.png"><!-- --></p>
 </div>
@@ -290,12 +301,23 @@ X.</p>
 <div class="section level2">
 <h2 id="export">6. Export<a class="anchor" aria-label="anchor" href="#export"></a>
 </h2>
+<p>Arriving at Export first opens a plain-language disclosure-risk
+brief. It summarizes the minimum group size, blanked rows, exact
+reproductions of real records, sensitive exact matches, and remaining
+privacy findings. Sensitive exact matches block the first export
+attempt; regenerate first, and explicitly acknowledge the residual risk
+only if a later run still cannot clear them. The page leads with
+<strong>What’s in the bundle</strong> rather than repeating the
+Generation summary. If k-anonymity could not be applied, the required
+acknowledgment names the run’s actual k and QI columns and reports the
+smallest observed combination, so the shortfall is concrete before you
+choose whether to export.</p>
 <p>The download is a single bundle: the synthetic CSV at the root, plus
 one folder for the human and one for the agent.</p>
 <pre><code><span><span class="va">synthetic_data.csv</span>            <span class="co"># the synthetic stand-in — the product</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">human.md</span>                <span class="co"># what was done, plus the privacy notes</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># real vs. synthetic fidelity (if generated)</span></span>
-<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate safe data</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate approved data</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">AGENT.md</span>                <span class="co"># the agent workflow guide</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">manifest.json</span></span></code></pre>
 <p><code>human/human.md</code> is consolidated: it folds in the privacy
@@ -318,7 +340,7 @@ externally.</p>
 <p>If something feels off, you can open a pre-filled GitHub issue
 straight from R:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The export summary was confusing"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/report_issue.html">report_issue</a></span><span class="op">(</span><span class="st">"The export risk explanation was confusing"</span>, context <span class="op">=</span> <span class="st">"Shiny app"</span><span class="op">)</span></span></code></pre></div>
 <p>The Shiny app also includes a <strong>Report a problem</strong>
 button in the sidebar. Both paths print a pre-filled GitHub issue URL
 and issue body for you to review and copy, but they do not send anything

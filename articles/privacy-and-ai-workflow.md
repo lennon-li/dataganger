@@ -3,7 +3,7 @@
 ## The promise
 
 DataGangeR’s spine is simple: you set the privacy rules once; then the
-AI only ever gets safe synthetic data or a reproducible recipe for
+AI only ever gets reviewed synthetic data or a reproducible recipe for
 generating it, and nothing leaves your machine.
 
 That supports two real workflows:
@@ -38,16 +38,21 @@ front, and it gives that rule downstream consequences.
 
 Once the user attests, they upload the file.
 
+The upload flow immediately sorts columns into **Synthesise**, **Pass
+through**, or **Drop**. Identifier-shaped columns are pre-suggested for
+Drop, and the user can correct that suggestion before continuing.
+
 Why it exists: the package has to read the data into memory to profile
 it and look for risks. The honest claim is not “we don’t read”. The
-honest claim is: we scan locally to find and drop direct identifiers; we
-never upload; we never keep.
+honest claim is: we scan locally to flag direct identifiers and help
+remove or de-identify them; we never upload; we never keep.
 
 ### 3. Early soft fail-safe
 
-Right after upload, DataGangeR scans for columns that look like direct
-identifiers and surfaces suspected matches with reasons. The user can
-confirm and proceed, drop the flagged columns, or abort.
+After upload triage, DataGangeR scans any retained columns for values
+that still look like direct identifiers and surfaces suspected matches
+with reasons. The user can confirm and proceed, drop the flagged
+columns, or abort.
 
 Why it exists: the attestation is informed consent, but the detector is
 an assistive safety net. It is there to catch problems early, before
@@ -67,8 +72,10 @@ sharing job the synthetic data needs to support.
 
 ### 5. Configure: two questions per column
 
-After the no-direct-identifiers attestation, Configure narrows to the
-two remaining risks. The lead-in copy is:
+After the no-direct-identifiers attestation, Configure asks two
+questions for every eligible column. The lead-in focuses on the two
+remaining risks, while Q1 still offers a direct-identifier answer so the
+user can correct the attestation or an earlier detector:
 
 > You’ve confirmed there are no direct identifiers. Two risks remain for
 > each column:
@@ -93,7 +100,9 @@ quasi-identifying columns (Q1 = combination) are coarsened and grouped
 with k-anonymity so no rare combination survives; sensitive columns that
 are not quasi-identifying are recreated from their distributions — exact
 values are not copied, but attribute-level protection is not yet
-applied; and direct identifiers are dropped.
+applied; and a direct answer derives a Drop action. A deliberate
+per-column Scramble or Pass through override is preserved, with Pass
+through visibly warning that it copies real values.
 
 Why it exists: the answers are not just labels for documentation. They
 become executable rules that shape the synthetic output.
@@ -119,13 +128,24 @@ sharing.
 
 ### 8. Export
 
-Finally, the user exports either the synthetic bundle, the
-reproducibility config, or both.
+Finally, the user reviews a plain-language disclosure-risk brief and
+exports a single bundle containing the synthetic data, human-readable
+report, and agent recipe.
+
+The brief reports the minimum group size, blanked rows, exact
+reproductions of real records, sensitive exact matches, and remaining
+privacy findings. A sensitive exact match blocks the first export
+attempt. After regeneration, a human can acknowledge a residual match;
+the decision is recorded in the manifest. The page puts the bundle
+contents first and does not repeat the Generation summary. When
+k-anonymity was infeasible, its acknowledgment uses the actual k, QI
+column names, and smallest group size to explain which guarantee is
+missing before the user can proceed.
 
 Why it exists: export is where the two AI workflows split. You can hand
-off safe synthetic artifacts directly, or save the recipe that lets an
-agent reproduce the same synthetic data later without touching the real
-data.
+off reviewed synthetic artifacts directly, or use the recipe that lets
+an agent reproduce the same synthetic data later without touching the
+real data.
 
 ## What the two questions reinforce
 
@@ -178,7 +198,8 @@ library(knitr)
 
 # Everything below uses only exported DataGangeR functions, so you can run it
 # yourself. A "roles" frame just needs `variable` and `disclosure_role`
-# ("quasi" marks a quasi-identifier, "direct" is removed, "none" is left alone).
+# ("quasi" marks a quasi-identifier, "direct" maps to Drop unless an explicit
+# action override is supplied, and "none" is left alone).
 qi_roles <- function(data, qi_cols, drop_cols = "id") {
   data.frame(
     variable = names(data),
@@ -351,8 +372,8 @@ privacy outputs, and exports the bundle. The AI gets the bundle’s
 `synthetic_data.csv` plus the `agent/` folder (`recipe.yaml`,
 `AGENT.md`, `manifest.json`) — but not the real data.
 
-This is the simplest trust story: the AI only sees safe synthetic
-artifacts.
+This is the simplest trust story: the AI only sees synthetic artifacts
+that a human has reviewed.
 
 ### Path B: save the recipe and let the AI reproduce
 

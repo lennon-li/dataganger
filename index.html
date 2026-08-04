@@ -68,14 +68,14 @@
 <!-- badges: start -->
 
 <p><a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/your%20data-stays%20local-2ea44f?style=flat-square&amp;logo=lock&amp;logoColor=white" alt="Your data stays local"></a> <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/network-none-2ea44f?style=flat-square" alt="No network calls"></a> <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/privacy-human--gated-8957e5?style=flat-square&amp;logo=shield&amp;logoColor=white" alt="Human-gated privacy"></a> <a href="https://github.com/lennon-li/dataganger" class="external-link"><img src="https://img.shields.io/badge/source-open%20%26%20auditable-1f6feb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Open &amp; auditable"></a> <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html"><img src="https://img.shields.io/badge/agent--friendly-human--gated%20skills-d4a72c?style=flat-square&amp;logo=robotframework&amp;logoColor=white" alt="Agent-friendly"></a></p>
-<p><strong>DataGangeR is a human-gated privacy protocol for Agent prototyping.</strong> You answer a short set of privacy questions, once, in a guided UI; DataGangeR turns your real dataset into a synthetic stand-in that a coding <strong>Agent</strong> can build on at full speed — and the Agent never sees the original records.</p>
+<p><strong>DataGangeR is a human-gated privacy protocol for Agent prototyping.</strong> You answer a short set of privacy questions, once, in a guided UI; DataGangeR turns your real dataset into a reviewable synthetic stand-in that a coding <strong>Agent</strong> can build on at full speed — and the Agent never sees the original records.</p>
 <p>📖 <strong>Documentation:</strong> <a href="https://dataganger.biostats.ai/" class="uri">https://dataganger.biostats.ai/</a></p>
 <div class="section level2">
 <h2 id="want-an-agent-to-build-on-your-data--without-ever-handing-it-over">Want an Agent to build on your data — without ever handing it over?<a class="anchor" aria-label="anchor" href="#want-an-agent-to-build-on-your-data--without-ever-handing-it-over"></a>
 </h2>
-<p>Let a coding <strong>Agent</strong> work at full speed on a synthetic stand-in for your dataset. You decide the privacy rules once; the Agent gets safe synthetic data — or a reproducible recipe to make it — and <strong>never reads the real data</strong>. And the package makes <strong>no network calls</strong>, so nothing ever leaves your machine.</p>
+<p>Let a coding <strong>Agent</strong> work at full speed on a synthetic stand-in for your dataset. You decide the privacy rules once; the Agent gets reviewed synthetic data — or a reproducible recipe to make it — and <strong>never reads the real data</strong>. And the package makes <strong>no network calls</strong>, so nothing ever leaves your machine.</p>
 <ul>
-<li>🔒 <strong>The Agent never touches the real data</strong> — it gets a synthetic bundle, or a saved recipe (<code>spec</code> + <code>roles</code> + <code>seed</code>) it runs back through the package to regenerate safe data itself. The real records stay out of the shared bundle.</li>
+<li>🔒 <strong>The Agent never touches the real data</strong> — it gets a synthetic bundle, or a saved recipe (<code>spec</code> + <code>roles</code> + <code>seed</code>) it runs back through the package to regenerate the approved synthetic data itself. The real records stay out of the shared bundle.</li>
 <li>🧭 <strong>The human gates privacy once</strong> — attest there are no direct identifiers, then answer two questions per column (does it point to a person? is it sensitive?). Those answers drive the synthesis.</li>
 <li>📴 <strong>Provably offline</strong> — the package makes no network calls and launches no browser; a shipped self-test and a no-network CI job prove it. Open source, so you can verify your own copy.</li>
 <li>⚙️ <strong>Real synthesis</strong> — synthpop + k-anonymity for relationship-aware, disclosure-controlled output you can inspect (with a dependency-free internal engine as the automatic fallback).</li>
@@ -83,8 +83,8 @@
 <p>Let an Agent build on your data. Keep your data. Both.</p>
 <pre class="mermaid"><code>flowchart LR
   R[(Your real data)] --&gt; G{Human gates privacy&lt;br/&gt;once, in the UI}
-  G --&gt;|Path A| Bun[Synthetic bundle] --&gt; AG1[Agent builds on safe data]
-  G --&gt;|Path B| Rec[Saved recipe&lt;br/&gt;spec + roles + seed] --&gt; CLI[Agent runs the package] --&gt; AG2[Agent regenerates safe data&lt;br/&gt;never reads the real data]</code></pre>
+  G --&gt;|Path A| Bun[Synthetic bundle] --&gt; AG1[Agent builds on reviewed data]
+  G --&gt;|Path B| Rec[Saved recipe&lt;br/&gt;spec + roles + seed] --&gt; CLI[Agent runs the package] --&gt; AG2[Agent regenerates approved data&lt;br/&gt;never reads the real data]</code></pre>
 <blockquote>
 <p>[!TIP] ### 🔒 Safe to try — your data never leaves your machine ✅ Processed <strong>locally, in memory only</strong> — never uploaded, never written to disk by the app, gone when you close it. ✅ <strong>No network calls</strong> and <strong>no browser launch</strong> — proven by a shipped self-test and a no-network CI job. ✅ <strong>Open source</strong> — you (or your IT team) can verify your own copy.</p>
 <p>No account. No upload. No cloud. Point it at a sample dataset and see for yourself.</p>
@@ -110,11 +110,12 @@
 <div class="section level2">
 <h2 id="the-interactive-app">The interactive app<a class="anchor" aria-label="anchor" href="#the-interactive-app"></a>
 </h2>
-<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — pick an <strong>objective</strong>, <strong>upload</strong> your data (or load a built-in sample), <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button with a copyable issue report.</p>
+<p>The guided Shiny app takes you from a real dataset to a shareable synthetic bundle in six steps — <strong>upload</strong> your data (or load a built-in sample), pick an <strong>objective</strong>, <strong>configure</strong> by answering two questions per column (does it point to a person? is it sensitive?) and reviewing what DataGangeR will do, <strong>generate</strong> the synthetic double, <strong>compare</strong> real vs. synthetic distributions, and <strong>export</strong> the bundle. The sidebar also includes a <strong>Report a problem</strong> button with a copyable issue report.</p>
 <div class="float">
 <img src="reference/figures/hero.gif" alt="DataGangeR walks you through objective, upload, configure, generate, compare, and export"><div class="figcaption">DataGangeR walks you through objective, upload, configure, generate, compare, and export</div>
 </div>
 <p><strong>How privacy gating works.</strong> DataGangeR starts with a no-direct-identifiers attestation, runs an early local fail-safe scan, then hard-gates Configure until you answer two privacy questions for every column. Those answers drive the synthesis rules and the exported Agent workflow. When <code>synthpop</code> is not installed, the attestation also recommends it for correlation-aware synthesis. See the <a href="https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html">Privacy gating and Agent workflows vignette</a>.</p>
+<p>The data preview adds an <strong>Exact matches</strong> tab whenever a synthetic row reproduces a real record, with amber highlighting for matches and red highlighting when a populated sensitive value is exposed. The Export step opens with a plain-language disclosure-risk brief and blocks sensitive exact matches until the user regenerates or explicitly acknowledges the remaining risk after a retry.</p>
 <p>The Compare step separates <strong>Univariate</strong> distribution checks from <strong>Bivariate</strong> relationship checks. Bivariate tests fit an original-versus- synthetic interaction: low p-values mean the predictor-to-outcome relationship was modified (poorer fidelity), using the same fidelity colors as other tests. Effect sizes are odds ratios for binary outcomes, slope ratios for counts, and differences in slope for continuous outcomes; multi-level categorical outcomes receive a joint interaction test.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dataganger.biostats.ai/">dataganger</a></span><span class="op">)</span></span>
@@ -166,7 +167,7 @@
 <pre><code><span><span class="va">synthetic_data.csv</span>            <span class="co"># the synthetic stand-in — the product</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">human.md</span>                <span class="co"># what was done, plus the privacy notes</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># fidelity, including relationship interactions</span></span>
-<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate safe data</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate approved data</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">AGENT.md</span>                <span class="co"># the agent workflow guide (never read the real data)</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">manifest.json</span></span></code></pre>
 <div class="section level3">

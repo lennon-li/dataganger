@@ -75,8 +75,8 @@
 <h2 id="the-promise">The promise<a class="anchor" aria-label="anchor" href="#the-promise"></a>
 </h2>
 <p>DataGangeR’s spine is simple: you set the privacy rules once; then
-the AI only ever gets safe synthetic data or a reproducible recipe for
-generating it, and nothing leaves your machine.</p>
+the AI only ever gets reviewed synthetic data or a reproducible recipe
+for generating it, and nothing leaves your machine.</p>
 <p>That supports two real workflows:</p>
 <ul>
 <li>Path A: you hand the AI the synthetic bundle.</li>
@@ -108,17 +108,22 @@ front, and it gives that rule downstream consequences.</p>
 <h3 id="upload">2. Upload<a class="anchor" aria-label="anchor" href="#upload"></a>
 </h3>
 <p>Once the user attests, they upload the file.</p>
+<p>The upload flow immediately sorts columns into
+<strong>Synthesise</strong>, <strong>Pass through</strong>, or
+<strong>Drop</strong>. Identifier-shaped columns are pre-suggested for
+Drop, and the user can correct that suggestion before continuing.</p>
 <p>Why it exists: the package has to read the data into memory to
 profile it and look for risks. The honest claim is not “we don’t read”.
-The honest claim is: we scan locally to find and drop direct
-identifiers; we never upload; we never keep.</p>
+The honest claim is: we scan locally to flag direct identifiers and help
+remove or de-identify them; we never upload; we never keep.</p>
 </div>
 <div class="section level3">
 <h3 id="early-soft-fail-safe">3. Early soft fail-safe<a class="anchor" aria-label="anchor" href="#early-soft-fail-safe"></a>
 </h3>
-<p>Right after upload, DataGangeR scans for columns that look like
-direct identifiers and surfaces suspected matches with reasons. The user
-can confirm and proceed, drop the flagged columns, or abort.</p>
+<p>After upload triage, DataGangeR scans any retained columns for values
+that still look like direct identifiers and surfaces suspected matches
+with reasons. The user can confirm and proceed, drop the flagged
+columns, or abort.</p>
 <p>Why it exists: the attestation is informed consent, but the detector
 is an assistive safety net. It is there to catch problems early, before
 objective selection or column-by-column decisions.</p>
@@ -138,8 +143,10 @@ sharing job the synthetic data needs to support.</p>
 <div class="section level3">
 <h3 id="configure-two-questions-per-column">5. Configure: two questions per column<a class="anchor" aria-label="anchor" href="#configure-two-questions-per-column"></a>
 </h3>
-<p>After the no-direct-identifiers attestation, Configure narrows to the
-two remaining risks. The lead-in copy is:</p>
+<p>After the no-direct-identifiers attestation, Configure asks two
+questions for every eligible column. The lead-in focuses on the two
+remaining risks, while Q1 still offers a direct-identifier answer so the
+user can correct the attestation or an earlier detector:</p>
 <blockquote>
 <p>You’ve confirmed there are no direct identifiers. Two risks remain
 for each column:</p>
@@ -165,7 +172,9 @@ quasi-identifying columns (Q1 = combination) are coarsened and grouped
 with k-anonymity so no rare combination survives; sensitive columns that
 are not quasi-identifying are recreated from their distributions — exact
 values are not copied, but attribute-level protection is not yet
-applied; and direct identifiers are dropped.</p>
+applied; and a direct answer derives a Drop action. A deliberate
+per-column Scramble or Pass through override is preserved, with Pass
+through visibly warning that it copies real values.</p>
 <p>Why it exists: the answers are not just labels for documentation.
 They become executable rules that shape the synthetic output.</p>
 </div>
@@ -192,12 +201,22 @@ sharing.</p>
 <div class="section level3">
 <h3 id="export">8. Export<a class="anchor" aria-label="anchor" href="#export"></a>
 </h3>
-<p>Finally, the user exports either the synthetic bundle, the
-reproducibility config, or both.</p>
+<p>Finally, the user reviews a plain-language disclosure-risk brief and
+exports a single bundle containing the synthetic data, human-readable
+report, and agent recipe.</p>
+<p>The brief reports the minimum group size, blanked rows, exact
+reproductions of real records, sensitive exact matches, and remaining
+privacy findings. A sensitive exact match blocks the first export
+attempt. After regeneration, a human can acknowledge a residual match;
+the decision is recorded in the manifest. The page puts the bundle
+contents first and does not repeat the Generation summary. When
+k-anonymity was infeasible, its acknowledgment uses the actual k, QI
+column names, and smallest group size to explain which guarantee is
+missing before the user can proceed.</p>
 <p>Why it exists: export is where the two AI workflows split. You can
-hand off safe synthetic artifacts directly, or save the recipe that lets
-an agent reproduce the same synthetic data later without touching the
-real data.</p>
+hand off reviewed synthetic artifacts directly, or use the recipe that
+lets an agent reproduce the same synthetic data later without touching
+the real data.</p>
 </div>
 </div>
 <div class="section level2">
@@ -257,7 +276,8 @@ in rows that still fall below <code>k</code>.</li>
 <span></span>
 <span><span class="co"># Everything below uses only exported DataGangeR functions, so you can run it</span></span>
 <span><span class="co"># yourself. A "roles" frame just needs `variable` and `disclosure_role`</span></span>
-<span><span class="co"># ("quasi" marks a quasi-identifier, "direct" is removed, "none" is left alone).</span></span>
+<span><span class="co"># ("quasi" marks a quasi-identifier, "direct" maps to Drop unless an explicit</span></span>
+<span><span class="co"># action override is supplied, and "none" is left alone).</span></span>
 <span><span class="va">qi_roles</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">qi_cols</span>, <span class="va">drop_cols</span> <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>    variable <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span>,</span>
@@ -481,8 +501,8 @@ and privacy outputs, and exports the bundle. The AI gets the bundle’s
 <code>synthetic_data.csv</code> plus the <code>agent/</code> folder
 (<code>recipe.yaml</code>, <code>AGENT.md</code>,
 <code>manifest.json</code>) — but not the real data.</p>
-<p>This is the simplest trust story: the AI only sees safe synthetic
-artifacts.</p>
+<p>This is the simplest trust story: the AI only sees synthetic
+artifacts that a human has reviewed.</p>
 </div>
 <div class="section level3">
 <h3 id="path-b-save-the-recipe-and-let-the-ai-reproduce">Path B: save the recipe and let the AI reproduce<a class="anchor" aria-label="anchor" href="#path-b-save-the-recipe-and-let-the-ai-reproduce"></a>

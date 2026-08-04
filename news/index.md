@@ -2,6 +2,16 @@
 
 ## dataganger 0.8.0
 
+- Generation now keeps its KPI row focused on output size, seed,
+  duration, and exact matches. The k-anonymity outcome appears in a
+  status card at the bottom of the page instead; an infeasible run gets
+  a yellow warning with computed regenerate choices and a shortcut that
+  opens the minimum-group- size control in Configure’s Advanced
+  settings. Export now leads with the bundle contents, omits the
+  duplicate generation summary, and explains a missing k-anonymity
+  protection using the run’s actual k, QI columns, and smallest group
+  size before asking for acknowledgment.
+
 - The minimum group size that drives k-anonymity is now a slider in the
   Configure step’s Advanced settings, with live readouts of how many
   combinations and rows fall below the value you pick. It stays disabled
