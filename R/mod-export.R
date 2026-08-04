@@ -31,9 +31,6 @@ mod_export_ui <- function(id) {
     ),
     stale_banner_ui("export", ns = ns),
     shiny::tags$div(class = "double-rule"),
-    shiny::uiOutput(ns("export_summary")),
-    shiny::uiOutput(ns("exact_match_export_gate")),
-    shiny::uiOutput(ns("kanon_export_gate")),
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
@@ -55,7 +52,9 @@ mod_export_ui <- function(id) {
         "The bundle downloads to your browser's Downloads folder. ",
         "See human/human.md inside it for what each file is for."
       )
-    )
+    ),
+    shiny::uiOutput(ns("exact_match_export_gate")),
+    shiny::uiOutput(ns("kanon_export_gate"))
   )
 }
 
@@ -75,54 +74,6 @@ mod_export_server <- function(id, state) {
 
     shiny::outputOptions(output, "stale__export", suspendWhenHidden = FALSE)
 
-    output$export_summary <- shiny::renderUI({
-      shiny::req(state$raw_data, state$synthetic)
-
-      raw_data <- state$raw_data
-      synthetic <- state$synthetic
-      roles <- state$roles
-
-      # Reconcile against what is actually in the synthetic output, so the
-      # counts always tie out (Original = synthesized + pass-through + dropped).
-      # A column can leave the output via Action = drop OR by role exclusion
-      # (e.g. an alphanumeric ID that is never synthesized); both count as dropped.
-      orig_n  <- ncol(raw_data)
-      final_n <- ncol(synthetic)
-      pass_cols <- character(0)
-      if (!is.null(roles) && "variable" %in% names(roles) && nrow(roles) > 0L) {
-        treatment <- dg_role_treatment(roles)
-        pass_cols <- names(treatment)[treatment == "pass_through"]
-      }
-      pass_through_n <- length(intersect(pass_cols, names(synthetic)))
-      synthesized_n  <- max(0L, final_n - pass_through_n)
-      dropped_n      <- max(0L, orig_n - final_n)
-
-      row <- function(label, value) shiny::tags$tr(
-        shiny::tags$td(class = "name", label),
-        shiny::tags$td(value)
-      )
-
-      shiny::tags$div(
-        class = "card",
-        shiny::tags$div(
-          class = "card-header",
-          shiny::tags$span(class = "title", "Generation summary"),
-          shiny::tags$span(class = "sub", "what happened to each column")
-        ),
-        shiny::tags$table(
-          class = "data",
-          style = "margin-top:8px;",
-          shiny::tags$tbody(
-            row("Original", sprintf("%d rows \u00d7 %d cols", nrow(raw_data), ncol(raw_data))),
-            row("Synthesized", sprintf("%d column(s)", synthesized_n)),
-            row("Pass-through", sprintf("%d column(s)", pass_through_n)),
-            row("Dropped", sprintf("%d column(s)", dropped_n)),
-            row("Final synthetic", sprintf("%d rows \u00d7 %d cols", nrow(synthetic), ncol(synthetic)))
-          )
-        )
-      )
-    })
-
     # Exact-match detail for the export gate. Computed on the same inputs and
     # via the same helper the data panel uses, so the gate and the "Exact
     # matches" tab can never disagree about what is blocking.
@@ -135,7 +86,7 @@ mod_export_server <- function(id, state) {
       roles <- state$generated_roles %||% state$roles
       role_map <- NULL
       if (!is.null(roles) && "variable" %in% names(roles) &&
-          "recommended_role" %in% names(roles)) {
+        "recommended_role" %in% names(roles)) {
         role_map <- stats::setNames(roles$recommended_role, roles$variable)
       }
       exact_match_detail(orig, dg_original_names(syn), roles, role_map)
@@ -252,6 +203,27 @@ mod_export_server <- function(id, state) {
         return(NULL)
       }
 
+      current_k <- kanon$k %||% state$spec$k_anon %||% 5L
+      qi_cols <- kanon$qi_cols %||% character(0)
+      qi_nodes <- list()
+      for (i in seq_along(qi_cols)) {
+        if (i > 1L) {
+          qi_nodes[[length(qi_nodes) + 1L]] <- if (i == length(qi_cols)) " and " else ", "
+        }
+        qi_nodes[[length(qi_nodes) + 1L]] <- shiny::tags$code(qi_cols[[i]])
+      }
+      smallest_cell <- kanon$smallest_cell %||% NULL
+      shortfall <- if (!is.null(smallest_cell)) {
+        sprintf(
+          "In this output, the smallest combination has %s row%s, which is fewer than %s.",
+          smallest_cell,
+          if (identical(as.integer(smallest_cell), 1L)) "" else "s",
+          current_k
+        )
+      } else {
+        sprintf("At least one combination appears in fewer than %s rows.", current_k)
+      }
+
       shiny::tags$div(
         class = "card",
         style = "margin-top:12px; border-left:4px solid var(--risk-500);",
@@ -262,7 +234,22 @@ mod_export_server <- function(id, state) {
         ),
         shiny::tags$p(
           style = "margin-top:8px;",
-          "This run could not apply k-anonymity. The bundle will be marked with a blocker until a human acknowledges that state."
+          shiny::tagList(
+            sprintf("For this output, k = %s means every combination of values across ", current_k),
+            dg_privacy_term("quasi-identifier (QI)", "qi"),
+            " columns ",
+            qi_nodes,
+            sprintf(" must appear in at least %s rows. ", current_k),
+            shortfall
+          )
+        ),
+        shiny::tags$p(
+          style = "margin:0 0 8px;",
+          paste(
+            "Enforcing that rule would suppress too much of this output, so",
+            "k-anonymity was not applied. The bundle remains blocked until",
+            "you acknowledge the missing protection."
+          )
         ),
         shiny::checkboxInput(
           session$ns("kanon_acknowledged"),

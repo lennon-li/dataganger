@@ -1,5 +1,5 @@
 # Generate example_admin_claims dataset
-# Realistic-but-fictional administrative claims data — all synthetic, no real records.
+# Realistic-but-fictional administrative claims data -- all synthetic, no real records.
 
 set.seed(20260515)
 

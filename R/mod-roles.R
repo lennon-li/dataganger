@@ -75,7 +75,7 @@ dg_action_options <- function(role) {
 #' format-valid values for postal codes. The old single label "Synthesise"
 #' covered all three and told the user nothing about which they were getting.
 #'
-#' @param action Action token from [dg_action_options()].
+#' @param action Action token from `dg_action_options()`.
 #' @param role Effective data type.
 #' @return A single display string.
 #' @keywords internal
@@ -111,7 +111,7 @@ dg_action_label <- function(action, role) {
 
 #' Stored action plus strategy -> the token the dropdown shows
 #'
-#' Inverse of the translation [dg_apply_action_token()] performs on write.
+#' Inverse of the translation `dg_apply_action_token()` performs on write.
 #' Postal codes and masked categorical labels store `simulation ==
 #' "synthesize"` for both strategies, so the separate strategy is what
 #' distinguishes them.
@@ -150,7 +150,7 @@ action_token <- function(simulation, role, postal_strategy = NA_character_,
 #'
 #' @param roles Roles data frame.
 #' @param orig_row Row index into `roles`.
-#' @param token Action token from [dg_action_options()].
+#' @param token Action token from `dg_action_options()`.
 #' @param role Effective data type for that row.
 #' @return The modified `roles`, or unchanged when `token` is not allowed.
 #' @keywords internal

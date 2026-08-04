@@ -9,9 +9,15 @@
 #   R CMD INSTALL --no-docs .   # so system.file() sees the new UI
 #   Rscript data-raw/capture-screenshots.R
 #
-# Requires (author-time only, not package deps): shinytest2, magick, gifski.
+# Requires (author-time only, not package deps): shinytest2 and gifski.
 # No proxy bypass is needed on this machine; the env vars below are harmless and
 # keep it working on the proxied Asgard WSL too.
+#
+# Known Asgard limitation: AppDriver's Chromote session can time out navigating
+# its own loopback server even when the app is healthy. In that environment,
+# drive the same selectors and dimensions below with Playwright against a
+# separately started installed app. The tracked 0.8.0 frames were captured that
+# way on 2026-08-04.
 
 Sys.setenv(
   no_proxy = "127.0.0.1,localhost", NO_PROXY = "127.0.0.1,localhost",
@@ -21,18 +27,22 @@ Sys.setenv(
 library(shinytest2)
 
 # H is set tall enough that every step's full content fits without scrolling
-# (Configure, the tallest, measures ~3058px) -- so a "viewport" screenshot is
+# (Configure, the tallest, measures about 3500px in 0.8.0) -- so a "viewport" screenshot is
 # a true full-page capture for every step, with one uniform frame size across
 # all six (no per-frame distortion when gifski assembles the GIF, and the two
 # frames reused in the README table stay the same size as each other).
-W <- 1280L; H <- 3150L
+W <- 1600L; H <- 3600L
 fig <- function(...) file.path("man", "figures", ...)
 app_dir <- system.file("app", package = "dataganger")
 stopifnot(nzchar(app_dir))
 
 app <- AppDriver$new(
   app_dir, name = "dataganger-walkthrough",
-  width = W, height = H, load_timeout = 90000, timeout = 30000
+  width = W, height = H, load_timeout = 90000, timeout = 30000,
+  # Avoid nesting the synthesis callr process under AppDriver's own app
+  # subprocess. The synchronous path is behavior-identical and makes this
+  # author-time capture deterministic on headless Linux.
+  options = list(dataganger.synthesis_async = FALSE)
 )
 on.exit(try(app$stop(), silent = TRUE), add = TRUE)
 
@@ -54,6 +64,10 @@ visible <- function(id)
   isTRUE(app$get_js(sprintf(
     "(function(e){return e && e.offsetParent !== null;})(document.getElementById('%s'))", id)))
 
+visible_selector <- function(selector)
+  isTRUE(app$get_js(sprintf(
+    "(function(e){return e && e.offsetParent !== null;})(document.querySelector('%s'))", selector)))
+
 # Both guardrail modals (module id "guardrail") re-show themselves from a
 # reactive `observe()` until explicitly resolved, and can appear at more than
 # one point in the flow -- so dismiss defensively wherever they might be
@@ -71,30 +85,39 @@ dismiss_guardrail <- function() {
 }
 dismiss_guardrail()  # initial no-direct-identifiers attestation
 
-# --- Step 01 · Upload ------------------------------------------------------
+# --- Step 01 -- Upload ------------------------------------------------------
 # Upload is step 1 and Objective is step 2 in the current wizard order (they
 # swapped since this script was last updated for the v0.4.0 Configure UI).
 shot("step-1-upload.png")  # empty dropzone + sample loader (the stable view)
 
 app$click("upload-load_sample", wait_ = FALSE)
+
+# The 0.8.0 upload flow opens a triage modal before Objective. Keep the
+# pre-suggested ID drop and synthesize the other six columns.
+for (i in 1:60) { if (visible_selector(".cf-apply")) break; Sys.sleep(0.5) }
+if (!visible_selector(".cf-apply")) stop("column triage modal did not appear")
+app$run_js("document.querySelector('.cf-apply').click()")
+Sys.sleep(1)
+dismiss_guardrail()  # fail-safe can fire once raw_data + roles are both set
+
 rows_ready <- function()
   isTRUE(suppressWarnings(as.numeric(app$get_js(
     "document.querySelectorAll('#data_panel-dp_table tbody tr').length"))) > 3)
-for (i in 1:30) { if (rows_ready()) break; Sys.sleep(1) }
-dismiss_guardrail()  # fail-safe fires once raw_data + roles are both set
 
-# --- Step 02 · Objective ----------------------------------------------------
-app$click("upload-go_roles", wait_ = FALSE)  # nav_request <- "objective"
-for (i in 1:30) { Sys.sleep(1); if (visible("synthesis_controls-purpose_group")) break }
-# wait_ = FALSE: this radio input doesn't invalidate a Shiny output, so the
-# default wait blocks the full 30s timeout before falling through (matches
-# every other set_inputs/click below, which already pass wait_ = FALSE).
-app$set_inputs(`synthesis_controls-purpose_group` = "development", wait_ = FALSE)
+# --- Step 02 -- Objective ----------------------------------------------------
+for (i in 1:60) {
+  if (visible_selector(".purpose-card[data-group='development']")) break
+  Sys.sleep(0.5)
+}
+if (!visible_selector(".purpose-card[data-group='development']")) {
+  stop("Objective step did not appear after column triage")
+}
+app$run_js("document.querySelector(\".purpose-card[data-group='development']\").click()")
 shot("step-2-objective.png")
 
-# --- Step 03 · Configure -------------------------------------------------
+# --- Step 03 -- Configure -------------------------------------------------
 app$click("synthesis_controls-confirm_objective", wait_ = FALSE)  # -> Configure
-for (i in 1:30) { Sys.sleep(1); if (visible("roles-k_anon")) break }
+for (i in 1:60) { Sys.sleep(0.5); if (visible("synthesis_controls-confirm")) break }
 # Wait for the data preview table AND the (plain-HTML, renderUI-based) roles
 # table to both finish rendering their rows -- the page frame and the roles
 # panel's spinner appear before either table's rows exist, so firing the
@@ -106,15 +129,11 @@ roles_rows_ready <- function()
 for (i in 1:30) { if (rows_ready() && roles_rows_ready()) break; Sys.sleep(1) }
 
 # Clear the two-question gate: every column needs a "Points to a person?"
-# answer (identifies). "direct" is not a valid answer here: once the upload
-# attestation confirms no direct identifiers, q1_identifies_choices() (see
-# R/mod-roles.R) drops "direct" from Q1 entirely -- selecting it would
-# contradict what was just attested. A realistic mix shows the derived
-# actions well: id/age/sex -> combination (Coarsened), the rest -> none,
-# with income & smoker also marked sensitive.
-identifies <- c(id = "combination", age = "combination", sex = "combination",
-                income = "none", education = "none", smoker = "none",
-                bmi = "none")
+# answer (identifies). The ID column was dropped during upload triage, leaving
+# six columns here. A realistic mix shows the derived actions well: age and sex
+# identify in combination, while income and smoker are marked sensitive.
+identifies <- c(age = "combination", sex = "combination", income = "none",
+                education = "none", smoker = "none", bmi = "none")
 for (i in seq_along(identifies)) {
   app$set_inputs(
     `roles-identifies_change` = list(row = i, value = unname(identifies[i])),
@@ -124,7 +143,7 @@ for (i in seq_along(identifies)) {
 }
 # 0.6.0 Configure has no silent defaults: Generate is gated until every
 # column has an explicit Sensitive? answer too, not just the "yes" ones.
-sensitive <- c(id = "no", age = "no", sex = "no", income = "yes",
+sensitive <- c(age = "no", sex = "no", income = "yes",
                education = "no", smoker = "yes", bmi = "no")
 for (i in seq_along(sensitive)) {
   app$set_inputs(
@@ -137,7 +156,7 @@ for (i in seq_along(sensitive)) {
 # answers + Action override column populated.
 shot("step-3-configure.png", pause = 3)
 
-# --- Step 04 · Generate --------------------------------------------------
+# --- Step 04 -- Generate --------------------------------------------------
 app$click("synthesis_controls-confirm"); Sys.sleep(2)
 # The header CTA cycles generate -> cancel -> go_compare; click Generate, then
 # poll until synthesis finishes and the "Continue to Compare" button binds.
@@ -152,11 +171,11 @@ for (i in 1:60) {
 if (!ok) stop("synthesis did not complete within 60s")
 shot("step-4-generate.png", pause = 1)
 
-# --- Step 05 · Compare (real vs. synthetic distributions) ----------------
+# --- Step 05 -- Compare (real vs. synthetic distributions) ----------------
 app$click("generate-go_compare", wait_ = FALSE); Sys.sleep(3)
 shot("step-5-compare.png", pause = 1)
 
-# --- Step 06 · Export ----------------------------------------------------
+# --- Step 06 -- Export ----------------------------------------------------
 app$click("compare-go_export"); Sys.sleep(2)
 shot("step-6-export.png")
 

@@ -1,5 +1,5 @@
 # Generate example_health_survey dataset
-# Realistic-but-fictional health survey data — all synthetic, no real records.
+# Realistic-but-fictional health survey data -- all synthetic, no real records.
 
 set.seed(20260514)
 

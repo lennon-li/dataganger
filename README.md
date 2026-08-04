@@ -13,21 +13,22 @@
 
 **DataGangeR is a human-gated privacy protocol for Agent prototyping.** You
 answer a short set of privacy questions, once, in a guided UI; DataGangeR turns
-your real dataset into a synthetic stand-in that a coding **Agent** can build
-on at full speed — and the Agent never sees the original records.
+your real dataset into a reviewable synthetic stand-in that a coding **Agent**
+can build on at full speed — and the Agent never sees the original records.
 
 📖 **Documentation:** <https://dataganger.biostats.ai/>
 
 ## Want an Agent to build on your data — without ever handing it over?
 
 Let a coding **Agent** work at full speed on a synthetic stand-in for your
-dataset. You decide the privacy rules once; the Agent gets safe synthetic data —
+dataset. You decide the privacy rules once; the Agent gets reviewed synthetic data —
 or a reproducible recipe to make it — and **never reads the real data**. And the
 package makes **no network calls**, so nothing ever leaves your machine.
 
 - 🔒 **The Agent never touches the real data** — it gets a synthetic bundle, or a
   saved recipe (`spec` + `roles` + `seed`) it runs back through the package to
-  regenerate safe data itself. The real records stay out of the shared bundle.
+  regenerate the approved synthetic data itself. The real records stay out of
+  the shared bundle.
 - 🧭 **The human gates privacy once** — attest there are no direct identifiers,
   then answer two questions per column (does it point to a person? is it
   sensitive?). Those answers drive the synthesis.
@@ -43,8 +44,8 @@ Let an Agent build on your data. Keep your data. Both.
 ```mermaid
 flowchart LR
   R[(Your real data)] --> G{Human gates privacy<br/>once, in the UI}
-  G -->|Path A| Bun[Synthetic bundle] --> AG1[Agent builds on safe data]
-  G -->|Path B| Rec[Saved recipe<br/>spec + roles + seed] --> CLI[Agent runs the package] --> AG2[Agent regenerates safe data<br/>never reads the real data]
+  G -->|Path A| Bun[Synthetic bundle] --> AG1[Agent builds on reviewed data]
+  G -->|Path B| Rec[Saved recipe<br/>spec + roles + seed] --> CLI[Agent runs the package] --> AG2[Agent regenerates approved data<br/>never reads the real data]
 ```
 
 > [!TIP]
@@ -84,8 +85,8 @@ relationship-preserving.
 ## The interactive app
 
 The guided Shiny app takes you from a real dataset to a shareable synthetic
-bundle in six steps — pick an **objective**, **upload** your data (or load a
-built-in sample), **configure** by answering two questions per column (does it
+bundle in six steps — **upload** your data (or load a built-in sample), pick an
+**objective**, **configure** by answering two questions per column (does it
 point to a person? is it sensitive?) and reviewing what DataGangeR will do,
 **generate** the synthetic double,
 **compare** real vs. synthetic distributions, and **export** the bundle. The
@@ -102,6 +103,13 @@ the synthesis rules and the exported Agent workflow. When `synthpop` is not
 installed, the attestation also recommends it for correlation-aware synthesis.
 See the
 [Privacy gating and Agent workflows vignette](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.html).
+
+The data preview adds an **Exact matches** tab whenever a synthetic row
+reproduces a real record, with amber highlighting for matches and red
+highlighting when a populated sensitive value is exposed. The Export step
+opens with a plain-language disclosure-risk brief and blocks sensitive exact
+matches until the user regenerates or explicitly acknowledges the remaining
+risk after a retry.
 
 The Compare step separates **Univariate** distribution checks from
 **Bivariate** relationship checks. Bivariate tests fit an original-versus-
@@ -155,7 +163,7 @@ the human and one for the agent.
 synthetic_data.csv            # the synthetic stand-in — the product
 human/human.md                # what was done, plus the privacy notes
 human/comparison_report.html  # fidelity, including relationship interactions
-agent/recipe.yaml             # spec + roles + seed — regenerate safe data
+agent/recipe.yaml             # spec + roles + seed — regenerate approved data
 agent/AGENT.md                # the agent workflow guide (never read the real data)
 agent/manifest.json
 ```

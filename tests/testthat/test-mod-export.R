@@ -52,71 +52,15 @@ test_that("use_original_names delegates to export_synthetic name-strategy resolu
   })
 })
 
-test_that("export summary shows synthesis, pass-through, and drop counts", {
-  testthat::skip_if_not_installed("shiny")
+test_that("export UI leads with bundle contents and omits generation summary", {
+  html <- as.character(mod_export_ui("export"))
 
-  raw_data <- data.frame(
-    synth_col = 1:4,
-    shared_col = letters[1:4],
-    drop_col = c("x", "y", "z", "w"),
-    stringsAsFactors = FALSE
+  expect_no_match(html, "export-export_summary", fixed = TRUE)
+  expect_no_match(html, "Generation summary", fixed = TRUE)
+  expect_lt(
+    regexpr("What's in the bundle", html, fixed = TRUE)[[1]],
+    regexpr("export-exact_match_export_gate", html, fixed = TRUE)[[1]]
   )
-  synthetic <- raw_data[c("synth_col", "shared_col")]
-  roles <- data.frame(
-    variable = c("synth_col", "shared_col", "drop_col"),
-    simulation = c("synthesize", "pass_through", "drop"),
-    stringsAsFactors = FALSE
-  )
-
-  state <- export_test_state()
-  state$raw_data <- raw_data
-  state$synthetic <- synthetic
-  state$roles <- roles
-
-  shiny::testServer(mod_export_server, args = list(state = state), {
-    summary_html <- paste(as.character(output$export_summary), collapse = "\n")
-    expect_match(summary_html, "Original")
-    expect_match(summary_html, "4 rows \u00d7 3 cols")
-    expect_match(summary_html, "Synthesized")
-    expect_match(summary_html, "Pass-through")
-    expect_match(summary_html, "Dropped")
-    expect_match(summary_html, "1 column")
-    expect_match(summary_html, "Final synthetic")
-    expect_match(summary_html, "4 rows \u00d7 2 cols")
-  })
-})
-
-test_that("export summary counts role-excluded columns (e.g. IDs) as dropped", {
-  testthat::skip_if_not_installed("shiny")
-
-  # A column absent from the synthetic with NO Action = drop (e.g. an ID
-  # excluded by detect_roles) must still reconcile as dropped.
-  raw_data <- data.frame(
-    id = 1:4,
-    age = c(20L, 30L, 40L, 50L),
-    sex = c("F", "M", "F", "M"),
-    stringsAsFactors = FALSE
-  )
-  synthetic <- raw_data[c("age", "sex")]
-  roles <- data.frame(
-    variable = c("id", "age", "sex"),
-    simulation = c("synthesize", "synthesize", "synthesize"),
-    stringsAsFactors = FALSE
-  )
-
-  state <- export_test_state()
-  state$raw_data <- raw_data
-  state$synthetic <- synthetic
-  state$roles <- roles
-
-  shiny::testServer(mod_export_server, args = list(state = state), {
-    summary_html <- paste(as.character(output$export_summary), collapse = "\n")
-    expect_match(summary_html, "4 rows \u00d7 3 cols")   # original
-    expect_match(summary_html, "4 rows \u00d7 2 cols")   # final
-    # 2 synthesized, 0 pass-through, 1 dropped (the id) -> ties out to 3
-    expect_match(summary_html, "Dropped")
-    expect_match(summary_html, "1 column")
-  })
 })
 
 test_that("module export manifest hashes match after post-generation spec edits", {
@@ -185,6 +129,12 @@ test_that("export module blocks bundle download until k-anon is acknowledged", {
   })
 
   shiny::testServer(mod_export_server, args = list(state = state), {
+    gate <- paste(as.character(output$kanon_export_gate), collapse = "\n")
+    expect_match(gate, "every combination", fixed = TRUE)
+    expect_match(gate, "<code>age</code>", fixed = TRUE)
+    expect_match(gate, "<code>sex</code>", fixed = TRUE)
+    expect_match(gate, "at least 5 rows", fixed = TRUE)
+    expect_match(gate, "smallest combination has 1 row", fixed = TRUE)
     expect_error(
       build_export(withr::local_tempdir()),
       "requires explicit acknowledgment"
@@ -227,12 +177,12 @@ test_that("export module records acknowledgment and clears blockers once approve
 # sensitive in question 2, so the reproduced rows expose a sensitive value.
 exact_match_gate_state <- function(generation_count = 1L, n_match = 2L) {
   original <- data.frame(
-    a  = sprintf("%02d", 1:30),
+    a = sprintf("%02d", 1:30),
     dx = rep(c("flu", "cold"), 15),
     stringsAsFactors = FALSE
   )
   synthetic <- data.frame(
-    a  = sprintf("%02d", 31:60),
+    a = sprintf("%02d", 31:60),
     dx = rep(c("cold", "flu"), 15),
     stringsAsFactors = FALSE
   )
@@ -429,8 +379,10 @@ test_that("disclosure modal never shows jargon the user will not understand", {
     stringsAsFactors = FALSE
   )
   modal <- disclosure_risk_modal(
-    kanon = list(qi_cols = "x", k = 5L, smallest_cell = 5L,
-                 suppressed_rows = 0L, suppressed_row_frac = 0, infeasible = FALSE),
+    kanon = list(
+      qi_cols = "x", k = 5L, smallest_cell = 5L,
+      suppressed_rows = 0L, suppressed_row_frac = 0, infeasible = FALSE
+    ),
     n_exact = 0L, n_sensitive = 0L, privacy_flags = poisoned
   )
   html <- tolower(paste(as.character(modal), collapse = "\n"))
@@ -525,7 +477,10 @@ test_that("plain language covers the real privacy_check_post flag wording", {
 
   expect_false(grepl(jargon, dg_plain_language(flag), ignore.case = TRUE))
   expect_false(grepl(jargon, dg_plain_language(recommendation),
-                     ignore.case = TRUE))
+    ignore.case = TRUE
+  ))
   expect_true(grepl("fewer than the 5 required",
-                    dg_plain_language(flag), fixed = TRUE))
+    dg_plain_language(flag),
+    fixed = TRUE
+  ))
 })

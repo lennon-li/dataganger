@@ -508,7 +508,7 @@ dg_random_like_char <- function(ch) {
 #' Scramble an alphanumeric ID's characters, one value at a time
 #'
 #' Each value is transformed independently: delimiter characters
-#' ([dg_alphanumeric_id_delimiters()]) stay in their exact original
+#' (`dg_alphanumeric_id_delimiters()`) stay in their exact original
 #' positions. When a value has at least two distinct non-delimiter characters,
 #' those characters are randomly reordered (preserving the multiset), which
 #' destroys the value while keeping its length and delimiter layout and never

@@ -33,6 +33,10 @@ test_that("generate UI exposes a configuration recap output", {
   expect_match(html, "Your configuration")
   expect_match(html, "generate-config_recap")
   expect_match(html, "generate-decision_recap")
+  expect_lt(
+    regexpr("generate-decision_recap", html, fixed = TRUE)[[1]],
+    regexpr("generate-generate_actions", html, fixed = TRUE)[[1]]
+  )
 })
 
 test_that("generate stale banner uses friendly guidance", {
@@ -186,9 +190,9 @@ make_stub_bindings <- function() {
   })
 
   list(
-    synthesize_data  = function(...) toy_synthetic,
+    synthesize_data = function(...) toy_synthetic,
     compare_synthetic = function(...) toy_comparison,
-    privacy_check    = function(...) toy_privacy
+    privacy_check = function(...) toy_privacy
   )
 }
 
@@ -489,7 +493,7 @@ test_that("generate blocks when column privacy questions are incomplete", {
   expect_null(shiny::isolate(state$synthetic))
 })
 
-test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
+test_that("generate removes k-anon and high-flag KPI tiles", {
   testthat::skip_if_not_installed("shiny")
 
   state <- generate_test_state(
@@ -545,8 +549,8 @@ test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
     session$setInputs(generate = 1L)
     session$flushReact()
     html <- paste(as.character(output$result_stats), collapse = "\n")
-    expect_match(html, "not applied - see options below", fixed = TRUE)
-    expect_match(html, "1 - see bundle report", fixed = TRUE)
+    expect_no_match(html, "K-anonymity", fixed = TRUE)
+    expect_no_match(html, "HIGH FLAGS", fixed = TRUE)
   })
 
   notifications <- recorder$get()
@@ -555,7 +559,7 @@ test_that("generate surfaces pipeline warnings and stores k-anon metadata", {
   expect_false(is.null(shiny::isolate(state$generated_roles)))
 })
 
-test_that("result stats surface heavy QI suppression instead of staying silent", {
+test_that("bottom k-anon status surfaces heavy QI suppression", {
   testthat::skip_if_not_installed("shiny")
 
   # k-anonymity was successfully enforced (not infeasible), but whole-cell
@@ -608,9 +612,9 @@ test_that("result stats surface heavy QI suppression instead of staying silent",
   shiny::testServer(mod_generate_server, args = list(state = state), {
     session$setInputs(generate = 1L)
     session$flushReact()
-    html <- paste(as.character(output$result_stats), collapse = "\n")
+    html <- paste(as.character(output$generate_actions), collapse = "\n")
     expect_match(html, "100% of QI values suppressed", fixed = TRUE)
-    expect_match(html, "stat risk", fixed = TRUE)
+    expect_match(html, "k-anonymity was applied", fixed = TRUE)
   })
 })
 
@@ -685,13 +689,33 @@ test_that("generate renders the structured k-anon panel after an infeasible run"
     session$flushReact()
     html <- paste(as.character(output$generate_actions), collapse = "\n")
     expect_match(html, "k-anonymity was not applied", fixed = TRUE)
+    expect_match(html, "background:var(--risk-50", fixed = TRUE)
     expect_match(html, "Apply k = 3 and regenerate", fixed = TRUE)
     expect_match(html, "Generate 1000 rows at k = 5", fixed = TRUE)
+    expect_match(html, "Change k in Advanced settings", fixed = TRUE)
+    expect_match(html, "adjust_advanced_settings", fixed = TRUE)
+    expect_match(html, "synthesis_controls-advanced_settings", fixed = TRUE)
     expect_match(html, "age", fixed = TRUE)
   })
 
   notifications <- recorder$get()
   expect_false(any(vapply(notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1))))
+})
+
+test_that("advanced-settings action requests Configure", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- generate_test_state(
+    data = data.frame(x = 1:3),
+    spec = synth_spec(purpose = "development")
+  )
+
+  shiny::testServer(mod_generate_server, args = list(state = state), {
+    session$setInputs(adjust_advanced_settings = 1L)
+    session$flushReact()
+  })
+
+  expect_identical(shiny::isolate(state$nav_request), "configure")
 })
 
 test_that("generate k-action button updates k and stores provenance before regenerating", {

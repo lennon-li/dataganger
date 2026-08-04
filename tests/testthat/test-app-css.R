@@ -39,13 +39,17 @@ test_that("design system CSS loads and tokens are applied", {
   withr::local_envvar(
     TMPDIR = tempdir(), TMP = tempdir(), TEMP = tempdir()
   )
+  chromote_client <- chromote::Chromote$new()
+  chromote_client$default_timeout <- 60
+  chromote::set_default_chromote_object(chromote_client)
 
   app <- AppDriver$new(
     system.file("app", package = "dataganger"),
     name = "css-check",
     height = 800,
     width = 1200,
-    load_timeout = 60000
+    load_timeout = 60000,
+    timeout = 60000
   )
   on.exit(app$stop())
 

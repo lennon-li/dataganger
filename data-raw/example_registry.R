@@ -1,5 +1,5 @@
 # Generate example_registry dataset
-# Realistic-but-fictional disease registry data — all synthetic, no real records.
+# Realistic-but-fictional disease registry data -- all synthetic, no real records.
 
 set.seed(20260516)
 

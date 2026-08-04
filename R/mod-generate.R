@@ -65,6 +65,17 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
       class = "btn btn-secondary"
     )
   }
+  action_buttons[[length(action_buttons) + 1L]] <- shiny::actionButton(
+    session$ns("adjust_advanced_settings"),
+    "Change k in Advanced settings",
+    class = "btn btn-secondary",
+    onclick = paste(
+      "var output=document.getElementById('synthesis_controls-advanced_settings');",
+      "var panel=output ? output.closest('details') : null;",
+      "if(panel){panel.open=true;",
+      "window.setTimeout(function(){panel.scrollIntoView({behavior:'smooth',block:'center'});},300);}"
+    )
+  )
 
   guidance <- if (!is.null(driver_col)) {
     shiny::tags$p(
@@ -96,7 +107,10 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
 
   shiny::tags$div(
     class = "card",
-    style = "margin-top:12px; border-left:4px solid var(--synth-600);",
+    style = paste(
+      "margin-top:12px; background:var(--risk-50);",
+      "border:1px solid var(--risk-300); border-left:4px solid var(--risk-500);"
+    ),
     shiny::tags$div(
       class = "card-header",
       shiny::tags$span(class = "title", "k-anonymity was not applied"),
@@ -143,6 +157,34 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
     },
     guidance,
     probe_note
+  )
+}
+
+#' @keywords internal
+#' @noRd
+render_kanon_applied_panel <- function(kanon) {
+  row_frac <- kanon$suppressed_row_frac %||% 0
+  detail <- sprintf(
+    "Every quasi-identifier combination in this output appears in at least %s rows.",
+    kanon$k %||% "k"
+  )
+  if (row_frac > 0) {
+    detail <- sprintf(
+      "%s %s%% of QI values suppressed to enforce it.",
+      detail,
+      round(100 * row_frac)
+    )
+  }
+
+  shiny::tags$div(
+    class = "card",
+    style = "margin-top:12px; border-left:4px solid var(--synth-600);",
+    shiny::tags$div(
+      class = "card-header",
+      shiny::tags$span(class = "title", "k-anonymity was applied"),
+      shiny::tags$span(class = "sub", "generation privacy status")
+    ),
+    shiny::tags$p(style = "margin:8px 0 0;", detail)
   )
 }
 
@@ -249,7 +291,7 @@ mod_generate_server <- function(id, state) {
     })
 
     output$config_recap <- shiny::renderUI({
-      spec  <- state$spec
+      spec <- state$spec
       roles <- state$roles
       if (is.null(spec)) {
         return(shiny::tags$p(
@@ -266,21 +308,27 @@ mod_generate_server <- function(id, state) {
       } else {
         configured_engine
       }
-      row <- function(label, value) shiny::tags$tr(
-        shiny::tags$td(class = "name", label),
-        shiny::tags$td(value)
-      )
+      row <- function(label, value) {
+        shiny::tags$tr(
+          shiny::tags$td(class = "name", label),
+          shiny::tags$td(value)
+        )
+      }
       dash <- "\u2014"
       fmt_val <- function(x) {
-        if (is.null(x) || (length(x) == 1L && is.na(x))) return(dash)
-        if (is.logical(x)) return(if (isTRUE(x)) "yes" else "no")
+        if (is.null(x) || (length(x) == 1L && is.na(x))) {
+          return(dash)
+        }
+        if (is.logical(x)) {
+          return(if (isTRUE(x)) "yes" else "no")
+        }
         as.character(x)
       }
       preserve_missingness <- spec[["preserve_missingness", exact = TRUE]]
-      rare_level_min_n     <- spec[["rare_level_min_n", exact = TRUE]]
-      coarsen_dates        <- spec[["coarsen_dates", exact = TRUE]]
-      merge_rare           <- spec[["merge_rare", exact = TRUE]]
-      level                <- spec[["level", exact = TRUE]]
+      rare_level_min_n <- spec[["rare_level_min_n", exact = TRUE]]
+      coarsen_dates <- spec[["coarsen_dates", exact = TRUE]]
+      merge_rare <- spec[["merge_rare", exact = TRUE]]
+      level <- spec[["level", exact = TRUE]]
       shiny::tags$table(
         class = "data",
         style = "margin-top:8px;",
@@ -395,7 +443,7 @@ mod_generate_server <- function(id, state) {
             }
           ),
           shiny::tags$div(
-          style = "margin-top:6px;",
+            style = "margin-top:6px;",
             "Pass-through columns keep their real values; dropped columns are removed. ",
             "Verify both kinds of fidelity on the Compare step after generating."
           )
@@ -403,12 +451,12 @@ mod_generate_server <- function(id, state) {
       )
     })
 
-    last_duration   <- shiny::reactiveVal(NULL)
-    generating      <- shiny::reactiveVal(FALSE)
-    proc            <- shiny::reactiveVal(NULL)   # callr background process
-    run_started_at  <- shiny::reactiveVal(NULL)
-    run_seed        <- shiny::reactiveVal(NULL)
-    elapsed_secs    <- shiny::reactiveVal(NULL)   # live timer during generation
+    last_duration <- shiny::reactiveVal(NULL)
+    generating <- shiny::reactiveVal(FALSE)
+    proc <- shiny::reactiveVal(NULL) # callr background process
+    run_started_at <- shiny::reactiveVal(NULL)
+    run_seed <- shiny::reactiveVal(NULL)
+    elapsed_secs <- shiny::reactiveVal(NULL) # live timer during generation
 
     output$stale__synthesis <- shiny::renderText({
       if (isTRUE(state$stale$synthesis)) {
@@ -566,8 +614,10 @@ mod_generate_server <- function(id, state) {
         NULL
       })
       if (!is.null(result)) {
-        dg_log(sprintf("generate: done in %.2fs",
-                       as.numeric(difftime(Sys.time(), run_started_at() %||% Sys.time(), units = "secs"))))
+        dg_log(sprintf(
+          "generate: done in %.2fs",
+          as.numeric(difftime(Sys.time(), run_started_at() %||% Sys.time(), units = "secs"))
+        ))
         finalize_result(result)
       }
     })
@@ -594,7 +644,9 @@ mod_generate_server <- function(id, state) {
 
     # Live elapsed-time ticker while generation is running.
     shiny::observe({
-      if (!isTRUE(generating())) return()
+      if (!isTRUE(generating())) {
+        return()
+      }
       shiny::invalidateLater(1000, session)
       started <- run_started_at()
       if (!is.null(started)) {
@@ -606,7 +658,7 @@ mod_generate_server <- function(id, state) {
       if (!isTRUE(generating())) {
         return(NULL)
       }
-      secs  <- elapsed_secs() %||% 0L
+      secs <- elapsed_secs() %||% 0L
       timer <- sprintf("%02d:%02d", secs %/% 60L, secs %% 60L)
       # Fake-deterministic bar: advances 0\u219290 % over 60 s to give the user
       # a sense of progress; jumps to 100% on completion (handled by hiding).
@@ -660,42 +712,6 @@ mod_generate_server <- function(id, state) {
       } else {
         "stat"
       }
-      high_flags <- if (!is.null(state$privacy) && nrow(state$privacy) > 0L &&
-          "severity" %in% names(state$privacy)) {
-        sum(state$privacy$severity == "HIGH", na.rm = TRUE)
-      } else {
-        0L
-      }
-      kanon <- state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE)
-      kanon_label <- "not applicable"
-      kanon_class <- "stat"
-      if (!is.null(kanon) && length(kanon$qi_cols %||% character(0)) > 0L) {
-        if (isTRUE(kanon$infeasible)) {
-          kanon_label <- "not applied - see options below"
-          kanon_class <- "stat risk"
-        } else {
-          kanon_label <- sprintf(
-            "enforced (smallest cell >= %s)",
-            kanon$k %||% "k"
-          )
-          # Suppression works at whole-cell granularity, not row granularity
-          # -- reaching k can require absorbing a few whole neighbouring
-          # cells, which can blank far more rows than the number that were
-          # actually below k. Surface that here so a QI column that ended
-          # up mostly or fully blanked to reach k is visible, not silent.
-          row_frac <- kanon$suppressed_row_frac %||% 0
-          if (row_frac > 0) {
-            kanon_label <- sprintf(
-              "%s; %s%% of QI values suppressed",
-              kanon_label, round(100 * row_frac)
-            )
-            if (row_frac >= 0.5) {
-              kanon_class <- "stat risk"
-            }
-          }
-        }
-      }
-
       stat_cell <- function(label, value, class = "stat") {
         shiny::tags$div(
           class = class,
@@ -719,37 +735,26 @@ mod_generate_server <- function(id, state) {
           ),
           stat_cell("SEED", seed_label),
           stat_cell("DURATION", dur_label),
-          stat_cell("EXACT MATCHES", exact_row_matches, exact_matches_class),
-          stat_cell(
-            shiny::tagList(
-              dg_privacy_term("K-anonymity", "k_anonymity"),
-              " (",
-              dg_privacy_term("k", "k"),
-              ")"
-            ),
-            kanon_label,
-            kanon_class
-          ),
-          stat_cell(
-            "HIGH FLAGS",
-            sprintf("%d - see bundle report", high_flags),
-            if (high_flags > 0L) "stat risk" else "stat"
-          )
+          stat_cell("EXACT MATCHES", exact_row_matches, exact_matches_class)
         )
       )
     })
 
     output$generate_actions <- shiny::renderUI({
       kanon <- state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE)
-      if (is.null(kanon) || !isTRUE(kanon$infeasible)) {
+      if (is.null(kanon) || !length(kanon$qi_cols %||% character(0))) {
         return(NULL)
       }
 
-      render_kanon_escape_panel(
-        session = session,
-        kanon = kanon,
-        escape_routes = state$kanon_escape_routes %||% list()
-      )
+      if (isTRUE(kanon$infeasible)) {
+        render_kanon_escape_panel(
+          session = session,
+          kanon = kanon,
+          escape_routes = state$kanon_escape_routes %||% list()
+        )
+      } else {
+        render_kanon_applied_panel(kanon)
+      }
     })
 
     shiny::observeEvent(input$generate, ignoreNULL = TRUE, {
@@ -811,6 +816,10 @@ mod_generate_server <- function(id, state) {
     })
 
     shiny::observeEvent(input$adjust_settings, ignoreNULL = TRUE, {
+      state$nav_request <- "configure"
+    })
+
+    shiny::observeEvent(input$adjust_advanced_settings, ignoreNULL = TRUE, {
       state$nav_request <- "configure"
     })
 

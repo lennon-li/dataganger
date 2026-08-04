@@ -20,34 +20,34 @@ shiny::addResourcePath("www", www_dir)
 # hard-refresh required).
 css_href <- function(file) {
   path <- file.path(www_dir, file)
-  ver  <- if (file.exists(path)) as.integer(file.info(path)$mtime) else 0L
+  ver <- if (file.exists(path)) as.integer(file.info(path)$mtime) else 0L
   sprintf("www/%s?v=%d", file, ver)
 }
 
-detect_roles                  <- dataganger::detect_roles
-dg_timeit                     <- dataganger:::dg_timeit
-mod_compare_server            <- dataganger:::mod_compare_server
-mod_compare_ui                <- dataganger:::mod_compare_ui
-mod_export_server             <- dataganger:::mod_export_server
-mod_export_ui                 <- dataganger:::mod_export_ui
-mod_generate_server           <- dataganger:::mod_generate_server
-mod_generate_ui               <- dataganger:::mod_generate_ui
-mod_roles_server              <- dataganger:::mod_roles_server
-mod_roles_ui                  <- dataganger:::mod_roles_ui
-mod_state_server              <- dataganger:::mod_state_server
+detect_roles <- dataganger::detect_roles
+dg_timeit <- dataganger:::dg_timeit
+mod_compare_server <- dataganger:::mod_compare_server
+mod_compare_ui <- dataganger:::mod_compare_ui
+mod_export_server <- dataganger:::mod_export_server
+mod_export_ui <- dataganger:::mod_export_ui
+mod_generate_server <- dataganger:::mod_generate_server
+mod_generate_ui <- dataganger:::mod_generate_ui
+mod_roles_server <- dataganger:::mod_roles_server
+mod_roles_ui <- dataganger:::mod_roles_ui
+mod_state_server <- dataganger:::mod_state_server
 mod_synthesis_controls_server <- dataganger:::mod_synthesis_controls_server
 mod_synthesis_controls_objective_ui <- dataganger:::mod_synthesis_controls_objective_ui
-mod_synthesis_controls_spec_ui      <- dataganger:::mod_synthesis_controls_spec_ui
-mod_upload_server             <- dataganger:::mod_upload_server
-mod_upload_ui                 <- dataganger:::mod_upload_ui
-mod_column_filter_server      <- dataganger:::mod_column_filter_server
-mod_data_panel_server         <- dataganger:::mod_data_panel_server
-mod_data_panel_ui             <- dataganger:::mod_data_panel_ui
-dg_sync_roles_axes            <- dataganger:::dg_sync_roles_axes
-dg_ensure_ui_roles            <- dataganger:::dg_ensure_ui_roles
-suspected_direct_identifiers  <- dataganger:::suspected_direct_identifiers
-app_fail_safe_empty           <- dataganger:::app_fail_safe_empty
-app_guardrail_server          <- dataganger:::app_guardrail_server
+mod_synthesis_controls_spec_ui <- dataganger:::mod_synthesis_controls_spec_ui
+mod_upload_server <- dataganger:::mod_upload_server
+mod_upload_ui <- dataganger:::mod_upload_ui
+mod_column_filter_server <- dataganger:::mod_column_filter_server
+mod_data_panel_server <- dataganger:::mod_data_panel_server
+mod_data_panel_ui <- dataganger:::mod_data_panel_ui
+dg_sync_roles_axes <- dataganger:::dg_sync_roles_axes
+dg_ensure_ui_roles <- dataganger:::dg_ensure_ui_roles
+suspected_direct_identifiers <- dataganger:::suspected_direct_identifiers
+app_fail_safe_empty <- dataganger:::app_fail_safe_empty
+app_guardrail_server <- dataganger:::app_guardrail_server
 
 dg_theme <- bslib::bs_theme(
   version = 5,
@@ -204,12 +204,12 @@ sidebar_content <- tags$nav(
   tags$div(class = "section-label", "Workflow"),
   tags$ul(
     class = "steps",
-    step_item(1, "Upload data",     "upload"),
-    step_item(2, "Objective",       "objective"),
-    step_item(3, "Configuration",   "configure"),
-    step_item(4, "Generation",      "generate"),
-    step_item(5, "Comparison",      "compare"),
-    step_item(6, "Export",          "export")
+    step_item(1, "Upload data", "upload"),
+    step_item(2, "Objective", "objective"),
+    step_item(3, "Configuration", "configure"),
+    step_item(4, "Generation", "generate"),
+    step_item(5, "Comparison", "compare"),
+    step_item(6, "Export", "export")
   ),
   tags$div(
     style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
@@ -298,8 +298,8 @@ configure_ui <- function() {
       class = "main-header-action",
       style = "display:flex; justify-content:flex-end; margin-top:24px;",
       shiny::tags$button(
-        type    = "button",
-        class   = "btn btn-primary",
+        type = "button",
+        class = "btn btn-primary",
         onclick = sprintf(
           "document.getElementById('%s').click();",
           shiny::NS("synthesis_controls")("confirm")
@@ -405,25 +405,25 @@ ui <- bslib::page(
   ),
   tags$div(
     class = "app",
-    id    = "app-shell",
+    id = "app-shell",
     sidebar_content,
     tags$main(
       class = "main",
       bslib::navset_hidden(
         id = "app_tabs",
-        bslib::nav_panel_hidden("upload",    mod_upload_ui("upload")),
+        bslib::nav_panel_hidden("upload", mod_upload_ui("upload")),
         bslib::nav_panel_hidden("objective", mod_synthesis_controls_objective_ui("synthesis_controls")),
         bslib::nav_panel_hidden("configure", configure_ui()),
-        bslib::nav_panel_hidden("generate",  mod_generate_ui("generate")),
-        bslib::nav_panel_hidden("compare",   mod_compare_ui("compare")),
-        bslib::nav_panel_hidden("export",    mod_export_ui("export"))
+        bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
+        bslib::nav_panel_hidden("compare", mod_compare_ui("compare")),
+        bslib::nav_panel_hidden("export", mod_export_ui("export"))
       )
     ),
     tags$div(
-      id    = "resize-handle",
+      id = "resize-handle",
       style = "width:5px; cursor:col-resize; background:var(--border); transition:background 120ms; flex-shrink:0;",
       onmouseover = "this.style.background='var(--synth-300)'",
-      onmouseout  = "this.style.background='var(--border)'"
+      onmouseout = "this.style.background='var(--border)'"
     ),
     mod_data_panel_ui("data_panel")
   )
@@ -440,30 +440,30 @@ server <- function(input, output, session) {
   })
 
   shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {
-    state$raw_data            <- NULL
-    state$profile             <- NULL
-    state$roles               <- NULL
-    state$roles_confirmed     <- 0L
-    state$column_filter       <- NULL
+    state$raw_data <- NULL
+    state$profile <- NULL
+    state$roles <- NULL
+    state$roles_confirmed <- 0L
+    state$column_filter <- NULL
     state$objective_confirmed <- 0L
-    state$spec                <- NULL
-    state$spec_confirmed      <- 0L
-    state$synthetic           <- NULL
-    state$comparison          <- NULL
+    state$spec <- NULL
+    state$spec_confirmed <- 0L
+    state$synthetic <- NULL
+    state$comparison <- NULL
     state$compare_selected_var <- NULL
-    state$privacy             <- NULL
-    state$kanon               <- NULL
-    state$pipeline_warnings   <- NULL
-    state$generated_roles     <- NULL
-    state$seed_used           <- NULL
-    state$nav_request         <- NULL
-    state$fail_safe_status    <- "idle"
-    state$fail_safe_flagged   <- app_fail_safe_empty()
+    state$privacy <- NULL
+    state$kanon <- NULL
+    state$pipeline_warnings <- NULL
+    state$generated_roles <- NULL
+    state$seed_used <- NULL
+    state$nav_request <- NULL
+    state$fail_safe_status <- "idle"
+    state$fail_safe_flagged <- app_fail_safe_empty()
     state$fail_safe_upload_token <- NULL
     # Attestation is a claim about a specific dataset; a true "Start over" drops
     # the data, so the no-direct-identifier gate must re-fire before the new one.
-    state$attested_no_direct  <- FALSE
-    state$active_step         <- "upload"
+    state$attested_no_direct <- FALSE
+    state$active_step <- "upload"
     bslib::nav_select("app_tabs", "upload")
     send_step_state(0L)
   })
@@ -488,19 +488,27 @@ server <- function(input, output, session) {
     send_step_state(0L)
   }, once = TRUE)
 
-  STEP_IDS  <- c("upload", "objective", "configure", "generate", "compare", "export")
+  STEP_IDS <- c("upload", "objective", "configure", "generate", "compare", "export")
 
   # Compute the furthest step reached (0-based index into STEP_IDS)
   max_step_reached <- shiny::reactive({
-    if (!is.null(state$synthetic))                      return(5L)
-    if (isTRUE(state$spec_confirmed > 0L))              return(3L)
-    if (isTRUE(state$objective_confirmed > 0L))         return(2L)
+    if (!is.null(state$synthetic)) {
+      return(5L)
+    }
+    if (isTRUE(state$spec_confirmed > 0L)) {
+      return(3L)
+    }
+    if (isTRUE(state$objective_confirmed > 0L)) {
+      return(2L)
+    }
     if (!is.null(state$raw_data) &&
-        identical(state$fail_safe_status, "ready"))     return(1L)
+      identical(state$fail_safe_status, "ready")) {
+      return(1L)
+    }
     0L
   })
 
-  current_step_num <- shiny::reactiveVal(0L)  # 0-based
+  current_step_num <- shiny::reactiveVal(0L) # 0-based
 
   send_step_state <- function(cur) {
     current_step_num(cur)
@@ -513,7 +521,7 @@ server <- function(input, output, session) {
 
   # Sidebar navigation
   shiny::observeEvent(input$nav_go, ignoreNULL = TRUE, ignoreInit = TRUE, {
-    target  <- input$nav_go
+    target <- input$nav_go
     tgt_idx <- match(target, STEP_IDS) - 1L
     cur_idx <- current_step_num()
     max_idx <- max_step_reached()
@@ -605,24 +613,26 @@ server <- function(input, output, session) {
   output$configure_summary_stats <- shiny::renderUI({
     shiny::req(state$profile, state$raw_data)
     prof <- state$profile$profile
-    if (is.null(prof) || nrow(prof) == 0L) return(NULL)
+    if (is.null(prof) || nrow(prof) == 0L) {
+      return(NULL)
+    }
 
-    cat_types  <- c("character", "factor")
-    num_types  <- c("numeric", "integer")
+    cat_types <- c("character", "factor")
+    num_types <- c("numeric", "integer")
 
-    cat_cols  <- prof$variable[prof$type %in% cat_types]
-    num_cols  <- prof$variable[prof$type %in% num_types]
+    cat_cols <- prof$variable[prof$type %in% cat_types]
+    num_cols <- prof$variable[prof$type %in% num_types]
 
-    th_style   <- "padding:5px 8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;"
-    td_style   <- "padding:4px 8px; font-size:12px; font-family:var(--font-mono);"
-    td0_style  <- "padding:4px 8px; font-size:12px; font-weight:600;"
+    th_style <- "padding:5px 8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;"
+    td_style <- "padding:4px 8px; font-size:12px; font-family:var(--font-mono);"
+    td0_style <- "padding:4px 8px; font-size:12px; font-weight:600;"
 
     # Numeric summary table - cool teal header
     num_section <- if (length(num_cols) > 0L) {
       num_th <- paste0(th_style, " background:#1a6b6b; color:#e8f5f5;")
       num_rows <- lapply(seq_along(num_cols), function(i) {
-        cn  <- num_cols[[i]]
-        r   <- prof[prof$variable == cn, ]
+        cn <- num_cols[[i]]
+        r <- prof[prof$variable == cn, ]
         fmt <- function(x) if (!is.null(x) && length(x) == 1L && !is.na(x)) sprintf("%.2f", as.numeric(x)) else "\u2014"
         row_bg <- if (i %% 2 == 0) "background:#f0f7f7;" else "background:#ffffff;"
         shiny::tags$tr(
@@ -666,13 +676,13 @@ server <- function(input, output, session) {
     cat_section <- if (length(cat_cols) > 0L) {
       cat_th <- paste0(th_style, " background:#7a4419; color:#fff3e0;")
       cat_tables <- lapply(cat_cols, function(cn) {
-        x   <- state$raw_data[[cn]]
+        x <- state$raw_data[[cn]]
         tbl <- sort(table(x, useNA = "no"), decreasing = TRUE)
         top <- head(tbl, 5L)
         total <- sum(tbl)
         rows <- mapply(function(val, cnt, i) {
-          pct    <- 100 * cnt / total
-          bar_w  <- round(pct)
+          pct <- 100 * cnt / total
+          bar_w <- round(pct)
           row_bg <- if (i %% 2 == 0) "background:#fdf6ee;" else "background:#ffffff;"
           shiny::tags$tr(
             style = row_bg,
@@ -685,8 +695,10 @@ server <- function(input, output, session) {
                 shiny::tags$div(
                   style = sprintf("height:8px; width:%dpx; background:#c97b38; border-radius:3px; flex-shrink:0;", max(2L, bar_w)),
                 ),
-                shiny::tags$span(style = "font-size:11px; font-family:var(--font-mono); color:var(--fg-muted);",
-                                 sprintf("%.1f%%", pct))
+                shiny::tags$span(
+                  style = "font-size:11px; font-family:var(--font-mono); color:var(--fg-muted);",
+                  sprintf("%.1f%%", pct)
+                )
               )
             )
           )
@@ -732,7 +744,7 @@ server <- function(input, output, session) {
 
   # Module navigation requests (e.g. "\u2190 Adjust settings", "Continue to Export \u2192")
   observeEvent(state$nav_request, ignoreNULL = TRUE, {
-    target  <- state$nav_request
+    target <- state$nav_request
     if (identical(target, "purpose") || identical(target, "spec") || identical(target, "roles")) {
       target <- "configure"
     }
