@@ -196,15 +196,10 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
 
   shiny::tagList(
     header,
-    shiny::tags$div(
-      class = "card",
-      shiny::tags$div(
-        class = "card-header",
-        shiny::tags$span(class = "title", "Objective"),
-        shiny::tags$span(class = "sub", "set in Step 02")
-      ),
-      shiny::uiOutput(ns("purpose_recap"))
-    ),
+    # The objective recap card that stood here was removed: it restated a
+    # choice already made in Step 02 and its "Change objective" link only
+    # duplicated the sidebar stepper, which stays clickable for any unlocked
+    # step (inst/app/app.R step_item()).
     shiny::tags$div(
       class = "card",
       shiny::tags$p(
@@ -227,6 +222,120 @@ mod_synthesis_controls_spec_ui <- function(id, embedded = FALSE) {
       )
     )
   )
+}
+
+#' Wrap a sliderInput so it is fully gated, without shinyjs
+#'
+#' Three layers, each doing something the others cannot:
+#'   * `opacity` + `pointer-events:none` -- signals the state and blocks the
+#'     mouse. Same visual idiom as the disabled selects in mod-roles.R.
+#'   * `dg_disable_slider_tag()` -- blocks the keyboard, by telling
+#'     ionRangeSlider to disable itself before it binds `keydown`.
+#'   * `inert` -- ionRangeSlider generates its own focusable
+#'     `<span class="irs-line" tabindex="0">` at init time, so without this the
+#'     gated slider is still a tab stop: keyboard users land on a greyed
+#'     control that does nothing and announces nothing. `inert` removes the
+#'     whole subtree from the tab order and the accessibility tree, which no
+#'     attribute on the input can do, because that span does not exist until
+#'     the client renders it. Purely additive: where `inert` is unsupported the
+#'     value is still protected by the layer above.
+#'
+#' @keywords internal
+#' @noRd
+dg_gate_slider_tag <- function(slider) {
+  shiny::tags$div(
+    style = "opacity:0.5; pointer-events:none;",
+    inert = NA,
+    dg_disable_slider_tag(slider)
+  )
+}
+
+#' Mark a sliderInput tag as disabled, without shinyjs
+#'
+#' A wrapper styled `pointer-events:none` stops the mouse but NOT the keyboard.
+#' ionRangeSlider builds its own widget at init time and binds the arrow keys to
+#' a generated `<span class="irs-line" tabindex="0">`, not to the input shiny
+#' renders, so CSS on the wrapper leaves the value fully editable. That would
+#' make the gate look enforced while leaving it open, which is the worst of
+#' both.
+#'
+#' `data-disable="true"` is what actually closes it. ionRangeSlider reads its
+#' options from the input's data attributes and applies them LAST
+#' (`$.extend(config, config_from_data)`), so they beat anything shiny passes --
+#' shiny's binding only supplies `prettify`. With `disable` set, ionRangeSlider
+#' sets `input.disabled`, appends its own `irs-disable-mask`, and skips
+#' `bindEvents()` altogether, which is where the `keydown` handler would be
+#' registered. No handler, no arrow keys. Verified in Chrome: six ArrowRight
+#' presses moved an ungated control from 5 to 11 and left the gated one at 5.
+#'
+#' `tabindex="-1"` and `aria-disabled` go on the input for assistive tech.
+#' They are not what blocks the keyboard -- ionRangeSlider sets `tabindex=-1`
+#' on that input itself regardless -- so they are correctness, not enforcement.
+#'
+#' The input is located by its `js-range-slider` class rather than by position,
+#' so a change in how shiny nests the tag cannot silently break this. If no
+#' such node is found the tag is returned untouched: the visual gate still
+#' applies and nothing errors.
+#'
+#' @keywords internal
+#' @noRd
+dg_disable_slider_tag <- function(tag) {
+  has_class <- function(node) {
+    cls <- node$attribs[["class"]]
+    !is.null(cls) && any(grepl("js-range-slider", cls, fixed = TRUE))
+  }
+
+  mark <- function(node) {
+    if (!inherits(node, "shiny.tag")) {
+      return(node)
+    }
+    if (has_class(node)) {
+      node$attribs[["data-disable"]] <- "true"
+      node$attribs[["tabindex"]] <- "-1"
+      node$attribs[["aria-disabled"]] <- "true"
+      return(node)
+    }
+    if (length(node$children)) {
+      node$children <- lapply(node$children, mark)
+    }
+    node
+  }
+
+  mark(tag)
+}
+
+#' Are both Configure questions answered for every column?
+#'
+#' Gate predicate for the k-anonymity slider. This is deliberately the SAME
+#' predicate the Confirm button on the same step uses, so the two cannot
+#' disagree: the slider unlocks exactly when Confirm unlocks. It is a thin
+#' wrapper rather than a second implementation, because a parallel "all
+#' answered" check would be free to drift away from the real one.
+#'
+#' roles_ready_for_generation() reads `user_identifies`/`user_sensitive`, not
+#' `identifies`/`sensitive`. That matters: the latter pair are SEEDED by
+#' detect_roles(), so a freshly uploaded file already carries
+#' `identifies = "none"/"combination"/"direct"` and `sensitive = FALSE` for
+#' every column before the user has answered anything. A predicate reading them
+#' would treat a machine guess as a human answer and unlock the slider at upload
+#' on any dataset whose columns all classify. Delegating also inherits the
+#' exemption for dropped and passed-through columns, and the CLI shape where the
+#' user_* columns are all NA.
+#'
+#' The only thing added here is a type guard: roles_ready_for_generation()
+#' calls nrow() unguarded, so a non-data-frame reaches `if (!nrow(x))` with a
+#' zero-length condition and errors. Inside a renderUI that would surface as a
+#' broken panel, so anything that is not a roles table is simply "unanswered".
+#' NULL and an empty table are unanswered for the same reason -- there is
+#' nothing to configure yet, so the slider stays gated.
+#'
+#' @keywords internal
+#' @noRd
+dg_roles_all_answered <- function(roles) {
+  if (!is.data.frame(roles)) {
+    return(FALSE)
+  }
+  roles_ready_for_generation(roles)
 }
 
 #' @keywords internal
@@ -347,98 +456,43 @@ mod_synthesis_controls_server <- function(id, state) {
       )
     })
 
-    output$purpose_recap <- shiny::renderUI({
-      purpose <- current_purpose()
-      shiny::req(purpose)
+    # output$purpose_recap and its change_objective observer were removed with
+    # the objective recap card above: that card held the only uiOutput binding
+    # and the only source of input$change_objective, so both had become
+    # unreachable. The sidebar stepper still navigates back to Step 02.
 
-      label <- c(
-        demo        = "Demo / Teaching",
-        development = "Development and prototyping",
-        analytics   = "Internal Analytics"
-      )[[purpose]]
-
-      shiny::tags$div(
-        style = "display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap",
-        shiny::tags$div(
-          style = "display:flex;align-items:center;gap:10px;flex-wrap:wrap",
-          shiny::tags$span(class = "chip chip-synth", shiny::tags$span(class = "dot"), label),
-          shiny::tags$span(
-            style = "font-family:var(--font-mono);font-size:12px;color:var(--fg-muted)",
-            sprintf('purpose = "%s"', purpose)
-          )
-        ),
-        shiny::actionLink(session$ns("change_objective"), "\u2190 Change objective")
+    # One-line explanation rendered directly under a control.
+    setting_hint <- function(txt) {
+      shiny::tags$p(
+        class = "text-muted",
+        style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
+        txt
       )
-    })
-
-    shiny::observeEvent(input$change_objective, ignoreNULL = TRUE, {
-      state$nav_request <- "objective"
-    })
+    }
 
     output$advanced_settings <- shiny::renderUI({
       purpose <- current_purpose()
       shiny::req(purpose)
       preset <- current_preset()
-      current_n <- default_n()
-
-      # One-line explanation rendered directly under a control.
-      setting_hint <- function(txt) {
-        shiny::tags$p(
-          class = "text-muted",
-          style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
-          txt
-        )
-      }
+      # isolate()d on purpose: default_n() reaches state$roles through
+      # suggested_rows(), so reading it reactively rebuilt this whole panel
+      # every time the user answered a column question -- silently resetting
+      # rows_n, engine, seed, name_strategy, the rare threshold and the
+      # checkboxes to preset defaults mid-workflow. This value is only a
+      # starting point for the row slider; the live suggestion still tracks the
+      # roles through output$rows_hint below, which re-renders on its own.
+      # The panel now rebuilds only when the objective changes, which is the
+      # one time its presets genuinely change.
+      current_n <- shiny::isolate(default_n())
 
       shiny::tagList(
-        shiny::numericInput(
-          inputId = session$ns("rows_n"),
-          label = "Row count (n)",
-          value = current_n,
-          min = 1
-        ),
-        setting_hint("How many synthetic rows to generate."),
-        shiny::uiOutput(session$ns("rows_hint")),
-        shiny::selectInput(
-          inputId = session$ns("engine"),
-          label = "Engine",
-          choices = c(
-            "auto (derived from objective)" = "auto",
-            "internal (marginal, no dependencies)" = "internal",
-            "synthpop (relationship-aware)" = "synthpop"
-          ),
-          selected = "auto"
-        ),
-        shiny::tags$p(
-          class = "text-muted",
-          style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
-          if (rlang::is_installed("synthpop")) {
-            "\u2713 synthpop is installed"
-          } else {
-            "\u26a0 synthpop not installed \u2014 selecting it will fall back to internal"
-          }
-        ),
+        # Five controls that protect the people in the data stay open; the
+        # three that only shape the output collapse away below them.
         shiny::tags$div(
-          class = "engine-help",
-          shiny::tags$p(
-            shiny::tags$strong("Auto"),
-            " \u2014 picks the engine from your objective. Recommended unless you have a reason to override."
-          ),
-          shiny::tags$p(
-            shiny::tags$strong("Internal"),
-            " \u2014 synthesises each column from its own distribution (marginals only). Fast, dependency-free, ignores relationships between columns."
-          ),
-          shiny::tags$p(
-            shiny::tags$strong("synthpop"),
-            " \u2014 models columns conditionally on one another, so correlations and joint structure are preserved. Higher fidelity; requires the synthpop package."
-          )
+          class = "card-header",
+          shiny::tags$span(class = "title", "Privacy controls"),
+          shiny::tags$span(class = "sub", "protect the people in this data")
         ),
-        shiny::numericInput(
-          inputId = session$ns("seed"),
-          label = "Seed",
-          value = preset$seed %||% NA
-        ),
-        setting_hint("Fixes the random draw so the same settings reproduce the exact same synthetic data."),
         shiny::selectInput(
           inputId = session$ns("name_strategy"),
           label = "Column name handling",
@@ -460,19 +514,10 @@ mod_synthesis_controls_server <- function(id, state) {
         ),
         setting_hint("Counts how often a single value appears in a single column. A value seen fewer times than this counts as rare, because the value itself can name someone."),
         shiny::uiOutput(session$ns("rare_hint")),
-        shiny::sliderInput(
-          inputId = session$ns("k_anon"),
-          label = "Minimum group size",
-          min = 2,
-          max = 30,
-          value = preset$k_anon %||% 5,
-          step = 1
-        ),
-        # Deliberately contrasted with the rare-category threshold above: that
-        # one counts one value in one column, this one counts rows sharing a
-        # combination across the columns marked as identifying in combination.
-        setting_hint("Counts how many rows share the same combination of the columns you marked as identifying in combination. Combinations held by fewer rows than this are coarsened, then blanked."),
-        shiny::uiOutput(session$ns("kanon_hint")),
+        # The k_anon slider, its hint and its readout live in their own
+        # renderUI (kanon_control below) because the gate has to track the
+        # column answers, and this panel deliberately no longer does.
+        shiny::uiOutput(session$ns("kanon_control")),
         shiny::checkboxInput(
           inputId = session$ns("coarsen_dates"),
           label = "Coarsen dates",
@@ -485,20 +530,117 @@ mod_synthesis_controls_server <- function(id, state) {
           value = isTRUE(preset$merge_rare)
         ),
         setting_hint("Combines infrequent category values into an 'other' group to reduce re-identification risk."),
-        shiny::selectInput(
-          inputId = session$ns("preserve_missingness"),
-          label = "Preserve missing values",
-          choices = c(
-            "Approximate the original missing-value rate" = "approx",
-            "Match the original missing-value pattern exactly" = "exact",
-            "Do not reproduce missing values" = "none"
+        shiny::tags$details(
+          shiny::tags$summary("Output settings"),
+          shiny::numericInput(
+            inputId = session$ns("rows_n"),
+            label = "Row count (n)",
+            value = current_n,
+            min = 1
           ),
-          selected = preset$preserve_missingness %||% "approx"
-        ),
-        setting_hint("How closely to reproduce the pattern of missing (NA) values from the original data.")
+          setting_hint("How many synthetic rows to generate."),
+          shiny::uiOutput(session$ns("rows_hint")),
+          shiny::selectInput(
+            inputId = session$ns("engine"),
+            label = "Engine",
+            choices = c(
+              "auto (derived from objective)" = "auto",
+              "internal (marginal, no dependencies)" = "internal",
+              "synthpop (relationship-aware)" = "synthpop"
+            ),
+            selected = "auto"
+          ),
+          shiny::tags$p(
+            class = "text-muted",
+            style = "margin-top:-8px;margin-bottom:12px;font-size:12px;",
+            if (rlang::is_installed("synthpop")) {
+              "\u2713 synthpop is installed"
+            } else {
+              "\u26a0 synthpop not installed \u2014 selecting it will fall back to internal"
+            }
+          ),
+          shiny::tags$div(
+            class = "engine-help",
+            shiny::tags$p(
+              shiny::tags$strong("Auto"),
+              " \u2014 picks the engine from your objective. Recommended unless you have a reason to override."
+            ),
+            shiny::tags$p(
+              shiny::tags$strong("Internal"),
+              " \u2014 synthesises each column from its own distribution (marginals only). Fast, dependency-free, ignores relationships between columns."
+            ),
+            shiny::tags$p(
+              shiny::tags$strong("synthpop"),
+              " \u2014 models columns conditionally on one another, so correlations and joint structure are preserved. Higher fidelity; requires the synthpop package."
+            )
+          ),
+          shiny::numericInput(
+            inputId = session$ns("seed"),
+            label = "Seed",
+            value = preset$seed %||% NA
+          ),
+          setting_hint("Fixes the random draw so the same settings reproduce the exact same synthetic data."),
+          shiny::selectInput(
+            inputId = session$ns("preserve_missingness"),
+            label = "Preserve missing values",
+            choices = c(
+              "Approximate the original missing-value rate" = "approx",
+              "Match the original missing-value pattern exactly" = "exact",
+              "Do not reproduce missing values" = "none"
+            ),
+            selected = preset$preserve_missingness %||% "approx"
+          ),
+          setting_hint("How closely to reproduce the pattern of missing (NA) values from the original data.")
+        )
       )
     })
     shiny::outputOptions(output, "advanced_settings", suspendWhenHidden = FALSE)
+
+    # The k_anon control in its own renderUI so that ITS dependency on
+    # state$roles (the answer gate) never re-renders the parent panel. Only
+    # this control re-renders when a column question is answered, and the
+    # isolate()d read below keeps whatever the user already chose.
+    output$kanon_control <- shiny::renderUI({
+      roles <- state$roles
+      answered <- dg_roles_all_answered(roles)
+      preset <- current_preset()
+      # isolate() is mandatory here: reading input$k_anon reactively inside
+      # the very renderUI that creates the k_anon input would re-trigger this
+      # output forever. The isolated read only preserves the user's current
+      # value across re-renders; the first render falls back to the preset.
+      current_k <- shiny::isolate(input$k_anon) %||% (preset$k_anon %||% 5)
+
+      slider <- shiny::sliderInput(
+        inputId = session$ns("k_anon"),
+        label = "Minimum group size",
+        min = 2,
+        max = 30,
+        value = current_k,
+        step = 1
+      )
+
+      shiny::tagList(
+        if (answered) {
+          slider
+        } else {
+          dg_gate_slider_tag(slider)
+        },
+        # Deliberately contrasted with the rare-category threshold above: that
+        # one counts one value in one column, this one counts rows sharing a
+        # combination across the columns marked as identifying in combination.
+        setting_hint("Counts how many rows share the same combination of the columns you marked as identifying in combination. Combinations held by fewer rows than this are coarsened, then blanked."),
+        if (!answered) {
+          setting_hint("Answer both questions for every column in the table above to enable this.")
+        },
+        # The readout is only rendered once the gate is open: while the
+        # slider is disabled its "nothing to act on" message would just
+        # repeat the reason line above it.
+        if (answered) {
+          shiny::uiOutput(session$ns("kanon_hint"))
+        }
+      )
+    })
+    shiny::outputOptions(output, "kanon_control", suspendWhenHidden = FALSE)
 
     shiny::observeEvent(input$rows_n, ignoreNULL = TRUE, {
       if (!is.null(input$rows_n) && isTRUE(input$rows_n > 500000)) {
@@ -596,7 +738,7 @@ mod_synthesis_controls_server <- function(id, state) {
       if (length(qi) == 0L) {
         return(hint_box(
           "No columns are marked as identifying in combination, so this ",
-          "setting has nothing to act on. Mark them on the Configure step."
+          "setting has nothing to act on. Mark them in the column table above."
         ))
       }
 

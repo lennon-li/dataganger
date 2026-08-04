@@ -1,5 +1,28 @@
 # dataganger 0.8.0
 
+*   The minimum group size that drives k-anonymity is now a slider in the
+    Configure step's Advanced settings, with live readouts of how many
+    combinations and rows fall below the value you pick. It stays disabled
+    until every column in the table above has both of its questions answered,
+    because the setting has nothing to act on until then -- previously it could
+    be dragged and silently did nothing. The slider unlocks on exactly the same
+    condition as the Confirm button beside it, and dropped or passed-through
+    columns need no answers for either.
+
+*   Answering a column question no longer resets the other Advanced settings.
+    The row count, engine, seed, column name handling, rare-category threshold
+    and the checkboxes kept their values only until the next answer, which
+    rebuilt the whole panel from the objective's presets. The suggested row
+    count still tracks your answers, in the hint below the slider.
+
+*   Configure step layout: the objective recap card is gone, since it restated
+    a choice already made in the previous step and linked where the sidebar
+    already goes. Advanced settings are split into privacy controls, shown
+    first, and output settings, collapsed below them. The action legend is
+    shorter, and the "pass through keeps the real values" caution now appears
+    once in the legend rather than on every row -- it is unchanged in the
+    Generate step, the export summary and the manifest.
+
 *   Arriving at the Export step now opens a disclosure-risk brief: the minimum
     group size and which columns it covers, how many rows were blanked to reach
     it, how many synthetic rows reproduce a real record and how many of those
