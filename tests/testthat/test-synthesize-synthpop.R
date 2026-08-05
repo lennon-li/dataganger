@@ -72,6 +72,24 @@ test_that("synthesize_synthpop() seed produces reproducible output", {
   expect_equal(syn1$x, syn2$x)
 })
 
+test_that("seeded scramble stays deterministic on the synthpop path", {
+  skip_if_no_synthpop()
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, 10:39),
+    x = rnorm(30),
+    y = rnorm(30),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(purpose = "demo", engine = "synthpop", seed = 42L)
+
+  syn1 <- synthesize_data(df, spec, roles = roles)
+  stats::runif(128)
+  syn2 <- synthesize_data(df, spec, roles = roles)
+
+  expect_identical(syn1$order_id, syn2$order_id)
+})
+
 test_that("synthesize_synthpop() aborts when all columns are excluded", {
   skip_if_no_synthpop()
   df    <- data.frame(id = paste0("X-", 1:25), stringsAsFactors = FALSE)

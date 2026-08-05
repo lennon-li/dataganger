@@ -515,9 +515,16 @@ dg_random_like_char <- function(ch) {
 #' mixing characters across rows. When reordering cannot change the value -- a
 #' single character (`"5"`) or all-identical characters (`"11"`, `"222"`), as
 #' with short numeric IDs -- each non-delimiter character is instead replaced
-#' with a random one of the same class. For values that contain at least one
-#' alphanumeric non-delimiter character, the returned value will differ from the
-#' original so no identifier survives in place.
+#' with a random one of the same class.
+#'
+#' Candidates are checked against the ENTIRE observed value set, not only the
+#' value being scrambled. Because a permutation preserves the character
+#' multiset, one row's scramble can coincidentally reproduce another row's
+#' original identifier (e.g. `"T0010"` permutes to `"T0001"`); emitting such
+#' a value would hand the second record's identifier back in the synthetic
+#' output. If every sampled candidate is an observed value, the function
+#' degrades to the older in-place guarantee (returned value differs from its
+#' own original) rather than returning the original itself.
 #'
 #' @param x Character vector of original values (`NA` passes through as `NA`).
 #' @return A character vector the same length as `x`.
@@ -525,6 +532,17 @@ dg_random_like_char <- function(ch) {
 #' @noRd
 scramble_alphanumeric_id <- function(x) {
   delim_pattern <- paste0("[", dg_alphanumeric_id_delimiters(), "]")
+
+  # Hash-set membership over every observed value, so candidate checks are
+  # O(1) per draw even for long columns.
+  observed <- new.env(parent = emptyenv())
+  for (v in x[!is.na(x) & nzchar(x)]) {
+    assign(v, TRUE, envir = observed)
+  }
+  is_observed <- function(candidate) {
+    exists(candidate, envir = observed, inherits = FALSE)
+  }
+
   vapply(x, function(val) {
     if (is.na(val) || !nzchar(val)) {
       return(val)
@@ -539,38 +557,61 @@ scramble_alphanumeric_id <- function(x) {
     # them (preserving the multiset). Typical alphanumeric IDs land here.
     if (length(scramble_idx) >= 2L &&
         length(unique(chars[scramble_idx])) >= 2L) {
+      changed_fallback <- NULL
       for (attempt in 1:10) {
         perm <- sample(scramble_idx)
         out_chars <- chars
         out_chars[scramble_idx] <- out_chars[perm]
         out <- paste(out_chars, collapse = "")
-        if (!identical(out, val)) {
+        if (!is_observed(out)) {
           return(out)
         }
+        if (is.null(changed_fallback) && !identical(out, val)) {
+          changed_fallback <- out
+        }
       }
-      # Guaranteed change: swap two positions holding different characters.
-      out_chars <- chars
-      i1 <- scramble_idx[[1]]
-      i2 <- scramble_idx[which(out_chars[scramble_idx] != out_chars[[i1]])[[1]]]
-      out_chars[c(i1, i2)] <- out_chars[c(i2, i1)]
-      return(paste(out_chars, collapse = ""))
+      # Deterministic scan of two-position swaps of distinct characters,
+      # looking for one outside the observed set. A swap of two different
+      # characters can never be the identity, so at minimum the result
+      # differs from `val`.
+      for (i1 in scramble_idx) {
+        for (i2 in scramble_idx) {
+          if (i1 >= i2 || identical(chars[[i1]], chars[[i2]])) {
+            next
+          }
+          out_chars <- chars
+          out_chars[c(i1, i2)] <- out_chars[c(i2, i1)]
+          out <- paste(out_chars, collapse = "")
+          if (!is_observed(out)) {
+            return(out)
+          }
+          if (is.null(changed_fallback)) {
+            changed_fallback <- out
+          }
+        }
+      }
+      return(changed_fallback %||% val)
     }
 
     # Reordering cannot change this value (single character, or all identical),
     # as with short numeric IDs. Replace each non-delimiter character with a
     # random one of the same class so the value is genuinely de-identified
     # instead of surviving in place.
+    changed_fallback <- NULL
     for (attempt in 1:20) {
       out_chars <- chars
       for (i in scramble_idx) {
         out_chars[[i]] <- dg_random_like_char(chars[[i]])
       }
       out <- paste(out_chars, collapse = "")
-      if (!identical(out, val)) {
+      if (!is_observed(out)) {
         return(out)
       }
+      if (is.null(changed_fallback) && !identical(out, val)) {
+        changed_fallback <- out
+      }
     }
-    out
+    changed_fallback %||% out
   }, character(1), USE.NAMES = FALSE)
 }
 

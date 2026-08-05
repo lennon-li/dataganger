@@ -547,6 +547,23 @@ test_that("simulation treatment scrambles an alphanumeric ID column", {
   expect_true(all(grepl("^..-....-..$", syn$order_id)))
 })
 
+test_that("seeded scramble is deterministic regardless of ambient RNG state", {
+  df <- data.frame(
+    order_id = sprintf("OR-%04d-%02d", 1:30, 10:39),
+    x = 1:30,
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  expect_equal(roles$simulation[roles$variable == "order_id"], "scramble")
+  spec <- synth_spec(purpose = "demo", engine = "internal", seed = 42)
+
+  syn1 <- synthesize_data(df, spec, roles = roles, engine = "internal")
+  stats::runif(128)
+  syn2 <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_identical(syn1$order_id, syn2$order_id)
+})
+
 test_that("scramble treatment falls back gracefully when row count differs", {
   set.seed(1)
   df <- data.frame(

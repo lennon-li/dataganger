@@ -463,6 +463,19 @@ test_that("scramble_alphanumeric_id de-identifies repeated-digit values in place
   expect_equal(nchar(scrambled), nchar(x))
 })
 
+test_that("scramble_alphanumeric_id never emits any observed value", {
+  # Permutation preserves the character multiset, so one row's scramble can
+  # land on a DIFFERENT row's identifier ("T0010" -> "T0001"); the output
+  # must avoid the entire observed set, not only the value being scrambled.
+  x <- sprintf("T%04d", 1:60)
+  for (seed in c(7L, 42L, 20260804L)) {
+    set.seed(seed)
+    scrambled <- dataganger:::scramble_alphanumeric_id(x)
+    expect_length(intersect(x, scrambled), 0L)
+    expect_equal(nchar(scrambled), nchar(x))
+  }
+})
+
 test_that("print.dataganger_roles handles subset objects without required columns", {
   roles <- detect_roles(data.frame(age = 1:5, city = letters[1:5]))
 

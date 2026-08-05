@@ -82,7 +82,7 @@ synthesize_data <- function(data, spec, roles = NULL,
     # (e.g. a 200-unique-value identifier), so derive roles when none are given.
     roles <- roles %||% detect_roles(data)
     syn <- synthesize_synthpop(data, spec, roles = roles)
-    syn <- apply_simulation_treatment(syn, data, roles)
+    syn <- apply_simulation_treatment_seeded(syn, data, roles, spec$seed)
     syn <- match_decimal_precision(syn, data)
     attr(syn, "spec")          <- spec
     attr(syn, "original_dims") <- list(nrow = nrow(data), ncol = ncol(data))
@@ -132,7 +132,9 @@ synthesize_data <- function(data, spec, roles = NULL,
     seed_used <- NULL
   }
 
-  syn <- apply_simulation_treatment(syn, data, roles)
+  # Seeded here too: scramble draws from the RNG, and a re-seeded run must
+  # scramble identically (deterministic seeded synthesis contract).
+  syn <- apply_simulation_treatment_seeded(syn, data, roles, spec$seed)
   syn <- match_decimal_precision(syn, data)
 
   # Build S3 object
@@ -179,6 +181,19 @@ apply_name_strategy <- function(syn, spec, original) {
   }
 
   syn
+}
+
+# Deterministic seeded synthesis contract: scramble draws from the RNG, so
+# when a seed is set the treatment pass must be reproducible too. apply_
+# simulation_treatment() runs after the engine's own seeded step, so wrap its
+# randomness in the same seed rather than letting it consume ambient RNG
+# state (which differs between sessions).
+apply_simulation_treatment_seeded <- function(syn, original, roles = NULL,
+                                              seed = NULL) {
+  if (is.null(seed)) {
+    return(apply_simulation_treatment(syn, original, roles))
+  }
+  withr::with_seed(seed, apply_simulation_treatment(syn, original, roles))
 }
 
 apply_simulation_treatment <- function(syn, original, roles = NULL) {
