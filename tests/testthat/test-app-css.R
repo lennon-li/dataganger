@@ -18,6 +18,23 @@ test_that("design system CSS loads and tokens are applied", {
     dataganger:::synthesis_dev_loaded(),
     "shinytest2 subprocess requires an installed package; skipping under devtools::load_all()"
   )
+  # AppDriver$new() below raises skip_on_cran() itself, but it does so three
+  # lines after Chromote$new() has already tried to launch a browser. On a
+  # machine with chromote installed and no Chrome binary -- the likely CRAN
+  # configuration, since chromote is a CRAN package and Chrome is not -- the
+  # launch errors before the skip is ever reached, turning an untestable
+  # environment into a check ERROR. Guard before anything launches.
+  testthat::skip_on_cran()
+  testthat::skip_if(
+    is.null(chromote::find_chrome()),
+    "no Chrome binary available for the browser harness"
+  )
+  # chromote waits getOption("chromote.timeout", 10) seconds for the debugging
+  # port and then aborts with error_stop_port_search. Ten seconds is not enough
+  # on a cold CI runner (observed on windows-latest and ubuntu-devel,
+  # 2026-08-05). This is the launch window; default_timeout below is a
+  # different clock, covering responses to individual CDP commands.
+  withr::local_options(chromote.timeout = 60)
   # 60s because the app loads bslib, DT and the full module tree before it is
   # ready, which exceeds 15s on a cold cache.
   #
