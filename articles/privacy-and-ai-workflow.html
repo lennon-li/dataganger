@@ -110,8 +110,9 @@ front, and it gives that rule downstream consequences.</p>
 <p>Once the user attests, they upload the file.</p>
 <p>The upload flow immediately sorts columns into
 <strong>Synthesise</strong>, <strong>Pass through</strong>, or
-<strong>Drop</strong>. Identifier-shaped columns are pre-suggested for
-Drop, and the user can correct that suggestion before continuing.</p>
+<strong>Drop</strong>. Identifier-shaped columns are flagged as direct
+identifiers and pre-suggested for scrambling/de-identification; the user
+can choose Drop or another allowed action before continuing.</p>
 <p>Why it exists: the package has to read the data into memory to
 profile it and look for risks. The honest claim is not “we don’t read”.
 The honest claim is: we scan locally to flag direct identifiers and help

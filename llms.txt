@@ -51,10 +51,11 @@ flowchart LR
 
 > \[!TIP\] \### 🔒 Safe to try — your data never leaves your machine ✅
 > Processed **locally, in memory only** — never uploaded, never written
-> to disk by the app, gone when you close it. ✅ **No network calls**
-> and **no browser launch** — proven by a shipped self-test and a
-> no-network CI job. ✅ **Open source** — you (or your IT team) can
-> verify your own copy.
+> to disk by the app, gone when you close it. ✅ **No network calls or
+> automatic external-browser actions** — proven by a shipped self-test
+> and a no-network CI job. The local Shiny app opens only when you call
+> [`run_app()`](https://dataganger.biostats.ai/reference/run_app.md). ✅
+> **Open source** — you (or your IT team) can verify your own copy.
 >
 > No account. No upload. No cloud. Point it at a sample dataset and see
 > for yourself.

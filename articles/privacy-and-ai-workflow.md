@@ -39,8 +39,9 @@ front, and it gives that rule downstream consequences.
 Once the user attests, they upload the file.
 
 The upload flow immediately sorts columns into **Synthesise**, **Pass
-through**, or **Drop**. Identifier-shaped columns are pre-suggested for
-Drop, and the user can correct that suggestion before continuing.
+through**, or **Drop**. Identifier-shaped columns are flagged as direct
+identifiers and pre-suggested for scrambling/de-identification; the user
+can choose Drop or another allowed action before continuing.
 
 Why it exists: the package has to read the data into memory to profile
 it and look for risks. The honest claim is not “we don’t read”. The
