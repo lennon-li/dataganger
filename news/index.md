@@ -77,6 +77,25 @@
   hand-built spec, a recipe that omitted the key, or
   `synth_spec(merge_rare = NULL)` – assigning `NULL` drops the element.
 
+- Seeded synthesis now reproduces scrambled identifier columns exactly.
+  The pass that scrambles alphanumeric ID columns (simulation =
+  `"scramble"`, the default for identifier-shaped columns) previously
+  drew from ambient randomness after the seeded step, so two runs with
+  the same original data and the same seed could produce different
+  scrambled values even though every other column matched. The scramble
+  now runs under the spec’s seed on both engines, so the reproduction
+  script in `human/human.md` delivers on its same-seed, identical-output
+  promise for every bundle.
+
+- Scrambled identifier columns (simulation = `"scramble"`) no longer
+  risk handing back another record’s identifier. Because scrambling
+  permutes the characters of the original value, one row’s scramble
+  could coincidentally equal a different row’s original ID
+  (e.g. `"T0010"` scrambling to `"T0001"`). Candidates are now checked
+  against the full set of observed values, so no original identifier
+  from any row appears in the scrambled output whenever the character
+  space allows it.
+
 - Categorical resampling now guarantees every sampled category level
   appears at least once whenever the requested output has enough rows;
   this preserves level presence for downstream code paths, joins, and
