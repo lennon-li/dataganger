@@ -71,6 +71,20 @@
 <p><strong>DataGangeR is a human-gated privacy protocol for Agent prototyping.</strong> You answer a short set of privacy questions, once, in a guided UI; DataGangeR turns your real dataset into a reviewable synthetic stand-in that a coding <strong>Agent</strong> can build on at full speed — and the Agent never sees the original records.</p>
 <p>📖 <strong>Documentation:</strong> <a href="https://dataganger.biostats.ai/" class="uri">https://dataganger.biostats.ai/</a></p>
 <div class="section level2">
+<h2 id="official-sources-and-release-provenance">Official sources and release provenance<a class="anchor" aria-label="anchor" href="#official-sources-and-release-provenance"></a>
+</h2>
+<p>Use only these official DataGangeR sources:</p>
+<ul>
+<li>
+<strong>Released package:</strong> CRAN (<code>install.packages("dataganger")</code>).</li>
+<li>
+<strong>Development source and releases:</strong> <a href="https://github.com/lennon-li/dataganger" class="external-link uri">https://github.com/lennon-li/dataganger</a>.</li>
+<li>
+<strong>Documentation:</strong> <a href="https://dataganger.biostats.ai/" class="uri">https://dataganger.biostats.ai/</a>.</li>
+</ul>
+<p>Forks and copies are independently maintained. They are not reviewed, released, or endorsed by DataGangeR; do not treat their privacy behavior or release artifacts as those of the official package. Before using a GitHub development build, confirm that the owner is <code>lennon-li</code> and review the exact commit or release tag.</p>
+</div>
+<div class="section level2">
 <h2 id="want-an-agent-to-build-on-your-data--without-ever-handing-it-over">Want an Agent to build on your data — without ever handing it over?<a class="anchor" aria-label="anchor" href="#want-an-agent-to-build-on-your-data--without-ever-handing-it-over"></a>
 </h2>
 <p>Let a coding <strong>Agent</strong> work at full speed on a synthetic stand-in for your dataset. You decide the privacy rules once; the Agent gets reviewed synthetic data — or a reproducible recipe to make it — and <strong>never reads the real data</strong>. And the package makes <strong>no network calls</strong>, so nothing ever leaves your machine.</p>
@@ -102,9 +116,13 @@
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Development version from GitHub:</span></span>
+<code class="sourceCode R"><span><span class="co"># Released version from CRAN:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"dataganger"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Development version from the canonical GitHub repository:</span></span>
 <span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lennon-li/dataganger"</span>, <span class="st">"synthpop"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pkg_install.html" class="external-link">pkg_install</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lennon-li/dataganger"</span>, <span class="st">"synthpop"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>GitHub builds are development artifacts. Use them only when you deliberately need an unreleased change, have verified the repository owner and commit/tag, and are prepared to review the change before using it with sensitive data.</p>
 <p><strong>Strongly recommended: install <code>synthpop</code></strong> (above) for full-fidelity, relationship-aware synthesis. It is optional — without it, DataGangeR automatically falls back to the dependency-free <strong>internal</strong> engine (with a warning), so nothing breaks; the synthetic data is just marginal rather than relationship-preserving.</p>
 </div>
 <div class="section level2">

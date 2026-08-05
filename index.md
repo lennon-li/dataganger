@@ -18,6 +18,21 @@ sees the original records.
 
 📖 **Documentation:** <https://dataganger.biostats.ai/>
 
+## Official sources and release provenance
+
+Use only these official DataGangeR sources:
+
+- **Released package:** CRAN (`install.packages("dataganger")`).
+- **Development source and releases:**
+  <https://github.com/lennon-li/dataganger>.
+- **Documentation:** <https://dataganger.biostats.ai/>.
+
+Forks and copies are independently maintained. They are not reviewed,
+released, or endorsed by DataGangeR; do not treat their privacy behavior
+or release artifacts as those of the official package. Before using a
+GitHub development build, confirm that the owner is `lennon-li` and
+review the exact commit or release tag.
+
 ## Want an Agent to build on your data — without ever handing it over?
 
 Let a coding **Agent** work at full speed on a synthetic stand-in for
@@ -76,10 +91,18 @@ while reducing the need to expose original records.
 
 ``` r
 
-# Development version from GitHub:
+# Released version from CRAN:
+install.packages("dataganger")
+
+# Development version from the canonical GitHub repository:
 # install.packages("pak")
-pak::pak(c("lennon-li/dataganger", "synthpop"))
+pak::pkg_install(c("lennon-li/dataganger", "synthpop"))
 ```
+
+GitHub builds are development artifacts. Use them only when you
+deliberately need an unreleased change, have verified the repository
+owner and commit/tag, and are prepared to review the change before using
+it with sensitive data.
 
 **Strongly recommended: install `synthpop`** (above) for full-fidelity,
 relationship-aware synthesis. It is optional — without it, DataGangeR
