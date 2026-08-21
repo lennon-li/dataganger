@@ -2,7 +2,7 @@
 
 ## Authors
 
-- **Lennon Li**. Author, maintainer.
+- **Lennon Li**. Author, maintainer, copyright holder.
 
 ## Citation
 
