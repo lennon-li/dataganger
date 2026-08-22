@@ -521,10 +521,11 @@ test_that("synthesize accepts a relative --out path", {
   expect_true(file.exists("bundle.zip"))
 
   entries <- utils::unzip("bundle.zip", list = TRUE)$Name
-  expect_true(all(
+  expect_in(
     c("agent/manifest.json", "agent/AGENT.md", "human/human.md",
-      "synthetic_data.csv") %in% entries
-  ))
+      "synthetic_data.csv"),
+    entries
+  )
 
   # The staging directory is created alongside the output; it must not survive.
   expect_length(list.files(".", pattern = "^\\.bundle-", all.files = TRUE), 0L)

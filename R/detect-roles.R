@@ -152,7 +152,10 @@ detect_single_role_inner <- function(x, name, n_rows) {
     if (length(x_sample) >= 5L) {
       date_rx <- paste0(
         "^(\\d{4}-\\d{2}-\\d{2}",                   # ISO: 2020-01-15, optionally with time
-        "|[A-Z][a-z]{2}\\s+\\d{1,2},?\\s*\\d{4}",   # "Jun 8, 2019" / "Jun 8 2019"
+        # "Jun 8, 2019" / "Jun 8 2019". [[:alpha:]] rather than [A-Z][a-z]{2}
+        # because month names come from the host locale: they can be longer
+        # than three letters, lowercase, accented, or carry a trailing dot.
+        "|[[:alpha:]]{3,}\\.?\\s+\\d{1,2},?\\s*\\d{4}",
         "|\\d{1,2}/\\d{1,2}/\\d{2,4}",              # MM/DD/YY or MM/DD/YYYY, optionally with time
         "|\\d{4}/\\d{2}/\\d{2})"                    # YYYY/MM/DD
       )

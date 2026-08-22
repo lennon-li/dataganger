@@ -1,4 +1,31 @@
 
+test_that("month-name dates are detected whatever the locale writes them as", {
+  # Month names come from the host locale, so the detector cannot assume the
+  # English "Jun"-style abbreviation: CRAN check flavors run under locales
+  # that produce lowercase, accented, longer, or dotted month names. These
+  # are literal strings rather than format() output so the expectation holds
+  # on every host.
+  variants <- list(
+    english_abbrev = "Jun 8, 2019",
+    english_full = "June 8, 2019",
+    lowercase = "juin 8, 2019",
+    dotted = "jun. 8, 2019",
+    accented = "d\u00e9c 8, 2019"
+  )
+  for (label in names(variants)) {
+    value <- variants[[label]]
+    df <- data.frame(
+      when = rep(value, 10),
+      stringsAsFactors = FALSE
+    )
+    roles <- detect_roles(df)
+    expect_equal(
+      roles$recommended_role[roles$variable == "when"], "date",
+      info = paste0(label, ": ", value)
+    )
+  }
+})
+
 test_that("detect_roles() returns correct S3 class and columns", {
   df <- data.frame(x = 1:5, y = letters[1:5])
   r <- detect_roles(df)

@@ -128,11 +128,17 @@ test_that("synthesize_data() marginal haven_labelled column", {
   expect_type(syn$status, "character")
   # mask_rare replaced the old merge_rare default, so rare labels may be
   # represented by distinct neutral placeholders.
-  expect_true(all(
-    is.na(syn$status) |
-      syn$status %in% c("Active", "Inactive") |
-      grepl("^Other category [0-9]+$", syn$status)
-  ))
+  # Report the offending values rather than a bare FALSE.
+  from_source <- is.na(syn$status) |
+    syn$status %in% c("Active", "Inactive") |
+    grepl("^Other category [0-9]+$", syn$status)
+  expect_equal(
+    unique(syn$status[!from_source]), character(),
+    info = paste(
+      "values that are neither a source level, NA, nor a rare-category",
+      "replacement label"
+    )
+  )
 })
 
 test_that("synthesize_data() marginal POSIXct column", {
@@ -422,11 +428,17 @@ test_that("synthesize_data() marginal with character column", {
   expect_type(syn$txt, "character")
   # mask_rare replaced the old merge_rare behavior, so placeholders are now
   # valid output values for labels below the rarity threshold.
-  expect_true(all(
-    is.na(syn$txt) |
-      syn$txt %in% c("hello", "world", "foo", "bar") |
-      grepl("^Other category [0-9]+$", syn$txt)
-  ))
+  # Report the offending values rather than a bare FALSE.
+  from_source <- is.na(syn$txt) |
+    syn$txt %in% c("hello", "world", "foo", "bar") |
+    grepl("^Other category [0-9]+$", syn$txt)
+  expect_equal(
+    unique(syn$txt[!from_source]), character(),
+    info = paste(
+      "values that are neither a source level, NA, nor a rare-category",
+      "replacement label"
+    )
+  )
 })
 
 test_that("synthesize_data() default n equals nrow(original)", {
@@ -472,11 +484,17 @@ test_that("synthesize_data() free text is synthesized as categorical by default"
   expect_false(any(unique_notes %in% syn$notes))
   # The note repeated often enough (>= rare_level_min_n) is allowed to recur.
   expect_true(common_note %in% syn$notes)
-  expect_true(all(
-    is.na(syn$notes) |
-      syn$notes == common_note |
-      grepl("^Other category [0-9]+$", syn$notes)
-  ))
+  # Report the offending values rather than a bare FALSE.
+  from_source <- is.na(syn$notes) |
+    syn$notes == common_note |
+    grepl("^Other category [0-9]+$", syn$notes)
+  expect_equal(
+    unique(syn$notes[!from_source]), character(),
+    info = paste(
+      "values that are neither a source level, NA, nor a rare-category",
+      "replacement label"
+    )
+  )
 })
 
 test_that("synthesize_data() marginal mixed types all work", {

@@ -58,8 +58,36 @@ depend on the host's installed locales:
 Assertions that previously reported an opaque `expect_true(all(grepl(...)))`
 FALSE now report representative generated values.
 
+## The flavors still showing 0.6.1
+
+The maintainer notice concerned the failures visible on the check page, and
+the follow-up noted that 0.8.0 already fails as well. The 0.8.0 failures are
+the 12-hour date/time defect corrected above.
+
+The r-devel-debian, r-patched-linux and r-release-linux rows are still
+reporting 0.6.1. Those failures are in `test-cli-execution.R` and come from
+`knitr` writing intermediate files into the installed package directory,
+which is read-only on those hosts. That was corrected in 0.8.0, where
+`rmarkdown::render()` is called with `intermediates_dir = tempdir()`.
+
+Because those flavors have not yet checked 0.8.x, that correction was
+re-verified locally for this submission: the package was installed into a
+temporary library, the installed tree was made read-only (`chmod -R a-w`),
+and `dataganger synthesize` was run from a writable working directory with a
+relative `--out` path. It exited 0 and produced the complete bundle,
+including the rendered `human/comparison_report.html`.
+
 ## Also in this release
 
+- Character columns holding month-name dates were only detected when the
+  month appeared as an English-style capitalized three-letter abbreviation.
+  Month names come from the host locale, so the same column went undetected
+  under a locale producing lowercase, dotted, accented, or longer names. The
+  pattern now accepts any of those; the regression uses literal strings, so it
+  does not depend on the check host's installed locales.
+- The remaining opaque `expect_true(all(...))` assertions now name the
+  offending values (this raises the testthat requirement to >= 3.2.0 for
+  `expect_in()`).
 - Unicode multiplication signs in UI sample labels were replaced with ASCII
   `x` (they produced parser warnings under `LC_ALL=C`), with a regression that
   parses every package R source file under `LC_CTYPE=C`.
@@ -69,6 +97,7 @@ FALSE now report representative generated values.
 ## Test environments
 
 - Local Ubuntu 24.04 (WSL2), R 4.6.1, `R CMD check --as-cran`
+- Local, package installed into a read-only temporary library
 - GitHub Actions: ubuntu-latest (r-devel, release, oldrel-1), macOS-latest
   (release), windows-latest (release)
 
@@ -90,7 +119,7 @@ Version 0.8.1 is a focused corrective release submitted immediately after
 CRAN check services.
 
 The installed CRAN-mode test suite reported 0 failures, 51 expected
-privacy/enforcement warnings, 13 environment-dependent skips, and 2250 passes.
+privacy/enforcement warnings, 13 environment-dependent skips, and 2255 passes.
 
 ## Downstream dependencies
 
