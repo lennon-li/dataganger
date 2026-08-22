@@ -18,6 +18,15 @@
   variation; add a structural guard that fails if `%p` ever reaches the
   C library, plus marker-case and contrasting-locale coverage, and
   replace opaque vector regex expectations.
+- Detect month-name dates whatever the host locale writes them as. The
+  character-column date test required an English-style capitalized
+  three-letter abbreviation (`Jun 8, 2019`), so the same column went
+  undetected under a locale producing lowercase, dotted, accented, or
+  longer month names.
+- Replace the remaining opaque `expect_true(all(...))` assertions with
+  expectations that name the offending values, so a platform-specific
+  failure reports what was actually generated (requires testthat \>=
+  3.2.0).
 - Eliminate C-locale parser warnings from Unicode multiplication signs
   in sample labels by using portable ASCII `x`, and add a regression
   that parses every R source file under `LC_CTYPE=C`.
