@@ -1,32 +1,72 @@
-# dataganger 0.8.1
+# dataganger 0.8.2
 
-* Fix character-stored 12-hour date/time handling on locale/OS combinations
-  where `%p` is lowercase, translated, or empty (macOS under `LC_TIME=en_GB`,
-  for one). Both directions are now locale-independent: `%p` is never passed
-  to `strptime()` or `format()`, so a 12-hour column is detected and parsed
-  from its own ASCII `AM`/`PM` token, and the synthetic output derives the
-  period from the synthesized hour while preserving the source column's
-  `AM`/`PM` or `am`/`pm` convention. Previously such a column could be
-  misdetected as 24-hour, dropping both the period marker and the
-  morning/afternoon distinction.
-* Strengthen the regression to report representative generated values and
-  validate successful round-trip parsing, date range, and time variation; add
-  a structural guard that fails if `%p` ever reaches the C library, plus
-  marker-case and contrasting-locale coverage, and replace opaque vector
-  regex expectations.
-* Detect month-name dates whatever the host locale writes them as. The
-  character-column date test required an English-style capitalized
-  three-letter abbreviation (`Jun 8, 2019`), so the same column went
-  undetected under a locale producing lowercase, dotted, accented, or longer
-  month names.
-* Replace the remaining opaque `expect_true(all(...))` assertions with
-  expectations that name the offending values, so a platform-specific failure
-  reports what was actually generated (requires testthat >= 3.2.0).
-* Eliminate C-locale parser warnings from Unicode multiplication signs in
-  sample labels by using portable ASCII `x`, and add a regression that parses
-  every R source file under `LC_CTYPE=C`.
-* Isolate test-file setup to remove source-order dependence discovered by
-  fixed-seed shuffled execution.
+A portability release. Every item below is one defect: what went wrong, why,
+and what changed. Nothing here alters the synthesis contract on a host that
+was already behaving correctly.
+
+## Character columns holding 12-hour times were mis-synthesized
+
+*   **Symptom.** A column such as `"01/01/2020 01:15 PM"` came back as
+    `"01/01/2020 01:15"` -- no period marker -- and every afternoon value
+    collapsed onto its morning hour, so `01:15 PM` and `01:15 AM` became the
+    same synthetic value. This appeared on some platform/locale pairs only,
+    which is why it surfaced on the CRAN check services and on macOS under
+    `LC_TIME=en_GB` while passing elsewhere.
+
+*   **Cause.** `%p` is handed to the C library by both `strptime()` and
+    `format()`, and its meaning is locale- and OS-dependent: it can be
+    uppercase, lowercase, translated, or empty. Where the locale defines no
+    period marker, the 12-hour candidate format neither parsed nor
+    round-tripped, so `detect_date_format()` fell through to a 24-hour format
+    and discarded the marker together with the morning/afternoon distinction.
+
+*   **Fix.** `%p` is no longer passed to `strptime()` or `format()` at all.
+    Detection and parsing read the trailing ASCII `AM`/`PM` token directly and
+    apply the 12-to-24 hour correction in R; a value carrying no marker does
+    not match a 12-hour format, as a strict `strptime()` would treat it. On
+    output the period is derived from each synthesized hour and written in the
+    source column's own convention (`AM`/`PM` or `am`/`pm`). 24-hour and
+    date-only formats are unchanged. The 0.8.1 development version corrected
+    only the output half of this path; the detection half is corrected here.
+
+## Month-name date columns went undetected outside English locales
+
+*   **Symptom.** A column such as `"Jun 8, 2019"` was recognized as a date and
+    synthesized through the date machinery, but the same column written by a
+    locale that produces lowercase, dotted, accented, or longer month names
+    was not. It fell through to categorical treatment, which resamples the
+    original values verbatim instead of synthesizing new ones.
+
+*   **Cause.** `detect_roles()` matched the month with `[A-Z][a-z]{2}`, an
+    English-style capitalized three-letter abbreviation. Month names come from
+    the host locale.
+
+*   **Fix.** The pattern accepts any alphabetic month name of three or more
+    characters, with an optional trailing dot. The regression asserts on
+    literal strings rather than `format()` output, so it exercises the
+    non-English forms on every host regardless of which locales are installed.
+
+## Test failures did not say what had failed
+
+*   **Symptom.** A check failure reported `actual: FALSE / expected: TRUE` and
+    nothing about the values that caused it, which is not enough to diagnose a
+    platform-specific defect from a check log.
+
+*   **Fix.** The remaining opaque `expect_true(all(...))` assertions now name
+    the offending values, and the 12-hour regressions report representative
+    generated values. Coverage added along the way: a structural guard that
+    fails if `%p` ever reaches the C library during a full synthesis run,
+    boundary assertions for `12 AM`/`12 PM`, marker-case preservation, and the
+    existing contrasting-locale test. This raises the testthat requirement to
+    `>= 3.2.0` for `expect_in()`.
+
+## Other portability corrections
+
+*   Unicode multiplication signs in sample labels became parser warnings under
+    `LC_ALL=C`; they are now ASCII `x`, with a regression that parses every
+    package R source file under `LC_CTYPE=C`.
+*   Test-file setup is isolated, removing a source-order dependence found by a
+    fixed-seed shuffled run.
 
 # dataganger 0.8.0
 
