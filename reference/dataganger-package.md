@@ -18,8 +18,8 @@ Useful links:
 
 ## Author
 
-**Maintainer**: Lennon Li <yeli@biostats.ai>
+**Maintainer**: Lennon Li <yeli@biostats.ai> \[copyright holder\]
 
 Authors:
 
-- Lennon Li <yeli@biostats.ai>
+- Lennon Li <yeli@biostats.ai> \[copyright holder\]
