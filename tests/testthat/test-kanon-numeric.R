@@ -14,11 +14,15 @@ test_that("age as combination survives the full pipeline without crashing", {
   # run_synthesis_pipeline() captures warnings for the app UI instead of
   # emitting them; the infeasibility signal now arrives in res$warnings.
   res <- run_synthesis_pipeline(df, spec, roles = r)
-  expect_true(any(grepl("Could not apply k-anonymity", res$warnings, fixed = TRUE)))
+  expect_match(paste(res$warnings, collapse = "\n"),
+               "Could not apply k-anonymity", fixed = TRUE)
 
   expect_s3_class(res$synthetic, "data.frame")
   all_na <- vapply(res$synthetic, function(x) all(is.na(x)), logical(1))
-  expect_false(any(all_na))
+  expect_false(
+    any(all_na),
+    info = paste("All-missing columns:", paste(names(all_na)[all_na], collapse = ", "))
+  )
 })
 
 test_that("numeric quasi coarsening yields readable ranges", {
@@ -30,6 +34,9 @@ test_that("numeric quasi coarsening yields readable ranges", {
 
   expect_match(labels, "^\\[.*\\]$|^\\(.*\\]$|^NA$")
   expect_match(labels2, "^\\[.*\\]$|^\\(.*\\]$|^NA$")
-  expect_false(all(is.na(out)))
-  expect_false(any(labels2 %in% "(other)"))
+  expect_false(all(is.na(out)), info = paste("Generalized output:", paste(out, collapse = ", ")))
+  expect_false(
+    any(labels2 %in% "(other)"),
+    info = paste("Generalized labels:", paste(labels2, collapse = ", "))
+  )
 })

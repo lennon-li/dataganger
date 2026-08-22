@@ -38,9 +38,10 @@ test_that("privacy_check() pre flags sensitive with detected roles", {
   roles <- detect_roles(df)
   pc <- privacy_check(df, roles = roles, stage = "pre")
   # We expect at least ID flag
-  expect_true(any(pc$severity == "HIGH"))
+  expect_in("HIGH", pc$severity)
   # Date or city should trigger at least LOW
-  expect_true(any(pc$severity %in% c("LOW", "MEDIUM")))
+  expect_true(any(pc$severity %in% c("LOW", "MEDIUM")),
+              info = paste("Observed severities:", paste(pc$severity, collapse = ", ")))
 })
 
 test_that("privacy_check_pre reads disclosure_role, not sensitive", {
@@ -53,8 +54,8 @@ test_that("privacy_check_pre reads disclosure_role, not sensitive", {
   roles$disclosure_role[roles$variable == "diagnosis"] <- "sensitive"
 
   expect_no_error(flags <- privacy_check(df, roles = roles, stage = "pre"))
-  expect_true(any(flags$variable == "patient_id" & flags$severity == "HIGH"))
-  expect_true(any(flags$variable == "diagnosis" & flags$flag == "Sensitive target"))
+  expect_in("patient_id", flags$variable[flags$severity == "HIGH"])
+  expect_in("diagnosis", flags$variable[flags$flag == "Sensitive target"])
 })
 
 test_that("privacy_check_pre raises a combination cell-size flag", {
@@ -67,7 +68,8 @@ test_that("privacy_check_pre raises a combination cell-size flag", {
   roles$disclosure_role[roles$variable %in% c("zip", "sex")] <- "quasi"
 
   flags <- privacy_check(df, roles = roles, stage = "pre")
-  expect_true(any(grepl("smaller than k|cell size|k-anonymity", flags$flag, ignore.case = TRUE)))
+  expect_match(paste(flags$flag, collapse = "\n"),
+               "smaller than k|cell size|k-anonymity", ignore.case = TRUE)
 })
 
 
@@ -82,14 +84,14 @@ test_that("privacy_check() pre flags date columns", {
   df <- data.frame(d = as.Date("2024-01-01") + 1:10)
   roles <- detect_roles(df)
   pc <- privacy_check(df, roles = roles, stage = "pre")
-  expect_true(any(grepl("Date", pc$flag)))
+  expect_match(paste(pc$flag, collapse = "\n"), "Date")
 })
 
 test_that("privacy_check() pre flags geography columns", {
   df <- data.frame(city = rep("Toronto", 10))
   roles <- detect_roles(df)
   pc <- privacy_check(df, roles = roles, stage = "pre")
-  expect_true(any(grepl("Geography", pc$flag)))
+  expect_match(paste(pc$flag, collapse = "\n"), "Geography")
 })
 
 test_that("privacy_check() pre flags free-text columns", {
@@ -102,7 +104,7 @@ test_that("privacy_check() pre flags free-text columns", {
   roles <- detect_roles(df)
   roles$disclosure_role[roles$variable == "notes"] <- "none"
   pc <- privacy_check(df, roles = roles, stage = "pre")
-  expect_true(any(grepl("Free.text", pc$flag)))
+  expect_match(paste(pc$flag, collapse = "\n"), "Free.text")
 })
 
 test_that("privacy_check() pre returns empty for clean data", {
@@ -140,8 +142,9 @@ test_that("privacy_check() post does not flag a scrambled alphanumeric ID", {
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   expect_true("id" %in% names(syn))
-  expect_false(any(syn$id %in% df$id))
-  expect_false(any(grepl("ID", pc$flag) & pc$severity == "HIGH"))
+  expect_equal(intersect(syn$id, df$id), character(),
+               info = "Original IDs found in synthetic output")
+  expect_no_match(pc$flag[pc$severity == "HIGH"], "ID")
 })
 
 test_that("privacy_check() post flags an ID that ends up unmasked (e.g. scramble skipped by a row-count change)", {
@@ -158,7 +161,7 @@ test_that("privacy_check() post flags an ID that ends up unmasked (e.g. scramble
   syn <- suppressWarnings(synthesize_data(df, spec, roles = roles, engine = "internal"))
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   expect_true("id" %in% names(syn))
-  expect_true(any(grepl("ID", pc$flag) & pc$severity == "HIGH"))
+  expect_match(paste(pc$flag[pc$severity == "HIGH"], collapse = "\n"), "ID")
 })
 
 test_that("privacy_check() post exact-row match check", {
@@ -182,7 +185,7 @@ test_that("privacy_check() post skips row-match when nrow < 20", {
   spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   pc <- privacy_check(df, syn, stage = "post")
-  expect_false(any(grepl("exact-row", pc$flag)))
+  expect_no_match(pc$flag, "exact-row")
   expect_equal(attr(pc, "exact_row_matches"), 0)
 })
 
@@ -233,7 +236,7 @@ test_that("privacy_check() internal path does not add synthpop disclosure", {
   syn <- synthesize_data(df, spec, roles = roles)
   pc <- privacy_check(df, syn, roles = roles, stage = "post", spec = spec)
   expect_null(attr(pc, "synthpop_disclosure", exact = TRUE))
-  expect_false(any(grepl("synthpop disclosure", pc$variable, fixed = TRUE)))
+  expect_no_match(pc$variable, "synthpop disclosure", fixed = TRUE)
 })
 
 test_that("synthpop_disclosure_flags() folds repU and DiSCO numbers into flag rows", {
@@ -245,8 +248,8 @@ test_that("synthpop_disclosure_flags() folds repU and DiSCO numbers into flag ro
   )
   rows <- synthpop_disclosure_flags(disclosure)
   expect_equal(nrow(rows), 2L)
-  expect_true(any(grepl("repU: 1.25", rows$flag, fixed = TRUE)))
-  expect_true(any(grepl("DiSCO: 2.50", rows$flag, fixed = TRUE)))
+  expect_match(paste(rows$flag, collapse = "\n"), "repU: 1.25", fixed = TRUE)
+  expect_match(paste(rows$flag, collapse = "\n"), "DiSCO: 2.50", fixed = TRUE)
 })
 
 test_that("augment_synthpop_disclosure() leaves non-synthpop output untouched", {
@@ -305,7 +308,7 @@ test_that("privacy_check() end-to-end on example_health_survey", {
   roles <- detect_roles(example_health_survey)
   pc_pre <- privacy_check(example_health_survey, roles = roles, stage = "pre")
   expect_s3_class(pc_pre, "dataganger_privacy_check")
-  expect_true(any(pc_pre$severity == "HIGH"))
+  expect_in("HIGH", pc_pre$severity)
 
   spec <- synth_spec(purpose = "development", seed = 1, n = 50)
   syn <- suppressWarnings(synthesize_data(example_health_survey, spec, roles = roles))

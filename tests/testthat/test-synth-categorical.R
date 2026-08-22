@@ -16,7 +16,10 @@ test_that("rare levels are never drawn into the synthetic output", {
   expect_false("Fabry disease" %in% syn)
   expect_true(".other" %in% syn)
   # Common values are resampled verbatim -- this is resampling, not generation.
-  expect_true(all(c("Hypertension", "Diabetes") %in% syn))
+  expect_true(
+    all(c("Hypertension", "Diabetes") %in% syn),
+    info = paste("Synthetic categories:", paste(unique(syn), collapse = ", "))
+  )
 })
 
 test_that("categorical values preserve the merged rare slot", {
@@ -65,7 +68,11 @@ test_that("categorical sampling includes every pool level", {
   for (seed in c(1, 10, 100)) {
     set.seed(seed)
     syn <- synth_categorical(x, n = 20, merge_rare = FALSE)
-    expect_true(all(unique(x) %in% syn))
+    expect_true(
+      all(unique(x) %in% syn),
+      info = paste("Seed", seed, "synthetic categories:",
+                   paste(unique(syn), collapse = ", "))
+    )
   }
 })
 
@@ -75,7 +82,10 @@ test_that("categorical sampling includes every observed level", {
   syn <- synth_categorical(x, n = 20, merge_rare = FALSE)
 
   expect_type(syn, "character")
-  expect_true(all(sort(unique(x)) %in% syn))
+  expect_true(
+    all(sort(unique(x)) %in% syn),
+    info = paste("Synthetic categories:", paste(unique(syn), collapse = ", "))
+  )
 })
 
 test_that("categorical sampling warns when the pool exceeds output size", {
@@ -128,11 +138,17 @@ test_that("mask_rare replaces each rare categorical label without merging levels
     label_strategy = "mask_rare"
   )
 
-  expect_false(any(c("alpha rare", "beta rare") %in% syn))
+  expect_false(
+    any(c("alpha rare", "beta rare") %in% syn),
+    info = paste("Synthetic categories:", paste(unique(syn), collapse = ", "))
+  )
   placeholders <- grep("^Other category [0-9]+$", syn, value = TRUE)
   expect_setequal(unique(placeholders), c("Other category 1", "Other category 2"))
   expect_equal(length(unique(syn)), length(unique(x)))
-  expect_true(all(c("common", "less common") %in% syn))
+  expect_true(
+    all(c("common", "less common") %in% syn),
+    info = paste("Synthetic categories:", paste(unique(syn), collapse = ", "))
+  )
 
   set.seed(42)
   repeated <- synth_categorical(
@@ -152,7 +168,10 @@ test_that("mask_rare overrides rare merging and preserves distinct values", {
 
   expect_type(syn, "character")
   syn_values <- sort(unique(syn))
-  expect_false(any(c("alpha rare", "beta rare") %in% syn_values))
+  expect_false(
+    any(c("alpha rare", "beta rare") %in% syn_values),
+    info = paste("Synthetic categories:", paste(syn_values, collapse = ", "))
+  )
   expect_setequal(
     grep("^Other category [0-9]+$", syn_values, value = TRUE),
     c("Other category 1", "Other category 2")
@@ -169,7 +188,10 @@ test_that("free text categorical synthesis honours mask_rare", {
     rare_level_min_n = 5, label_strategy = "mask_rare"
   )
 
-  expect_false(any(c("rare note one", "rare note two") %in% syn))
+  expect_false(
+    any(c("rare note one", "rare note two") %in% syn),
+    info = paste("Synthetic notes:", paste(unique(syn), collapse = " | "))
+  )
   expect_setequal(
     grep("^Other category [0-9]+$", syn, value = TRUE),
     c("Other category 1", "Other category 2")
@@ -184,5 +206,9 @@ test_that("unknown label_strategy aborts", {
 })
 
 test_that("an all-NA column yields all NA", {
-  expect_true(all(is.na(synth_categorical(c(NA, NA), n = 5))))
+  output <- synth_categorical(c(NA, NA), n = 5)
+  expect_true(
+    all(is.na(output)),
+    info = paste("All-NA synthesis output:", paste(output, collapse = ", "))
+  )
 })

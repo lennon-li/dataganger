@@ -340,10 +340,15 @@ test_that("free text is masked but excluded from the level-presence guarantee", 
   synthetic <- suppressWarnings(synthesize_data(original, spec, roles = roles))
 
   expect_false("free_text" %in% level_invariant_columns(original, roles))
-  expect_false(any(c(
+  sensitive_notes <- c(
     "a uniquely identifying note with rare words",
     "another uniquely identifying note with rare words"
-  ) %in% synthetic$free_text))
+  )
+  expect_false(
+    any(sensitive_notes %in% synthetic$free_text),
+    info = paste("Synthetic free-text values:",
+                 paste(unique(synthetic$free_text), collapse = " | "))
+  )
   expect_setequal(
     grep("^Other category [0-9]+$", synthetic$free_text, value = TRUE),
     c("Other category 1", "Other category 2")
@@ -360,7 +365,10 @@ test_that("drop, pass_through, and scramble actions are excluded", {
   synthetic <- suppressWarnings(synthesize_data(original, spec, roles = roles))
 
   targets <- level_invariant_columns(original, roles)
-  expect_false(any(c("low", "rare", "declared") %in% targets))
+  expect_false(
+    any(c("low", "rare", "declared") %in% targets),
+    info = paste("Level-invariant targets:", paste(targets, collapse = ", "))
+  )
   expect_identical(synthetic$low, original$low)
   expect_false(identical(as.character(synthetic$rare), as.character(original$rare)))
   expect_false("declared" %in% names(synthetic))
@@ -383,7 +391,10 @@ test_that("numeric and date columns are excluded from the level invariant", {
   roles <- level_invariant_roles(original)
   targets <- level_invariant_columns(original, roles)
 
-  expect_false(any(c("numeric", "date") %in% targets))
+  expect_false(
+    any(c("numeric", "date") %in% targets),
+    info = paste("Level-invariant targets:", paste(targets, collapse = ", "))
+  )
   expect_setequal(targets, c("low", "rare", "declared", "labelled"))
 })
 })

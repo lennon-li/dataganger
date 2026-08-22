@@ -1,16 +1,10 @@
 
-test_that("month-name dates are detected whatever the locale writes them as", {
-  # Month names come from the host locale, so the detector cannot assume the
-  # English "Jun"-style abbreviation: CRAN check flavors run under locales
-  # that produce lowercase, accented, longer, or dotted month names. These
-  # are literal strings rather than format() output so the expectation holds
-  # on every host.
+test_that("portable English month-name dates are detected", {
   variants <- list(
     english_abbrev = "Jun 8, 2019",
     english_full = "June 8, 2019",
-    lowercase = "juin 8, 2019",
-    dotted = "jun. 8, 2019",
-    accented = "d\u00e9c 8, 2019"
+    lowercase = "june 8, 2019",
+    dotted = "jun. 8, 2019"
   )
   for (label in names(variants)) {
     value <- variants[[label]]
@@ -22,6 +16,22 @@ test_that("month-name dates are detected whatever the locale writes them as", {
     expect_equal(
       roles$recommended_role[roles$variable == "when"], "date",
       info = paste0(label, ": ", value)
+    )
+  }
+})
+
+test_that("foreign month text unsupported by LC_TIME does not receive a date role", {
+  withr::local_locale(c(LC_TIME = "C"))
+  variants <- c("juin 8, 2019", "d\u00e9c 8, 2019")
+  for (value in variants) {
+    roles <- detect_roles(data.frame(
+      when = rep(value, 10),
+      stringsAsFactors = FALSE
+    ))
+    expect_false(
+      identical(roles$recommended_role[[1]], "date"),
+      info = paste("Unsupported month text received date role under",
+                   Sys.getlocale("LC_TIME"), ":", value)
     )
   }
 })
@@ -230,7 +240,10 @@ test_that("detect_roles maps confident identifiers to direct, leaves rest unsele
 
 test_that("detect_roles populates identifies/sensitive and a consistent disclosure_role", {
   r <- detect_roles(example_health_survey)
-  expect_true(all(c("identifies", "sensitive", "disclosure_role") %in% names(r)))
+  expect_true(
+    all(c("identifies", "sensitive", "disclosure_role") %in% names(r)),
+    info = paste("Role columns:", paste(names(r), collapse = ", "))
+  )
   expect_equal(r$identifies[r$variable == "record_id"], "direct")
   derived <- vapply(
     seq_len(nrow(r)),
@@ -453,11 +466,18 @@ test_that("scramble_alphanumeric_id preserves delimiter positions and never leak
 
   expect_equal(length(scrambled), length(x))
   expect_match(scrambled, "^..-....-..$")
-  expect_false(any(scrambled == x))
+  expect_false(
+    any(scrambled == x),
+    info = paste("Unchanged rows:", paste(which(scrambled == x), collapse = ", "))
+  )
   # Same multiset of non-delimiter characters per value (a permutation, not new data)
   strip <- function(v) sort(strsplit(gsub("-", "", v), "")[[1]])
   same_chars <- vapply(seq_along(x), function(i) identical(strip(x[[i]]), strip(scrambled[[i]])), logical(1))
-  expect_true(all(same_chars))
+  expect_true(
+    all(same_chars),
+    info = paste("Rows with changed character multisets:",
+                 paste(which(!same_chars), collapse = ", "))
+  )
 })
 
 test_that("scramble_alphanumeric_id passes through NA and empty strings unchanged", {
@@ -478,7 +498,10 @@ test_that("scramble_alphanumeric_id de-identifies short numeric IDs (no value su
   scrambled <- dataganger:::scramble_alphanumeric_id(x)
 
   expect_equal(length(scrambled), length(x))
-  expect_false(any(scrambled == x))          # no value survives in its own row
+  expect_false(
+    any(scrambled == x),
+    info = paste("Unchanged rows:", paste(which(scrambled == x), collapse = ", "))
+  ) # no value survives in its own row
   expect_equal(nchar(scrambled), nchar(x))   # width/format preserved
 })
 
@@ -486,7 +509,10 @@ test_that("scramble_alphanumeric_id de-identifies repeated-digit values in place
   set.seed(2)
   x <- c("5", "11", "222", "77", "9")
   scrambled <- dataganger:::scramble_alphanumeric_id(x)
-  expect_false(any(scrambled == x))
+  expect_false(
+    any(scrambled == x),
+    info = paste("Unchanged rows:", paste(which(scrambled == x), collapse = ", "))
+  )
   expect_match(scrambled, "^[0-9]+$")
   expect_equal(nchar(scrambled), nchar(x))
 })
@@ -553,6 +579,14 @@ test_that("non-postal columns have NA postal_strategy", {
     stringsAsFactors = FALSE
   )
   roles <- dataganger::detect_roles(df)
-  expect_true(all(is.na(roles$postal_strategy)))
-  expect_true(all(is.na(roles$postal_country)))
+  expect_true(
+    all(is.na(roles$postal_strategy)),
+    info = paste("Unexpected postal strategies:",
+                 paste(stats::na.omit(roles$postal_strategy), collapse = ", "))
+  )
+  expect_true(
+    all(is.na(roles$postal_country)),
+    info = paste("Unexpected postal countries:",
+                 paste(stats::na.omit(roles$postal_country), collapse = ", "))
+  )
 })

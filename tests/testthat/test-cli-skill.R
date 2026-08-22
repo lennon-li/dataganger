@@ -13,7 +13,7 @@ test_that("CLI help lists the skill command", {
   out <- capture.output(code <- dataganger_cli(c("--help"), quit = FALSE))
 
   expect_identical(code, 0L)
-  expect_true(any(grepl("skill \\[--out <file>\\]", out)))
+  expect_match(paste(out, collapse = "\n"), "skill \\[--out <file>\\]")
 })
 
 test_that("skill command copies the packaged SKILL.md with --out", {

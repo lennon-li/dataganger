@@ -47,21 +47,31 @@ test_that("exact: Case B preserves conditional joint NA structure", {
   syn  <- synthesize_data(df, spec)
   # If x is NA, y must also be NA (comes from same sampled row)
   x_na_rows <- which(is.na(syn$x))
-  expect_true(all(is.na(syn$y[x_na_rows])))
+  expect_true(
+    all(is.na(syn$y[x_na_rows])),
+    info = paste("Non-missing y rows in x-missing positions:",
+                 paste(x_na_rows[!is.na(syn$y[x_na_rows])], collapse = ", "))
+  )
 })
 
 test_that("exact: all-NA column remains all-NA", {
   df <- data.frame(x = c(NA, NA, NA), y = c(1, 2, 3))
   spec <- synth_spec(purpose = "demo", preserve_missingness = "exact", n = nrow(df))
   syn  <- synthesize_data(df, spec)
-  expect_true(all(is.na(syn$x)))
+  expect_true(
+    all(is.na(syn$x)),
+    info = paste("Non-missing x rows:", paste(which(!is.na(syn$x)), collapse = ", "))
+  )
 })
 
 test_that("exact: column with no NAs has no NAs in output", {
   df <- data.frame(x = c(1, 2, 3, 4, 5), y = c(NA, 1, NA, 2, NA))
   spec <- synth_spec(purpose = "demo", preserve_missingness = "exact", n = nrow(df))
   syn  <- synthesize_data(df, spec)
-  expect_false(any(is.na(syn$x)))
+  expect_false(
+    any(is.na(syn$x)),
+    info = paste("Missing x rows:", paste(which(is.na(syn$x)), collapse = ", "))
+  )
 })
 
 test_that("exact: name_strategy generic does not corrupt NA pattern", {

@@ -401,6 +401,159 @@ dg_format_period <- function(times, fmt, tz = "UTC",
   out
 }
 
+dg_period_mode <- function(x, fmt) {
+  if (!grepl("%p", fmt, fixed = TRUE)) {
+    return("none")
+  }
+  has_ascii <- grepl(dg_period_suffix, x)
+  if (all(has_ascii)) {
+    return("ascii")
+  }
+  if (!any(has_ascii)) {
+    return("native")
+  }
+  "mixed"
+}
+
+dg_english_month_parts <- function(x) {
+  matches <- regexec(
+    "^([A-Za-z]+)([.]?)[[:space:]]+([0-9]{1,2})(,?)[[:space:]]+([0-9]{4})$",
+    x
+  )
+  parts <- regmatches(x, matches)
+  matched <- lengths(parts) == 6L
+  matrix_parts <- matrix(NA_character_, nrow = length(x), ncol = 5L)
+  if (any(matched)) {
+    matrix_parts[matched, ] <- do.call(rbind, lapply(parts[matched], function(part) part[-1L]))
+  }
+  list(matched = matched, parts = matrix_parts)
+}
+
+dg_english_month_candidate <- function(x) {
+  extracted <- dg_english_month_parts(x)
+  if (mean(extracted$matched) < 0.9) {
+    return(NULL)
+  }
+
+  parts <- extracted$parts[extracted$matched, , drop = FALSE]
+  month_token <- parts[, 1L]
+  month_lower <- tolower(month_token)
+  abbreviated <- month_lower %in% tolower(month.abb)
+  full <- month_lower %in% tolower(month.name)
+  if (!all(abbreviated) && !all(full)) {
+    return(NULL)
+  }
+
+  case_style <- if (all(month_token == tolower(month_token))) {
+    "lower"
+  } else if (all(month_token == toupper(month_token))) {
+    "upper"
+  } else {
+    canonical <- if (all(abbreviated)) {
+      month.abb[match(month_lower, tolower(month.abb))]
+    } else {
+      month.name[match(month_lower, tolower(month.name))]
+    }
+    if (!all(month_token == canonical)) {
+      return(NULL)
+    }
+    "title"
+  }
+
+  dotted <- parts[, 2L] == "."
+  comma <- parts[, 4L] == ","
+  if (length(unique(dotted)) != 1L || length(unique(comma)) != 1L) {
+    return(NULL)
+  }
+  day <- as.integer(parts[, 3L])
+  single_digit <- day < 10L
+  zero_padded <- any(single_digit) && all(nchar(parts[single_digit, 3L]) == 2L)
+
+  list(
+    fmt = if (all(abbreviated)) "%b %e, %Y" else "%B %e, %Y",
+    has_date = TRUE,
+    has_time = FALSE,
+    parser = "english_month",
+    month_style = list(
+      kind = if (all(abbreviated)) "abbreviated" else "full",
+      case = case_style,
+      dotted = dotted[[1L]],
+      comma = comma[[1L]],
+      zero_padded_day = zero_padded
+    )
+  )
+}
+
+dg_parse_english_month <- function(x, tz = "UTC") {
+  extracted <- dg_english_month_parts(x)
+  parts <- extracted$parts
+  month_lower <- tolower(parts[, 1L])
+  month_number <- match(month_lower, tolower(month.name))
+  abbreviated <- is.na(month_number)
+  month_number[abbreviated] <- match(month_lower[abbreviated], tolower(month.abb))
+  valid <- extracted$matched & !is.na(month_number)
+  normalized <- rep(NA_character_, length(x))
+  normalized[valid] <- sprintf(
+    "%s-%02d-%02d", parts[valid, 5L], month_number[valid],
+    as.integer(parts[valid, 3L])
+  )
+  as.POSIXct(strptime(normalized, "%Y-%m-%d", tz = tz))
+}
+
+dg_format_english_month <- function(times, style, tz = "UTC") {
+  lt <- as.POSIXlt(times, tz = tz)
+  month <- if (identical(style$kind, "abbreviated")) month.abb else month.name
+  month <- month[lt$mon + 1L]
+  if (identical(style$case, "lower")) month <- tolower(month)
+  if (identical(style$case, "upper")) month <- toupper(month)
+  if (isTRUE(style$dotted)) month <- paste0(month, ".")
+  day <- if (isTRUE(style$zero_padded_day)) {
+    sprintf("%02d", lt$mday)
+  } else {
+    as.character(lt$mday)
+  }
+  out <- paste0(month, " ", day, if (isTRUE(style$comma)) "," else "", " ", lt$year + 1900L)
+  out[is.na(times)] <- NA_character_
+  out
+}
+
+dg_parse_date_candidate <- function(x, candidate, tz = "UTC") {
+  if (identical(candidate$parser, "english_month")) {
+    return(dg_parse_english_month(x, tz = tz))
+  }
+  if (identical(candidate$period_mode, "ascii")) {
+    return(dg_strptime_period(x, candidate$fmt, tz = tz))
+  }
+  as.POSIXct(strptime(x, candidate$fmt, tz = tz))
+}
+
+dg_format_date_candidate <- function(times, candidate, tz = "UTC", tokens = NULL) {
+  if (identical(candidate$parser, "english_month")) {
+    return(dg_format_english_month(times, candidate$month_style, tz = tz))
+  }
+  if (identical(candidate$period_mode, "ascii")) {
+    return(dg_format_period(times, candidate$fmt, tz = tz, tokens = tokens))
+  }
+  format(times, candidate$fmt, tz = tz)
+}
+
+dg_date_candidate_fidelity <- function(x, candidate, tz = "UTC", tokens = NULL) {
+  parsed <- tryCatch(
+    dg_parse_date_candidate(x, candidate, tz = tz),
+    error = function(e) rep(as.POSIXct(NA, tz = tz), length(x))
+  )
+  if (mean(!is.na(parsed)) < 0.9) {
+    return(-Inf)
+  }
+  round_trip <- tryCatch(
+    trimws(dg_format_date_candidate(parsed, candidate, tz = tz, tokens = tokens)),
+    error = function(e) rep(NA_character_, length(x))
+  )
+  round_trip_match <- !is.na(round_trip) & round_trip == x
+  round_trip_match[is.na(round_trip_match)] <- FALSE
+  mean(round_trip_match)
+}
+
 # Picks the candidate format with the best *round-trip* fidelity, not just
 # the first one that parses -- strptime is lenient (e.g. "%B" happily parses
 # "Jun", "%d" happily parses " 2"), so parsing alone cannot distinguish
@@ -412,39 +565,55 @@ dg_format_period <- function(times, fmt, tz = "UTC",
 # (same 90% match-rate threshold detect_roles() uses to flag the column as
 # date-like in the first place).
 detect_date_format <- function(x, tz = "UTC") {
-  x_sample <- x[!is.na(x) & nzchar(trimws(x))]
-  if (length(x_sample) == 0L) {
+  x_values <- trimws(x[!is.na(x) & nzchar(trimws(x))])
+  if (length(x_values) == 0L) {
     return(NULL)
   }
-  if (length(x_sample) > 200L) x_sample <- x_sample[seq_len(200L)]
-  x_sample <- trimws(x_sample)
+  sample_index <- if (length(x_values) > 200L) {
+    unique(round(seq.int(1L, length(x_values), length.out = 200L)))
+  } else {
+    seq_along(x_values)
+  }
+  x_sample <- x_values[sample_index]
 
   tokens <- dg_period_tokens(x_sample)
 
   best <- NULL
   best_fidelity <- -1
-  for (cand in dg_date_format_candidates()) {
-    parsed <- tryCatch(
-      dg_strptime_period(x_sample, cand$fmt, tz = tz),
-      error = function(e) rep(as.POSIXct(NA, tz = tz), length(x_sample))
-    )
-    if (mean(!is.na(parsed)) < 0.9) {
+  candidates <- dg_date_format_candidates()
+  english_month <- dg_english_month_candidate(x_sample)
+  if (!is.null(english_month)) candidates <- c(candidates, list(english_month))
+  for (cand in candidates) {
+    cand$period_mode <- dg_period_mode(x_sample, cand$fmt)
+    if (identical(cand$period_mode, "mixed")) {
       next
     }
-    round_trip <- tryCatch(
-      trimws(dg_format_period(parsed, cand$fmt, tz = tz, tokens = tokens)),
-      error = function(e) rep(NA_character_, length(x_sample))
+    fidelity <- dg_date_candidate_fidelity(
+      x_sample, cand, tz = tz, tokens = tokens
     )
-    fidelity <- mean(round_trip == x_sample, na.rm = TRUE)
     if (fidelity > best_fidelity) {
       best_fidelity <- fidelity
       best <- cand
     }
   }
-  if (is.null(best)) {
+  if (is.null(best) || best_fidelity < 0.9) {
     return(NULL)
   }
-  list(format = best$fmt, has_date = best$has_date, has_time = best$has_time)
+  if (length(x_values) > length(x_sample)) {
+    best$period_mode <- dg_period_mode(x_values, best$fmt)
+    if (identical(best$period_mode, "mixed")) {
+      return(NULL)
+    }
+    full_fidelity <- dg_date_candidate_fidelity(
+      x_values, best, tz = tz, tokens = dg_period_tokens(x_values)
+    )
+    if (full_fidelity < 0.9) {
+      return(NULL)
+    }
+  }
+  best$format <- best$fmt
+  best$fmt <- NULL
+  best
 }
 
 # Parses the whole column with the detected format. Returns NULL (rather
@@ -454,8 +623,10 @@ parse_date_like_character <- function(x, tz = "UTC") {
   if (is.null(info)) {
     return(NULL)
   }
-  parsed <- dg_strptime_period(trimws(x), info$format, tz = tz)
-  list(parsed = parsed, format = info$format, has_date = info$has_date, has_time = info$has_time)
+  candidate <- info
+  candidate$fmt <- candidate$format
+  parsed <- dg_parse_date_candidate(trimws(x), candidate, tz = tz)
+  c(list(parsed = parsed), info)
 }
 
 synth_date_like_character <- function(x, n, date_info, coarsen_dates = TRUE,
@@ -471,8 +642,10 @@ synth_date_like_character <- function(x, n, date_info, coarsen_dates = TRUE,
   }
 
   source_values <- trimws(x[!is.na(x) & nzchar(trimws(x))])
-  out <- dg_format_period(
-    synth, date_info$format,
+  candidate <- date_info
+  candidate$fmt <- candidate$format
+  out <- dg_format_date_candidate(
+    synth, candidate,
     tz = "UTC", tokens = dg_period_tokens(source_values)
   )
   out[is.na(synth)] <- NA_character_

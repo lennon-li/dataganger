@@ -1,3 +1,4 @@
+AST
 Analytics
 Biomarker
 CLI
@@ -34,6 +35,7 @@ dev
 doi
 entrypoint
 explainer
+formatter
 greys
 honoured
 jss
@@ -47,6 +49,8 @@ pre
 representable
 reviewable
 relocations
+renderer
+reparsing
 roxygen
 runnable
 sortation

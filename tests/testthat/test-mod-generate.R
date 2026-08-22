@@ -320,8 +320,14 @@ test_that("regenerate is disabled before generation and enabled after", {
       function(id) regexpr(id, after_html, fixed = TRUE)[[1]],
       integer(1)
     )
-    expect_true(all(positions > 0L))
-    expect_true(all(diff(positions) > 0L))
+    expect_true(
+      all(positions > 0L),
+      info = paste("CTA positions:", paste(positions, collapse = ", "))
+    )
+    expect_true(
+      all(diff(positions) > 0L),
+      info = paste("CTA positions:", paste(positions, collapse = ", "))
+    )
   })
 })
 
@@ -555,7 +561,14 @@ test_that("generate removes k-anon and high-flag KPI tiles", {
   })
 
   notifications <- recorder$get()
-  expect_false(any(vapply(notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1))))
+  infeasible <- vapply(
+    notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1)
+  )
+  expect_false(
+    any(infeasible),
+    info = paste("Infeasible notification indices:",
+                 paste(which(infeasible), collapse = ", "))
+  )
   expect_true(isTRUE(shiny::isolate(state$kanon$infeasible)))
   expect_false(is.null(shiny::isolate(state$generated_roles)))
 })
@@ -700,7 +713,14 @@ test_that("generate renders the structured k-anon panel after an infeasible run"
   })
 
   notifications <- recorder$get()
-  expect_false(any(vapply(notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1))))
+  infeasible <- vapply(
+    notifications, function(x) is_kanon_infeasible_warning(x$ui), logical(1)
+  )
+  expect_false(
+    any(infeasible),
+    info = paste("Infeasible notification indices:",
+                 paste(which(infeasible), collapse = ", "))
+  )
 })
 
 test_that("advanced-settings action requests Configure", {

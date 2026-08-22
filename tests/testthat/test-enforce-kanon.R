@@ -88,14 +88,20 @@ test_that("enforce_kanon leaves output with no QI cell smaller than k", {
   )
   out <- enforce_kanon(syn, roles = roles, k = 5)
   tab <- table(out$cat[!is.na(out$cat)])
-  expect_true(all(tab >= 5))
+  expect_true(
+    all(tab >= 5),
+    info = paste("Observed cell counts:", paste(tab, collapse = ", "))
+  )
 })
 
 test_that("merge_rarest_level suppresses rather than inventing a category", {
   out <- merge_rarest_level(c("common", "common", "rare"))
 
   expect_equal(out, c("common", "common", NA_character_))
-  expect_false(any(out %in% "(other)", na.rm = TRUE))
+  expect_false(
+    any(out %in% "(other)", na.rm = TRUE),
+    info = paste("Output values:", paste(unique(out), collapse = ", "))
+  )
 })
 
 test_that("enforce_kanon suppresses residual cells that cannot reach k", {
@@ -140,7 +146,10 @@ test_that("enforce_kanon backs off (no suppression) when k is infeasible", {
   info <- attr(out, "kanon")
   expect_true(isTRUE(info$infeasible))
   expect_equal(info$suppressed_cells, 0L)
-  expect_false(any(is.na(out$code)))
+  expect_false(
+    any(is.na(out$code)),
+    info = paste("Missing code rows:", paste(which(is.na(out$code)), collapse = ", "))
+  )
   expect_setequal(out$code, syn$code)
 })
 
@@ -200,7 +209,10 @@ test_that("enforce_kanon handles a mix of NA and explicit roles", {
   )
   out <- enforce_kanon(syn, roles = roles, k = 5)
   expect_false("id" %in% names(out))      # direct dropped
-  expect_true(all(c("zip", "other") %in% names(out)))
+  expect_true(
+    all(c("zip", "other") %in% names(out)),
+    info = paste("Output columns:", paste(names(out), collapse = ", "))
+  )
 })
 
 test_that("enforce_kanon unions identifying sensitive columns into the QI set", {

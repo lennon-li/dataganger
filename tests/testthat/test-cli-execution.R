@@ -13,7 +13,7 @@ test_that("profile command writes profile JSON", {
   expect_equal(profile$n_cols, 4)
   expect_true("profile" %in% names(profile))
   expect_true("n_missing" %in% names(profile$profile))
-  expect_true(any(profile$profile$variable == "score"))
+  expect_in("score", profile$profile$variable)
 })
 
 test_that("roles command writes roles YAML", {
@@ -28,8 +28,9 @@ test_that("roles command writes roles YAML", {
 
   roles <- yaml::read_yaml(out_path)
   expect_true(is.list(roles))
-  expect_true(any(vapply(roles, function(x) identical(x$variable, "id"), logical(1))))
-  expect_true(any(vapply(roles, function(x) identical(x$variable, "score"), logical(1))))
+  role_variables <- vapply(roles, `[[`, character(1), "variable")
+  expect_in("id", role_variables)
+  expect_in("score", role_variables)
 })
 
 test_that("spec command writes synth spec YAML", {
@@ -109,9 +110,10 @@ test_that("inspect command summarizes bundle without original data", {
   out <- capture.output(code <- dataganger_cli(c("inspect", bundle_path), quit = FALSE))
 
   expect_identical(code, 0L)
-  expect_true(any(grepl("Synthetic bundle", out, fixed = TRUE)))
-  expect_true(any(grepl("Variables:", out, fixed = TRUE)))
-  expect_true(any(grepl("Privacy", out, fixed = TRUE)))
+  inspected <- paste(out, collapse = "\n")
+  expect_match(inspected, "Synthetic bundle", fixed = TRUE)
+  expect_match(inspected, "Variables:", fixed = TRUE)
+  expect_match(inspected, "Privacy", fixed = TRUE)
 })
 
 test_that("exec shim prints help through Rscript", {
@@ -123,7 +125,7 @@ test_that("exec shim prints help through Rscript", {
   expect_true(file.exists(shim))
 
   result <- system2("Rscript", c(shQuote(shim), "--help"), stdout = TRUE, stderr = TRUE)
-  expect_true(any(grepl("Usage: dataganger", result, fixed = TRUE)))
+  expect_match(paste(result, collapse = "\n"), "Usage: dataganger", fixed = TRUE)
 })
 
 test_that("make-agent-bundle command writes the restructured bundle zip", {

@@ -121,7 +121,10 @@ test_that("ambiguous detection sets ambiguous attribute for 5-digit codes", {
   result <- detect(vals)
   expect_false(is.null(result))
   amb <- attr(result, "ambiguous")
-  expect_true(all(c("US", "DE", "FR") %in% amb))
+  expect_true(
+    all(c("US", "DE", "FR") %in% amb),
+    info = paste("Ambiguous countries:", paste(amb, collapse = ", "))
+  )
 })
 
 test_that("country_hint overrides ambiguity", {

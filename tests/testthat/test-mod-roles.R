@@ -397,7 +397,7 @@ test_that("'drop' does not appear as a type dropdown option", {
       '(?s)<select[^>]*role_change[^>]*>.*?</select>', html, perl = TRUE
     ))[[1]]
     expect_true(length(type_selects) > 0L)
-    expect_false(any(grepl('value="drop"', type_selects, fixed = TRUE)))
+    expect_no_match(type_selects, 'value="drop"', fixed = TRUE)
   })
 })
 
@@ -878,11 +878,20 @@ test_that("bulk-applying a type change updates every selected row using the same
 
     roles <- state$roles
     idx <- roles$variable %in% c("zip", "income")
-    expect_true(all(roles$user_role[idx] == "alphanumeric_id"))
+    expect_true(
+      all(roles$user_role[idx] == "alphanumeric_id"),
+      info = paste("Selected user roles:", paste(roles$user_role[idx], collapse = ", "))
+    )
     # Same consequence as the single-row handler: choosing alphanumeric_id
     # sets identifies=direct and defaults the action to scramble.
-    expect_true(all(roles$identifies[idx] == "direct"))
-    expect_true(all(roles$simulation[idx] == "scramble"))
+    expect_true(
+      all(roles$identifies[idx] == "direct"),
+      info = paste("Selected identifies values:", paste(roles$identifies[idx], collapse = ", "))
+    )
+    expect_true(
+      all(roles$simulation[idx] == "scramble"),
+      info = paste("Selected simulations:", paste(roles$simulation[idx], collapse = ", "))
+    )
     # The untouched row is unaffected.
     expect_false(roles$user_role[roles$variable == "id"] %in% "alphanumeric_id")
   })
@@ -901,9 +910,18 @@ test_that("bulk-applying a Q1 answer resets simulation the same way the single d
     session$flushReact()
 
     roles <- state$roles
-    expect_true(all(roles$identifies == "none"))
-    expect_true(all(roles$user_identifies == "none"))
-    expect_true(all(roles$simulation == "synthesize"))
+    expect_true(
+      all(roles$identifies == "none"),
+      info = paste("Identifies values:", paste(roles$identifies, collapse = ", "))
+    )
+    expect_true(
+      all(roles$user_identifies == "none"),
+      info = paste("User identifies values:", paste(roles$user_identifies, collapse = ", "))
+    )
+    expect_true(
+      all(roles$simulation == "synthesize"),
+      info = paste("Simulation values:", paste(roles$simulation, collapse = ", "))
+    )
   })
 })
 
@@ -1033,7 +1051,11 @@ test_that("action options are type-aware", {
   # Every type offers a way out.
   for (role in c("alphanumeric_id", "free_text", "categorical", "numeric",
                  "date", "postal_code")) {
-    expect_true(all(c("pass_through", "drop") %in% dg_action_options(role)))
+    options <- dg_action_options(role)
+    expect_true(
+      all(c("pass_through", "drop") %in% options),
+      info = paste(role, "action options:", paste(options, collapse = ", "))
+    )
   }
 })
 

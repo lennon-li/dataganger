@@ -105,17 +105,20 @@ synthesize_marginal <- function(data, spec, roles = NULL) {
     # these as role "date", but the column is still is.character(x) -- without
     # this branch it would fall into the generic character dispatch below and
     # get resampled as plain categorical text instead of synthesized as a
-    # date/time. Falls through to the generic character path if no format is
-    # confidently detected.
+    # date/time. A date role without a validated parser is an internal contract
+    # violation and must not silently fall through to categorical resampling.
     if (role == "date" && is.character(x)) {
       date_info <- parse_date_like_character(x)
-      if (!is.null(date_info)) {
-        cols[[i]] <- synth_date_like_character(x, n, date_info,
-          coarsen_dates = coarsen,
-          missing_strategy = missingness
+      if (is.null(date_info)) {
+        cli::cli_abort(
+          "Column {.val {col_name}} has a date role but no validated date/time format."
         )
-        next
       }
+      cols[[i]] <- synth_date_like_character(x, n, date_info,
+        coarsen_dates = coarsen,
+        missing_strategy = missingness
+      )
+      next
     }
 
     is_user_postal <- !is.null(roles) && !is.na(idx) && "user_role" %in% names(roles) &&

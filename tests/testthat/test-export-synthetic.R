@@ -280,7 +280,7 @@ test_that("export_synthetic() warns but succeeds on exact-row matches by default
   expect_true(manifest$exact_row_matches > 0)
 
   human_md <- readLines(file.path(out_dir, "human", "human.md"), warn = FALSE)
-  expect_true(any(human_md == sprintf("Exact row matches: %s", manifest$exact_row_matches)))
+  expect_in(sprintf("Exact row matches: %s", manifest$exact_row_matches), human_md)
 })
 
 test_that("export_synthetic() errors on exact-row matches when fail_on_exact_match = TRUE", {
@@ -417,7 +417,9 @@ test_that("export_synthetic() omits original_variable when name_strategy is dict
   )
 
   recipe <- yaml::read_yaml(file.path(out_dir, "agent", "recipe.yaml"))
-  expect_false(any(vapply(recipe$roles, function(x) identical(x$variable, "original_variable"), logical(1))))
+  recipe_variables <- vapply(recipe$roles, `[[`, character(1), "variable")
+  expect_false("original_variable" %in% recipe_variables,
+               info = paste("Recipe variables:", paste(recipe_variables, collapse = ", ")))
 
   manifest <- jsonlite::read_json(file.path(out_dir, "agent", "manifest.json"), simplifyVector = TRUE)
   expect_null(manifest$spec$name_map)
@@ -722,5 +724,5 @@ test_that("dataganger inspect prints a K-anonymity summary line", {
 
   out <- capture.output(code <- dataganger_cli(c("inspect", bundle_path), quit = FALSE))
   expect_identical(code, 0L)
-  expect_true(any(grepl("^K-anonymity:", out)))
+  expect_match(paste(out, collapse = "\n"), "(^|\n)K-anonymity:")
 })

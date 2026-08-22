@@ -66,8 +66,10 @@ test_that("synthesize_data() marginal numeric column", {
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 200)
   expect_type(syn$val, "double")
-  expect_true(all(syn$val >= min(df$val, na.rm = TRUE) - 1e-8))
-  expect_true(all(syn$val <= max(df$val, na.rm = TRUE) + 1e-8))
+  lower <- min(df$val, na.rm = TRUE) - 1e-8
+  upper <- max(df$val, na.rm = TRUE) + 1e-8
+  expect_equal(syn$val[syn$val < lower], numeric(), info = "Values below source range")
+  expect_equal(syn$val[syn$val > upper], numeric(), info = "Values above source range")
 })
 
 test_that("synthesize_data() jitters zero-IQR numeric columns with nonconstant outliers", {
@@ -88,7 +90,10 @@ test_that("synthesize_data() jitters zero-IQR numeric columns with nonconstant o
   exact_share <- mean(syn$salary %in% original$salary)
   non_modal_originals <- setdiff(unique(original$salary), 100)
   expect_lt(exact_share, 1)
-  expect_false(all(non_modal_originals %in% syn$salary))
+  expect_false(
+    all(non_modal_originals %in% syn$salary),
+    info = paste("Synthetic salary values:", paste(unique(syn$salary), collapse = ", "))
+  )
 })
 
 test_that("synthesize_data() marginal factor column", {
@@ -96,7 +101,10 @@ test_that("synthesize_data() marginal factor column", {
   spec <- synth_spec(purpose = "demo", n = 50)
   syn <- synthesize_data(df, spec)
   expect_type(syn$group, "character")
-  expect_true(all(as.character(syn$group) %in% c("A", "B", "C")))
+  expect_equal(
+    setdiff(unique(as.character(syn$group)), c("A", "B", "C")),
+    character(), info = paste("Synthetic groups:", paste(unique(syn$group), collapse = ", "))
+  )
 })
 
 test_that("synthesize_data() marginal Date column", {
@@ -295,14 +303,14 @@ test_that("synthesize_data() all-NA numeric column", {
   spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
   expect_equal(nrow(syn), 5)
-  expect_true(all(is.na(syn$x)))
+  expect_equal(which(!is.na(syn$x)), integer(), info = "Non-missing row indices in syn$x")
 })
 
 test_that("synthesize_data() all-NA character column", {
   df <- data.frame(x = rep(NA_character_, 10))
   spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
-  expect_true(all(is.na(syn$x)))
+  expect_equal(which(!is.na(syn$x)), integer(), info = "Non-missing row indices in syn$x")
 })
 
 test_that("synthesize_data() all-NA haven_labelled column", {
@@ -314,7 +322,7 @@ test_that("synthesize_data() all-NA haven_labelled column", {
   )
   spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
-  expect_true(all(is.na(syn$x)))
+  expect_equal(which(!is.na(syn$x)), integer(), info = "Non-missing row indices in syn$x")
   expect_type(syn$x, "character")
 })
 
@@ -354,8 +362,9 @@ test_that("synthesize_data() 100% missing column handled", {
   )
   spec <- synth_spec(purpose = "demo", n = 5)
   syn <- synthesize_data(df, spec)
-  expect_true(all(is.na(syn$all_na)))
-  expect_false(all(is.na(syn$good)))
+  expect_equal(which(!is.na(syn$all_na)), integer(),
+               info = "Non-missing row indices in syn$all_na")
+  expect_false(all(is.na(syn$good)), info = "syn$good was entirely missing")
 })
 
 # ---- Name strategies ----
@@ -454,8 +463,9 @@ test_that("synthesize_data() free text dropped when strategy is drop", {
   spec <- synth_spec(purpose = "demo", n = 10,
                      free_text_strategy = "drop")
   syn <- synthesize_data(df, spec)
-  expect_true(all(is.na(syn$notes)))
-  expect_false(all(is.na(syn$x)))
+  expect_equal(which(!is.na(syn$notes)), integer(),
+               info = "Non-missing row indices in redacted notes")
+  expect_false(all(is.na(syn$x)), info = "Non-redacted syn$x was entirely missing")
 })
 
 test_that("free_text_strategy defaults to categorical, not drop", {
@@ -478,10 +488,11 @@ test_that("synthesize_data() free text is synthesized as categorical by default"
   syn <- synthesize_data(df, spec)
 
   expect_type(syn$notes, "character")
-  expect_false(all(is.na(syn$notes)))
+  expect_false(all(is.na(syn$notes)), info = "Synthesized notes were entirely missing")
   # Every near-unique note is masked by the new mask_rare behavior; none
   # reappear verbatim.
-  expect_false(any(unique_notes %in% syn$notes))
+  expect_equal(intersect(unique_notes, syn$notes), character(),
+               info = "Original unique notes found in synthetic output")
   # The note repeated often enough (>= rare_level_min_n) is allowed to recur.
   expect_true(common_note %in% syn$notes)
   # Report the offending values rather than a bare FALSE.
@@ -562,7 +573,8 @@ test_that("simulation treatment scrambles an alphanumeric ID column", {
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
 
   expect_true("order_id" %in% names(syn))
-  expect_false(any(syn$order_id %in% df$order_id))
+  expect_equal(intersect(syn$order_id, df$order_id), character(),
+               info = "Original order IDs found in synthetic output")
   expect_match(syn$order_id, "^..-....-..$")
 })
 
@@ -647,8 +659,8 @@ test_that("remove_ids masks ID columns with NA", {
   # also makes scramble fall back to plain synthesis with a warning, which
   # is expected and irrelevant here since the column is already NA-masked.
   syn <- suppressWarnings(synthesize_data(df, spec, roles = roles))
-  expect_true(all(is.na(syn$id)))
-  expect_false(all(is.na(syn$x)))
+  expect_equal(which(!is.na(syn$id)), integer(), info = "Non-missing row indices in masked ID")
+  expect_false(all(is.na(syn$x)), info = "Non-ID syn$x was entirely missing")
 })
 
 # Fix 2 - haven::labelled() in schema synthesis
@@ -676,7 +688,8 @@ test_that("categorical synthesis preserves rare level slots", {
   syn_values <- sort(unique(syn$f[!is.na(syn$f)]))
   source_values <- sort(unique(df$f[!is.na(df$f)]))
   expect_equal(length(syn_values), length(source_values))
-  expect_true(any(grepl("^Other category [0-9]+$", syn_values)))
+  expect_match(paste(syn_values, collapse = "\n"),
+               "(^|\n)Other category [0-9]+($|\n)")
   expect_false("rare" %in% syn_values)
 })
 
@@ -743,10 +756,193 @@ test_that("synthesize_data() generic naming still drops direct identifiers befor
   expect_named(syn, c("col_1", "col_2"))
   expect_equal(unname(nm[c("age_band", "region")]), c("col_1", "col_2"))
   expect_true(length(kanon$qi_cols) > 0L)
-  expect_false(any(grepl("patient", names(syn), ignore.case = TRUE)))
+  expect_no_match(names(syn), "patient", ignore.case = TRUE)
 })
 
 # ---- Character-stored date/time synthesis ----
+
+test_that("date format detection requires 90 percent round-trip fidelity", {
+  valid <- rep("01/01/2020", 9)
+  non_round_trip <- "1/1/2020"
+
+  accepted <- detect_date_format(c(valid, non_round_trip))
+  rejected <- detect_date_format(c(valid[seq_len(8)], non_round_trip, "1/2/2020"))
+
+  expect_equal(
+    accepted$format, "%m/%d/%Y",
+    info = paste("Expected 9/10 round trips to be accepted; input:",
+                 paste(c(valid, non_round_trip), collapse = " | "))
+  )
+  expect_null(
+    rejected,
+    info = paste("Expected 8/10 round trips to be rejected; input:",
+                 paste(c(valid[seq_len(8)], non_round_trip, "1/2/2020"), collapse = " | "))
+  )
+
+  invalid_tail <- c(rep("01/01/2020", 200), rep("1/1/2020", 30))
+  expect_null(
+    detect_date_format(invalid_tail),
+    info = "Full-column validation accepted a format with less than 90 percent fidelity"
+  )
+})
+
+test_that("unknown period suffixes fail closed in detection and role assignment", {
+  values <- rep(c("01/01/2020 01:15 FOO", "01/02/2020 11:45 BAR"), 5)
+  roles <- detect_roles(data.frame(visit = values, stringsAsFactors = FALSE))
+
+  expect_null(
+    detect_date_format(values),
+    info = paste("Unknown suffixes were accepted:", paste(unique(values), collapse = " | "))
+  )
+  expect_false(
+    identical(roles$recommended_role[[1]], "date"),
+    info = paste("Unknown suffixes were assigned the date role:",
+                 paste(unique(values), collapse = " | "))
+  )
+})
+
+test_that("unsupported translated period markers fail closed in the C locale", {
+  withr::local_locale(c(LC_TIME = "C"))
+  values <- rep(c(
+    "01/01/2020 01:15 \u5348\u524d",
+    "01/01/2020 01:15 \u5348\u5f8c"
+  ), 5)
+  df <- data.frame(visit = values, stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+
+  expect_null(
+    detect_date_format(values),
+    info = paste("Unsupported translated markers were accepted:",
+                 paste(unique(values), collapse = " | "))
+  )
+  expect_false(
+    identical(roles$recommended_role[[1L]], "date"),
+    info = paste("Unsupported translated markers received the date role:",
+                 paste(unique(values), collapse = " | "))
+  )
+
+  spec <- synth_spec(
+    purpose = "demo", n = 10, seed = 905L,
+    coarsen_dates = FALSE, engine = "internal"
+  )
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+  expect_equal(
+    sort(unique(syn$visit)), sort(unique(values)),
+    info = paste("Translated markers were stripped or reinterpreted:",
+                 paste(unique(syn$visit), collapse = " | "))
+  )
+})
+
+test_that("an invalid character date role cannot fall through to categorical synthesis", {
+  values <- rep(c("01/01/2020 01:15 FOO", "01/02/2020 11:45 BAR"), 5)
+  df <- data.frame(visit = values, stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+  roles$recommended_role[[1L]] <- "date"
+  spec <- synth_spec(
+    purpose = "demo", n = 10, seed = 904L,
+    coarsen_dates = FALSE, engine = "internal"
+  )
+
+  expect_error(
+    synthesize_marginal(df, spec, roles = roles),
+    "date role but no validated date/time format",
+    info = paste("Invalid date-role values:", paste(unique(values), collapse = " | "))
+  )
+})
+
+test_that("English month-name forms synthesize portably and deterministically", {
+  forms <- list(
+    abbreviated = c("Jan 8, 2019", "Feb 9, 2019", "Mar 10, 2019",
+                    "Apr 11, 2019", "May 12, 2019"),
+    full = c("January 8, 2019", "February 9, 2019", "March 10, 2019",
+             "April 11, 2019", "May 12, 2019"),
+    dotted = c("Jan. 8, 2019", "Feb. 9, 2019", "Mar. 10, 2019",
+               "Apr. 11, 2019", "May. 12, 2019"),
+    lowercase = c("january 8, 2019", "february 9, 2019", "march 10, 2019",
+                  "april 11, 2019", "may 12, 2019")
+  )
+
+  for (form_name in names(forms)) {
+    values <- rep(forms[[form_name]], 20)
+    df <- data.frame(visit = values, stringsAsFactors = FALSE)
+    roles <- detect_roles(df)
+    role <- roles$recommended_role[roles$variable == "visit"]
+    date_info <- parse_date_like_character(values)
+
+    expect_equal(role, "date", info = paste("month form:", form_name))
+    expect_false(is.null(date_info), info = paste("month form:", form_name))
+
+    roles$identifies[roles$variable == "visit"] <- "none"
+    roles <- dg_sync_roles_axes(roles)
+    spec <- synth_spec(
+      purpose = "demo", n = 100, seed = 902L,
+      coarsen_dates = FALSE, engine = "internal"
+    )
+    first <- synthesize_data(df, spec, roles = roles, engine = "internal")
+    second <- synthesize_data(df, spec, roles = roles, engine = "internal")
+    reparsed <- parse_date_like_character(first$visit)
+
+    expect_identical(first$visit, second$visit, info = paste("month form:", form_name))
+    expect_false(is.null(reparsed), info = paste(
+      "Synthesized month text did not parse for", form_name, ":",
+      paste(utils::head(first$visit, 10), collapse = " | ")
+    ))
+    expect_match(first$visit, "^[A-Za-z]+[.]? [0-9]{1,2}, 2019$",
+                 info = paste("month form:", form_name))
+  }
+})
+
+test_that("unsupported accented month text fails closed in the C locale", {
+  withr::local_locale(c(LC_TIME = "C"))
+  values <- rep(c("M\u00e4rz 8, 2019", "M\u00e4rz 9, 2019", "M\u00e4rz 10, 2019",
+                  "M\u00e4rz 11, 2019", "M\u00e4rz 12, 2019"), 20)
+  df <- data.frame(visit = values, stringsAsFactors = FALSE)
+  roles <- detect_roles(df)
+
+  expect_null(
+    parse_date_like_character(values),
+    info = paste("Unsupported accented month text parsed under",
+                 Sys.getlocale("LC_TIME"), ":", paste(unique(values), collapse = " | "))
+  )
+  expect_false(
+    identical(roles$recommended_role[[1]], "date"),
+    info = paste("Unsupported accented month text received date role under",
+                 Sys.getlocale("LC_TIME"), ":", paste(unique(values), collapse = " | "))
+  )
+
+  spec <- synth_spec(
+    purpose = "demo", n = 100, seed = 903L,
+    coarsen_dates = FALSE, engine = "internal"
+  )
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+  expect_equal(
+    sort(unique(syn$visit)), sort(unique(values)),
+    info = "Fail-closed accented month text should remain on the non-date path"
+  )
+})
+
+test_that("native non-ASCII period markers require a successful round trip", {
+  am <- format(as.POSIXct("2020-01-01 01:15:00", tz = "UTC"), "%p", tz = "UTC")
+  pm <- format(as.POSIXct("2020-01-01 13:15:00", tz = "UTC"), "%p", tz = "UTC")
+  native_markers <- c(am, pm)
+  skip_if(any(!nzchar(native_markers)) || all(grepl("^[AaPp][Mm]$", native_markers)),
+          "Active LC_TIME has no non-ASCII native period markers")
+
+  values <- c(paste("01/01/2020 01:15", am), paste("01/01/2020 01:15", pm))
+  detected <- detect_date_format(values)
+  expect_false(
+    is.null(detected),
+    info = paste("Native period values did not round trip under",
+                 Sys.getlocale("LC_TIME"), ":", paste(values, collapse = " | "))
+  )
+
+  unknown <- sub(paste0(" ", pm, "$"), " UNKNOWN", values, fixed = FALSE)
+  expect_null(
+    detect_date_format(unknown),
+    info = paste("Non-round-tripping period text was accepted:",
+                 paste(unknown, collapse = " | "))
+  )
+})
 
 test_that("character-stored ISO date strings are synthesized as dates, not resampled verbatim", {
   set.seed(1)
@@ -772,7 +968,8 @@ test_that("character-stored ISO date strings are synthesized as dates, not resam
   expect_match(syn$event_date, "^\\d{4}-\\d{2}-\\d{2}$")
   # Values fall within the observed range rather than being copied verbatim.
   parsed <- as.Date(syn$event_date)
-  expect_true(all(parsed >= as.Date("2020-01-01") & parsed <= as.Date("2020-12-30")))
+  outside <- parsed[parsed < as.Date("2020-01-01") | parsed > as.Date("2020-12-30")]
+  expect_equal(outside, as.Date(character()), info = "Synthetic dates outside source range")
   # Not simply the original column reshuffled.
   expect_false(identical(sort(syn$event_date), sort(df$event_date)))
 })
@@ -812,8 +1009,11 @@ test_that("character-stored date+time strings preserve both the date range and t
     all(!is.na(parsed)),
     info = paste("Some synthesized visit values did not parse. Sample values:", sample_values)
   )
-  expect_true(all(as.Date(parsed) >= as.Date("2020-01-01") &
-                    as.Date(parsed) <= as.Date("2020-01-30")))
+  parsed_dates <- as.Date(parsed)
+  outside <- parsed_dates[
+    parsed_dates < as.Date("2020-01-01") | parsed_dates > as.Date("2020-01-30")
+  ]
+  expect_equal(outside, as.Date(character()), info = "Synthetic datetimes outside source range")
   # The time-of-day component varies rather than collapsing to midnight
   # (which is what blanket coarsen-to-day would otherwise do).
   times <- format(parsed, "%H:%M", tz = "UTC")
@@ -982,9 +1182,10 @@ test_that("a bare time-of-day column (no date part) is synthesized and stays tim
 
   expect_match(syn$check_in, "^\\d{2}:\\d{2}$")
   # No date leaked into the output.
-  expect_false(any(grepl("[-/]", syn$check_in)))
+  expect_no_match(syn$check_in, "[-/]")
   hours <- as.integer(substr(syn$check_in, 1, 2))
-  expect_true(all(hours >= 6 & hours <= 20))
+  expect_equal(hours[hours < 6 | hours > 20], integer(),
+               info = paste("Synthetic hours:", paste(hours, collapse = ", ")))
 })
 
 test_that("character-stored dates preserve the original NA rate", {
@@ -1001,7 +1202,7 @@ test_that("character-stored dates preserve the original NA rate", {
   spec <- synth_spec(purpose = "demo", n = 200, seed = 8, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
 
-  expect_true(any(is.na(syn$sched)))
+  expect_in(TRUE, is.na(syn$sched))
   expect_match(stats::na.omit(syn$sched), "^\\d{2}/\\d{2}/\\d{4}$")
 })
 
@@ -1033,7 +1234,8 @@ test_that("synthesize_data resamples postal codes when strategy is resample", {
   spec <- synth_spec(purpose = "demo", n = 20, seed = 42, engine = "internal")
   syn <- synthesize_data(df, spec, roles = roles)
   observed <- unique(df$postal_code)
-  expect_true(all(syn$postal_code[!is.na(syn$postal_code)] %in% observed))
+  unexpected <- setdiff(syn$postal_code[!is.na(syn$postal_code)], observed)
+  expect_equal(unexpected, character(), info = "Unexpected resampled postal codes")
 })
 
 test_that("synthesize_data postal code seeded determinism", {
@@ -1068,7 +1270,8 @@ test_that("synthesize_data per-column postal strategy", {
   syn <- synthesize_data(df, spec, roles = roles)
   reg <- dataganger:::dg_postal_format_registry()
   expect_match(syn$ca_postal[!is.na(syn$ca_postal)], reg$CA$regex)
-  expect_true(all(syn$us_zip[!is.na(syn$us_zip)] %in% unique(df$us_zip)))
+  unexpected <- setdiff(syn$us_zip[!is.na(syn$us_zip)], unique(df$us_zip))
+  expect_equal(unexpected, character(), info = "Unexpected resampled US ZIP codes")
 })
 
 test_that("synthesize_data postal falls through to character when format unknown", {

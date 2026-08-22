@@ -24,7 +24,10 @@ test_that("check_code_readiness() fails when synthetic is missing columns", {
   syn  <- data.frame(x = 1:5)
   r <- check_code_readiness(orig, syn)
   fail_rows <- r$checks[r$checks$status == "fail", ]
-  expect_true(any(fail_rows$check == "column_names_match"))
+  expect_true(
+    any(fail_rows$check == "column_names_match"),
+    info = paste("Failing checks:", paste(fail_rows$check, collapse = ", "))
+  )
   expect_false(r$summary$ready)
 })
 
@@ -33,7 +36,10 @@ test_that("check_code_readiness() warns on extra synthetic columns", {
   syn  <- data.frame(x = 1:5, z = 1:5)
   r <- check_code_readiness(orig, syn)
   warn_rows <- r$checks[r$checks$status == "warn", ]
-  expect_true(any(warn_rows$check == "no_extra_columns"))
+  expect_true(
+    any(warn_rows$check == "no_extra_columns"),
+    info = paste("Warning checks:", paste(warn_rows$check, collapse = ", "))
+  )
 })
 
 test_that("check_code_readiness() fails on class mismatch", {

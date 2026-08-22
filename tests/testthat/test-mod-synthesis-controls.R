@@ -483,12 +483,27 @@ test_that("the gate reads the user's answers, not detect_roles() seeds", {
   # Nobody has answered anything, yet both seeded axes are already populated.
   # A predicate reading them would call this fully answered and unlock the
   # slider at upload.
-  expect_true(all(nzchar(fresh$identifies)))
-  expect_false(any(is.na(fresh$sensitive)))
+  expect_true(
+    all(nzchar(fresh$identifies)),
+    info = paste("Seeded identifies values:", paste(fresh$identifies, collapse = ", "))
+  )
+  expect_false(
+    any(is.na(fresh$sensitive)),
+    info = paste("Missing seeded sensitive rows:",
+                 paste(which(is.na(fresh$sensitive)), collapse = ", "))
+  )
 
   # The user axes tell the truth: still blank.
-  expect_false(any(nzchar(fresh$user_identifies)))
-  expect_true(all(is.na(fresh$user_sensitive)))
+  expect_false(
+    any(nzchar(fresh$user_identifies)),
+    info = paste("Unexpected user identifies values:",
+                 paste(fresh$user_identifies[nzchar(fresh$user_identifies)], collapse = ", "))
+  )
+  expect_true(
+    all(is.na(fresh$user_sensitive)),
+    info = paste("Non-missing user sensitive rows:",
+                 paste(which(!is.na(fresh$user_sensitive)), collapse = ", "))
+  )
 
   expect_false(dg_roles_all_answered(fresh))
 

@@ -114,7 +114,10 @@ test_that("synthpop label masking preserves rare-level slots", {
 
   masked <- synthpop_mask_rare_inputs(data, spec, roles)
 
-  expect_false(any(c("alpha rare", "beta rare") %in% masked$category))
+  expect_false(
+    any(c("alpha rare", "beta rare") %in% masked$category),
+    info = paste("Masked categories:", paste(unique(masked$category), collapse = ", "))
+  )
   expect_setequal(
     grep("^Other category [0-9]+$", masked$category, value = TRUE),
     c("Other category 1", "Other category 2")

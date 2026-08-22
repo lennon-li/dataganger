@@ -59,7 +59,10 @@ test_that("dg_kanon_columns unions quasi with identifying-sensitive", {
     stringsAsFactors = FALSE
   )
   out <- dg_kanon_columns(roles)
-  expect_true(all(c("zip", "religion") %in% out))
+  expect_true(
+    all(c("zip", "religion") %in% out),
+    info = paste("Selected columns:", paste(out, collapse = ", "))
+  )
   expect_false("income" %in% out)
   expect_false("name" %in% out)
 })
@@ -73,7 +76,10 @@ test_that("dg_kanon_columns unions combination and discrete sensitive", {
     stringsAsFactors = FALSE
   )
   qi <- dg_kanon_columns(roles)
-  expect_true(all(c("age", "income", "diag") %in% qi))
+  expect_true(
+    all(c("age", "income", "diag") %in% qi),
+    info = paste("Quasi-identifier columns:", paste(qi, collapse = ", "))
+  )
   expect_false("bmi" %in% qi)
 })
 

@@ -26,7 +26,10 @@ test_that("ensure_levels_present restores categorical levels to k copies", {
     sort(unique(out$group)),
     sort(unique(as.character(original$group)))
   )
-  expect_true(all(table(out$group) >= 3))
+  expect_true(
+    all(table(out$group) >= 3),
+    info = paste("Group counts:", paste(table(out$group), collapse = ", "))
+  )
   expect_setequal(unique(as.character(out$group)), unique(as.character(original$group)))
 })
 
@@ -71,7 +74,10 @@ test_that("ensure_levels_present preserves haven labels and storage", {
 
   expect_type(out$response, "character")
   expect_setequal(unique(out$response), c("No", "Yes", "Unknown"))
-  expect_true(all(table(out$response) >= 3))
+  expect_true(
+    all(table(out$response) >= 3),
+    info = paste("Response counts:", paste(table(out$response), collapse = ", "))
+  )
 })
 
 test_that("ensure_levels_present reconstructs labelled storage from text output", {
@@ -131,8 +137,14 @@ test_that("ensure_levels_present restores declared masked placeholders", {
     unique(out$group),
     c("common", "Other category 1", "Other category 2")
   )
-  expect_true(all(table(out$group) >= 2))
-  expect_false(any(out$group %in% c("rare_a", "rare_b")))
+  expect_true(
+    all(table(out$group) >= 2),
+    info = paste("Group counts:", paste(table(out$group), collapse = ", "))
+  )
+  expect_false(
+    any(out$group %in% c("rare_a", "rare_b")),
+    info = paste("Output groups:", paste(unique(out$group), collapse = ", "))
+  )
 })
 
 test_that("ensure_levels_present warns and degrades when n is too small", {

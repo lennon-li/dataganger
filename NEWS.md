@@ -1,10 +1,11 @@
 # dataganger 0.8.2
 
 A portability release. Every item below is one defect: what went wrong, why,
-and what changed. Nothing here alters the synthesis contract on a host that
-was already behaving correctly.
+and what changed. The changes are limited to validated character date/time
+handling, test diagnostics, and portability corrections; privacy and export
+contracts are unchanged.
 
-## Character columns holding 12-hour times were mis-synthesized
+## Character columns holding 12-hour times were synthesized incorrectly
 
 *   **Symptom.** A column such as `"01/01/2020 01:15 PM"` came back as
     `"01/01/2020 01:15"` -- no period marker -- and every afternoon value
@@ -20,31 +21,48 @@ was already behaving correctly.
     round-tripped, so `detect_date_format()` fell through to a 24-hour format
     and discarded the marker together with the morning/afternoon distinction.
 
-*   **Fix.** `%p` is no longer passed to `strptime()` or `format()` at all.
-    Detection and parsing read the trailing ASCII `AM`/`PM` token directly and
-    apply the 12-to-24 hour correction in R; a value carrying no marker does
-    not match a 12-hour format, as a strict `strptime()` would treat it. On
-    output the period is derived from each synthesized hour and written in the
-    source column's own convention (`AM`/`PM` or `am`/`pm`). 24-hour and
-    date-only formats are unchanged. The 0.8.1 development version corrected
-    only the output half of this path; the detection half is corrected here.
+*   **Fix.** Detection and parsing read trailing ASCII `AM`/`PM` tokens
+    directly and apply the 12-to-24 hour correction in R. Output derives the
+    period from each synthesized hour and keeps the source column's upper- or
+    lowercase convention. When a `%p` candidate has no ASCII marker, the
+    package uses the active locale's native parser and formatter only if at
+    least 90 percent of non-missing source values round trip after surrounding
+    whitespace is trimmed. Unknown or mixed suffixes are rejected rather than
+    stripped or reinterpreted as 24-hour time. 24-hour and date-only formats
+    are unchanged.
 
-## Month-name date columns went undetected outside English locales
+*   **Regression evidence.** Helper and full-synthesis tests cover `12 AM`,
+    `12 PM`, marker-case variants, an unknown `FOO`/`BAR` suffix fixture, a
+    C-locale translated-period rejection, and a conditional native-period test
+    when the host provides non-ASCII `%p` markers. The ASCII path is also
+    traced to prove it does not delegate `%p` to the C library.
 
-*   **Symptom.** A column such as `"Jun 8, 2019"` was recognized as a date and
-    synthesized through the date machinery, but the same column written by a
-    locale that produces lowercase, dotted, accented, or longer month names
-    was not. It fell through to categorical treatment, which resamples the
-    original values verbatim instead of synthesizing new ones.
+## Month-name role detection could disagree with synthesis
 
-*   **Cause.** `detect_roles()` matched the month with `[A-Z][a-z]{2}`, an
-    English-style capitalized three-letter abbreviation. Month names come from
-    the host locale.
+*   **Symptom.** A permissive role-detection pattern could label month-name
+    text as a date even when the active locale could not parse it. Synthesis
+    then silently fell through to categorical resampling. Dotted and lowercase
+    English forms could also be recognized by role detection but not preserve
+    their format through the date path.
 
-*   **Fix.** The pattern accepts any alphabetic month name of three or more
-    characters, with an optional trailing dot. The regression asserts on
-    literal strings rather than `format()` output, so it exercises the
-    non-English forms on every host regardless of which locales are installed.
+*   **Cause.** `detect_roles()` and synthesis made separate decisions: the
+    former used a broad regular expression, while the latter used locale-bound
+    `strptime()` candidates. `detect_date_format()` also selected the best
+    parsed candidate even when its round-trip fidelity was zero.
+
+*   **Fix.** Role detection now calls the same validated format detector as
+    synthesis, and every accepted format must round trip at least 90 percent of
+    non-missing values. English abbreviated, full, dotted, and lowercase month
+    forms use a locale-independent parser and renderer. A date role without a
+    validated parser is now an error rather than a categorical fallback.
+
+*   **Regression evidence and limits.** End-to-end seeded synthesis tests run
+    under `LC_ALL=C` for `Jan`, `January`, `Jan.`, and lowercase English forms;
+    they assert role, parser selection, output shape, reparsing, and
+    determinism. Foreign month text, including accented examples, is supported
+    only when the active locale parses and formats the candidate with the
+    required fidelity. Otherwise it remains non-date text and is never silently
+    reinterpreted. This is not a claim of universal foreign-locale parsing.
 
 ## Test failures did not say what had failed
 
@@ -52,13 +70,16 @@ was already behaving correctly.
     nothing about the values that caused it, which is not enough to diagnose a
     platform-specific defect from a check log.
 
-*   **Fix.** The remaining opaque `expect_true(all(...))` assertions now name
-    the offending values, and the 12-hour regressions report representative
-    generated values. Coverage added along the way: a structural guard that
-    fails if `%p` ever reaches the C library during a full synthesis run,
-    boundary assertions for `12 AM`/`12 PM`, marker-case preservation, and the
-    existing contrasting-locale test. This raises the testthat requirement to
-    `>= 3.2.0` for `expect_in()`.
+*   **Cause.** Aggregate boolean assertions discarded the inspected values, so
+    remote check logs showed only `actual: FALSE / expected: TRUE`.
+
+*   **Fix and regression evidence.** Package-wide `any(grepl(...))`
+    expectations now use matching expectations that print the inspected text.
+    Every remaining aggregate `expect_true()`/`expect_false()` supplies
+    diagnostic context that identifies the inspected or offending values. An
+    AST-based test scans every test file, reports file, line, and expression,
+    and rejects any aggregate boolean expectation without that context. Its
+    self-test inserts a deliberately opaque fixture and verifies the diagnostic.
 
 ## Other portability corrections
 

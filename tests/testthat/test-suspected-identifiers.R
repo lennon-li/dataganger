@@ -9,7 +9,10 @@ test_that("suspected_direct_identifiers flags direct/ID/free-text columns with r
   flagged <- suspected_direct_identifiers(roles)
 
   expect_true(is.data.frame(flagged))
-  expect_true(all(c("variable", "reason") %in% names(flagged)))
+  expect_true(
+    all(c("variable", "reason") %in% names(flagged)),
+    info = paste("Flag columns:", paste(names(flagged), collapse = ", "))
+  )
   expect_true("email" %in% flagged$variable || "mrn" %in% flagged$variable)
   expect_false("age" %in% flagged$variable)
 })

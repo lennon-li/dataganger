@@ -136,8 +136,11 @@ test_that("compare_numeric emits sd_ratio, median_std_diff, and test p-values", 
   syn  <- data.frame(x = rnorm(200, 10, 2))
   cn <- compare_numeric(orig, syn)
 
-  expect_true(all(c("sd_ratio", "median_std_diff",
-                    "mean_p", "sd_p", "median_p") %in% names(cn)))
+  expect_true(
+    all(c("sd_ratio", "median_std_diff",
+          "mean_p", "sd_p", "median_p") %in% names(cn)),
+    info = paste("Numeric comparison columns:", paste(names(cn), collapse = ", "))
+  )
   expect_equal(cn$sd_ratio, cn$sd_syn / cn$sd_orig)
   expect_equal(cn$median_std_diff,
                (cn$median_syn - cn$median_orig) / cn$iqr_orig)

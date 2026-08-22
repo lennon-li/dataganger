@@ -63,14 +63,21 @@ test_that("zero source-value leakage in generate", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("K1A 0B1", "M5V 3L9")
   out <- withr::with_seed(42, gen(x, 200L, reg$CA, missing_strategy = "none"))
-  expect_false(any(out %in% c("K1A 0B1", "M5V 3L9")))
+  expect_false(
+    any(out %in% c("K1A 0B1", "M5V 3L9")),
+    info = paste("Leaked source values:",
+                 paste(intersect(out, c("K1A 0B1", "M5V 3L9")), collapse = ", "))
+  )
 })
 
 test_that("synth_postal_code_resample only produces values from input set", {
   resample <- dataganger:::synth_postal_code_resample
   x <- c("10001", "90210", "60601")
   out <- withr::with_seed(1, resample(x, 100L, missing_strategy = "none"))
-  expect_true(all(out %in% x))
+  expect_true(
+    all(out %in% x),
+    info = paste("Unexpected resampled values:", paste(setdiff(out, x), collapse = ", "))
+  )
 })
 
 test_that("synth_postal_code_resample produces correct length", {
@@ -104,10 +111,16 @@ test_that("missingness produces NAs when input has NAs", {
 
   x <- c("K1A 0B1", NA, "M5V 3L9", NA, "H2X 1Y4", NA, "V6B 3K9", NA, "T2P 1J9", NA)
   out_gen <- withr::with_seed(1, gen(x, 100L, reg$CA, missing_strategy = "approx"))
-  expect_true(any(is.na(out_gen)))
+  expect_true(
+    any(is.na(out_gen)),
+    info = paste("Generated missing count:", sum(is.na(out_gen)))
+  )
 
   out_res <- withr::with_seed(1, resample(x, 100L, missing_strategy = "approx"))
-  expect_true(any(is.na(out_res)))
+  expect_true(
+    any(is.na(out_res)),
+    info = paste("Resampled missing count:", sum(is.na(out_res)))
+  )
 })
 
 test_that("all-NA input returns all NA character", {
@@ -117,10 +130,16 @@ test_that("all-NA input returns all NA character", {
 
   x <- rep(NA_character_, 10L)
   out_gen <- withr::with_seed(1, gen(x, 20L, reg$CA, missing_strategy = "approx"))
-  expect_true(all(is.na(out_gen)))
+  expect_true(
+    all(is.na(out_gen)),
+    info = paste("Generated non-missing rows:", paste(which(!is.na(out_gen)), collapse = ", "))
+  )
   expect_type(out_gen, "character")
 
   out_res <- withr::with_seed(1, resample(x, 20L, missing_strategy = "approx"))
-  expect_true(all(is.na(out_res)))
+  expect_true(
+    all(is.na(out_res)),
+    info = paste("Resampled non-missing rows:", paste(which(!is.na(out_res)), collapse = ", "))
+  )
   expect_type(out_res, "character")
 })

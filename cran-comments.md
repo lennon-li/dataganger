@@ -1,112 +1,104 @@
 ## Resubmission
 
-This is version 0.8.2, a portability correction to 0.8.0 in response to the
-current CRAN check failures on r-devel-linux-x86_64-fedora-clang,
-r-devel-linux-x86_64-fedora-gcc, and the M1mac additional check, and to the
-maintainer notice observing that `AM`/`PM` are locale- and OS-dependent.
+Version 0.8.2 corrects locale-sensitive character date/time handling and the
+test diagnostics needed to investigate platform-specific failures.
 
-Version 0.8.1 was prepared for this purpose but never submitted; it corrected
-only half of the defect. Everything in it is included here.
+## 1. Character-stored 12-hour times
 
-## 1. The reported failure: character-stored 12-hour date/time synthesis
+**Symptom.** On hosts where C-library `%p` behavior differed, an ASCII value
+such as `"01/01/2020 01:15 PM"` could lose its suffix and afternoon meaning.
 
-The three reports reduce to one test. It expected synthesized values to end in
-`AM` or `PM`, and reported only a logical FALSE.
+**Cause.** Detection and output delegated `%p` to locale- and OS-dependent C
+library parsing and formatting, then allowed a lenient 24-hour candidate to
+accept text it did not preserve.
 
-**Cause.** `%p` is handed to the C library by both `strptime()` and
-`format()`, and is locale- and OS-dependent: it can be uppercase, lowercase,
-translated, or empty. The package used it in both directions.
+**Fix.** ASCII `AM`/`PM` is parsed and rendered in R, including the `12 AM` and
+`12 PM` boundaries and marker case. A `%p` candidate with non-ASCII native
+markers uses the active locale only when at least 90 percent of non-missing
+values parse and round trip after surrounding whitespace is trimmed. Unknown
+or mixed suffixes are rejected; they are not stripped or reinterpreted as
+24-hour time.
 
-- Detection and parsing. `detect_date_format()` fed `%p` to `strptime()` and
-  measured round-trip fidelity with `format()`. Where the locale defines no
-  period marker, the 12-hour candidate neither parses nor round-trips, so a
-  column such as `"01/01/2020 01:15 PM"` was misdetected as 24-hour. Both the
-  marker and the morning/afternoon distinction were lost, and every PM value
-  collapsed onto its AM hour.
-- Formatting. `synth_date_like_character()` rendered `%p` through the locale.
-  An empty marker makes a 12-hour timestamp ambiguous and violates the
-  function's source-format preservation contract.
+**Regression evidence.** Tests cover ASCII boundaries and variants, trace the
+ASCII full-synthesis path to prevent `%p` delegation, reject `FOO`/`BAR` and
+C-locale translated suffixes, and exercise native non-ASCII markers when the
+active host locale provides them.
 
-**Fix.** `%p` is no longer passed to `strptime()` or `format()` at all.
-Dedicated helpers read the trailing ASCII `AM`/`PM` token from each value and
-apply the 12-to-24 hour correction directly, treat a value with no marker as
-not matching a 12-hour format (as a strict `strptime()` would), and derive the
-output period from each synthesized hour, written in the source column's own
-case convention. 24-hour and date-only formats are untouched.
+## 2. Month names and role/parser agreement
 
-**Verification.** A structural regression traces `base::strptime()` and
-`base::format.POSIXct()` through a full synthesis run and fails if either is
-ever handed a format containing `%p`. It was confirmed to fail when the old
-formatter is reintroduced. This does not depend on which locales the check
-host has installed, which is why the previous regression passed locally and
-failed on the CRAN services.
+**Symptom.** Role detection could label locale-shaped month text as a date even
+when synthesis could not parse it, after which the marginal engine silently
+resampled the source strings as categories.
 
-## 2. The same defect class elsewhere: month-name dates
+**Cause.** Role detection used a permissive regular expression while synthesis
+used a separate locale-bound parser. `detect_date_format()` also accepted the
+best parsed candidate even when it reproduced none of the source text.
 
-Acting on the maintainer's general point, the audit found the same
-locale-dependence in date detection. `detect_roles()` matched a month-name
-column with `[A-Z][a-z]{2}`, an English-style capitalized three-letter
-abbreviation. Month names come from the host locale, so a column written with
-lowercase, dotted, accented, or longer month names went undetected and fell
-through to categorical resampling. The pattern now accepts those forms, and
-the regression asserts on literal strings rather than `format()` output so it
-holds on every host.
+**Fix.** Role detection and synthesis now share the same format detector. A
+candidate requires at least 0.90 round-trip fidelity across trimmed non-missing
+values, and a date role without a validated parser errors instead of falling
+through. English abbreviated, full, dotted, and lowercase month forms have an
+explicit locale-independent parser and renderer.
 
-## 3. Diagnosability
+**Regression evidence and limitation.** Under `LC_ALL=C TZ=UTC`, end-to-end
+tests assert role, date-path parsing, output format, reparsing, and same-seed
+determinism for `Jan`, `January`, `Jan.`, and lowercase English forms. Accented
+and other foreign-locale month text is accepted only when the active locale
+parses and formats the candidate with the required fidelity. Otherwise it
+fails closed as non-date text. Universal foreign-locale parsing is not claimed.
 
-The original report was unactionable because the assertion printed no values.
-The remaining opaque `expect_true(all(...))` assertions now name the offending
-values, and the 12-hour regressions report representative generated values,
-along with boundary assertions for `12 AM`/`12 PM` and marker-case
-preservation. This raises the testthat requirement to `>= 3.2.0` for
-`expect_in()`.
+## 3. Actionable test failures
 
-## 4. The flavors still reporting 0.6.1
+**Symptom and cause.** Aggregate boolean expectations hid the inspected values,
+leaving remote logs with only `FALSE` versus `TRUE`.
 
-r-devel-debian (clang and gcc), r-patched-linux and r-release-linux still show
-0.6.1. Those failures are in `test-cli-execution.R` and came from `knitr`
-writing intermediate files into the installed package directory, which is
-read-only on those hosts. That was corrected in 0.8.0, where
-`rmarkdown::render()` is called with `intermediates_dir = tempdir()`.
+**Fix.** All package test uses of opaque `any(grepl(...))` were replaced with
+matching expectations that print the inspected output. Every remaining
+aggregate `expect_true()`/`expect_false()` supplies diagnostic context that
+identifies the inspected or offending values. An AST-based package-wide gate
+reports file, line, and expression and rejects any aggregate boolean
+expectation without that context. A deliberately bad fixture self-tests that
+diagnostic.
 
-Because those flavors have not yet checked 0.8.x, the correction was
-re-verified for this submission: the package was installed into a temporary
-library, the installed tree was made read-only (`chmod -R a-w`), and
-`dataganger synthesize` was run from a writable working directory with a
-relative `--out` path. It exited 0 and wrote the complete bundle, including
-the rendered `human/comparison_report.html`.
+## Verification environment
 
-## Also in this release
+- Ubuntu 24.04.4 LTS, x86_64, R 4.6.1
+- Default `LC_TIME=C.UTF-8`
+- Portability matrix: `LC_ALL=C TZ=UTC`
 
-- Unicode multiplication signs in sample labels produced parser warnings under
-  `LC_ALL=C`; they are now ASCII `x`, with a regression that parses every
-  package R source file under `LC_CTYPE=C`.
-- Test-file setup was isolated, removing a source-order dependence found by a
-  fixed-seed shuffled run.
+Verification on the release tree:
 
-## Test environments
+- `DATAGANGER_TEST_SYNTHPOP=true devtools::test()`: 0 failures, 2,341
+  passes, 10 audited skips.
+- The same complete suite under `LC_ALL=C TZ=UTC`: 0 failures, 2,341
+  passes, the same 10 audited skips.
+- Fixed-seed shuffled-order suite with synthpop enabled: 0 failures, 2,341
+  passes, the same 10 audited skips.
+- `devtools::check(manual = FALSE, vignettes = FALSE)`: 0 errors,
+  0 warnings, 0 notes.
+- Built source tarball, literal `R CMD check --as-cran`: 0 errors,
+  0 warnings, 1 incoming-feasibility note (`Days since last update: 1`).
+  Vignettes and PDF/HTML manuals were built and checked.
+- Full ASCII scan, package spelling, URL checks, and the no-network test
+  context: passed.
+- ASCII AM/PM synthesis, portable English month parsing, and unknown-suffix
+  rejection: passed in all 23 installed non-C `LC_TIME` locales.
+- The checked installed package tree was made read-only; `dataganger
+  synthesize` exited 0 from a writable directory and wrote the complete export
+  bundle, including `human/comparison_report.html`.
 
-- Local Ubuntu 24.04 (WSL2), R 4.6.1, `R CMD check --as-cran`
-- Local, package installed into a read-only temporary library
-- GitHub Actions: ubuntu-latest (r-devel, release, oldrel-1; plus no-network
-  and synthpop-enabled variants), macOS-latest (release), windows-latest
-  (release)
+The 10 development-suite skips are environment branches: one unavailable
+non-ASCII native-period locale, two installed-package-only subprocess/UI tests,
+two optional-package presence/absence branches, four tests whose absent-
+`synthpop` branch is inapplicable because synthpop is installed, and one SAS
+labelling limitation. The installed-package check exercises the installed
+paths.
 
-The macOS release runner reproduces the reported failure class
-(`LC_TIME=en_GB`, empty `%p`) and is green on the release commit.
-
-## R CMD check results
-
-0 errors | 0 warnings | 1 note
-
-The NOTE is the CRAN incoming feasibility message:
-
-```
-Days since last update: 1
-```
-
-0.8.2 is a corrective release submitted immediately after 0.8.0 because the
-locale-dependent failures described above appeared on the CRAN check services.
+The live CRAN check page was reviewed at its 2026-08-22 22:51 CEST update:
+<https://cran.r-project.org/web/checks/check_results_dataganger.html>. The
+0.8.0 Fedora clang/gcc failures and M1mac additional issue are the reported
+ASCII AM/PM assertion addressed above. Older per-flavor versions are not
+repeated here because that status is volatile.
 
 ## Downstream dependencies
 

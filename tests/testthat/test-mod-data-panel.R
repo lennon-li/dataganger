@@ -41,9 +41,15 @@ test_that("data panel flags exact-match rows for highlighting on both tabs", {
     fl <- exact_match_detail_r()
     expect_false(is.null(fl))
     expect_equal(sum(fl$synthetic_severity > 0L), 2L)
-    expect_true(all(fl$synthetic_severity[c(3, 7)] > 0L))
+    expect_true(
+      all(fl$synthetic_severity[c(3, 7)] > 0L),
+      info = paste("Synthetic severity:", paste(fl$synthetic_severity, collapse = ", "))
+    )
     expect_equal(sum(fl$original_severity > 0L), 2L)
-    expect_true(all(fl$original_severity[c(3, 7)] > 0L))
+    expect_true(
+      all(fl$original_severity[c(3, 7)] > 0L),
+      info = paste("Original severity:", paste(fl$original_severity, collapse = ", "))
+    )
 
     # roles = NULL means no column was marked sensitive in question 2, so the
     # rows are reproduced (amber, 1) but disclose nothing sensitive (never 2).
@@ -142,8 +148,16 @@ test_that("a reproduced row exposing a sensitive value is severity 2, not 1", {
     expect_equal(nrow(d$breakdown), 4L)
     expect_setequal(unique(d$breakdown$column), c("a", "dx"))
     expect_setequal(unique(d$breakdown$synthetic_row), c(3L, 7L))
-    expect_true(all(d$breakdown$sensitive[d$breakdown$column == "dx"]))
-    expect_false(any(d$breakdown$sensitive[d$breakdown$column == "a"]))
+    expect_true(
+      all(d$breakdown$sensitive[d$breakdown$column == "dx"]),
+      info = paste("Sensitive dx flags:",
+                   paste(d$breakdown$sensitive[d$breakdown$column == "dx"], collapse = ", "))
+    )
+    expect_false(
+      any(d$breakdown$sensitive[d$breakdown$column == "a"]),
+      info = paste("Sensitive a flags:",
+                   paste(d$breakdown$sensitive[d$breakdown$column == "a"], collapse = ", "))
+    )
 
     # The reported original row really does hold the same record.
     b <- d$breakdown[1, ]

@@ -53,7 +53,10 @@ test_that("profile outputs render after upload through mod-upload wiring", {
     profile_table <- profile$profile_table()
     expect_s3_class(profile_table, "data.frame")
     expect_gte(nrow(profile_table), 1)
-    expect_true(all(c("variable", "type") %in% names(profile_table)))
+    expect_true(
+      all(c("variable", "type") %in% names(profile_table)),
+      info = paste("Profile columns:", paste(names(profile_table), collapse = ", "))
+    )
   })
 })
 
