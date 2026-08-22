@@ -1,3 +1,4 @@
+local({
 # Acceptance coverage for categorical-level fidelity across the public pipeline.
 
 level_invariant_fixture <- function() {
@@ -384,4 +385,5 @@ test_that("numeric and date columns are excluded from the level invariant", {
 
   expect_false(any(c("numeric", "date") %in% targets))
   expect_setequal(targets, c("low", "rare", "declared", "labelled"))
+})
 })

@@ -1,3 +1,4 @@
+local({
 compare_test_state <- function(raw_data = NULL, synthetic = NULL,
                                comparison = NULL, privacy = NULL,
                                roles = NULL, stale = NULL) {
@@ -374,4 +375,5 @@ test_that("numeric comparison renders SMD/ratio labels and a p-value colour clas
   expect_match(html, "SMD|Std. diff", ignore.case = TRUE)
   expect_match(html, "ratio", ignore.case = TRUE)
   expect_match(html, "bad")
+})
 })

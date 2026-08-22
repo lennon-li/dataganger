@@ -1,3 +1,4 @@
+local({
 upload_fixture_path <- function(data, filename) {
   path <- tempfile(pattern = tools::file_path_sans_ext(filename))
   path <- paste0(path, ".", tools::file_ext(filename))
@@ -185,4 +186,5 @@ test_that("bad extension throws a validate error", {
     # raw_data should remain NULL after bad extension
     expect_null(session$getReturned()$state$raw_data)
   })
+})
 })

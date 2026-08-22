@@ -378,7 +378,40 @@ synth_date_like_character <- function(x, n, date_info, coarsen_dates = TRUE,
     synth <- synth_posixct(parsed, n, coarsen_dates = coarsen_dates, missing_strategy = "none")
   }
 
-  out <- format(synth, date_info$format, tz = "UTC")
+  output_format <- date_info$format
+  source_values <- trimws(x[!is.na(x) & nzchar(trimws(x))])
+  has_ascii_period <- grepl("[AaPp][Mm]$", source_values)
+
+  if (grepl("%p", output_format, fixed = TRUE) && any(has_ascii_period)) {
+    source_periods <- sub(
+      "^.*\\s([AaPp][Mm])$", "\\1", source_values[has_ascii_period],
+      perl = TRUE
+    )
+    period_case <- if (mean(source_periods == toupper(source_periods)) >= 0.5) {
+      toupper
+    } else {
+      tolower
+    }
+    most_common <- function(values, fallback) {
+      if (length(values) == 0L) {
+        return(period_case(fallback))
+      }
+      names(sort(table(values), decreasing = TRUE))[[1L]]
+    }
+    am_token <- most_common(source_periods[tolower(source_periods) == "am"], "AM")
+    pm_token <- most_common(source_periods[tolower(source_periods) == "pm"], "PM")
+
+    marker <- "DATAGANGERPERIODMARKER"
+    output_format <- sub("%p", marker, output_format, fixed = TRUE)
+    out <- format(synth, output_format, tz = "UTC")
+    synth_hours <- as.POSIXlt(synth, tz = "UTC")$hour
+    am_rows <- !is.na(synth_hours) & synth_hours < 12L
+    pm_rows <- !is.na(synth_hours) & !am_rows
+    out[am_rows] <- sub(marker, am_token, out[am_rows], fixed = TRUE)
+    out[pm_rows] <- sub(marker, pm_token, out[pm_rows], fixed = TRUE)
+  } else {
+    out <- format(synth, output_format, tz = "UTC")
+  }
   out[is.na(synth)] <- NA_character_
 
   # Missingness is applied once here (not inside the synth_* call above) so

@@ -1,3 +1,4 @@
+local({
 escape_route_roles <- function(data, qi_cols) {
   roles <- detect_roles(data)
   roles$identifies[] <- "none"
@@ -105,4 +106,5 @@ test_that("kanon_escape_routes skips row-count probes above 50k rows", {
   expect_true(isTRUE(routes$skipped_n_probe))
   expect_null(routes$suggested_n)
   expect_null(routes$suggested_n_suppressed_cells)
+})
 })

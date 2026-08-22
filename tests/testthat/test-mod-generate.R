@@ -1,3 +1,4 @@
+local({
 # Generation runs in a callr subprocess in production; force the synchronous
 # in-process path here so mocked bindings apply and testServer can observe the
 # result without driving an async poll loop. Reset after this file.
@@ -869,4 +870,5 @@ test_that("generate n-action button updates the row count before regenerating", 
   expect_equal(length(calls), 2L)
   expect_identical(calls[[2]]$n, 1000L)
   expect_identical(shiny::isolate(state$spec$n), 1000L)
+})
 })

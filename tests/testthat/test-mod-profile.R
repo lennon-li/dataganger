@@ -1,3 +1,4 @@
+local({
 upload_fixture_path <- function(data, filename) {
   path <- tempfile(pattern = tools::file_path_sans_ext(filename))
   path <- paste0(path, ".", tools::file_ext(filename))
@@ -68,4 +69,5 @@ test_that("profile outputs stay empty when profile is NULL", {
     expect_error(profile$profile_text(), class = "shiny.output.cancel")
     expect_error(profile$profile_table(), class = "shiny.output.cancel")
   })
+})
 })

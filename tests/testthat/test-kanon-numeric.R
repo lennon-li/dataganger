@@ -28,8 +28,8 @@ test_that("numeric quasi coarsening yields readable ranges", {
   out2 <- coarsen_qi_step(out, step = 2L)
   labels2 <- ifelse(is.na(out2), "NA", as.character(out2))
 
-  expect_true(all(grepl("^\\[.*\\]$|^\\(.*\\]$|^NA$", labels)))
-  expect_true(all(grepl("^\\[.*\\]$|^\\(.*\\]$|^NA$", labels2)))
+  expect_match(labels, "^\\[.*\\]$|^\\(.*\\]$|^NA$")
+  expect_match(labels2, "^\\[.*\\]$|^\\(.*\\]$|^NA$")
   expect_false(all(is.na(out)))
   expect_false(any(labels2 %in% "(other)"))
 })

@@ -1,3 +1,4 @@
+local({
 roles_upload_fixture_path <- function(data, filename) {
   path <- tempfile(pattern = tools::file_path_sans_ext(filename))
   path <- paste0(path, ".", tools::file_ext(filename))
@@ -1138,4 +1139,5 @@ test_that("a sticky action invalid for a new type is discarded", {
     session$setInputs(identifies_change = list(row = 2, value = "combination"))
     expect_true(state$roles$simulation[[2]] %in% dg_action_options("numeric"))
   })
+})
 })

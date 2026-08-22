@@ -15,7 +15,7 @@ test_that("generated CA postal codes all match the CA regex", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("K1A 0B1", "M5V 3L9", "H2X 1Y4", "V6B 3K9", "T2P 1J9")
   out <- withr::with_seed(1, gen(x, 100L, reg$CA, missing_strategy = "none"))
-  expect_true(all(grepl(reg$CA$regex, out)))
+  expect_match(out, reg$CA$regex)
 })
 
 test_that("generated US postal codes all match the US regex", {
@@ -23,7 +23,7 @@ test_that("generated US postal codes all match the US regex", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("10001", "90210", "60601", "30301", "85001")
   out <- withr::with_seed(1, gen(x, 100L, reg$US, missing_strategy = "none"))
-  expect_true(all(grepl(reg$US$regex, out)))
+  expect_match(out, reg$US$regex)
 })
 
 test_that("generated JP postal codes all match the JP regex", {
@@ -31,7 +31,7 @@ test_that("generated JP postal codes all match the JP regex", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("100-0001", "150-0002", "530-0001", "460-0001", "810-0001")
   out <- withr::with_seed(1, gen(x, 100L, reg$JP, missing_strategy = "none"))
-  expect_true(all(grepl(reg$JP$regex, out)))
+  expect_match(out, reg$JP$regex)
 })
 
 test_that("generated NL postal codes all match the NL regex", {
@@ -39,7 +39,7 @@ test_that("generated NL postal codes all match the NL regex", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("1012 AB", "3011 CE", "2511 BK", "5611 AA", "6511 DP")
   out <- withr::with_seed(1, gen(x, 100L, reg$NL, missing_strategy = "none"))
-  expect_true(all(grepl(reg$NL$regex, out)))
+  expect_match(out, reg$NL$regex)
 })
 
 test_that("generated UK postal codes all match the UK regex", {
@@ -47,7 +47,7 @@ test_that("generated UK postal codes all match the UK regex", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("SW1A 1AA", "EC1A 1BB", "M1 1AE", "LS1 4AP", "B1 1BB")
   out <- withr::with_seed(1, gen(x, 100L, reg$UK, missing_strategy = "none"))
-  expect_true(all(grepl(reg$UK$regex, out)))
+  expect_match(out, reg$UK$regex)
 })
 
 test_that("generated BR postal codes all match the BR regex", {
@@ -55,7 +55,7 @@ test_that("generated BR postal codes all match the BR regex", {
   gen <- dataganger:::synth_postal_code_generate
   x <- c("01310-100", "20040-020", "30130-010", "40010-000", "50010-000")
   out <- withr::with_seed(1, gen(x, 100L, reg$BR, missing_strategy = "none"))
-  expect_true(all(grepl(reg$BR$regex, out)))
+  expect_match(out, reg$BR$regex)
 })
 
 test_that("zero source-value leakage in generate", {

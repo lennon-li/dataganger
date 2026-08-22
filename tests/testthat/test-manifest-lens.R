@@ -1,3 +1,4 @@
+local({
 make_manifest_for_test <- function(purpose = "development", seed = 42L,
                                     n = 10L, include_report = TRUE) {
   df <- data.frame(
@@ -107,4 +108,5 @@ test_that("manifest.json original_rows_bucket is null when original not supplied
   m <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_null(m$original_rows_bucket)
   expect_null(m$original_columns_count)
+})
 })

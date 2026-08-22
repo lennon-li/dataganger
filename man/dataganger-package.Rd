@@ -31,11 +31,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Lennon Li \email{yeli@biostats.ai}
+\strong{Maintainer}: Lennon Li \email{yeli@biostats.ai} [copyright holder]
 
 Authors:
 \itemize{
-  \item Lennon Li \email{yeli@biostats.ai}
+  \item Lennon Li \email{yeli@biostats.ai} [copyright holder]
 }
 
 }

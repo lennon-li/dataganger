@@ -1,3 +1,4 @@
+local({
 # Tests for mod_export_ui / mod_export_server (single-bundle design)
 # Uses testServer() - no runApp(), no browser()
 
@@ -483,4 +484,5 @@ test_that("plain language covers the real privacy_check_post flag wording", {
     dg_plain_language(flag),
     fixed = TRUE
   ))
+})
 })

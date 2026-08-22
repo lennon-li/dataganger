@@ -99,6 +99,7 @@ test_that("synthesize_synthpop() aborts when all columns are excluded", {
 })
 
 test_that("synthpop_bridge_cols() identifies high-cardinality char columns", {
+  withr::local_locale(c(LC_TIME = "C"))
   df <- data.frame(
     date_str = format(as.Date("2020-01-01") + 1:50, "%b %e, %Y"), # date role
     big_cat  = sprintf("cat_%03d", rep(1:30, length.out = 50)),     # 30 distinct, letter+digit shape -> alphanumeric ID
@@ -143,6 +144,7 @@ test_that("synthesize_synthpop() stitches bridge columns back into original orde
 # char predictor) used to hang synthpop's CART. Verify completion < 30 s.
 test_that("synthesize_data() with high-cardinality char date column completes without hang", {
   skip_if_no_synthpop()
+  withr::local_locale(c(LC_TIME = "C"))
   set.seed(42)
   n <- 500L
   df <- data.frame(

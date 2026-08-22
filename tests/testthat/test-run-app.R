@@ -1,3 +1,4 @@
+local({
 run_app <- dataganger::run_app
 
 test_that("run_app() errors cleanly when shiny is absent", {
@@ -116,4 +117,5 @@ test_that("run_app() forwards additional arguments to shiny::runApp()", {
 
   run_app(launch = TRUE, quiet = TRUE)
   expect_true(isTRUE(call_args$quiet))
+})
 })

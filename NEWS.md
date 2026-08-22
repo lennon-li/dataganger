@@ -1,3 +1,19 @@
+# dataganger 0.8.1
+
+* Fix character-stored 12-hour date/time synthesis on locale/OS combinations
+  where `%p` is lowercase, translated, or empty. DataGangeR now derives the
+  period from the synthesized hour and preserves the source column's ASCII
+  `AM`/`PM` or `am`/`pm` convention instead of delegating output to the host
+  locale.
+* Strengthen the regression to report representative generated values and
+  validate successful round-trip parsing, date range, and time variation; add
+  contrasting-locale coverage and replace opaque vector regex expectations.
+* Eliminate C-locale parser warnings from Unicode multiplication signs in
+  sample labels by using portable ASCII `x`, and add a regression that parses
+  every R source file under `LC_CTYPE=C`.
+* Isolate test-file setup to remove source-order dependence discovered by
+  fixed-seed shuffled execution.
+
 # dataganger 0.8.0
 
 *   Generation now keeps its KPI row focused on output size, seed, duration,

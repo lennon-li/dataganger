@@ -1,3 +1,4 @@
+local({
 # Regression coverage for a bug where overriding a column's Configure-page
 # "type" (identifier / free_text / categorical / ...) had no effect on
 # whether the column was actually dropped: enforce_kanon() removes columns
@@ -117,4 +118,5 @@ test_that("overriding the type to categorical clears the direct flag and the col
 
   expect_true("clinical_notes" %in% names(syn))
   expect_true("record_id" %in% names(syn))
+})
 })

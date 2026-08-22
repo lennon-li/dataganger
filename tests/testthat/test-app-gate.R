@@ -1,3 +1,4 @@
+local({
 app_test_roles <- function() {
   roles <- tibble::tibble(
     variable = c("email", "age"),
@@ -132,4 +133,5 @@ test_that("confirming keep on a flagged alphanumeric ID defaults to scramble, no
     expect_identical(state$fail_safe_status, "ready")
     expect_equal(state$roles$simulation[state$roles$variable == "order_id"], "scramble")
   })
+})
 })

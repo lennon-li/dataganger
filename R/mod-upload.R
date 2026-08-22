@@ -61,9 +61,9 @@ mod_upload_ui <- function(id) {
         inputId = ns("sample_dataset"),
         label   = NULL,
         choices = c(
-          "Individual records (200\u00d77)"      = "individual",
-          "Temporal / time series (365\u00d75)"  = "temporal",
-          "Geographic / regional (50\u00d75)"    = "regional"
+          "Individual records (200x7)"      = "individual",
+          "Temporal / time series (365x5)"  = "temporal",
+          "Geographic / regional (50x5)"    = "regional"
         ),
         width = "100%"
       ),

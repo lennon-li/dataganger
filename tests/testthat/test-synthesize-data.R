@@ -1,3 +1,4 @@
+local({
 
 # Tests for synthesize_data() - [2.9]-[2.14]
 
@@ -544,7 +545,7 @@ test_that("simulation treatment scrambles an alphanumeric ID column", {
 
   expect_true("order_id" %in% names(syn))
   expect_false(any(syn$order_id %in% df$order_id))
-  expect_true(all(grepl("^..-....-..$", syn$order_id)))
+  expect_match(syn$order_id, "^..-....-..$")
 })
 
 test_that("seeded scramble is deterministic regardless of ambient RNG state", {
@@ -750,7 +751,7 @@ test_that("character-stored ISO date strings are synthesized as dates, not resam
   # Format is preserved (still "YYYY-MM-DD" strings, not a Date object or a
   # different pattern).
   expect_type(syn$event_date, "character")
-  expect_true(all(grepl("^\\d{4}-\\d{2}-\\d{2}$", syn$event_date)))
+  expect_match(syn$event_date, "^\\d{4}-\\d{2}-\\d{2}$")
   # Values fall within the observed range rather than being copied verbatim.
   parsed <- as.Date(syn$event_date)
   expect_true(all(parsed >= as.Date("2020-01-01") & parsed <= as.Date("2020-12-30")))
@@ -779,11 +780,67 @@ test_that("character-stored date+time strings preserve both the date range and t
   spec <- synth_spec(purpose = "demo", n = 100, seed = 4, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
 
-  expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} (AM|PM)$", syn$visit)))
+  sample_values <- paste(utils::head(stats::na.omit(syn$visit), 10), collapse = ", ")
+  detected <- detect_date_format(syn$visit)
+  expect_equal(
+    detected$format, "%m/%d/%Y %I:%M %p",
+    info = paste("Detected format mismatch. Sample syn$visit values:", sample_values)
+  )
+  parsed <- as.POSIXct(strptime(trimws(syn$visit), detected$format, tz = "UTC"))
+  expect_true(
+    all(!is.na(parsed)),
+    info = paste("Some synthesized visit values did not parse. Sample values:", sample_values)
+  )
+  expect_true(all(as.Date(parsed) >= as.Date("2020-01-01") &
+                    as.Date(parsed) <= as.Date("2020-01-30")))
   # The time-of-day component varies rather than collapsing to midnight
   # (which is what blanket coarsen-to-day would otherwise do).
-  times <- sub("^.* (\\d{2}:\\d{2} (AM|PM))$", "\\1", syn$visit)
+  times <- format(parsed, "%H:%M", tz = "UTC")
   expect_gt(length(unique(times)), 1L)
+})
+
+test_that("character-stored 12-hour times preserve source period markers across locales", {
+  old_locale <- Sys.getlocale("LC_TIME")
+  on.exit(suppressWarnings(Sys.setlocale("LC_TIME", old_locale)), add = TRUE)
+
+  locale_candidates <- c(
+    "en_DK.UTF-8", "en_DK.utf8", "en_GB.UTF-8", "en_GB.utf8"
+  )
+  locale_used <- NULL
+  for (candidate in locale_candidates) {
+    activated <- suppressWarnings(Sys.setlocale("LC_TIME", candidate))
+    if (!is.na(activated) &&
+        !identical(format(as.POSIXct("2020-01-01 13:00:00", tz = "UTC"),
+                          "%p", tz = "UTC"), "PM")) {
+      locale_used <- activated
+      break
+    }
+  }
+  if (is.null(locale_used)) {
+    skip("No installed LC_TIME locale with a non-uppercase or empty %p marker")
+  }
+
+  df <- data.frame(
+    visit = rep(c("01/01/2020 01:15 AM", "01/01/2020 01:15 PM"), 50),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$identifies[roles$variable == "visit"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+  spec <- synth_spec(
+    purpose = "demo", n = 100, seed = 5, coarsen_dates = FALSE
+  )
+
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+  sample_values <- paste(utils::head(syn$visit, 10), collapse = ", ")
+
+  expect_match(
+    syn$visit, " (AM|PM)$",
+    info = paste0(
+      "LC_TIME=", locale_used,
+      "; sample syn$visit values: ", sample_values
+    )
+  )
 })
 
 test_that("a bare time-of-day column (no date part) is synthesized and stays time-only", {
@@ -802,7 +859,7 @@ test_that("a bare time-of-day column (no date part) is synthesized and stays tim
   spec <- synth_spec(purpose = "demo", n = 100, seed = 6, coarsen_dates = FALSE)
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
 
-  expect_true(all(grepl("^\\d{2}:\\d{2}$", syn$check_in)))
+  expect_match(syn$check_in, "^\\d{2}:\\d{2}$")
   # No date leaked into the output.
   expect_false(any(grepl("[-/]", syn$check_in)))
   hours <- as.integer(substr(syn$check_in, 1, 2))
@@ -824,7 +881,7 @@ test_that("character-stored dates preserve the original NA rate", {
   syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
 
   expect_true(any(is.na(syn$sched)))
-  expect_true(all(grepl("^\\d{2}/\\d{2}/\\d{4}$", stats::na.omit(syn$sched))))
+  expect_match(stats::na.omit(syn$sched), "^\\d{2}/\\d{2}/\\d{4}$")
 })
 
 test_that("synthesize_data generates postal codes for detected postal columns", {
@@ -840,7 +897,7 @@ test_that("synthesize_data generates postal codes for detected postal columns", 
   expect_equal(nrow(syn), 20)
   expect_true("postal_code" %in% names(syn))
   reg <- dataganger:::dg_postal_format_registry()
-  expect_true(all(grepl(reg$CA$regex, syn$postal_code[!is.na(syn$postal_code)])))
+  expect_match(syn$postal_code[!is.na(syn$postal_code)], reg$CA$regex)
 })
 
 test_that("synthesize_data resamples postal codes when strategy is resample", {
@@ -889,7 +946,7 @@ test_that("synthesize_data per-column postal strategy", {
   spec <- synth_spec(purpose = "demo", n = 20, seed = 42, engine = "internal")
   syn <- synthesize_data(df, spec, roles = roles)
   reg <- dataganger:::dg_postal_format_registry()
-  expect_true(all(grepl(reg$CA$regex, syn$ca_postal[!is.na(syn$ca_postal)])))
+  expect_match(syn$ca_postal[!is.na(syn$ca_postal)], reg$CA$regex)
   expect_true(all(syn$us_zip[!is.na(syn$us_zip)] %in% unique(df$us_zip)))
 })
 
@@ -906,4 +963,5 @@ test_that("synthesize_data postal falls through to character when format unknown
   syn <- synthesize_data(df, spec, roles = roles)
   expect_equal(nrow(syn), 20)
   expect_true("postal_code" %in% names(syn))
+})
 })

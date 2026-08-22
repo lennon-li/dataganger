@@ -1,3 +1,4 @@
+local({
 # tests/testthat/test-app-css.R
 
 skip_if_not_installed("shinytest2")
@@ -91,4 +92,5 @@ test_that("design system CSS loads and tokens are applied", {
   )
   expect_true(grepl("Inter", font, ignore.case = TRUE),
               label = "body font includes Inter")
+})
 })

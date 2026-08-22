@@ -1,3 +1,4 @@
+local({
 synth_controls_host_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     state <- mod_state_server("state")
@@ -747,4 +748,5 @@ test_that("changing the table re-renders the k slider without losing its value",
       expect_no_match(after, "data-from=\"5\"", fixed = TRUE)
     }
   )
+})
 })

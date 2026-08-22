@@ -280,6 +280,7 @@ test_that("a character-stored date gets the same quasi-identifier default as a n
 })
 
 test_that("detect_roles() classifies 'Month DD, YYYY' date strings as 'date'", {
+  withr::local_locale(c(LC_TIME = "C"))
   df <- data.frame(
     report_date = format(as.Date("2019-06-01") + 1:50, "%b %e, %Y"),
     stringsAsFactors = FALSE
@@ -424,7 +425,7 @@ test_that("scramble_alphanumeric_id preserves delimiter positions and never leak
   scrambled <- dataganger:::scramble_alphanumeric_id(x)
 
   expect_equal(length(scrambled), length(x))
-  expect_true(all(grepl("^..-....-..$", scrambled)))
+  expect_match(scrambled, "^..-....-..$")
   expect_false(any(scrambled == x))
   # Same multiset of non-delimiter characters per value (a permutation, not new data)
   strip <- function(v) sort(strsplit(gsub("-", "", v), "")[[1]])
@@ -459,7 +460,7 @@ test_that("scramble_alphanumeric_id de-identifies repeated-digit values in place
   x <- c("5", "11", "222", "77", "9")
   scrambled <- dataganger:::scramble_alphanumeric_id(x)
   expect_false(any(scrambled == x))
-  expect_true(all(grepl("^[0-9]+$", scrambled)))
+  expect_match(scrambled, "^[0-9]+$")
   expect_equal(nchar(scrambled), nchar(x))
 })
 

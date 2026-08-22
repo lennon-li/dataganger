@@ -1,3 +1,4 @@
+local({
 
 # Tests for privacy_check() -- [3.6]-[3.8]
 
@@ -310,4 +311,5 @@ test_that("privacy_check() end-to-end on example_health_survey", {
   syn <- suppressWarnings(synthesize_data(example_health_survey, spec, roles = roles))
   pc_post <- privacy_check(example_health_survey, syn, roles = roles, stage = "post")
   expect_s3_class(pc_post, "dataganger_privacy_check")
+})
 })

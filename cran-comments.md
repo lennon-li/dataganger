@@ -1,123 +1,87 @@
-## Submission
+## Resubmission
 
-This is version 0.8.0. It does two things: it corrects the check failures
-reported for 0.6.1 on the CRAN check page (notified 2026-07-27, correction
-requested before 2026-08-21), and it ships the feature work accumulated since
-0.6.1. The version on CRAN is 0.6.1; the intervening 0.7.x versions were
-development releases and were not submitted, so the changes listed below cover
-everything since the current CRAN version.
+This is version 0.8.1, a focused correction to 0.8.0 in response to the
+current CRAN check failures on r-devel-linux-x86_64-fedora-clang,
+r-devel-linux-x86_64-fedora-gcc, and the M1 additional check.
 
-## Corrections to the reported check failures
+## Corrections to the 0.8.0 check failures
 
-**1. ERROR on r-devel-linux-x86_64-debian-clang, r-devel-linux-x86_64-debian-gcc,
-r-patched-linux-x86_64 and r-release-linux-x86_64 ("checking tests").**
+The three reports reduce to the same failing test for character-stored
+12-hour date/time synthesis. The test expected values ending in `AM` or `PM`,
+but reported only a logical FALSE and did not show the generated values.
 
-`export_synthetic()` renders a comparison report from an Rmd template shipped in
-`inst/templates`. `rmarkdown::render()` was called without `intermediates_dir`,
-so `knitr` wrote its intermediate file next to the template inside the installed
-package directory. Where that directory is read-only this failed with
-`cannot open the connection`, and the missing report cascaded into the bundle,
-manifest and CLI tests.
+This was not addressed by relaxing the test. Investigation showed a production
+portability defect: `synth_date_like_character()` delegated `%p` rendering to
+the host locale. Depending on locale and OS, `%p` can be uppercase, lowercase,
+translated, or empty. An empty marker makes a 12-hour timestamp ambiguous and
+violates the function's source-format preservation contract.
 
-`render_comparison_report()` now passes `intermediates_dir = tempdir()`, so all
-intermediates are written to the session temporary directory. Verified by
-installing the package into a library made read-only with `chmod -R a-w` and
-confirming the full bundle is produced; the same probe reproduces the failure
-on 0.6.1. This was the only `rmarkdown::render()` / `knitr::knit()` call in the
-package, and an audit found no other writes outside `tempdir()`/`tempfile()`.
+The formatter now:
 
-**2. Additional issue (ATLAS).**
+- detects ASCII `AM`/`PM` or `am`/`pm` tokens in the source values;
+- derives the period from each synthesized hour rather than locale `%p`;
+- preserves the source token capitalization;
+- leaves non-ASCII locale-native period conventions on the locale-native path.
 
-`test-relationship-interaction.R` asserted that a p-value was finite for a
-perfectly balanced binomial design in which the original and synthetic arms
-were identical. That likelihood surface is flat, so the fit was numerically
-degenerate and whether the p-value came back finite depended on the BLAS in
-use. The test fixture now carries a genuine seeded association between the
-predictor and the outcome, so the model is well identified and the result is
-stable across platforms. No package code was changed for this: returning `NA`
-for a degenerate fit is the intended behaviour.
+The regression now reports representative generated values and checks detected
+format, successful parsing, source date range, and time-of-day variation. A
+contrasting-locale test covers hosts where native `%p` is lowercase or empty.
+The same source convention was verified across all 26 locales installed on the
+local check host, including uppercase, lowercase, and empty native `%p`
+behaviour.
 
-## Breaking changes since 0.6.1
+## Generalized portability audit
 
-This release also contains substantial feature and disclosure-control work.
-The full list is in NEWS.md; the changes that alter existing behaviour are:
+The package-wide audit also:
 
-**Identifier columns are now scrambled by default rather than dropped.**
-A column classified as a direct or alphanumeric identifier defaults to
-`simulation = "scramble"`: it is kept in the output but de-identified, rather
-than silently removed. Dropping is now an explicit `simulation = "drop"`.
-Recipes relying on the previous drop-by-default behaviour will see the column
-present (scrambled) unless they set `drop` explicitly.
-
-**Categorical output is now always plain character.** Factors and
-`haven_labelled` columns are normalised at synthesis input and are no longer
-produced or returned. Code that expected a factor back from `synthesize_data()`
-will now receive a character vector. A factor level declared with zero rows is
-dropped, so a category absent from the source stays absent from the synthetic
-copy rather than being invented.
-
-**Logical columns now keep the `logical` type on both engines.** Previously a
-logical column came back as `"TRUE"`/`"FALSE"` character from the synthpop
-engine, which models it as a two-level factor.
-
-**`export_synthetic()` gains an `exact_match_acknowledged` argument, defaulting
-to `FALSE`.** In the Shiny app, synthetic rows that reproduce a real record
-verbatim *and* expose a value marked sensitive block the download until a
-regeneration clears them or a human acknowledges them; the acknowledgment is
-recorded in `agent/manifest.json`. The R function records the same field so a
-scripted bundle is self-describing. `export_synthetic()` itself is not gated by
-it, so existing scripted calls behave as before and gain one manifest field.
-
-## Other user-visible changes since 0.6.1
-
-- Arriving at the Export step in the Shiny app opens a disclosure-risk brief:
-  the minimum group size and the columns it covers, how many rows were blanked
-  to reach it, how many synthetic rows reproduce a real record and how many of
-  those expose a sensitive value, and the remaining privacy-check findings with
-  their severity. It is informational; the export checks themselves are
-  unchanged.
-- New `postal_code` semantic type, treated as a quasi-identifier, with a
-  10-country format registry (CA, US, UK, AU, DE, FR, JP, IN, BR, NL) and two
-  per-column synthesis strategies: `generate` (format-valid values with no
-  source-value leakage) and `resample`. All recognition and generation is
-  local; the package makes no network calls.
-- Character-stored dates and times are now parsed and synthesised through the
-  date/datetime machinery and reformatted to the source pattern, instead of
-  falling through to categorical resampling, and take the same `quasi`
-  disclosure default as native `Date` columns.
-- Scrambling now de-identifies short numeric identifiers, which character
-  reordering alone could not change.
-- Rare category labels are masked with distinct neutral placeholders rather
-  than merged into a single `.other` bucket, so each observed level keeps its
-  own slot and frequency. `merge_rare` defaults to `FALSE` throughout; every
-  purpose preset already set it, so specs built with `synth_spec()` are
-  unaffected.
-- k-anonymity suppression *volume* (`suppressed_rows`, `suppressed_row_frac`)
-  is now reported in the `kanon` attribute, `manifest.json`, `human/human.md`
-  and `dataganger inspect`; suppression no longer introduces an `(other)`
-  category.
-- A simplified column-type taxonomy, bulk configuration for wide datasets, an
-  action vocabulary on the Configure step restricted to what each data type
-  supports, and a batch of Shiny Configure/upload usability and data-loss
-  fixes.
-
-`.Rbuildignore` was also updated so development-only directories are excluded
-from the build.
+- replaced opaque `expect_true(all(grepl(...)))` assertions with diagnostics
+  that report offending values;
+- removed test source-order dependencies found by a fixed-seed shuffled run;
+- removed Unicode multiplication signs in UI labels that generated three
+  parser warnings under `LC_ALL=C`, replacing them with portable ASCII `x`;
+- added a regression that parses every package R source file under
+  `LC_CTYPE=C` without warnings;
+- verified source `AM`/`PM` and `am`/`pm` round trips under all 26 installed
+  locales;
+- verified date/time behaviour under UTC, America/Toronto, and Asia/Kolkata;
+- verified identical synthesized values in three fresh R processes;
+- rebuilt and exercised the complete bundle from a read-only installed package
+  without modifying the installed tree.
 
 ## Test environments
 
-- GitHub Actions ubuntu-latest, R release / devel / oldrel
-- GitHub Actions macos-latest, R release
-- GitHub Actions windows-latest, R release
-- GitHub Actions ubuntu-latest, R release with synthpop installed
-- GitHub Actions ubuntu-latest, R release with no network access (`unshare -rn`)
-- Local R 4.6.1 x86_64-pc-linux-gnu (Ubuntu 24.04)
-- Local R 4.6.1, package installed into a read-only library (regression probe
-  for the Debian policy violation described above)
+- Local Ubuntu 24.04, R 4.6.1, default UTF-8 locale
+- Local Ubuntu 24.04, R 4.6.1, `LC_ALL=C`, `TZ=UTC`
+- Local R 4.6.1, package installed into a read-only temporary library
+- 26 installed `LC_TIME` locales, including locales with uppercase, lowercase,
+  and empty native `%p`
+- Timezones UTC, America/Toronto, and Asia/Kolkata
+
+External CI/platform results for the exact 0.8.1 commit will be reconciled
+before submission.
 
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 1 note
+
+The NOTE is the CRAN incoming feasibility message:
+
+```
+Days since last update: 1
+```
+
+Version 0.8.1 is a focused corrective release submitted immediately after
+0.8.0 because the locale-dependent failures described above appeared on the
+CRAN check services.
+
+The final source tarball was checked with `R CMD check --as-cran`, including
+installed tests, examples, vignettes, rebuilt vignette outputs, and PDF/HTML
+manuals.
+
+The dependency-complete source suite reported 0 failures, 51 expected
+privacy/enforcement warnings, 9 audited environment/absent-dependency skips,
+and 2289 passes. The installed CRAN-mode suite reported 0 failures, 51 expected
+warnings, 12 audited CRAN/installed-environment skips, and 2244 passes.
 
 ## Downstream dependencies
 

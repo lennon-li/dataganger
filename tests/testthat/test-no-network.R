@@ -1,3 +1,4 @@
+local({
 local_no_network_traps <- function() {
   # testthat's mocked bindings do not reliably bind these base/namespace
   # functions in this setup, so trap them directly at the namespace level.
@@ -97,4 +98,5 @@ test_that("package source contains no network primitives", {
   }), use.names = FALSE)
 
   expect_true(length(matches) == 0, info = paste(matches, collapse = "\n"))
+})
 })

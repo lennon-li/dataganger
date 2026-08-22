@@ -1,3 +1,4 @@
+local({
 test_that("column_filter_suggested_drop flags id-like column names only", {
   cols <- c("id", "patient_id", "record_num", "age", "score", "city")
   expect_identical(
@@ -164,4 +165,5 @@ test_that("a fresh upload clears the previous filter and working data until re-c
     expect_null(state$column_filter)
     expect_null(state$raw_data)
   })
+})
 })
