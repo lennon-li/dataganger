@@ -311,6 +311,96 @@ dg_date_format_candidates <- function() {
   )
 }
 
+# ---------------------------------------------------------------------------
+# Locale-independent AM/PM handling.
+#
+# strptime() and format() hand "%p" to the C library, which makes it both
+# locale- and OS-dependent: on some platform/locale pairs (macOS with
+# LC_TIME=en_GB, for one) "%p" matches nothing when parsing and formats to an
+# empty string, so a column stored as "01/01/2020 01:15 PM" is neither
+# detected as a 12-hour format nor written back as one. Every candidate
+# format below that carries "%p" is therefore parsed and formatted by these
+# helpers, which read and write the ASCII AM/PM token themselves and never
+# pass "%p" through to the platform.
+
+dg_period_suffix <- "[[:space:]]*([AaPp][Mm])[[:space:]]*$"
+
+# Drops "%p", and the separator in front of it, from a strptime format.
+dg_format_without_period <- function(fmt) {
+  trimws(sub("[[:space:]]*%p", "", fmt))
+}
+
+# The trailing AM/PM token of each value, lowercased; NA where there is none.
+dg_period_of <- function(x) {
+  token <- rep(NA_character_, length(x))
+  hit <- grepl(dg_period_suffix, x)
+  token[hit] <- tolower(sub(paste0("^.*", dg_period_suffix), "\\1", x[hit]))
+  token
+}
+
+dg_strip_period <- function(x) {
+  trimws(sub(dg_period_suffix, "", x))
+}
+
+# The AM and PM tokens to write back out, taken from the source column so the
+# synthetic values keep its convention ("AM"/"PM" vs "am"/"pm").
+dg_period_tokens <- function(source_values) {
+  markers <- source_values[grepl(dg_period_suffix, source_values)]
+  markers <- sub(paste0("^.*", dg_period_suffix), "\\1", markers)
+  upper_convention <- length(markers) == 0L ||
+    mean(markers == toupper(markers)) >= 0.5
+  case_fn <- if (upper_convention) toupper else tolower
+  most_common <- function(values, fallback) {
+    if (length(values) == 0L) {
+      return(case_fn(fallback))
+    }
+    names(sort(table(values), decreasing = TRUE))[[1L]]
+  }
+  list(
+    am = most_common(markers[tolower(markers) == "am"], "AM"),
+    pm = most_common(markers[tolower(markers) == "pm"], "PM")
+  )
+}
+
+# strptime() for a format that may contain "%p". Values carrying no AM/PM
+# token do not match a 12-hour format and parse to NA, exactly as a strict
+# strptime() would treat them.
+dg_strptime_period <- function(x, fmt, tz = "UTC") {
+  if (!grepl("%p", fmt, fixed = TRUE)) {
+    return(as.POSIXct(strptime(x, fmt, tz = tz)))
+  }
+  period <- dg_period_of(x)
+  parsed <- as.POSIXct(
+    strptime(dg_strip_period(x), dg_format_without_period(fmt), tz = tz)
+  )
+  parsed[is.na(period)] <- NA
+  lt <- as.POSIXlt(parsed, tz = tz)
+  hour <- lt$hour
+  to_pm <- !is.na(period) & period == "pm" & !is.na(hour) & hour < 12L
+  to_am <- !is.na(period) & period == "am" & !is.na(hour) & hour == 12L
+  hour[to_pm] <- hour[to_pm] + 12L
+  hour[to_am] <- 0L
+  lt$hour <- hour
+  as.POSIXct(lt)
+}
+
+# format() for a format that may contain "%p". The period comes from the
+# value's own hour, not from the locale.
+dg_format_period <- function(times, fmt, tz = "UTC",
+                             tokens = list(am = "AM", pm = "PM")) {
+  if (!grepl("%p", fmt, fixed = TRUE)) {
+    return(format(times, fmt, tz = tz))
+  }
+  marker <- "DATAGANGERPERIODMARKER"
+  out <- format(times, sub("%p", marker, fmt, fixed = TRUE), tz = tz)
+  hour <- as.POSIXlt(times, tz = tz)$hour
+  am_rows <- !is.na(hour) & hour < 12L
+  pm_rows <- !is.na(hour) & !am_rows
+  out[am_rows] <- sub(marker, tokens$am, out[am_rows], fixed = TRUE)
+  out[pm_rows] <- sub(marker, tokens$pm, out[pm_rows], fixed = TRUE)
+  out
+}
+
 # Picks the candidate format with the best *round-trip* fidelity, not just
 # the first one that parses -- strptime is lenient (e.g. "%B" happily parses
 # "Jun", "%d" happily parses " 2"), so parsing alone cannot distinguish
@@ -329,18 +419,20 @@ detect_date_format <- function(x, tz = "UTC") {
   if (length(x_sample) > 200L) x_sample <- x_sample[seq_len(200L)]
   x_sample <- trimws(x_sample)
 
+  tokens <- dg_period_tokens(x_sample)
+
   best <- NULL
   best_fidelity <- -1
   for (cand in dg_date_format_candidates()) {
     parsed <- tryCatch(
-      as.POSIXct(strptime(x_sample, cand$fmt, tz = tz)),
+      dg_strptime_period(x_sample, cand$fmt, tz = tz),
       error = function(e) rep(as.POSIXct(NA, tz = tz), length(x_sample))
     )
     if (mean(!is.na(parsed)) < 0.9) {
       next
     }
     round_trip <- tryCatch(
-      trimws(format(parsed, cand$fmt, tz = tz)),
+      trimws(dg_format_period(parsed, cand$fmt, tz = tz, tokens = tokens)),
       error = function(e) rep(NA_character_, length(x_sample))
     )
     fidelity <- mean(round_trip == x_sample, na.rm = TRUE)
@@ -362,7 +454,7 @@ parse_date_like_character <- function(x, tz = "UTC") {
   if (is.null(info)) {
     return(NULL)
   }
-  parsed <- as.POSIXct(strptime(trimws(x), info$format, tz = tz))
+  parsed <- dg_strptime_period(trimws(x), info$format, tz = tz)
   list(parsed = parsed, format = info$format, has_date = info$has_date, has_time = info$has_time)
 }
 
@@ -378,40 +470,11 @@ synth_date_like_character <- function(x, n, date_info, coarsen_dates = TRUE,
     synth <- synth_posixct(parsed, n, coarsen_dates = coarsen_dates, missing_strategy = "none")
   }
 
-  output_format <- date_info$format
   source_values <- trimws(x[!is.na(x) & nzchar(trimws(x))])
-  has_ascii_period <- grepl("[AaPp][Mm]$", source_values)
-
-  if (grepl("%p", output_format, fixed = TRUE) && any(has_ascii_period)) {
-    source_periods <- sub(
-      "^.*\\s([AaPp][Mm])$", "\\1", source_values[has_ascii_period],
-      perl = TRUE
-    )
-    period_case <- if (mean(source_periods == toupper(source_periods)) >= 0.5) {
-      toupper
-    } else {
-      tolower
-    }
-    most_common <- function(values, fallback) {
-      if (length(values) == 0L) {
-        return(period_case(fallback))
-      }
-      names(sort(table(values), decreasing = TRUE))[[1L]]
-    }
-    am_token <- most_common(source_periods[tolower(source_periods) == "am"], "AM")
-    pm_token <- most_common(source_periods[tolower(source_periods) == "pm"], "PM")
-
-    marker <- "DATAGANGERPERIODMARKER"
-    output_format <- sub("%p", marker, output_format, fixed = TRUE)
-    out <- format(synth, output_format, tz = "UTC")
-    synth_hours <- as.POSIXlt(synth, tz = "UTC")$hour
-    am_rows <- !is.na(synth_hours) & synth_hours < 12L
-    pm_rows <- !is.na(synth_hours) & !am_rows
-    out[am_rows] <- sub(marker, am_token, out[am_rows], fixed = TRUE)
-    out[pm_rows] <- sub(marker, pm_token, out[pm_rows], fixed = TRUE)
-  } else {
-    out <- format(synth, output_format, tz = "UTC")
-  }
+  out <- dg_format_period(
+    synth, date_info$format,
+    tz = "UTC", tokens = dg_period_tokens(source_values)
+  )
   out[is.na(synth)] <- NA_character_
 
   # Missingness is applied once here (not inside the synth_* call above) so

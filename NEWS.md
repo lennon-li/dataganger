@@ -1,13 +1,19 @@
 # dataganger 0.8.1
 
-* Fix character-stored 12-hour date/time synthesis on locale/OS combinations
-  where `%p` is lowercase, translated, or empty. DataGangeR now derives the
-  period from the synthesized hour and preserves the source column's ASCII
-  `AM`/`PM` or `am`/`pm` convention instead of delegating output to the host
-  locale.
+* Fix character-stored 12-hour date/time handling on locale/OS combinations
+  where `%p` is lowercase, translated, or empty (macOS under `LC_TIME=en_GB`,
+  for one). Both directions are now locale-independent: `%p` is never passed
+  to `strptime()` or `format()`, so a 12-hour column is detected and parsed
+  from its own ASCII `AM`/`PM` token, and the synthetic output derives the
+  period from the synthesized hour while preserving the source column's
+  `AM`/`PM` or `am`/`pm` convention. Previously such a column could be
+  misdetected as 24-hour, dropping both the period marker and the
+  morning/afternoon distinction.
 * Strengthen the regression to report representative generated values and
   validate successful round-trip parsing, date range, and time variation; add
-  contrasting-locale coverage and replace opaque vector regex expectations.
+  a structural guard that fails if `%p` ever reaches the C library, plus
+  marker-case and contrasting-locale coverage, and replace opaque vector
+  regex expectations.
 * Eliminate C-locale parser warnings from Unicode multiplication signs in
   sample labels by using portable ASCII `x`, and add a regression that parses
   every R source file under `LC_CTYPE=C`.

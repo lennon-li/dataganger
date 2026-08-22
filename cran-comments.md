@@ -6,59 +6,74 @@ r-devel-linux-x86_64-fedora-gcc, and the M1 additional check.
 
 ## Corrections to the 0.8.0 check failures
 
-The three reports reduce to the same failing test for character-stored
-12-hour date/time synthesis. The test expected values ending in `AM` or `PM`,
-but reported only a logical FALSE and did not show the generated values.
+The reports reduce to the same failing test for character-stored 12-hour
+date/time synthesis. The test expected values ending in `AM` or `PM`, but
+reported only a logical FALSE and did not show the generated values.
 
-This was not addressed by relaxing the test. Investigation showed a production
-portability defect: `synth_date_like_character()` delegated `%p` rendering to
-the host locale. Depending on locale and OS, `%p` can be uppercase, lowercase,
-translated, or empty. An empty marker makes a 12-hour timestamp ambiguous and
-violates the function's source-format preservation contract.
+This was not addressed by relaxing the test. Investigation confirmed the
+portability defect noted in the CRAN correspondence: `AM`/`PM` is locale- and
+OS-dependent, and the package delegated `%p` to the C library in both
+directions.
 
-The formatter now:
+- Parsing: `detect_date_format()` fed `%p` to `strptime()` and measured
+  round-trip fidelity with `format()`. Where the locale defines no period
+  marker, the 12-hour candidate format neither parses nor round-trips, so a
+  column such as `"01/01/2020 01:15 PM"` was misdetected as a 24-hour format.
+  Both the marker and the morning/afternoon distinction were lost.
+- Formatting: `synth_date_like_character()` rendered `%p` through the locale,
+  which can be uppercase, lowercase, translated, or empty. An empty marker
+  makes a 12-hour timestamp ambiguous and violates the function's
+  source-format preservation contract.
 
-- detects ASCII `AM`/`PM` or `am`/`pm` tokens in the source values;
-- derives the period from each synthesized hour rather than locale `%p`;
-- preserves the source token capitalization;
-- leaves non-ASCII locale-native period conventions on the locale-native path.
+The fix removes the platform from the path entirely. `%p` is no longer passed
+to `strptime()` or `format()` at all. Dedicated helpers now:
 
-The regression now reports representative generated values and checks detected
-format, successful parsing, source date range, and time-of-day variation. A
-contrasting-locale test covers hosts where native `%p` is lowercase or empty.
-The same source convention was verified across all 26 locales installed on the
-local check host, including uppercase, lowercase, and empty native `%p`
-behaviour.
+- read the trailing ASCII `AM`/`PM` token from each source value and apply the
+  12-hour to 24-hour hour correction directly, so detection and parsing of a
+  12-hour column give the same result on every platform and locale;
+- treat a value with no period marker as not matching a 12-hour format, as a
+  strict `strptime()` would;
+- derive the output period from each synthesized hour, and write it using the
+  source column's own convention (`AM`/`PM` or `am`/`pm`).
 
-## Generalized portability audit
+24-hour and date-only formats are unaffected.
 
-The package-wide audit also:
+## Regression coverage
 
-- replaced opaque `expect_true(all(grepl(...)))` assertions with diagnostics
-  that report offending values;
-- removed test source-order dependencies found by a fixed-seed shuffled run;
-- removed Unicode multiplication signs in UI labels that generated three
-  parser warnings under `LC_ALL=C`, replacing them with portable ASCII `x`;
-- added a regression that parses every package R source file under
-  `LC_CTYPE=C` without warnings;
-- verified source `AM`/`PM` and `am`/`pm` round trips under all 26 installed
-  locales;
-- verified date/time behaviour under UTC, America/Toronto, and Asia/Kolkata;
-- verified identical synthesized values in three fresh R processes;
-- rebuilt and exercised the complete bundle from a read-only installed package
-  without modifying the installed tree.
+The previous regression could only fail on a host whose installed locales
+include one with a non-uppercase or empty `%p`, which is why it passed
+locally and failed on the CRAN check services. The new coverage does not
+depend on the host's installed locales:
+
+- a structural guard that traces `base::strptime()` and `base::format.POSIXct()`
+  during a full synthesis run and fails if either is ever given a format
+  containing `%p`;
+- direct assertions on detection, parsing, and the 12 AM / 12 PM boundaries,
+  including that a value with no marker does not parse as 12-hour and that a
+  24-hour column is still detected as 24-hour;
+- marker-case preservation for a lowercase `am`/`pm` source column;
+- the earlier contrasting-locale test, retained, which skips where no such
+  locale is installed.
+
+Assertions that previously reported an opaque `expect_true(all(grepl(...)))`
+FALSE now report representative generated values.
+
+## Also in this release
+
+- Unicode multiplication signs in UI sample labels were replaced with ASCII
+  `x` (they produced parser warnings under `LC_ALL=C`), with a regression that
+  parses every package R source file under `LC_CTYPE=C`.
+- Test-file setup was isolated to remove source-order dependence found by a
+  fixed-seed shuffled run.
 
 ## Test environments
 
-- Local Ubuntu 24.04, R 4.6.1, default UTF-8 locale
-- Local Ubuntu 24.04, R 4.6.1, `LC_ALL=C`, `TZ=UTC`
-- Local R 4.6.1, package installed into a read-only temporary library
-- 26 installed `LC_TIME` locales, including locales with uppercase, lowercase,
-  and empty native `%p`
-- Timezones UTC, America/Toronto, and Asia/Kolkata
+- Local Ubuntu 24.04 (WSL2), R 4.6.1, `R CMD check --as-cran`
+- GitHub Actions: ubuntu-latest (r-devel, release, oldrel-1), macOS-latest
+  (release), windows-latest (release)
 
-External CI/platform results for the exact 0.8.1 commit will be reconciled
-before submission.
+The macOS release runner is the environment that reproduced this failure
+class (`LC_TIME=en_GB`, empty `%p`).
 
 ## R CMD check results
 
@@ -71,17 +86,11 @@ Days since last update: 1
 ```
 
 Version 0.8.1 is a focused corrective release submitted immediately after
-0.8.0 because the locale-dependent failures described above appeared on the
+0.8.0 because the locale-dependent failure described above appeared on the
 CRAN check services.
 
-The final source tarball was checked with `R CMD check --as-cran`, including
-installed tests, examples, vignettes, rebuilt vignette outputs, and PDF/HTML
-manuals.
-
-The dependency-complete source suite reported 0 failures, 51 expected
-privacy/enforcement warnings, 9 audited environment/absent-dependency skips,
-and 2289 passes. The installed CRAN-mode suite reported 0 failures, 51 expected
-warnings, 12 audited CRAN/installed-environment skips, and 2244 passes.
+The installed CRAN-mode test suite reported 0 failures, 51 expected
+privacy/enforcement warnings, 13 environment-dependent skips, and 2250 passes.
 
 ## Downstream dependencies
 

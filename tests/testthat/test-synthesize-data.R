@@ -786,7 +786,10 @@ test_that("character-stored date+time strings preserve both the date range and t
     detected$format, "%m/%d/%Y %I:%M %p",
     info = paste("Detected format mismatch. Sample syn$visit values:", sample_values)
   )
-  parsed <- as.POSIXct(strptime(trimws(syn$visit), detected$format, tz = "UTC"))
+  # Parse through the package's locale-independent 12-hour reader; base
+  # strptime() would delegate "%p" to the C library and turn this assertion
+  # into a test of the host locale.
+  parsed <- dg_strptime_period(trimws(syn$visit), detected$format, tz = "UTC")
   expect_true(
     all(!is.na(parsed)),
     info = paste("Some synthesized visit values did not parse. Sample values:", sample_values)
@@ -799,7 +802,107 @@ test_that("character-stored date+time strings preserve both the date range and t
   expect_gt(length(unique(times)), 1L)
 })
 
-test_that("character-stored 12-hour times preserve source period markers across locales", {
+# The C library's "%p" is locale- and OS-dependent -- on macOS under
+# LC_TIME=en_GB it matches nothing when parsing and formats to an empty
+# string. Rather than hunt for such a locale (most CI images install none),
+# these tests pin the structural property that makes the behavior uniform:
+# dataganger reads and writes the AM/PM token itself and never passes "%p"
+# down to strptime() or format().
+test_that("12-hour parsing and formatting never delegate %p to the platform", {
+  # Violations are recorded rather than thrown: detect_date_format() wraps its
+  # parse and format calls in tryCatch(), which would swallow a stop() here
+  # and turn a clear failure into an obscure one.
+  seen <- new.env(parent = emptyenv())
+  seen$delegated <- character()
+  assign("dg_note_period_delegation", function(where, fmt) {
+    seen$delegated <- c(seen$delegated, paste0(where, ": ", fmt))
+  }, envir = globalenv())
+  on.exit(rm("dg_note_period_delegation", envir = globalenv()), add = TRUE)
+
+  suppressMessages(trace(base::strptime, print = FALSE, tracer = quote({
+    if (any(grepl("%p", format, fixed = TRUE))) {
+      get("dg_note_period_delegation", envir = globalenv())("strptime", format)
+    }
+  })))
+  on.exit(suppressMessages(untrace(base::strptime)), add = TRUE)
+  suppressMessages(trace(base::format.POSIXct, print = FALSE, tracer = quote({
+    if (!missing(format) && any(grepl("%p", format, fixed = TRUE))) {
+      get("dg_note_period_delegation", envir = globalenv())("format", format)
+    }
+  })))
+  on.exit(suppressMessages(untrace(base::format.POSIXct)), add = TRUE)
+
+  df <- data.frame(
+    visit = rep(c("01/01/2020 01:15 AM", "01/01/2020 01:15 PM"), 50),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$identifies[roles$variable == "visit"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 5, coarsen_dates = FALSE)
+
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_equal(
+    seen$delegated, character(),
+    info = "%p was handed to the C library, whose output is locale-dependent"
+  )
+  expect_match(
+    syn$visit, " (AM|PM)$",
+    info = paste0(
+      "sample syn$visit values: ",
+      paste(utils::head(syn$visit, 10), collapse = ", ")
+    )
+  )
+})
+
+test_that("a 12-hour column is detected and parsed without a locale %p", {
+  values <- c(
+    "01/01/2020 12:15 AM", "01/01/2020 12:15 PM",
+    "01/01/2020 01:15 PM", "01/02/2020 11:45 AM"
+  )
+  detected <- detect_date_format(values)
+  expect_equal(detected$format, "%m/%d/%Y %I:%M %p")
+
+  parsed <- dg_strptime_period(values, detected$format, tz = "UTC")
+  expect_equal(
+    format(parsed, "%Y-%m-%d %H:%M", tz = "UTC"),
+    c("2020-01-01 00:15", "2020-01-01 12:15",
+      "2020-01-01 13:15", "2020-01-02 11:45")
+  )
+  # A value with no period marker does not match a 12-hour format.
+  expect_true(is.na(dg_strptime_period(
+    "01/01/2020 01:15", "%m/%d/%Y %I:%M %p", tz = "UTC"
+  )))
+  # 24-hour columns are untouched by the AM/PM path.
+  expect_equal(
+    detect_date_format(c("01/01/2020 13:15", "01/02/2020 09:05"))$format,
+    "%m/%d/%Y %H:%M"
+  )
+})
+
+test_that("synthetic 12-hour output keeps the source column's marker case", {
+  df <- data.frame(
+    visit = rep(c("01/01/2020 11:15 am", "01/01/2020 09:45 pm"), 50),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  roles$identifies[roles$variable == "visit"] <- "none"
+  roles <- dg_sync_roles_axes(roles)
+  spec <- synth_spec(purpose = "demo", n = 100, seed = 5, coarsen_dates = FALSE)
+
+  syn <- synthesize_data(df, spec, roles = roles, engine = "internal")
+
+  expect_match(
+    syn$visit, " (am|pm)$",
+    info = paste0(
+      "sample syn$visit values: ",
+      paste(utils::head(syn$visit, 10), collapse = ", ")
+    )
+  )
+})
+
+test_that("character-stored 12-hour times survive a contrasting LC_TIME", {
   old_locale <- Sys.getlocale("LC_TIME")
   on.exit(suppressWarnings(Sys.setlocale("LC_TIME", old_locale)), add = TRUE)
 
@@ -809,7 +912,7 @@ test_that("character-stored 12-hour times preserve source period markers across 
   locale_used <- NULL
   for (candidate in locale_candidates) {
     activated <- suppressWarnings(Sys.setlocale("LC_TIME", candidate))
-    if (!is.na(activated) &&
+    if (!is.na(activated) && nzchar(activated) &&
         !identical(format(as.POSIXct("2020-01-01 13:00:00", tz = "UTC"),
                           "%p", tz = "UTC"), "PM")) {
       locale_used <- activated
