@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   articles/getting-started: getting-started.html
   privacy-and-ai-workflow: privacy-and-ai-workflow.html
-last_built: 2026-08-22T13:50Z
+last_built: 2026-08-22T15:59Z
 urls:
   reference: https://dataganger.biostats.ai/reference
   article: https://dataganger.biostats.ai/articles
