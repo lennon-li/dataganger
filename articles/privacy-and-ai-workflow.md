@@ -190,7 +190,7 @@ user does not falsely feel “done” after removing names.
 library(dataganger)
 ```
 
-    ## dataganger 0.8.1
+    ## dataganger 0.8.2
     ##   Start the app: dataganger::run_app()
 
 ``` r
