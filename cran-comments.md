@@ -94,11 +94,15 @@ two optional-package presence/absence branches, four tests whose absent-
 labelling limitation. The installed-package check exercises the installed
 paths.
 
-The live CRAN check page was reviewed at its 2026-08-22 22:51 CEST update:
-<https://cran.r-project.org/web/checks/check_results_dataganger.html>. The
-0.8.0 Fedora clang/gcc failures and M1mac additional issue are the reported
-ASCII AM/PM assertion addressed above. Older per-flavor versions are not
-repeated here because that status is volatile.
+The live CRAN check page was reviewed at its 2026-08-23 01:52 CEST update:
+<https://cran.r-project.org/web/checks/check_results_dataganger.html>. Every
+0.8.0 failure there is the same single assertion,
+`test-synthesize-data.R:782` ("character-stored date+time strings preserve
+both the date range and the time-of-day format"), reporting
+`FAIL 1 | WARN 51 | SKIP 11 | PASS 2240` on r-devel-linux-x86_64-fedora-clang,
+r-devel-linux-x86_64-fedora-gcc, and the M1mac additional check. That is the
+ASCII AM/PM defect addressed above. Flavors still carrying an older version
+are not enumerated here because that status is volatile.
 
 ## Downstream dependencies
 
