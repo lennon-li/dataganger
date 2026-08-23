@@ -82,7 +82,12 @@ Verification on the release tree:
 - Full ASCII scan, package spelling, URL checks, and the no-network test
   context: passed.
 - ASCII AM/PM synthesis, portable English month parsing, and unknown-suffix
-  rejection: passed in all 23 installed non-C `LC_TIME` locales.
+  rejection: passed in all 23 non-C `LC_TIME` locales installed on the
+  verification host, including the `en_GB` setting named in the maintainer
+  notice. Those 23 are all English regional variants, so they exercise
+  regional date and period-marker conventions rather than translated month
+  names. Non-English month text is covered by the fail-closed behavior in
+  section 2, not by this sweep.
 - The checked installed package tree was made read-only; `dataganger
   synthesize` exited 0 from a writable directory and wrote the complete export
   bundle, including `human/comparison_report.html`.
