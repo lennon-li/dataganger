@@ -3,6 +3,9 @@
 Version 0.8.2 corrects locale-sensitive character date/time handling and the
 test diagnostics needed to investigate platform-specific failures.
 
+This resubmission answers the maintainer notice giving a 2026-09-05 deadline
+to correct the problems shown on the package check page.
+
 ## 1. Character-stored 12-hour times
 
 **Symptom.** On hosts where C-library `%p` behavior differed, an ASCII value
@@ -77,7 +80,7 @@ Verification on the release tree:
 - `devtools::check(manual = FALSE, vignettes = FALSE)`: 0 errors,
   0 warnings, 0 notes.
 - Built source tarball, literal `R CMD check --as-cran`: 0 errors,
-  0 warnings, 1 incoming-feasibility note (`Days since last update: 1`).
+  0 warnings, 1 incoming-feasibility note (`Days since last update`).
   Vignettes and PDF/HTML manuals were built and checked.
 - Full ASCII scan, package spelling, URL checks, and the no-network test
   context: passed.
@@ -99,7 +102,7 @@ two optional-package presence/absence branches, four tests whose absent-
 labelling limitation. The installed-package check exercises the installed
 paths.
 
-The live CRAN check page was reviewed at its 2026-08-23 01:52 CEST update:
+The live CRAN check page was reviewed at its 2026-08-24 15:51 CEST update:
 <https://cran.r-project.org/web/checks/check_results_dataganger.html>. Every
 0.8.0 failure there is the same single assertion,
 `test-synthesize-data.R:782` ("character-stored date+time strings preserve
