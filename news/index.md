@@ -2,6 +2,8 @@
 
 ## dataganger 0.8.2
 
+CRAN release: 2026-08-24
+
 A portability release. Every item below is one defect: what went wrong,
 why, and what changed. The changes are limited to validated character
 date/time handling, test diagnostics, and portability corrections;
