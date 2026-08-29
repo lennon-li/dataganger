@@ -317,14 +317,15 @@ one folder for the human and one for the agent.</p>
 <pre><code><span><span class="va">synthetic_data.csv</span>            <span class="co"># the synthetic stand-in — the product</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">human.md</span>                <span class="co"># what was done, plus the privacy notes</span></span>
 <span><span class="va">human</span><span class="op">/</span><span class="va">comparison_report.html</span>  <span class="co"># real vs. synthetic fidelity (if generated)</span></span>
-<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed — regenerate approved data</span></span>
+<span><span class="va">agent</span><span class="op">/</span><span class="va">recipe.yaml</span>             <span class="co"># spec + roles + seed - configuration, not a fitted generator</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">AGENT.md</span>                <span class="co"># the agent workflow guide</span></span>
 <span><span class="va">agent</span><span class="op">/</span><span class="va">manifest.json</span></span></code></pre>
 <p><code>human/human.md</code> is consolidated: it folds in the privacy
 summary, so there is no separate privacy file.
-<code>agent/recipe.yaml</code> records the spec, the per-column roles,
-and the seed, so an agent can regenerate or vary the synthetic data
-without ever reading the real data — see the <a href="privacy-and-ai-workflow.html">Privacy gating and Agent
+<code>agent/recipe.yaml</code> records the spec, per-column roles, and
+seed, but it is not a fitted generator. Exact reruns and new variations
+require the original data and are a trusted human or operator action;
+the Agent works only from approved bundle artifacts. See the <a href="privacy-and-ai-workflow.html">Privacy gating and Agent
 workflows</a> article.</p>
 <p><img src="step-6-export.png"><!-- --></p>
 <blockquote>

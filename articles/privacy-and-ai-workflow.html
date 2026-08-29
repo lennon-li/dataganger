@@ -74,17 +74,14 @@
 <div class="section level2">
 <h2 id="the-promise">The promise<a class="anchor" aria-label="anchor" href="#the-promise"></a>
 </h2>
-<p>DataGangeR’s spine is simple: you set the privacy rules once; then
-the AI only ever gets reviewed synthetic data or a reproducible recipe
-for generating it, and nothing leaves your machine.</p>
-<p>That supports two real workflows:</p>
-<ul>
-<li>Path A: you hand the AI the synthetic bundle.</li>
-<li>Path B: you save the config and let the AI call DataGangeR to
-reproduce or vary the synthetic data without ever reading the real
-data.</li>
-</ul>
-<p>Either way, the human makes the privacy decisions first.</p>
+<p>DataGangeR’s spine is simple: you set the privacy rules once, review
+the synthetic output, and give AI assistants only the reviewed synthetic
+bundle. Nothing leaves your machine.</p>
+<p>The current bundle recipe records synthesis configuration, not a
+fitted generator. Exact reruns require the original data and must be
+performed by a trusted human or operator. An Agent must not receive a
+real-data path, rerun synthesis, or modify the recipe to request a
+variation.</p>
 </div>
 <div class="section level2">
 <h2 id="the-privacy-gating-ladder">The privacy gating ladder<a class="anchor" aria-label="anchor" href="#the-privacy-gating-ladder"></a>
@@ -214,10 +211,10 @@ contents first and does not repeat the Generation summary. When
 k-anonymity was infeasible, its acknowledgment uses the actual k, QI
 column names, and smallest group size to explain which guarantee is
 missing before the user can proceed.</p>
-<p>Why it exists: export is where the two AI workflows split. You can
-hand off reviewed synthetic artifacts directly, or use the recipe that
-lets an agent reproduce the same synthetic data later without touching
-the real data.</p>
+<p>Why it exists: export is where the reviewed synthetic artifacts are
+handed to an Agent. The recipe documents the approved configuration,
+while exact reruns remain a trusted human or operator action because
+they require the original data.</p>
 </div>
 </div>
 <div class="section level2">
@@ -492,37 +489,33 @@ person-level records.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="two-ways-to-use-it-with-ai">Two ways to use it with AI<a class="anchor" aria-label="anchor" href="#two-ways-to-use-it-with-ai"></a>
+<h2 id="using-it-with-ai">Using it with AI<a class="anchor" aria-label="anchor" href="#using-it-with-ai"></a>
 </h2>
 <div class="section level3">
-<h3 id="path-a-hand-off-the-synthetic-bundle">Path A: hand off the synthetic bundle<a class="anchor" aria-label="anchor" href="#path-a-hand-off-the-synthetic-bundle"></a>
+<h3 id="hand-off-the-synthetic-bundle">Hand off the synthetic bundle<a class="anchor" aria-label="anchor" href="#hand-off-the-synthetic-bundle"></a>
 </h3>
-<p>In the first workflow, the human uses the app, reviews the compare
-and privacy outputs, and exports the bundle. The AI gets the bundle’s
+<p>The human uses the app, reviews the compare and privacy outputs, and
+exports the bundle. The AI gets the bundle’s
 <code>synthetic_data.csv</code> plus the <code>agent/</code> folder
 (<code>recipe.yaml</code>, <code>AGENT.md</code>,
-<code>manifest.json</code>) — but not the real data.</p>
+<code>manifest.json</code>) - but not the real data.</p>
 <p>This is the simplest trust story: the AI only sees synthetic
 artifacts that a human has reviewed.</p>
 </div>
 <div class="section level3">
-<h3 id="path-b-save-the-recipe-and-let-the-ai-reproduce">Path B: save the recipe and let the AI reproduce<a class="anchor" aria-label="anchor" href="#path-b-save-the-recipe-and-let-the-ai-reproduce"></a>
+<h3 id="trusted-reruns-and-new-variants">Trusted reruns and new variants<a class="anchor" aria-label="anchor" href="#trusted-reruns-and-new-variants"></a>
 </h3>
-<p>In the second workflow, the human uses the app once. The exported
-bundle’s <code>agent/recipe.yaml</code> records everything needed to
-regenerate the synthetic data: the spec, the per-column roles, and the
-seed. An AI agent can then run DataGangeR itself, for example:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="ex">dataganger</span> synthesize <span class="op">&lt;</span>real-data<span class="op">&gt;</span> --recipe agent/recipe.yaml <span class="at">--out</span> check.zip</span></code></pre></div>
-<p>That path is paired with the packaged agent workflow guide.
-<code>dataganger skill</code> prints or copies the installed agent guide
-(shipped in the bundle as <code>agent/AGENT.md</code>), whose first rule
-is: the agent is not allowed to read the original data.</p>
-<p>The shipped agent workflow starts by reproducing the UI-generated
-synthetic CSV byte-for-byte before doing anything else. After that, the
-agent can vary approved settings and ask DataGangeR to synthesize again,
-but it still never opens the real data itself.</p>
-<p>In both paths, the AI is structurally kept on synthetic artifacts or
-a reproducible recipe. It does not inspect the real dataset.</p>
+<p><code>agent/recipe.yaml</code> records the spec, per-column roles,
+and seed. It is configuration, not a fitted generator: DataGangeR
+synthesis still reads the original data. If an exact rerun or a new
+synthetic variation is needed, the Agent asks a trusted human or
+operator to run it with the original data, review the result, and
+provide a new bundle. The Agent must not receive a real-data path or
+modify the recipe.</p>
+<p><code>dataganger skill</code> prints or copies the installed Agent
+guide (shipped in the bundle as <code>agent/AGENT.md</code>), whose
+first rule is that the Agent is not allowed to read the original
+data.</p>
 </div>
 </div>
 <div class="section level2">

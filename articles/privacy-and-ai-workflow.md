@@ -2,18 +2,14 @@
 
 ## The promise
 
-DataGangeR’s spine is simple: you set the privacy rules once; then the
-AI only ever gets reviewed synthetic data or a reproducible recipe for
-generating it, and nothing leaves your machine.
+DataGangeR’s spine is simple: you set the privacy rules once, review the
+synthetic output, and give AI assistants only the reviewed synthetic
+bundle. Nothing leaves your machine.
 
-That supports two real workflows:
-
-- Path A: you hand the AI the synthetic bundle.
-- Path B: you save the config and let the AI call DataGangeR to
-  reproduce or vary the synthetic data without ever reading the real
-  data.
-
-Either way, the human makes the privacy decisions first.
+The current bundle recipe records synthesis configuration, not a fitted
+generator. Exact reruns require the original data and must be performed
+by a trusted human or operator. An Agent must not receive a real-data
+path, rerun synthesis, or modify the recipe to request a variation.
 
 ## The privacy gating ladder
 
@@ -143,10 +139,10 @@ k-anonymity was infeasible, its acknowledgment uses the actual k, QI
 column names, and smallest group size to explain which guarantee is
 missing before the user can proceed.
 
-Why it exists: export is where the two AI workflows split. You can hand
-off reviewed synthetic artifacts directly, or use the recipe that lets
-an agent reproduce the same synthetic data later without touching the
-real data.
+Why it exists: export is where the reviewed synthetic artifacts are
+handed to an Agent. The recipe documents the approved configuration,
+while exact reruns remain a trusted human or operator action because
+they require the original data.
 
 ## What the two questions reinforce
 
@@ -364,41 +360,30 @@ is why the worked table above computes zero QI columns and treats
 k-anonymity as not applicable unless a user is actually modelling
 person-level records.
 
-## Two ways to use it with AI
+## Using it with AI
 
-### Path A: hand off the synthetic bundle
+### Hand off the synthetic bundle
 
-In the first workflow, the human uses the app, reviews the compare and
-privacy outputs, and exports the bundle. The AI gets the bundle’s
-`synthetic_data.csv` plus the `agent/` folder (`recipe.yaml`,
-`AGENT.md`, `manifest.json`) — but not the real data.
+The human uses the app, reviews the compare and privacy outputs, and
+exports the bundle. The AI gets the bundle’s `synthetic_data.csv` plus
+the `agent/` folder (`recipe.yaml`, `AGENT.md`, `manifest.json`) - but
+not the real data.
 
 This is the simplest trust story: the AI only sees synthetic artifacts
 that a human has reviewed.
 
-### Path B: save the recipe and let the AI reproduce
+### Trusted reruns and new variants
 
-In the second workflow, the human uses the app once. The exported
-bundle’s `agent/recipe.yaml` records everything needed to regenerate the
-synthetic data: the spec, the per-column roles, and the seed. An AI
-agent can then run DataGangeR itself, for example:
+`agent/recipe.yaml` records the spec, per-column roles, and seed. It is
+configuration, not a fitted generator: DataGangeR synthesis still reads
+the original data. If an exact rerun or a new synthetic variation is
+needed, the Agent asks a trusted human or operator to run it with the
+original data, review the result, and provide a new bundle. The Agent
+must not receive a real-data path or modify the recipe.
 
-``` sh
-dataganger synthesize <real-data> --recipe agent/recipe.yaml --out check.zip
-```
-
-That path is paired with the packaged agent workflow guide.
-`dataganger skill` prints or copies the installed agent guide (shipped
-in the bundle as `agent/AGENT.md`), whose first rule is: the agent is
-not allowed to read the original data.
-
-The shipped agent workflow starts by reproducing the UI-generated
-synthetic CSV byte-for-byte before doing anything else. After that, the
-agent can vary approved settings and ask DataGangeR to synthesize again,
-but it still never opens the real data itself.
-
-In both paths, the AI is structurally kept on synthetic artifacts or a
-reproducible recipe. It does not inspect the real dataset.
+`dataganger skill` prints or copies the installed Agent guide (shipped
+in the bundle as `agent/AGENT.md`), whose first rule is that the Agent
+is not allowed to read the original data.
 
 ## The no-network guarantee
 

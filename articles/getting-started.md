@@ -156,15 +156,16 @@ folder for the human and one for the agent.
     synthetic_data.csv            # the synthetic stand-in — the product
     human/human.md                # what was done, plus the privacy notes
     human/comparison_report.html  # real vs. synthetic fidelity (if generated)
-    agent/recipe.yaml             # spec + roles + seed — regenerate approved data
+    agent/recipe.yaml             # spec + roles + seed - configuration, not a fitted generator
     agent/AGENT.md                # the agent workflow guide
     agent/manifest.json
 
 `human/human.md` is consolidated: it folds in the privacy summary, so
 there is no separate privacy file. `agent/recipe.yaml` records the spec,
-the per-column roles, and the seed, so an agent can regenerate or vary
-the synthetic data without ever reading the real data — see the [Privacy
-gating and Agent
+per-column roles, and seed, but it is not a fitted generator. Exact
+reruns and new variations require the original data and are a trusted
+human or operator action; the Agent works only from approved bundle
+artifacts. See the [Privacy gating and Agent
 workflows](https://dataganger.biostats.ai/articles/privacy-and-ai-workflow.md)
 article.
 

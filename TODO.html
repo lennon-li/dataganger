@@ -39,33 +39,11 @@
 
 <div id="dataganger-todo" class="section level1">
 
-<div class="section level2">
-<h2 id="reusable-frozen-contracts-for-repeated-synthetic-generation">Reusable frozen contracts for repeated synthetic generation<a class="anchor" aria-label="anchor" href="#reusable-frozen-contracts-for-repeated-synthetic-generation"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox">Evolve the human-approved synthesis contract into a reusable, frozen generator artifact.</label></li>
-<li><label><input type="checkbox">Keep privacy-sensitive decisions immutable after approval: variable roles, exclusions, transformations, synthesis methods, disclosure constraints, naming rules, and other policy choices must not change silently.</label></li>
-<li><label><input type="checkbox">Require a new human review/approval cycle whenever the frozen contract itself changes.</label></li>
-<li><label><input type="checkbox">Allow both human users and Agents to generate multiple synthetic datasets from the same approved contract.</label></li>
-<li><label><input type="checkbox">Permit only explicitly allowed generation-time variation, such as random seed, sample size, number of datasets, and later any human-approved scenario parameters.</label></li>
-<li><label><input type="checkbox">Provide a narrow R API for repeated generation, e.g. <code>generate_synthetic(contract, seed = ..., n = ...)</code>.</label></li>
-<li><label><input type="checkbox">Provide an Agent/CLI interface for the same operation without exposing the original records to the Agent.</label></li>
-<li><label><input type="checkbox">Define the trust boundary clearly: the Agent may invoke the approved generator, but must not gain direct access to the real dataset or alter the frozen privacy contract.</label></li>
-<li><label><input type="checkbox">Evaluate whether the fitted generator artifact itself can leak sensitive information; include generator-export risk in the human privacy review before allowing Agent access.</label></li>
-<li><label><input type="checkbox">Support the intended development loop: Agent prototypes programs using multiple permitted synthetic-data variations; the human validates the resulting program on synthetic data and, inside the trusted environment, on the real data.</label></li>
-<li><label><input type="checkbox">Add provenance/versioning so every generated dataset records the contract version, generator version, seed, requested size, and relevant generation parameters.</label></li>
-<li><label><input type="checkbox">Add tests proving that repeated generation cannot mutate the approved contract and that Agent-facing generation paths do not require direct access to the original records.</label></li>
-</ul><div class="section level3">
-<h3 id="target-workflow">Target workflow<a class="anchor" aria-label="anchor" href="#target-workflow"></a></h3>
-<p><code>Real data -&gt; Shiny-guided human review -&gt; Approved/frozen contract -&gt; Reusable generator -&gt; Synthetic dataset 1, 2, 3... -&gt; Agent prototypes -&gt; Human validates on synthetic and real data</code></p>
-</div>
-<div class="section level3">
-<h3 id="design-principle">Design principle<a class="anchor" aria-label="anchor" href="#design-principle"></a></h3>
-<p><strong>Human defines the privacy boundary. DataGangeR freezes it. Users and Agents can then generate permitted synthetic variations repeatedly without allowing the Agent to rewrite the privacy policy.</strong></p>
-</div>
-</div>
+<p>The active TODO list and delivery plan live in the dataganger project memory: <code>/home/yeli/obsidian/AgentSystem/agent-memory/projects/dataganger/TODO.md</code>.</p>
+<p>Keep this file as a pointer only so repository and project-memory queues do not drift. Reconcile the canonical TODO and <code>HANDOFF_LOG.md</code> after each handoff.</p>
 </div>
 
-  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
-    </nav></aside></div>
+  </main></div>
 
 
     <footer><div class="pkgdown-footer-left">
