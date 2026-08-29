@@ -559,8 +559,8 @@ build_reproduction_script <- function(spec, roles, purpose, include_original_nam
   script <- c(
     "library(dataganger)",
     "",
-    "# 1. Load YOUR original data. It is NOT shipped in this bundle (privacy);",
-    "#    point this at the file you synthesized from.",
+    "# 1. Trusted human/operator only: load YOUR original data. It is NOT shipped",
+    "#    in this bundle (privacy); point this at the file you synthesized from.",
     'original <- read_input("path/to/your/original-data.csv")',
     "",
     "# 2. Recreate the column decisions made in DataGangeR.",
@@ -642,7 +642,8 @@ build_reproduction_script <- function(spec, roles, purpose, include_original_nam
     "# 5. (optional) rebuild the full export bundle.",
     'export_synthetic(synthetic, original = original, path = "dataganger_bundle", format = "dir")',
     "",
-    "# Exact reproduction requires the same original data and the same dataganger version."
+    "# Exact reproduction requires the same original data and the same dataganger version.",
+    "# Do not give this script or an original-data path to an AI assistant."
   )
 
   paste(script, collapse = "\n")
@@ -686,7 +687,7 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
     "- `human/human.md` - this guide, including privacy notes and agent-facing guidance.",
-    "- `agent/recipe.yaml` - the synthesis spec plus per-column role decisions for reproduction.",
+    "- `agent/recipe.yaml` - synthesis configuration: spec, per-column roles, and seed; not a fitted generator.",
     "- `agent/AGENT.md` - the packaged agent instructions for using this bundle safely.",
     paste0(
       "- `agent/manifest.json` - provenance: package version, synthesis engine, seed, the full ",
@@ -742,9 +743,9 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
       include_original_names = "original_variable" %in% names(dictionary)
     ), collapse = "\n"),
     "",
-    "## Regenerate this data",
+    "## Trusted operator rerun",
     "",
-    "With the original data and the same seed, this reproduces the synthetic output:",
+    "A trusted human or operator can use the original data and same seed to reproduce the synthetic output:",
     "",
     "```r",
     build_regeneration_command(
@@ -759,8 +760,10 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "",
     paste0(
       "This is synthetic data designed to reduce direct disclosure risk for AI coding workflows. Use it to build ",
-      "and test code, then run the same pipeline on the real data. To reproduce the ",
-      "exact synthetic output, use `agent/recipe.yaml` with DataGangeR or run the command above."
+      "and test code, then return that code to the trusted owner or operator, who runs it against real data ",
+      "inside the trusted environment. `agent/recipe.yaml` records ",
+      "configuration, not a fitted generator. An AI assistant must not rerun synthesis or modify the recipe; ",
+      "request a new reviewed bundle from a trusted human or operator."
     ),
     "",
     "Columns dropped from the synthetic output:",

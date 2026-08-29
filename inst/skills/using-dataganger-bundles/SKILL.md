@@ -57,7 +57,7 @@ bundle**). It contains **no real records** - only:
 | `synthetic_data.csv` | A synthetic dataset with the same columns and types as the real data, but fabricated rows | This is your working data after explicit go-ahead. |
 | `human/human.md` | Human-readable bundle summary, privacy notes, and treatment list | Orientation and schema/treatment planning. |
 | `human/comparison_report.html` | Optional fidelity/privacy comparison report | Judge whether synthetic distributions are realistic enough for your task. |
-| `agent/recipe.yaml` | Reproduction recipe with synthesis settings, roles, and optional `name_map` | Reproduce the bundle and understand roles/spec without reading data. |
+| `agent/recipe.yaml` | Synthesis configuration with settings, roles, seed, and optional `name_map` | Understand the approved configuration and output schema. It is not a fitted generator. |
 | `agent/manifest.json` | Provenance: purpose, seed, what was generated, and file hashes | Cite provenance and verify bundle contents. |
 | `agent/code_readiness_report.json` | Optional structural compatibility report for code portability to the real data | **Validate that your code will not break on the original data.** |
 | `agent/AGENT.md` | Packaged workflow instructions for the bundle | Follow the shipped bundle contract. |
@@ -83,6 +83,11 @@ as a finding about the real data, and never try to "reverse" synthetic data back
    Resolve every flagged issue.
 6. **Hand back code, not data** - deliver the script or notebook for the data owner to run
    on the real data themselves.
+
+If a rerun or a new synthetic variation is needed, request it from the trusted
+human or operator. The current recipe records configuration only: it cannot
+generate data by itself, and an Agent must not supply a real-data path or edit
+the recipe to trigger synthesis.
 
 ## What you may and may not do
 

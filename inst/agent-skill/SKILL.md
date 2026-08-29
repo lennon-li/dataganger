@@ -2,25 +2,18 @@ You are not allowed to read the original data.
 
 # DataGangeR agent workflow
 
-Use DataGangeR to work only from synthetic data generated from the user's real dataset. Never open, preview, sample, parse, or inspect the real data file directly. Treat the real data file as an opaque input to DataGangeR.
+Use DataGangeR to work only from synthetic data generated from the user's real dataset. The real data and its path stay with the trusted human or operator. Never request, receive, open, preview, sample, parse, inspect, or pass that path to DataGangeR.
 
-## First step: reproduce the bundle exactly
+## First step: read the bundle metadata
 
-From inside `agent/`, run:
+Read `manifest.json` and `../human/human.md` before working with the synthetic
+data. `recipe.yaml` records the synthesis configuration: settings, per-column
+roles, and seed. It is not a fitted generator and cannot regenerate data by
+itself.
 
-```sh
-dataganger synthesize <real-data> --recipe recipe.yaml --out check.zip
-```
-
-Then compare the reproduced synthetic CSV to `../synthetic_data.csv`:
-
-```sh
-unzip -p check.zip synthetic_data.csv > check_synthetic_data.csv
-cmp -s check_synthetic_data.csv ../synthetic_data.csv
-diff -u ../synthetic_data.csv check_synthetic_data.csv
-```
-
-Proceed only if the files are identical. If they differ, stop and report that reproduction failed.
+Exact reruns require the original data and must be performed by a trusted
+human or operator, not by you. If a new synthetic variant or a rerun is needed,
+ask the human to generate and review it, then provide the approved bundle.
 
 ## Files you may use
 
@@ -42,16 +35,17 @@ Column names may vary because the name strategy may rename them. Never assume or
 
 ## Allowed workflow
 
-1. Reproduce the synthetic output exactly with the command above.
-2. Work only from `../synthetic_data.csv` and the listed bundle metadata files.
-3. Inspect the synthetic data, profile it, write code against it, and propose transformations using only the synthetic bundle.
-4. If `code_readiness_report.json` is present, use it to catch structural mismatches that would break code on the original data.
-5. If the user wants variations, update `recipe.yaml` with user-approved changes and synthesize again.
+1. Work only from `../synthetic_data.csv` and the listed bundle metadata files.
+2. Inspect the synthetic data, profile it, write code against it, and propose transformations using only the synthetic bundle.
+3. If `code_readiness_report.json` is present, use it to catch structural mismatches that would break code on the original data.
+4. If the user wants variations, ask a trusted human or operator to generate and review a new bundle. Do not modify `recipe.yaml`.
 
 ## Never do this
 
 - Do not read the original data into R, Python, SQL, spreadsheets, or any other tool.
 - Do not open the original CSV, Excel, SAS, or other source file for inspection.
+- Do not run DataGangeR synthesis commands with a real-data path.
+- Do not modify `recipe.yaml` to request reruns or variations.
 - Do not infer that a synthetic column name matches an original name unless `recipe.yaml` or `../human/human.md` supports it.
 - Do not claim the output is risk-free or anonymous.
 
