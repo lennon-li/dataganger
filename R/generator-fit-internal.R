@@ -2,6 +2,99 @@ generator_fit_issue <- function(code, message, column = NA_character_) {
   list(code = code, message = message, column = column)
 }
 
+generator_fit_csprng_key <- function(n = 32L) {
+  if (!is.numeric(n) || length(n) != 1L || is.na(n) || n < 16L ||
+    n != floor(n)) {
+    return(NULL)
+  }
+  handle <- tryCatch(file("/dev/urandom", open = "rb", raw = TRUE), error = function(e) NULL)
+  if (is.null(handle)) {
+    return(NULL)
+  }
+  on.exit(try(close(handle), silent = TRUE), add = TRUE)
+  key <- tryCatch(readBin(handle, what = "raw", n = as.integer(n)),
+    error = function(e) raw(0))
+  if (length(key) != n) NULL else key
+}
+
+generator_fit_row_payload <- function(data, row) {
+  values <- lapply(data, function(x) {
+    value <- x[[row]]
+    if (inherits(x, "Date") || inherits(x, "POSIXct")) {
+      list(type = class(x)[[1L]], missing = is.na(value), value = if (is.na(value)) {
+        NULL
+      } else {
+        as.numeric(value)
+      })
+    } else if (is.factor(x)) {
+      list(type = "character", missing = is.na(value), value = if (is.na(value)) NULL else as.character(value))
+    } else {
+      list(type = typeof(x), missing = is.na(value), value = if (is.na(value)) NULL else value)
+    }
+  })
+  names(values) <- names(data)
+  values
+}
+
+generator_fit_row_fingerprint <- function(data, row, key) {
+  payload <- serialize(generator_fit_row_payload(data, row), NULL, version = 3)
+  digest::hmac(key, payload, algo = "sha256", serialize = FALSE)
+}
+
+generator_fit_exact_row_index <- function(data, key) {
+  if (is.null(key) || !is.raw(key)) {
+    return(NULL)
+  }
+  if (!nrow(data)) {
+    return(list(
+      key = key,
+      fingerprints = character(),
+      source_n = 0L,
+      algorithm = "HMAC-SHA256"
+    ))
+  }
+  fingerprints <- vapply(seq_len(nrow(data)), function(row) {
+    generator_fit_row_fingerprint(data, row, key)
+  }, character(1L))
+  list(
+    key = key,
+    fingerprints = unique(fingerprints),
+    source_n = as.integer(nrow(data)),
+    algorithm = "HMAC-SHA256"
+  )
+}
+
+generator_fit_role_state <- function(roles) {
+  fields <- intersect(c(
+    "variable", "recommended_role", "user_role", "simulation",
+    "label_strategy", "postal_strategy", "postal_country", "postal_format",
+    "identifies", "sensitive", "disclosure_role"
+  ), names(roles))
+  state <- lapply(roles[fields], function(x) {
+    if (is.logical(x)) as.logical(x) else as.character(x)
+  })
+  names(state) <- fields
+  state
+}
+
+generator_fit_settings <- function(spec) {
+  rare_level_min_n <- spec$rare_level_min_n %||% 5L
+  rare_level_min_n <- suppressWarnings(as.integer(rare_level_min_n))
+  if (is.na(rare_level_min_n) || rare_level_min_n <= 1L) {
+    rare_level_min_n <- 5L
+  }
+  list(
+    purpose = as.character(spec$purpose %||% "development"),
+    name_strategy = as.character(spec$name_strategy %||% "preserve"),
+    k_anon = as.integer(spec$k_anon %||% 5L),
+    rare_level_min_n = rare_level_min_n,
+    preserve_missingness = as.character(spec$preserve_missingness %||% "approx"),
+    coarsen_dates = isTRUE(spec$coarsen_dates %||% TRUE),
+    merge_rare = isTRUE(spec$merge_rare %||% FALSE),
+    free_text_strategy = as.character(spec$free_text_strategy %||% "categorical")
+  )
+}
+
 generator_fit_empty_issues <- function() {
   list(code = character(), message = character(), column = character())
 }
@@ -168,7 +261,9 @@ generator_fit_logical <- function(x) {
 
 generator_fit_date <- function(x, kind, coarsen_dates, timezone = "UTC",
                                format = "%Y-%m-%d", has_date = TRUE,
-                               has_time = FALSE, period_mode = "none") {
+                               has_time = FALSE, period_mode = "none",
+                               parser = "strptime", month_style = NULL,
+                               period_tokens = NULL) {
   observed <- x[!is.na(x)]
   if (length(observed) == 0L) {
     return(NULL)
@@ -186,6 +281,9 @@ generator_fit_date <- function(x, kind, coarsen_dates, timezone = "UTC",
     has_date = isTRUE(has_date),
     has_time = isTRUE(has_time),
     period_mode = period_mode,
+    parser = parser,
+    month_style = month_style,
+    period_tokens = period_tokens,
     missing_rate = generator_fit_missing_rate(x),
     observed_n = as.integer(length(observed))
   )
@@ -316,6 +414,9 @@ generator_fitted_state_audit <- function(state, canaries = list()) {
     setdiff(names(attributes), allowed)
   }
   walk <- function(value, path) {
+    if (is.null(value)) {
+      return(invisible(NULL))
+    }
     if (is.environment(value) || is.function(value) || is.call(value) ||
       is.language(value) || is.pairlist(value) || typeof(value) == "externalptr" ||
       inherits(value, "formula")) {
@@ -428,7 +529,10 @@ validate_internal_generator <- function(generator) {
   }
   validate_generator_fields(
     unclass(generator),
-    expected = c("schema_version", "engine", "eligible", "columns", "risk_report"),
+    expected = c(
+      "schema_version", "engine", "eligible", "columns", "risk_report",
+      "roles", "settings", "exact_row_index"
+    ),
     object = "Fitted generator"
   )
   validate_generator_schema_version(generator$schema_version, "Fitted generator")
@@ -440,6 +544,28 @@ validate_internal_generator <- function(generator) {
   validate_generator_risk_report(generator$risk_report)
   if (!identical(generator$eligible, generator$risk_report$eligible)) {
     generator_schema_abort("Fitted generator eligibility contradicts its risk report.")
+  }
+  if (generator$eligible) {
+    if (!is.list(generator$roles) || is.null(names(generator$roles)) ||
+      !is.list(generator$settings) || is.null(names(generator$settings)) ||
+      !is.list(generator$exact_row_index)) {
+      generator_schema_abort("Eligible fitted generator is missing private runtime state.")
+    }
+    index <- generator$exact_row_index
+    validate_generator_fields(
+      index,
+      expected = c("key", "fingerprints", "source_n", "algorithm"),
+      object = "Fitted generator exact-row index"
+    )
+    if (!is.raw(index$key) || length(index$key) < 16L ||
+      !is.character(index$fingerprints) || anyNA(index$fingerprints) ||
+      any(!grepl("^[0-9a-f]{64}$", index$fingerprints)) ||
+      !generator_is_integerish(index$source_n) || length(index$source_n) != 1L ||
+      !identical(index$algorithm, "HMAC-SHA256")) {
+      generator_schema_abort("Fitted generator exact-row index has an invalid schema.")
+    }
+  } else if (!is.null(generator$exact_row_index)) {
+    generator_schema_abort("Blocked fitted generators cannot retain exact-row state.")
   }
   column_names <- names(generator$columns)
   if (generator$eligible && length(generator$columns) > 0L &&

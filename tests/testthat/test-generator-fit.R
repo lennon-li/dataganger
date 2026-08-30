@@ -45,7 +45,10 @@ local({
 
     expect_s3_class(fitted, "dataganger_generator")
     expect_true(fitted$eligible)
-    expect_identical(fitted, repeated)
+    # The private exact-row key is CSPRNG-generated at each freeze, so the
+    # secret-bearing index is intentionally different across independent fits.
+    expect_identical(fitted$columns, repeated$columns)
+    expect_identical(fitted$risk_report, repeated$risk_report)
     expect_s3_class(fitted$risk_report, "dataganger_generator_risk_report")
     expect_identical(names(fitted$columns), names(data))
     expect_identical(fitted$columns$amount$kind, "numeric")

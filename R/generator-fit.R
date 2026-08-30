@@ -55,7 +55,10 @@ fit_internal_generator <- function(data, spec, roles) {
         engine = "internal",
         eligible = FALSE,
         columns = list(),
-        risk_report = report
+        risk_report = report,
+        roles = NULL,
+        settings = NULL,
+        exact_row_index = NULL
       ),
       class = "dataganger_generator"
     )
@@ -96,6 +99,13 @@ fit_internal_generator <- function(data, spec, roles) {
     is.na(free_text_strategy) || !free_text_strategy %in% c("categorical", "drop", "redact")) {
     add_blocker("invalid_free_text_strategy", "Free-text strategy must be categorical, drop, or redact.")
     free_text_strategy <- "categorical"
+  }
+  exact_row_key <- generator_fit_csprng_key()
+  if (is.null(exact_row_key)) {
+    add_blocker(
+      "exact_row_key_unavailable",
+      "A trusted cryptographic random key could not be obtained; exact-row protection is unavailable."
+    )
   }
   columns <- vector("list", ncol(data))
   names(columns) <- names(data)
@@ -195,7 +205,10 @@ fit_internal_generator <- function(data, spec, roles) {
           format = date_info$format,
           has_date = date_info$has_date,
           has_time = date_info$has_time,
-          period_mode = date_info$period_mode %||% "none"
+          period_mode = date_info$period_mode %||% "none",
+          parser = date_info$parser %||% "strptime",
+          month_style = date_info$month_style,
+          period_tokens = dg_period_tokens(x[!is.na(x) & nzchar(trimws(x))])
         )
         if (generator_fit_aggregate_collides(fitted, parsed)) {
           add_blocker("aggregate_source_collision", "A fitted aggregate exactly reproduces the complete source vector.", name)
@@ -249,13 +262,21 @@ fit_internal_generator <- function(data, spec, roles) {
   if (!report$eligible) {
     columns <- list()
   }
+  exact_row_index <- if (report$eligible) {
+    generator_fit_exact_row_index(data, exact_row_key)
+  } else {
+    NULL
+  }
   result <- structure(
     list(
       schema_version = generator_schema_version(),
       engine = "internal",
       eligible = report$eligible,
       columns = columns,
-      risk_report = report
+      risk_report = report,
+      roles = generator_fit_role_state(roles),
+      settings = generator_fit_settings(spec),
+      exact_row_index = exact_row_index
     ),
     class = "dataganger_generator"
   )
