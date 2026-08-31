@@ -20,11 +20,11 @@ local({
       roles
     )
     contract <- generator_contract(
-      policy = list(privacy = list(k = 2L), engine = "internal"),
+      policy = generator_derive_policy(generator),
       allowed = generation_limits(
         seed = c(1L, 1000L), n = c(20L, 100L), datasets = c(1L, 3L)
       ),
-      compatibility = list(engine = "internal", compiler = "1.0.0")
+      compatibility = generator_derive_compatibility()
     )
     store_path <- tempfile("dataganger-store-")
     dir.create(store_path)
@@ -124,16 +124,29 @@ local({
     result <- generator_store_generate(
       fixture$store,
       fixture$contract$contract_id,
-      seed = 2L,
+      seed = 17L,
       n = 40L,
       datasets = 2L
     )
     receipt <- generator_store_read_receipt(fixture$store, result$receipt_id)
+    output_receipts <- lapply(result$receipt_ids, function(id) {
+      generator_store_read_receipt(fixture$store, id)
+    })
 
     expect_identical(result$approval_id, receipt$approval_id)
     expect_identical(receipt$request_id, result$request_id)
     expect_length(receipt$seeds, 2L)
     expect_length(receipt$output_hashes, 2L)
+    expect_identical(receipt$receipt_type, "request")
+    expect_identical(receipt$output_receipt_ids, result$receipt_ids)
+    expect_identical(
+      vapply(output_receipts, `[[`, character(1L), "receipt_type"),
+      rep("output", 2L)
+    )
+    expect_identical(
+      vapply(output_receipts, `[[`, character(1L), "output_hash"),
+      vapply(result$outputs, generator_data_hash, character(1L))
+    )
     expect_identical(receipt$contract_id, fixture$contract$contract_id)
     expect_identical(receipt$generator_id, fixture$record$generator_id)
     expect_true(is.logical(receipt$usable))
@@ -212,15 +225,23 @@ local({
     )
     generator_store_revoke(fixture$store, fixture$contract$contract_id, "policy changed")
     expect_error(
+      generator_store_approve(
+        fixture$store, fixture$contract, fixture$record$generator_id, "Liz"
+      ),
+      "terminal approval status"
+    )
+    expect_error(
       generator_store_generate(fixture$store, fixture$contract$contract_id, seed = 42L, n = 40L),
       class = "dataganger_generator_store_error"
     )
 
     fixture <- store_fixture()
     second <- generator_contract(
-      policy = list(privacy = list(k = 3L), engine = "internal"),
-      allowed = fixture$contract$allowed,
-      compatibility = list(engine = "internal", compiler = "1.0.0")
+      policy = generator_derive_policy(fixture$generator),
+      allowed = generation_limits(
+        seed = c(1L, 900L), n = c(20L, 100L), datasets = c(1L, 3L)
+      ),
+      compatibility = generator_derive_compatibility()
     )
     generator_store_approve(fixture$store, fixture$contract, fixture$record$generator_id, "Liz")
     generator_store_approve(fixture$store, second, fixture$record$generator_id, "Liz")
@@ -234,6 +255,37 @@ local({
     expect_identical(
       generator_store_read_approval(fixture$store, fixture$contract$contract_id)$status,
       "superseded"
+    )
+    expect_error(
+      generator_store_approve(
+        fixture$store, fixture$contract, fixture$record$generator_id, "Liz"
+      ),
+      "terminal approval status"
+    )
+  })
+
+  test_that("approval is idempotent and rejects a mismatched generator contract", {
+    fixture <- store_fixture()
+    first <- generator_store_approve(
+      fixture$store, fixture$contract, fixture$record$generator_id, "Liz"
+    )
+    second <- generator_store_approve(
+      fixture$store, fixture$contract, fixture$record$generator_id, "Someone else"
+    )
+    expect_identical(first$approval_id, second$approval_id)
+
+    mismatched <- generator_contract(
+      policy = modifyList(generator_derive_policy(fixture$generator), list(
+        output_names = "wrong"
+      )),
+      allowed = fixture$contract$allowed,
+      compatibility = generator_derive_compatibility()
+    )
+    expect_error(
+      generator_store_approve(
+        fixture$store, mismatched, fixture$record$generator_id, "Liz"
+      ),
+      "not derived"
     )
   })
 })

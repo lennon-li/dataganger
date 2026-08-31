@@ -488,6 +488,21 @@ generator_store_approval_binding <- function(approval) {
   semantic_hash(generator_runtime_hashable(fields))
 }
 
+generator_store_validate_contract_generator <- function(contract, generator,
+                                                         abort = generator_store_abort) {
+  expected_policy <- canonicalize_generator_value(generator_derive_policy(generator))
+  expected_compatibility <- canonicalize_generator_value(
+    generator_derive_compatibility()
+  )
+  if (!identical(contract$policy, expected_policy)) {
+    abort("Contract policy is not derived from the fitted generator.")
+  }
+  if (!identical(contract$compatibility, expected_compatibility)) {
+    abort("Contract compatibility is not derived from this DataGangeR runtime.")
+  }
+  invisible(contract)
+}
+
 generator_store_approve <- function(store, contract, generator_id, approver,
                                     approved_at = Sys.time()) {
   generator_store_validate(store)
@@ -495,7 +510,6 @@ generator_store_approve <- function(store, contract, generator_id, approver,
     contract <- generator_store_read_contract(store, contract)
   } else {
     validate_generator_contract(contract)
-    generator_store_put_contract(store, contract)
   }
   generator_store_valid_id(generator_id, "Generator ID")
   if (!is.character(approver) || length(approver) != 1L || is.na(approver) ||
@@ -503,6 +517,27 @@ generator_store_approve <- function(store, contract, generator_id, approver,
     generator_store_abort("Approver must be one non-empty character identity.")
   }
   generator <- generator_store_read_generator_record(store, generator_id)
+  generator_store_validate_contract_generator(contract, generator$generator)
+  approval_path <- generator_store_approval_path(store, contract$contract_id)
+  if (file.exists(approval_path)) {
+    existing <- generator_store_read_approval(store, contract$contract_id)
+    if (!identical(existing$status, "approved")) {
+      generator_store_abort(sprintf(
+        "Contract %s has terminal approval status %s; create a new contract before approval.",
+        contract$contract_id, existing$status
+      ))
+    }
+    if (!identical(existing$generator_id, generator_id) ||
+      !identical(existing$generator_revision, generator$generator_revision) ||
+      !identical(existing$generator_fingerprint, generator$generator_fingerprint)) {
+      generator_store_abort(
+        "An active approval for this contract is bound to a different fitted generator."
+      )
+    }
+    generator_store_validate_active_approval(store, contract$contract_id)
+    return(existing)
+  }
+  generator_store_put_contract(store, contract)
   risk_hash <- semantic_hash(generator_runtime_hashable(unclass(generator$generator$risk_report)))
   approved_at <- if (inherits(approved_at, "POSIXt")) {
     format(approved_at, tz = "UTC", usetz = TRUE)
@@ -578,6 +613,9 @@ generator_store_validate_active_approval <- function(store, contract_id) {
   if (!identical(approval$risk_report_hash, actual_risk_hash)) {
     generator_store_tamper_abort("Approved generator risk report has changed.")
   }
+  generator_store_validate_contract_generator(
+    contract, generator$generator, generator_store_tamper_abort
+  )
   if (!identical(approval$compiler, generator_store_compiler())) {
     generator_store_abort("Approved generator was fitted by an incompatible compiler version.")
   }
@@ -621,11 +659,42 @@ generator_store_supersede <- function(store, contract_id, superseded_by) {
 generator_store_receipt <- function(store, active, request, result, started_at) {
   outputs <- result$outputs
   output_hashes <- if (length(outputs)) {
-    vapply(outputs, function(output) digest::digest(output, algo = "sha256"), character(1L))
+    vapply(outputs, generator_data_hash, character(1L))
   } else character()
-  receipt <- list(
+  request_receipt_id <- generator_store_id()
+  output_receipt_ids <- if (length(outputs)) {
+    vapply(outputs, function(output) generator_store_id(), character(1L))
+  } else character()
+  completed_at <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+  output_receipts <- lapply(seq_along(outputs), function(index) {
+    list(
+      schema_version = generator_store_schema_version(),
+      receipt_type = "output",
+      receipt_id = output_receipt_ids[[index]],
+      request_receipt_id = request_receipt_id,
+      contract_id = active$contract$contract_id,
+      approval_id = active$approval$approval_id,
+      generator_id = active$approval$generator_id,
+      generator_revision = active$approval$generator_revision,
+      request_id = request$request_id,
+      dataset = as.integer(index),
+      n = as.integer(request$n),
+      seed = as.integer(result$seeds[[index]]),
+      output_hash = output_hashes[[index]],
+      hash_algorithm = generator_data_hash_algorithm(),
+      seed_algorithm = result$seed_algorithm,
+      rng_kinds = result$rng_kinds,
+      privacy = result$privacy[[index]],
+      warnings = result$dataset_warnings[[index]],
+      compiler = generator_store_compiler(),
+      started_at = started_at,
+      completed_at = completed_at
+    )
+  })
+  request_receipt <- list(
     schema_version = generator_store_schema_version(),
-    receipt_id = generator_store_id(),
+    receipt_type = "request",
+    receipt_id = request_receipt_id,
     contract_id = active$contract$contract_id,
     approval_id = active$approval$approval_id,
     generator_id = active$approval$generator_id,
@@ -634,15 +703,19 @@ generator_store_receipt <- function(store, active, request, result, started_at) 
     request = list(seed = request$seed, n = request$n, datasets = request$datasets),
     seeds = result$seeds,
     usable = isTRUE(result$usable),
+    output_receipt_ids = output_receipt_ids,
     output_hashes = output_hashes,
+    hash_algorithm = generator_data_hash_algorithm(),
+    seed_algorithm = result$seed_algorithm,
+    rng_kinds = result$rng_kinds,
     privacy = result$privacy,
     warnings = result$warnings,
     blockers = result$blockers,
     compiler = generator_store_compiler(),
     started_at = started_at,
-    completed_at = format(Sys.time(), tz = "UTC", usetz = TRUE)
+    completed_at = completed_at
   )
-  receipt
+  list(request = request_receipt, outputs = output_receipts)
 }
 
 generator_store_generate <- function(store, contract_id, request = NULL,
@@ -657,9 +730,14 @@ generator_store_generate <- function(store, contract_id, request = NULL,
     request = request,
     contract = active$contract
   )
-  receipt <- generator_store_receipt(store, active, request, result, started_at)
+  receipts <- generator_store_receipt(store, active, request, result, started_at)
+  for (receipt in receipts$outputs) {
+    generator_store_write_object(store, "receipts", receipt$receipt_id, receipt)
+  }
+  receipt <- receipts$request
   generator_store_write_object(store, "receipts", receipt$receipt_id, receipt)
   result$receipt_id <- receipt$receipt_id
+  result$receipt_ids <- receipt$output_receipt_ids
   result$approval_id <- active$approval$approval_id
   result
 }

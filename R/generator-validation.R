@@ -1,6 +1,7 @@
-generator_abort <- function(message, class, call = parent.frame()) {
+generator_abort <- function(message, class, call = parent.frame(), ...) {
   cli::cli_abort(
     message,
+    ...,
     class = c(
       class,
       "dataganger_generator_validation_error",

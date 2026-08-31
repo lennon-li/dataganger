@@ -121,6 +121,169 @@ canonicalize_generator_list <- function(x, path) {
   stats::setNames(result, value_names)
 }
 
+# ---------------------------------------------------------------------------
+# Canonical data hash
+#
+# digest::digest() on a data frame hashes R's serialization of the object, so
+# it depends on things that are not the data (attribute order, the tibble
+# subclass, the serialization version) while depending on representation
+# details for things that are. This hash is defined over the values instead:
+# column order, column names, declared class, and every value in a documented
+# textual form. It is versioned so a deliberate change to the encoding shows
+# up in the receipt rather than silently changing every hash.
+#
+# This is NOT the export-file hash. Export bundles hash file bytes, because
+# what is attested there is the artefact a human received. Here the subject is
+# the data, which must hash the same whether or not it was written to disk.
+# ---------------------------------------------------------------------------
+
+generator_data_hash_algorithm <- function() {
+  "dataganger-canonical-data-v1"
+}
+
+generator_data_hash_double <- function(value) {
+  if (value == 0) value <- 0
+  bytes <- writeBin(value, raw(), size = 8L, endian = "big")
+  paste(sprintf("%02x", as.integer(bytes)), collapse = "")
+}
+
+# NA must not collide with the literal string "NA", so missing values carry a
+# separate flag and their text is emptied.
+generator_data_hash_atomic <- function(value) {
+  if (is.double(value)) {
+    text <- vapply(value, function(item) {
+      if (is.nan(item)) {
+        "NaN"
+      } else if (is.na(item)) {
+        ""
+      } else if (is.infinite(item)) {
+        if (item > 0) "Inf" else "-Inf"
+      } else {
+        generator_data_hash_double(item)
+      }
+    }, character(1L))
+  } else {
+    text <- as.character(value)
+  }
+  missing <- is.na(value) & !is.nan(value)
+  text[missing] <- ""
+  list(
+    missing = as.logical(missing),
+    text = enc2utf8(as.character(text))
+  )
+}
+
+generator_data_hash_column <- function(column) {
+  if (is.factor(column)) {
+    return(list(
+      class = as.character(class(column)),
+      levels = enc2utf8(as.character(levels(column))),
+      values = generator_data_hash_atomic(as.character(column))
+    ))
+  }
+  if (inherits(column, "Date")) {
+    return(list(
+      class = as.character(class(column)),
+      values = generator_data_hash_atomic(as.numeric(column))
+    ))
+  }
+  if (inherits(column, "POSIXct")) {
+    timezone <- attr(column, "tzone", exact = TRUE)
+    return(list(
+      class = as.character(class(column)),
+      timezone = if (is.null(timezone) || !length(timezone) ||
+        !nzchar(timezone[[1L]])) {
+        ""
+      } else {
+        as.character(timezone[[1L]])
+      },
+      values = generator_data_hash_atomic(as.numeric(column))
+    ))
+  }
+  if (is.list(column)) {
+    generator_unsafe_abort("A list column cannot be hashed as canonical data.")
+  }
+  list(
+    class = as.character(class(column)),
+    values = generator_data_hash_atomic(column)
+  )
+}
+
+generator_data_hash <- function(data) {
+  if (!is.data.frame(data)) {
+    generator_unsafe_abort("A canonical data hash requires a data frame.")
+  }
+  bare <- as.data.frame(data, stringsAsFactors = FALSE)
+  semantic_hash(list(
+    algorithm = generator_data_hash_algorithm(),
+    nrow = as.integer(nrow(bare)),
+    ncol = as.integer(ncol(bare)),
+    names = enc2utf8(as.character(names(bare))),
+    columns = lapply(seq_len(ncol(bare)), function(index) {
+      generator_data_hash_column(bare[[index]])
+    })
+  ))
+}
+
+# ---------------------------------------------------------------------------
+# Contract policy derived from a fitted generator
+#
+# freeze_synthesis() and the store's approval boundary both derive the policy
+# from this one function, so an approval can be checked against the generator
+# it claims to describe instead of trusting the contract it was handed.
+# ---------------------------------------------------------------------------
+
+generator_derive_columns <- function(generator) {
+  roles <- generator$roles
+  columns <- lapply(names(generator$columns), function(name) {
+    state <- generator$columns[[name]]
+    row <- match(name, roles$variable)
+    list(
+      name = name,
+      output_name = name,
+      kind = state$kind,
+      storage = state$storage %||% "character",
+      role = if (is.na(row)) "unknown" else roles$recommended_role[[row]],
+      user_role = if (is.na(row)) NA_character_ else roles$user_role[[row]],
+      simulation = if (is.na(row)) NA_character_ else roles$simulation[[row]]
+    )
+  })
+  columns <- columns[vapply(columns, function(column) {
+    !identical(column$kind, "dropped")
+  }, logical(1L))]
+  strategy <- generator$settings$name_strategy %||% "preserve"
+  output_names <- if (strategy %in% c("generic", "dictionary_only")) {
+    paste0("col_", seq_along(columns))
+  } else {
+    vapply(columns, `[[`, character(1L), "name")
+  }
+  for (index in seq_along(columns)) {
+    columns[[index]]$output_name <- output_names[[index]]
+  }
+  columns
+}
+
+generator_derive_policy <- function(generator) {
+  columns <- generator_derive_columns(generator)
+  generator_runtime_hashable(list(
+    schema = columns,
+    roles = generator_runtime_hashable(generator$roles),
+    settings = generator_runtime_hashable(generator$settings),
+    output_names = vapply(columns, `[[`, character(1L), "output_name")
+  ))
+}
+
+generator_derive_compatibility <- function() {
+  list(
+    engine = "internal",
+    package = "dataganger",
+    package_version = as.character(utils::packageVersion("dataganger")),
+    schema_version = generator_schema_version(),
+    seed_algorithm = generator_seed_algorithm(),
+    data_hash_algorithm = generator_data_hash_algorithm()
+  )
+}
+
 validate_generator_named_object <- function(x, object) {
   if (!is.list(x) || length(x) == 0L || is.null(names(x))) {
     generator_schema_abort(sprintf("%s must be a non-empty named list.", object))
@@ -129,6 +292,17 @@ validate_generator_named_object <- function(x, object) {
   invisible(x)
 }
 
+#' Define bounded generation request limits
+#'
+#' Creates the approved ranges for seeds, output rows, and development
+#' datasets used by a frozen generator contract.
+#'
+#' @param n Integer range of permitted output row counts.
+#' @param datasets Integer range of permitted development dataset counts.
+#' @param seed Integer range of permitted base seeds.
+#'
+#' @return An S3 object of class `dataganger_generation_limits`.
+#' @export
 generation_limits <- function(n = c(1L, .Machine$integer.max),
                               datasets = c(1L, 1L),
                               seed = c(0L, .Machine$integer.max)) {
@@ -147,11 +321,36 @@ generation_limits <- function(n = c(1L, .Machine$integer.max),
   limits
 }
 
+#' Create or retrieve a frozen generator contract
+#'
+#' With policy, limits, and compatibility arguments, creates a validated
+#' immutable public contract. When called with a `dataganger_frozen_generator`
+#' handle, returns the contract already bound to that handle.
+#'
+#' @param policy A named list of approved policy fields, or a frozen generator
+#'   handle.
+#' @param allowed A `dataganger_generation_limits` object.
+#' @param compatibility A named list of engine/compiler compatibility fields.
+#' @param contract_version Semantic version for the public contract.
+#' @param schema_version Contract schema version.
+#' @return A `dataganger_contract` object.
+#' @export
 generator_contract <- function(policy,
-                               allowed,
-                               compatibility,
+                               allowed = NULL,
+                               compatibility = NULL,
                                contract_version = "1.0.0",
                                schema_version = generator_schema_version()) {
+  if (inherits(policy, "dataganger_frozen_generator")) {
+    if (!is.null(allowed) || !is.null(compatibility) ||
+      !identical(contract_version, "1.0.0") ||
+      !identical(schema_version, generator_schema_version())) {
+      generator_schema_abort(
+        "A frozen generator handle cannot be combined with contract constructor arguments."
+      )
+    }
+    generator_api_validate_frozen(policy)
+    return(policy$contract)
+  }
   validate_generator_schema_version(schema_version, "Contract")
   validate_generator_semver(contract_version)
   validate_generator_named_object(policy, "Contract policy")

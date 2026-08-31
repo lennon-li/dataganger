@@ -21,13 +21,67 @@ generator_runtime_revision_id <- function(generator) {
   ))
 }
 
-generator_runtime_seed <- function(generator, seed, index) {
+# ---------------------------------------------------------------------------
+# Deterministic effective seeds
+#
+# Each effective seed is derived from the APPROVED CONTRACT ID rather than the
+# generator revision, so the seed a human approved is the seed that is used:
+# two generators that happen to compile to the same revision cannot silently
+# share a seed stream, and re-fitting under the same contract cannot move it.
+#
+# The algorithm is versioned. Changing it changes every output, so the version
+# is recorded in the receipt and in contract compatibility metadata, where a
+# reviewer can see it, instead of being an invisible property of the code.
+# ---------------------------------------------------------------------------
+
+generator_seed_algorithm <- function() {
+  "dataganger-seed-v1"
+}
+
+# Pinned so the same approved request produces the same data regardless of the
+# caller's ambient RNGkind(). Without this a session running L'Ecuyer-CMRG
+# gets different rows from an identical approved seed.
+generator_rng_kinds <- function() {
+  list(
+    kind = "Mersenne-Twister",
+    normal_kind = "Inversion",
+    sample_kind = "Rejection"
+  )
+}
+
+generator_runtime_seed <- function(contract_id, seed, index, salt = 0L) {
   digest <- semantic_hash(list(
-    generator = generator_runtime_revision_id(generator),
+    algorithm = generator_seed_algorithm(),
+    contract = as.character(contract_id),
     seed = as.integer(seed),
-    dataset = as.integer(index)
+    dataset = as.integer(index),
+    salt = as.integer(salt)
   ))
   as.integer(strtoi(substr(digest, 1L, 7L), base = 16L))
+}
+
+# Truncating a hash to 28 bits can collide. A collision would hand two
+# datasets in one batch the same seed, making them identical while the
+# provenance still claimed they were independent variations, so collisions are
+# resolved deterministically by salting rather than left to chance.
+generator_runtime_seeds <- function(contract_id, seed, datasets) {
+  datasets <- as.integer(datasets)
+  seeds <- integer(0L)
+  for (index in seq_len(datasets)) {
+    salt <- 0L
+    candidate <- generator_runtime_seed(contract_id, seed, index, salt)
+    while (candidate %in% seeds && salt < 1024L) {
+      salt <- salt + 1L
+      candidate <- generator_runtime_seed(contract_id, seed, index, salt)
+    }
+    if (candidate %in% seeds) {
+      generator_request_abort(
+        "Could not derive unique effective seeds for this request."
+      )
+    }
+    seeds <- c(seeds, candidate)
+  }
+  seeds
 }
 
 generator_runtime_missing <- function(value, rate, n) {
@@ -175,6 +229,7 @@ generator_runtime_apply_names <- function(synthetic, settings) {
 generator_runtime_one <- function(generator, n, seed) {
   roles <- generator_runtime_roles(generator)
   settings <- generator$settings
+  rng <- generator_rng_kinds()
   synthetic <- withr::with_seed(seed, {
     columns <- list()
     for (name in names(generator$columns)) {
@@ -182,7 +237,8 @@ generator_runtime_one <- function(generator, n, seed) {
       if (!is.null(value)) columns[[name]] <- value
     }
     if (length(columns)) tibble::as_tibble(columns) else tibble::tibble(.rows = n)
-  })
+  }, .rng_kind = rng$kind, .rng_normal_kind = rng$normal_kind,
+  .rng_sample_kind = rng$sample_kind)
 
   # The fitted runtime has no source frame for level restoration or precision
   # matching. Those inputs were compiled into each column state at fit time.
@@ -205,6 +261,80 @@ generator_runtime_one <- function(generator, n, seed) {
     warnings = warnings,
     privacy = privacy,
     diagnostics = diagnostics
+  )
+}
+
+generator_runtime_matches_kind <- function(value, schema) {
+  kind <- schema$kind
+  storage <- schema$storage %||% "character"
+  switch(kind,
+    numeric = if (identical(storage, "integer")) {
+      is.integer(value)
+    } else {
+      is.double(value) && !inherits(value, c("Date", "POSIXt"))
+    },
+    categorical = is.character(value),
+    logical = is.logical(value),
+    date = inherits(value, "Date"),
+    posixct = inherits(value, "POSIXct"),
+    character_date = is.character(value),
+    postal = is.character(value),
+    all_missing = switch(storage,
+      Date = inherits(value, "Date"),
+      POSIXct = inherits(value, "POSIXct"),
+      logical = is.logical(value),
+      integer = is.integer(value),
+      double = is.double(value),
+      is.character(value)
+    ),
+    redacted = is.character(value),
+    FALSE
+  )
+}
+
+generator_runtime_output_issues <- function(output, request, contract) {
+  issues <- list()
+  expected <- contract$policy$schema
+  expected_names <- as.character(contract$policy$output_names)
+  if (!is.data.frame(output)) {
+    return(list(generator_fit_issue(
+      "output_not_data_frame",
+      "Generated output is not a data frame."
+    )))
+  }
+  if (!identical(nrow(output), as.integer(request$n))) {
+    issues[[length(issues) + 1L]] <- generator_fit_issue(
+      "output_row_count_mismatch",
+      "Generated output row count does not match the approved request."
+    )
+  }
+  if (!identical(names(output), expected_names)) {
+    issues[[length(issues) + 1L]] <- generator_fit_issue(
+      "output_schema_mismatch",
+      "Generated output names do not match the approved contract."
+    )
+    return(issues)
+  }
+  for (index in seq_along(expected)) {
+    if (!generator_runtime_matches_kind(output[[index]], expected[[index]])) {
+      issues[[length(issues) + 1L]] <- generator_fit_issue(
+        "output_type_mismatch",
+        sprintf("Generated output column %s does not match its approved type.",
+          expected_names[[index]]),
+        expected_names[[index]]
+      )
+    }
+  }
+  issues
+}
+
+generator_runtime_append_issues <- function(table, issues) {
+  if (!length(issues)) return(table)
+  extra <- generator_fit_issue_table(issues)
+  list(
+    code = c(table$code, extra$code),
+    message = c(table$message, extra$message),
+    column = c(table$column, extra$column)
   )
 }
 
@@ -245,14 +375,24 @@ generator_generate <- function(generator, request = NULL, contract = NULL,
     generator_request_abort("Cannot generate from an ineligible fitted generator.")
   }
   request <- generator_runtime_request(generator, contract, request, seed, n, datasets)
-  seeds <- vapply(seq_len(request$datasets), function(index) {
-    generator_runtime_seed(generator, request$seed, index)
-  }, integer(1L))
+  seed_scope <- request$contract_id %||% generator_runtime_revision_id(generator)
+  seeds <- generator_runtime_seeds(seed_scope, request$seed, request$datasets)
   runs <- lapply(seq_along(seeds), function(index) {
     generator_runtime_one(generator, request$n, seeds[[index]])
   })
   privacy <- lapply(runs, `[[`, "privacy")
-  usable <- all(vapply(privacy, function(item) isTRUE(item$ok), logical(1L)))
+  output_issues <- if (is.null(contract)) {
+    rep(list(list()), length(runs))
+  } else {
+    lapply(runs, function(run) {
+      generator_runtime_output_issues(run$data, request, contract)
+    })
+  }
+  blockers <- Map(function(item, issues) {
+    generator_runtime_append_issues(item$blockers, issues)
+  }, privacy, output_issues)
+  usable <- all(vapply(privacy, function(item) isTRUE(item$ok), logical(1L))) &&
+    all(vapply(output_issues, function(issues) !length(issues), logical(1L)))
   warnings <- unique(unlist(lapply(runs, `[[`, "warnings"), use.names = FALSE))
   result <- list(
     schema_version = generator_schema_version(),
@@ -264,8 +404,11 @@ generator_generate <- function(generator, request = NULL, contract = NULL,
     privacy = privacy,
     diagnostics = lapply(runs, `[[`, "diagnostics"),
     warnings = warnings,
+    dataset_warnings = lapply(runs, `[[`, "warnings"),
     usable = usable,
-    blockers = lapply(privacy, `[[`, "blockers")
+    blockers = blockers,
+    seed_algorithm = generator_seed_algorithm(),
+    rng_kinds = generator_rng_kinds()
   )
   class(result) <- "dataganger_generation"
   result

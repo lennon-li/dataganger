@@ -390,4 +390,41 @@ local({
     expect_s3_class(error, "dataganger_generator_validation_error")
     expect_s3_class(error, "dataganger_generator_error")
   })
+
+  test_that("canonical data hashes are portable and type-sensitive", {
+    data <- data.frame(
+      number = c(1e-300, 1e300, NA_real_, NaN),
+      text = c("NA", NA_character_, "x", "x"),
+      group = factor(c("a", "b", NA, "a"), levels = c("a", "b", "unused")),
+      day = as.Date("2020-01-01") + c(0, 1, NA, 3),
+      stringsAsFactors = FALSE
+    )
+    hash <- generator_data_hash(data)
+    expect_identical(hash, generator_data_hash(tibble::as_tibble(data)))
+    expect_identical(nchar(hash), 64L)
+
+    changed <- data
+    changed$text[[1L]] <- NA_character_
+    expect_false(identical(hash, generator_data_hash(changed)))
+    changed <- data
+    levels(changed$group) <- c("a", "b", "different")
+    expect_false(identical(hash, generator_data_hash(changed)))
+    changed <- data[c(2L, 1L, 3L, 4L), ]
+    expect_false(identical(hash, generator_data_hash(changed)))
+
+    ordered <- data
+    ordered$group <- ordered(ordered$group)
+    expect_false(identical(hash, generator_data_hash(ordered)))
+
+    instant <- as.POSIXct("2020-01-01 00:00:00", tz = "UTC")
+    precise <- data.frame(at = instant + c(0, 0.0000001))
+    rounded <- data.frame(at = instant + c(0, 0.0000002))
+    expect_false(identical(
+      generator_data_hash(precise),
+      generator_data_hash(rounded)
+    ))
+
+    withr::local_options(list(OutDec = ",", scipen = 999))
+    expect_identical(hash, generator_data_hash(data))
+  })
 })

@@ -61,6 +61,23 @@ local({
     expect_identical(first$value$outputs, second$outputs)
     changed <- generate_internal_generator(fixture$generator, seed = 18, n = 80)
     expect_false(identical(first$value$outputs[[1L]], changed$outputs[[1L]]))
+
+    original_kind <- RNGkind()
+    on.exit(do.call(RNGkind, as.list(original_kind)), add = TRUE)
+    suppressWarnings(RNGkind("Super-Duper", "Kinderman-Ramage", "Rounding"))
+    set.seed(321)
+    ambient_kind <- RNGkind()
+    ambient_seed <- .Random.seed
+    alternate <- generate_internal_generator(
+      fixture$generator, seed = 17, n = 80, datasets = 2
+    )
+    expect_identical(RNGkind(), ambient_kind)
+    expect_identical(.Random.seed, ambient_seed)
+    expect_identical(first$value$seeds, alternate$seeds)
+    expect_identical(
+      vapply(first$value$outputs, generator_data_hash, character(1L)),
+      vapply(alternate$outputs, generator_data_hash, character(1L))
+    )
   })
 
   test_that("runtime replays fitted supported types and enforcement metadata", {
@@ -87,5 +104,21 @@ local({
     expect_true(result$usable)
     expect_identical(names(result$outputs[[1L]]), paste0("col_", seq_len(6L)))
     expect_true("kanon" %in% names(attributes(result$outputs[[1L]])))
+  })
+
+  test_that("runtime output postconditions fail closed", {
+    fixture <- runtime_fixture()
+    contract <- generator_contract(
+      generator_derive_policy(fixture$generator),
+      generation_limits(seed = c(1L, 100L), n = c(20L, 100L)),
+      generator_derive_compatibility()
+    )
+    request <- generation_request(contract, list(seed = 2L, n = 40L, datasets = 1L))
+    result <- generator_generate(fixture$generator, request = request, contract = contract)
+    expect_true(result$usable)
+    broken <- result$outputs[[1L]]
+    names(broken)[[1L]] <- "wrong"
+    issues <- generator_runtime_output_issues(broken, request, contract)
+    expect_true("output_schema_mismatch" %in% vapply(issues, `[[`, character(1L), "code"))
   })
 })
