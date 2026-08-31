@@ -50,6 +50,10 @@ local({
     )
   })
 
+  test_that("canonical data hashing handles a missing double safely", {
+    expect_no_error(generator_data_hash_double(NA_real_))
+  })
+
   test_that("canonicalization handles null and named atomic values", {
     first <- list(value = c(beta = 2L, alpha = 1L), optional = NULL)
     second <- list(optional = NULL, value = c(alpha = 1, beta = 2))

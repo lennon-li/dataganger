@@ -30,9 +30,13 @@
 ^\.codex$
 ^\.codegraph$
 ^\.codegraph/
+^\.codegraph(/|$)
+^\.codegraph(/.*)?$
 ^\.hermes$
 ^\.tokensave$
 ^exec$
 ^AGENTS\.md$
 ^tests/manual$
 ^SECURITY\.md$
+^.*\.tar\.gz$
+^.*\.Rcheck$

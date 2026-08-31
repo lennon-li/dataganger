@@ -18,3 +18,4 @@ dev/
 exec/
 *.Rcheck/
 ..Rcheck/
+*.tar.gz

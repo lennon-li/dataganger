@@ -142,7 +142,7 @@ generator_data_hash_algorithm <- function() {
 }
 
 generator_data_hash_double <- function(value) {
-  if (value == 0) value <- 0
+  if (!is.na(value) && value == 0) value <- 0
   bytes <- writeBin(value, raw(), size = 8L, endian = "big")
   paste(sprintf("%02x", as.integer(bytes)), collapse = "")
 }
