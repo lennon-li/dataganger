@@ -37,8 +37,12 @@ opaque_expectation_violations <- function(paths) {
       argument_names <- names(arguments)
       has_info <- !is.null(argument_names) && "info" %in% argument_names
       tested <- arguments[[1L]]
-      is_aggregate <- is.call(tested) &&
-        as.character(tested[[1L]]) %in% c("all", "any")
+      # A namespaced call such as shiny::isolate(...) has a `::` call as its
+      # head; as.character() returns all three pieces (`::`, package, name).
+      # Inspect only the head token so the diagnostic itself remains robust
+      # when tests use namespaced expectations.
+      tested_head <- if (is.call(tested)) as.character(tested[[1L]])[[1L]] else ""
+      is_aggregate <- is.call(tested) && tested_head %in% c("all", "any")
       if (is_aggregate && !has_info) {
         expression <- paste(deparse(call, width.cutoff = 500L), collapse = " ")
         violations[[length(violations) + 1L]] <- data.frame(

@@ -112,6 +112,41 @@
   margin: 4px 10px 8px;
 }
 
+.generator-workspace {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--synth-300);
+  border-radius: 6px;
+  background: var(--synth-50);
+  color: var(--synth-700);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.generator-workspace:hover,
+.generator-workspace.active {
+  border-color: var(--synth-500);
+  background: var(--synth-100);
+  box-shadow: var(--shadow-1);
+}
+.generator-workspace-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--synth-500);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .sidebar .ds-card {
   margin-top: auto;
   padding: 12px;

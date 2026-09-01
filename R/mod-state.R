@@ -67,7 +67,21 @@ mod_state_server <- function(id) {
         stringsAsFactors = FALSE
       ),
       fail_safe_upload_token = NULL,
-      stale = make_stale_flags(FALSE)
+      stale = make_stale_flags(FALSE),
+      # Reusable-generator state is deliberately isolated from upload state.
+      generator_draft = NULL,
+      generator_draft_token = NULL,
+      generator_active = NULL,
+      generator_approval = NULL,
+      generator_export_spec = NULL,
+      generator_export_roles = NULL,
+      generator_export_privacy = NULL,
+      generator_result = NULL,
+      generator_receipts = list(),
+      generator_error = NULL,
+      generator_busy = FALSE,
+      generator_source_released = FALSE,
+      generator_store_root = generator_workspace_default_store()
     )
 
     tokens <- shiny::reactiveValues(

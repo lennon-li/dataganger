@@ -1,6 +1,49 @@
 local({
 run_app <- dataganger::run_app
 
+app_shell_source <- function() {
+  source_path <- testthat::test_path("..", "..", "inst", "app", "app.R")
+  app_path <- if (file.exists(source_path)) source_path else {
+    system.file("app", "app.R", package = "dataganger")
+  }
+  testthat::skip_if(!nzchar(app_path) || !file.exists(app_path),
+    "installed app source is unavailable in this test installation")
+  paste(
+    readLines(app_path, warn = FALSE),
+    collapse = "\n"
+  )
+}
+
+test_that("app shell keeps reusable generators outside the six-step workflow", {
+  app_source <- app_shell_source()
+
+  expect_match(
+    app_source,
+    "STEP_ORDER = \\['upload','objective','configure','generate','compare','export'\\]"
+  )
+  expect_match(
+    app_source,
+    "STEP_IDS <- c\\(\"upload\", \"objective\", \"configure\", \"generate\", \"compare\", \"export\"\\)"
+  )
+  expect_match(app_source, "class = \"generator-workspace\"")
+  expect_match(app_source, "nav_go', 'generators'")
+  expect_match(app_source, "nav_panel_hidden\\(\"generators\"")
+  expect_match(app_source, "mod_generator_workspace_ui\\(\"generators\"\\)")
+  expect_match(app_source, "mod_generator_workspace_server\\(\"generators\", state\\)")
+})
+
+test_that("app shell treats generators as separate navigation with a full reset", {
+  app_source <- app_shell_source()
+
+  expect_match(app_source, "state\\$generator_return_step <- STEP_IDS\\[\\[current_step_num\\(\\) \\+ 1L\\]\\]")
+  expect_match(app_source, "bslib::nav_select\\(\"app_tabs\", \"generators\"\\)")
+  expect_match(app_source, "state\\$active_tab <- \"generators\"")
+  expect_match(app_source, "state\\$active_step <- \"generators\"")
+  expect_match(app_source, "generator_workspace_reset\\(state\\)")
+  expect_match(app_source, "identical\\(target, \"generators\"\\)")
+  expect_match(app_source, "identical\\(target, state\\$generator_return_step\\)")
+})
+
 test_that("run_app() errors cleanly when shiny is absent", {
   skip_if(
     requireNamespace("shiny", quietly = TRUE) &&

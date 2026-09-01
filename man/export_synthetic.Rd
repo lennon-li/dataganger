@@ -21,6 +21,7 @@ export_synthetic(
   exact_match_acknowledged = FALSE,
   include_dictionary = TRUE,
   code_readiness = NULL,
+  generator_provenance = NULL,
   compact = FALSE,
   overwrite = FALSE
 )
@@ -84,6 +85,9 @@ leave it \code{FALSE}.}
 \item{code_readiness}{Optional \code{dataganger_code_readiness} object from
 \code{\link[=check_code_readiness]{check_code_readiness()}}. When supplied, writes
 \code{agent/code_readiness_report.json} into the bundle.}
+
+\item{generator_provenance}{Optional named list recording the approved
+reusable-generator contract, approval, and output receipt identifiers.}
 
 \item{compact}{Deprecated, ignored.}
 

@@ -64,6 +64,31 @@ mod_export_server <- function(id, state) {
   rlang::check_installed("shiny", reason = "to use the DataGangeR Shiny modules")
 
   shiny::moduleServer(id, function(input, output, session) {
+    export_spec <- function() {
+      state$generator_export_spec %||% state$spec
+    }
+
+    export_roles <- function() {
+      state$generator_export_roles %||% state$generated_roles %||% state$roles
+    }
+
+    generator_provenance <- function() {
+      receipt <- attr(state$synthetic, "generation_receipt", exact = TRUE)
+      active <- state$generator_active
+      approval <- state$generator_approval
+      contract_id <- receipt$contract_id %||% active$contract_id %||% NULL
+      if (is.null(contract_id)) return(NULL)
+      list(
+        contract_id = contract_id,
+        approval_id = receipt$approval_id %||% approval$approval_id %||% NULL,
+        generator_id = receipt$generator_id %||% active$generator_id %||% NULL,
+        generator_revision = receipt$generator_revision %||%
+          active$generator_revision %||% NULL,
+        request_receipt_id = receipt$request_receipt_id %||% NULL,
+        output_receipt_id = receipt$receipt_id %||% NULL
+      )
+    }
+
     output$stale__export <- shiny::renderText({
       if (isTRUE(state$stale$export)) {
         "true"
@@ -83,7 +108,7 @@ mod_export_server <- function(id, state) {
       if (is.null(orig) || is.null(syn)) {
         return(NULL)
       }
-      roles <- state$generated_roles %||% state$roles
+      roles <- export_roles()
       role_map <- NULL
       if (!is.null(roles) && "variable" %in% names(roles) &&
         "recommended_role" %in% names(roles)) {
@@ -118,8 +143,10 @@ mod_export_server <- function(id, state) {
         as.integer(sum(detail$synthetic_severity > 0L))
       }
       n_sensitive <- exact_match_sensitive_count(detail)
-      roles <- state$generated_roles %||% state$roles
-      flags <- state$privacy %||% privacy_check(orig, syn, roles = roles, stage = "post", spec = state$spec)
+      roles <- export_roles()
+      flags <- generator_workspace_privacy_flags(state$privacy %||% privacy_check(
+        orig, syn, roles = roles, stage = "post", spec = export_spec()
+      ))
       disclosure_risk_modal(
         kanon = kanon,
         n_exact = n_exact,
@@ -203,7 +230,7 @@ mod_export_server <- function(id, state) {
         return(NULL)
       }
 
-      current_k <- kanon$k %||% state$spec$k_anon %||% 5L
+      current_k <- kanon$k %||% export_spec()$k_anon %||% 5L
       qi_cols <- kanon$qi_cols %||% character(0)
       qi_nodes <- list()
       for (i in seq_along(qi_cols)) {
@@ -274,7 +301,10 @@ mod_export_server <- function(id, state) {
 
     # Build the full bundle into `bundle_dir` and return the path to the ZIP.
     build_export <- function(bundle_dir) {
-      shiny::req(state$synthetic, state$spec)
+      spec <- export_spec()
+      shiny::req(state$synthetic, spec)
+      synthetic <- shiny::isolate(state$synthetic)
+      attr(synthetic, "spec") <- spec
       kanon <- shiny::isolate(state$kanon %||% attr(state$synthetic, "kanon", exact = TRUE))
       kanon_acknowledged <- isTRUE(shiny::isolate(input$kanon_acknowledged))
       if (isTRUE(kanon$infeasible) && !kanon_acknowledged) {
@@ -319,13 +349,13 @@ mod_export_server <- function(id, state) {
         exact_match_acknowledged <- FALSE
       }
 
-      export_roles <- shiny::isolate(state$generated_roles %||% state$roles)
-      if (is.null(export_roles) && !is.null(state$raw_data)) {
-        export_roles <- detect_roles(state$raw_data)
+      roles <- shiny::isolate(export_roles())
+      if (is.null(roles) && !is.null(state$raw_data)) {
+        roles <- detect_roles(state$raw_data)
       }
 
       export_synthetic(
-        synthetic = state$synthetic,
+        synthetic = synthetic,
         original = state$raw_data,
         comparison = state$comparison,
         privacy = state$privacy,
@@ -335,10 +365,11 @@ mod_export_server <- function(id, state) {
         include_report = TRUE,
         include_dictionary = FALSE,
         fail_on_exact_match = FALSE,
-        roles = export_roles,
+        roles = roles,
         include_original_names = use_original_names(),
         kanon_acknowledged = kanon_acknowledged,
-        exact_match_acknowledged = exact_match_acknowledged
+        exact_match_acknowledged = exact_match_acknowledged,
+        generator_provenance = shiny::isolate(generator_provenance())
       )
 
       zip_path <- file.path(bundle_dir, paste0(export_base_name(), "_bundle.zip"))

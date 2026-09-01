@@ -48,6 +48,8 @@
 #' @param code_readiness Optional `dataganger_code_readiness` object from
 #'   [check_code_readiness()]. When supplied, writes
 #'   `agent/code_readiness_report.json` into the bundle.
+#' @param generator_provenance Optional named list recording the approved
+#'   reusable-generator contract, approval, and output receipt identifiers.
 #' @param compact Deprecated, ignored.
 #' @param overwrite Logical. When `FALSE` (the default), existing output paths
 #'   are refused.
@@ -80,6 +82,7 @@ export_synthetic <- function(synthetic,
                              exact_match_acknowledged = FALSE,
                              include_dictionary = TRUE,
                              code_readiness = NULL,
+                             generator_provenance = NULL,
                              compact = FALSE,
                              overwrite = FALSE) {
   format <- match.arg(format)
@@ -145,6 +148,7 @@ export_synthetic <- function(synthetic,
   }
 
   spec <- attr(synthetic, "spec", exact = TRUE)
+  privacy <- generator_workspace_privacy_flags(privacy)
   purpose <- purpose %||% spec$purpose %||% "unspecified"
   include_original_names <- resolve_include_original_names(
     include_original_names = include_original_names,
@@ -224,7 +228,8 @@ export_synthetic <- function(synthetic,
       exact_row_matches = exact_row_matches,
       kanon = attr(synthetic, "kanon", exact = TRUE),
       kanon_acknowledged = kanon_acknowledged,
-      has_code_readiness = !is.null(code_readiness)
+      has_code_readiness = !is.null(code_readiness),
+      generator_provenance = generator_provenance
     ),
     con = file.path(human_dir, "human.md"),
     useBytes = TRUE
@@ -254,7 +259,8 @@ export_synthetic <- function(synthetic,
     original               = original,
     roles                  = export_roles,
     kanon_acknowledged     = kanon_acknowledged,
-    exact_match_acknowledged = exact_match_acknowledged
+    exact_match_acknowledged = exact_match_acknowledged,
+    generator_provenance   = generator_provenance
   )
 
   if (identical(format, "zip")) {
@@ -683,7 +689,8 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
                                   exact_row_matches = 0L,
                                   kanon = NULL,
                                   kanon_acknowledged = FALSE,
-                                  has_code_readiness = FALSE) {
+                                  has_code_readiness = FALSE,
+                                  generator_provenance = NULL) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
     "- `human/human.md` - this guide, including privacy notes and agent-facing guidance.",
@@ -735,6 +742,13 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "| identifies = direct | **Removed** from the output. | **Removed** from the output. |",
     "",
     render_kanon_line(kanon, kanon_acknowledged = kanon_acknowledged),
+    if (!is.null(generator_provenance)) {
+      paste0(
+        "Generator provenance: contract `", generator_provenance$contract_id %||% "unknown",
+        "`; approval `", generator_provenance$approval_id %||% "unknown",
+        "`; output receipt `", generator_provenance$output_receipt_id %||% "unknown", "`."
+      )
+    },
     "",
     paste(render_privacy_report(
       privacy,
@@ -1007,7 +1021,8 @@ html_escape <- function(x) {
 write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_matches = 0L,
                            include_original_names = TRUE, original = NULL, roles = NULL,
                            kanon_acknowledged = FALSE,
-                           exact_match_acknowledged = FALSE) {
+                           exact_match_acknowledged = FALSE,
+                           generator_provenance = NULL) {
   files <- list.files(bundle_dir, full.names = TRUE, recursive = TRUE, all.files = FALSE, no.. = TRUE)
   rel_files <- sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE))
   keep <- rel_files != "agent/manifest.json"
@@ -1116,6 +1131,7 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     numeric_ranges_included = FALSE,
     policy_file             = NULL
   )
+  manifest$generator_provenance <- generator_provenance
 
   jsonlite::write_json(
     manifest,

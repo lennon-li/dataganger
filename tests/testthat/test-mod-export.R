@@ -112,6 +112,48 @@ test_that("module export manifest hashes match after post-generation spec edits"
   }
 })
 
+test_that("reusable output exports after source release with generator provenance", {
+  testthat::skip_if_not_installed("shiny")
+
+  state <- export_test_state()
+  spec <- synth_spec(purpose = "demo", engine = "internal", seed = 7L)
+  synthetic <- shiny::isolate(state$synthetic)
+  attr(synthetic, "generation_receipt") <- list(
+    receipt_id = strrep("a", 64L),
+    request_receipt_id = strrep("b", 64L),
+    contract_id = strrep("c", 64L),
+    generator_revision = strrep("d", 64L)
+  )
+  state$raw_data <- NULL
+  state$spec <- NULL
+  state$synthetic <- synthetic
+  state$generator_export_spec <- spec
+  state$generator_export_roles <- NULL
+  state$generator_active <- list(
+    contract_id = strrep("c", 64L),
+    generator_id = strrep("e", 64L),
+    generator_revision = strrep("d", 64L)
+  )
+  state$generator_approval <- list(
+    status = "approved",
+    approval_id = strrep("f", 64L)
+  )
+
+  out_dir <- withr::local_tempdir()
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    zip_path <- build_export(out_dir)
+    expect_true(file.exists(zip_path))
+  })
+
+  manifest <- jsonlite::read_json(
+    file.path(out_dir, "agent", "manifest.json"),
+    simplifyVector = TRUE
+  )
+  expect_identical(manifest$generator_provenance$contract_id, strrep("c", 64L))
+  expect_identical(manifest$generator_provenance$approval_id, strrep("f", 64L))
+  expect_identical(manifest$generator_provenance$output_receipt_id, strrep("a", 64L))
+})
+
 test_that("export module blocks bundle download until k-anon is acknowledged", {
   testthat::skip_if_not_installed("shiny")
 

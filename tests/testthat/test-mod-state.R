@@ -100,5 +100,50 @@ test_that("state initializes active_step and compare_selected_var", {
     state <- session$getReturned()
     expect_identical(state$active_step, "upload")
     expect_null(state$compare_selected_var)
+    expect_null(state$generator_draft)
+    expect_null(state$generator_active)
+    expect_null(state$generator_approval)
+    expect_null(state$generator_result)
+    expect_identical(state$generator_receipts, list())
+    expect_null(state$generator_error)
+    expect_false(state$generator_busy)
+    expect_false(state$generator_source_released)
+    expect_identical(
+      state$generator_store_root,
+      generator_workspace_default_store()
+    )
+  })
+})
+
+test_that("upload reset does not clear isolated generator state", {
+  testthat::skip_if_not_installed("shiny")
+
+  shiny::testServer(mod_state_server, {
+    state <- session$getReturned()
+    active <- list(contract_id = strrep("a", 64L))
+    state$generator_draft <- list(engine = "internal")
+    state$generator_active <- active
+    state$generator_approval <- list(status = "approved")
+    state$generator_result <- list(ok = TRUE)
+    state$generator_receipts <- list(list(receipt_id = strrep("b", 64L)))
+    state$generator_error <- "old error"
+    state$generator_busy <- TRUE
+    state$generator_source_released <- TRUE
+    state$generator_store_root <- withr::local_tempdir()
+
+    state$raw_data <- tibble::tibble(x = 1:3)
+    session$flushReact()
+
+    expect_identical(state$generator_draft, list(engine = "internal"))
+    expect_identical(state$generator_active, active)
+    expect_identical(state$generator_approval, list(status = "approved"))
+    expect_identical(state$generator_result, list(ok = TRUE))
+    expect_identical(
+      state$generator_receipts,
+      list(list(receipt_id = strrep("b", 64L)))
+    )
+    expect_identical(state$generator_error, "old error")
+    expect_true(state$generator_busy)
+    expect_true(state$generator_source_released)
   })
 })

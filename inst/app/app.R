@@ -32,6 +32,9 @@ mod_export_server <- dataganger:::mod_export_server
 mod_export_ui <- dataganger:::mod_export_ui
 mod_generate_server <- dataganger:::mod_generate_server
 mod_generate_ui <- dataganger:::mod_generate_ui
+mod_generator_workspace_server <- dataganger:::mod_generator_workspace_server
+mod_generator_workspace_ui <- dataganger:::mod_generator_workspace_ui
+generator_workspace_reset <- dataganger:::generator_workspace_reset
 mod_roles_server <- dataganger:::mod_roles_server
 mod_roles_ui <- dataganger:::mod_roles_ui
 mod_state_server <- dataganger:::mod_state_server
@@ -117,7 +120,7 @@ sidebar_content <- tags$nav(
   tags$head(
     tags$script(HTML("
       Shiny.addCustomMessageHandler('setActiveStep', function(tab) {
-        document.querySelectorAll('.step').forEach(function(el) {
+        document.querySelectorAll('.step, .generator-workspace').forEach(function(el) {
           el.classList.remove('active');
         });
         var active = document.getElementById('step-' + tab);
@@ -210,6 +213,15 @@ sidebar_content <- tags$nav(
     step_item(4, "Generation", "generate"),
     step_item(5, "Comparison", "compare"),
     step_item(6, "Export", "export")
+  ),
+  tags$div(class = "section-label", "Reusable"),
+  tags$button(
+    id = "step-generators",
+    type = "button",
+    class = "generator-workspace",
+    onclick = "Shiny.setInputValue('nav_go', 'generators', {priority: 'event'});",
+    tags$span(class = "generator-workspace-mark", "G"),
+    tags$span("Reusable generators")
   ),
   tags$div(
     style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
@@ -416,7 +428,8 @@ ui <- bslib::page(
         bslib::nav_panel_hidden("configure", configure_ui()),
         bslib::nav_panel_hidden("generate", mod_generate_ui("generate")),
         bslib::nav_panel_hidden("compare", mod_compare_ui("compare")),
-        bslib::nav_panel_hidden("export", mod_export_ui("export"))
+        bslib::nav_panel_hidden("export", mod_export_ui("export")),
+        bslib::nav_panel_hidden("generators", mod_generator_workspace_ui("generators"))
       )
     ),
     tags$div(
@@ -440,6 +453,7 @@ server <- function(input, output, session) {
   })
 
   shiny::observeEvent(input$reset_all, ignoreNULL = TRUE, {
+    generator_workspace_reset(state)
     state$raw_data <- NULL
     state$profile <- NULL
     state$roles <- NULL
@@ -464,6 +478,8 @@ server <- function(input, output, session) {
     # the data, so the no-direct-identifier gate must re-fire before the new one.
     state$attested_no_direct <- FALSE
     state$active_step <- "upload"
+    state$active_tab <- "upload"
+    state$generator_return_step <- "upload"
     bslib::nav_select("app_tabs", "upload")
     send_step_state(0L)
   })
@@ -473,6 +489,7 @@ server <- function(input, output, session) {
   mod_roles_server("roles", state)
   mod_synthesis_controls_server("synthesis_controls", state)
   mod_generate_server("generate", state)
+  mod_generator_workspace_server("generators", state)
   mod_compare_server("compare", state)
   mod_export_server("export", state)
   mod_data_panel_server("data_panel", state)
@@ -481,6 +498,10 @@ server <- function(input, output, session) {
   # shows the disclosure-risk brief when this becomes "export".
   shiny::observeEvent(input$app_tabs, ignoreNULL = TRUE, {
     state$active_tab <- input$app_tabs
+    if (identical(input$app_tabs, "generators")) {
+      state$active_step <- "generators"
+      session$sendCustomMessage("setActiveStep", "generators")
+    }
   })
 
   # Set initial step state
@@ -510,6 +531,14 @@ server <- function(input, output, session) {
 
   current_step_num <- shiny::reactiveVal(0L) # 0-based
 
+  open_generator_workspace <- function() {
+    state$generator_return_step <- STEP_IDS[[current_step_num() + 1L]]
+    bslib::nav_select("app_tabs", "generators")
+    state$active_tab <- "generators"
+    state$active_step <- "generators"
+    session$sendCustomMessage("setActiveStep", "generators")
+  }
+
   send_step_state <- function(cur) {
     current_step_num(cur)
     state$active_step <- STEP_IDS[[cur + 1L]]
@@ -522,6 +551,10 @@ server <- function(input, output, session) {
   # Sidebar navigation
   shiny::observeEvent(input$nav_go, ignoreNULL = TRUE, ignoreInit = TRUE, {
     target <- input$nav_go
+    if (identical(target, "generators")) {
+      open_generator_workspace()
+      return()
+    }
     tgt_idx <- match(target, STEP_IDS) - 1L
     cur_idx <- current_step_num()
     max_idx <- max_step_reached()
@@ -739,7 +772,9 @@ server <- function(input, output, session) {
   # Re-broadcast step state when max_step_reached changes (synthetic data arrives, etc.)
   observe({
     max_step_reached()
-    send_step_state(current_step_num())
+    if (!identical(state$active_tab, "generators")) {
+      send_step_state(current_step_num())
+    }
   })
 
   # Module navigation requests (e.g. "\u2190 Adjust settings", "Continue to Export \u2192")
@@ -749,8 +784,13 @@ server <- function(input, output, session) {
       target <- "configure"
     }
     state$nav_request <- NULL
+    if (identical(target, "generators")) {
+      open_generator_workspace()
+      return()
+    }
     tgt_idx <- match(target, STEP_IDS) - 1L
-    if (!is.na(tgt_idx) && tgt_idx <= max_step_reached()) {
+    if (!is.na(tgt_idx) &&
+      (identical(target, state$generator_return_step) || tgt_idx <= max_step_reached())) {
       bslib::nav_select("app_tabs", target)
       send_step_state(tgt_idx)
     }

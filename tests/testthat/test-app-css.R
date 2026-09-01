@@ -1,6 +1,20 @@
 local({
 # tests/testthat/test-app-css.R
 
+test_that("generator workspace sidebar styling remains responsive", {
+  source_path <- testthat::test_path("..", "..", "inst", "app", "www", "shiny-app.css")
+  css_path <- if (file.exists(source_path)) source_path else {
+    system.file("app", "www", "shiny-app.css", package = "dataganger")
+  }
+  testthat::skip_if(!nzchar(css_path) || !file.exists(css_path),
+    "app CSS is unavailable in this test installation")
+  css <- paste(readLines(css_path, warn = FALSE), collapse = "\n")
+
+  expect_match(css, "\\.generator-workspace")
+  expect_match(css, "\\.generator-workspace\\.active")
+  expect_match(css, "@media \\(max-width: 1180px\\)")
+})
+
 skip_if_not_installed("shinytest2")
 skip_if_not_installed("chromote")
 
