@@ -25,6 +25,7 @@ export_synthetic(
   exact_match_acknowledged = FALSE,
   include_dictionary = TRUE,
   code_readiness = NULL,
+  generator_provenance = NULL,
   compact = FALSE,
   overwrite = FALSE
 )
@@ -128,6 +129,11 @@ export_synthetic(
   [`check_code_readiness()`](https://dataganger.biostats.ai/reference/check_code_readiness.md).
   When supplied, writes `agent/code_readiness_report.json` into the
   bundle.
+
+- generator_provenance:
+
+  Optional named list recording the approved reusable-generator
+  contract, approval, and output receipt identifiers.
 
 - compact:
 

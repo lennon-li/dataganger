@@ -41,6 +41,32 @@ Synthesize a dataset from a real data frame.
 - [`synthesize_data()`](https://dataganger.biostats.ai/reference/synthesize_data.md)
   : Synthesize a data double
 
+## Bounded Generator API
+
+Freeze a synthesis policy, approve it for bounded generation, and retain
+auditable receipts for generated outputs.
+
+- [`freeze_synthesis()`](https://dataganger.biostats.ai/reference/freeze_synthesis.md)
+  : Freeze a supported synthesis policy for repeated generation
+- [`approve_generator()`](https://dataganger.biostats.ai/reference/approve_generator.md)
+  : Approve a frozen generator for bounded generation
+- [`revoke_generator()`](https://dataganger.biostats.ai/reference/revoke_generator.md)
+  : Revoke an approved frozen generator
+- [`generate_synthetic()`](https://dataganger.biostats.ai/reference/generate_synthetic.md)
+  : Generate one or more approved synthetic datasets
+- [`generation_limits()`](https://dataganger.biostats.ai/reference/generation_limits.md)
+  : Define bounded generation request limits
+- [`generation_receipt()`](https://dataganger.biostats.ai/reference/generation_receipt.md)
+  : Inspect a sanitized generation receipt
+- [`generator_contract()`](https://dataganger.biostats.ai/reference/generator_contract.md)
+  : Create or retrieve a frozen generator contract
+- [`generator_risk_report()`](https://dataganger.biostats.ai/reference/generator_risk_report.md)
+  : Return the fitting risk report for a frozen generator
+- [`generator_batch()`](https://dataganger.biostats.ai/reference/generator_batch.md)
+  : Construct a synthetic development batch
+- [`summary(`*`<dataganger_batch>`*`)`](https://dataganger.biostats.ai/reference/summary.dataganger_batch.md)
+  : Summarize a synthetic development batch
+
 ## Comparison
 
 Compare a synthetic dataset against its original using distribution and

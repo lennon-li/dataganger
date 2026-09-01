@@ -13,6 +13,7 @@
 <url><loc>https://dataganger.biostats.ai/authors.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/index.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/news/index.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/approve_generator.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/assess_kanonymity.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/check_code_readiness.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/compare_synthetic.html</loc></url>
@@ -25,6 +26,13 @@
 <url><loc>https://dataganger.biostats.ai/reference/example_registry.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/export_diagnostic_package.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/export_synthetic.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/freeze_synthesis.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/generate_synthetic.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/generation_limits.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/generation_receipt.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/generator_batch.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/generator_contract.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/generator_risk_report.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/geographic_sample.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/index.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/individual_sample.html</loc></url>
@@ -35,8 +43,10 @@
 <url><loc>https://dataganger.biostats.ai/reference/profile_data.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/read_input.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/report_issue.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/revoke_generator.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/run_app.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/suggest_min_rows.html</loc></url>
+<url><loc>https://dataganger.biostats.ai/reference/summary.dataganger_batch.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/synth_spec.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/synthesize_data.html</loc></url>
 <url><loc>https://dataganger.biostats.ai/reference/temporal_sample.html</loc></url>

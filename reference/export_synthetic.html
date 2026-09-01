@@ -70,6 +70,7 @@ zip archive.</p>
 <span>  exact_match_acknowledged <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_dictionary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  code_readiness <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  generator_provenance <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  compact <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -168,6 +169,11 @@ leave it <code>FALSE</code>.</p></dd>
 <dd><p>Optional <code>dataganger_code_readiness</code> object from
 <code><a href="check_code_readiness.html">check_code_readiness()</a></code>. When supplied, writes
 <code>agent/code_readiness_report.json</code> into the bundle.</p></dd>
+
+
+<dt id="arg-generator-provenance">generator_provenance<a class="anchor" aria-label="anchor" href="#arg-generator-provenance"></a></dt>
+<dd><p>Optional named list recording the approved
+reusable-generator contract, approval, and output receipt identifiers.</p></dd>
 
 
 <dt id="arg-compact">compact<a class="anchor" aria-label="anchor" href="#arg-compact"></a></dt>
