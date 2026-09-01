@@ -430,3 +430,70 @@ generator_api_provenance <- function(result, request_receipt, output_receipts) {
     stringsAsFactors = FALSE
   )
 }
+
+#' @keywords internal
+#' @noRd
+generator_api_recover_frozen_handle <- function(store, contract_id) {
+  private_store <- generator_store_open(store)
+  contract <- generator_store_read_contract(private_store, contract_id)
+
+  approval_path <- generator_store_approval_path(private_store, contract_id)
+  approval <- if (file.exists(approval_path)) {
+    generator_store_read_approval(private_store, contract_id)
+  } else {
+    NULL
+  }
+
+  if (!is.null(approval) && identical(approval$status, "approved")) {
+    generator_store_validate_active_approval(private_store, contract_id)
+  }
+
+  generator_id <- if (!is.null(approval)) {
+    approval$generator_id
+  } else {
+    generator_files <- list.files(
+      file.path(private_store$root, "generators"),
+      pattern = "^[0-9a-f]{64}\\.json$"
+    )
+    matches <- lapply(sub("\\.json$", "", generator_files), function(id) {
+      record <- generator_store_read_generator_record(private_store, id)
+      matches_contract <- tryCatch({
+        generator_store_validate_contract_generator(contract, record$generator)
+        TRUE
+      }, error = function(error) FALSE)
+      if (isTRUE(matches_contract)) record else NULL
+    })
+    matching_ids <- sub(
+      "\\.json$", "", generator_files
+    )[!vapply(matches, is.null, logical(1L))]
+    if (length(matching_ids) != 1L) {
+      generator_api_abort(sprintf(
+        "Contract %s does not have exactly one stored generator.", contract_id
+      ))
+    }
+    matching_ids[[1L]]
+  }
+  generator_record <- generator_store_read_generator_record(
+    private_store, generator_id
+  )
+
+  frozen <- structure(
+    list(
+      schema_version = generator_schema_version(),
+      contract = contract,
+      contract_id = contract$contract_id,
+      generator_id = generator_id,
+      generator_revision = generator_record$generator_revision,
+      generator_fingerprint = generator_record$generator_fingerprint,
+      store = list(
+        root = private_store$root,
+        store_id = private_store$store_id,
+        schema_version = private_store$schema_version
+      ),
+      risk_report = generator_record$generator$risk_report
+    ),
+    class = "dataganger_frozen_generator"
+  )
+  generator_api_validate_frozen(frozen)
+  frozen
+}
