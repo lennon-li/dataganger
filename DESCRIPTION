@@ -26,6 +26,7 @@ Imports:
     haven,
     jsonlite,
     methods,
+    openssl,
     readr,
     readxl,
     rlang,

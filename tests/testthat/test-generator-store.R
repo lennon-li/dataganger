@@ -54,6 +54,13 @@ local({
     }
   })
 
+  test_that("trusted random keys are portable across operating systems", {
+    key <- generator_fit_csprng_key(32L)
+    expect_true(is.raw(key))
+    expect_length(key, 32L)
+    expect_false(identical(key, raw(32L)))
+  })
+
   test_that("failed atomic writes leave no temporary approved object", {
     path <- withr::local_tempdir()
     store <- generator_store_create(path)

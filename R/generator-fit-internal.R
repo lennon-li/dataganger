@@ -7,6 +7,13 @@ generator_fit_csprng_key <- function(n = 32L) {
     n != floor(n)) {
     return(NULL)
   }
+  key <- tryCatch(
+    openssl::rand_bytes(as.integer(n)),
+    error = function(e) raw(0)
+  )
+  if (length(key) == n) {
+    return(key)
+  }
   handle <- tryCatch(file("/dev/urandom", open = "rb", raw = TRUE), error = function(e) NULL)
   if (is.null(handle)) {
     return(NULL)

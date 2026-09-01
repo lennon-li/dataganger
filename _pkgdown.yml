@@ -51,6 +51,22 @@ reference:
     contents:
       - synthesize_data
 
+  - title: "Bounded Generator API"
+    desc: >
+      Freeze a synthesis policy, approve it for bounded generation, and retain
+      auditable receipts for generated outputs.
+    contents:
+      - freeze_synthesis
+      - approve_generator
+      - revoke_generator
+      - generate_synthetic
+      - generation_limits
+      - generation_receipt
+      - generator_contract
+      - generator_risk_report
+      - generator_batch
+      - summary.dataganger_batch
+
   - title: "Comparison"
     desc: >
       Compare a synthetic dataset against its original using distribution and
