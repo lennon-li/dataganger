@@ -174,3 +174,50 @@ test_that("destroying a contract reports every fitted generator it removes", {
     )
   }
 })
+
+test_that("a superseded contract can be destroyed and keeps its supersession link", {
+  skip_if_not_installed("withr")
+  tmp <- withr::local_tempdir()
+  store <- file.path(tmp, "store")
+  spec <- synth_spec("development", engine = "internal")
+
+  # Different columns give different roles, so different policy and therefore
+  # two distinct contracts.
+  old <- summary(freeze_synthesis(
+    data.frame(a = 1:10, b = 11:20, c = letters[1:10], stringsAsFactors = FALSE),
+    spec, store = store
+  ))
+  new <- summary(freeze_synthesis(
+    data.frame(x = 1:10, y = 11:20, z = letters[1:10], stringsAsFactors = FALSE),
+    spec, store = store
+  ))
+  expect_false(identical(old$contract_id, new$contract_id))
+
+  private_store <- generator_api_store(store)
+  for (record in list(old, new)) {
+    generator_store_approve(
+      private_store,
+      generator_store_read_contract(private_store, record$contract_id),
+      record$generator_id, "test_user"
+    )
+  }
+  generator_store_supersede(private_store, old$contract_id, new$contract_id)
+  expect_identical(
+    generator_store_read_approval(private_store, old$contract_id)$status,
+    "superseded"
+  )
+
+  destroyed <- destroy_generator(store, old$contract_id, "post-supersession cleanup")
+  expect_identical(destroyed$status, "destroyed")
+
+  # The supersession link survives destruction, so the chain stays inspectable
+  # rather than pointing from nowhere.
+  approval <- generator_store_read_approval(private_store, old$contract_id)
+  expect_identical(approval$status, "destroyed")
+  expect_identical(approval$superseded_by, new$contract_id)
+
+  # The superseding contract is untouched.
+  expect_true(file.exists(
+    generator_store_object_path(private_store, "generators", new$generator_id)
+  ), info = "superseding contract's fitted state survives")
+})
