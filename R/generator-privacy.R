@@ -12,13 +12,29 @@ generator_runtime_row_fingerprints <- function(data, key) {
 generator_runtime_privacy_check <- function(synthetic, generator, roles) {
   index <- generator$exact_row_index
   exact_matches <- integer()
-  if (is.list(index) && is.raw(index$key) && is.character(index$fingerprints)) {
+  exact_row_unavailable <- FALSE
+
+  if (is.null(index) || !is.list(index)) {
+    exact_row_unavailable <- TRUE
+  } else if (!is.raw(index$key)) {
+    exact_row_unavailable <- TRUE
+  } else if (!is.character(index$fingerprints)) {
+    exact_row_unavailable <- TRUE
+  } else if (!"algorithm" %in% names(index) || !identical(index$algorithm, "HMAC-SHA256")) {
+    exact_row_unavailable <- TRUE
+  } else {
     fingerprints <- generator_runtime_row_fingerprints(synthetic, index$key)
     exact_matches <- which(fingerprints %in% index$fingerprints)
   }
 
   kanon <- attr(synthetic, "kanon", exact = TRUE)
   blockers <- list()
+  if (exact_row_unavailable) {
+    blockers[[length(blockers) + 1L]] <- generator_fit_issue(
+      "exact_row_check_unavailable",
+      "The exact-row privacy check could not be performed and the output is therefore not cleared. The generator must be re-frozen."
+    )
+  }
   if (length(exact_matches)) {
     blockers[[length(blockers) + 1L]] <- generator_fit_issue(
       "exact_row_match",
