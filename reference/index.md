@@ -52,6 +52,8 @@ auditable receipts for generated outputs.
   : Approve a frozen generator for bounded generation
 - [`revoke_generator()`](https://dataganger.biostats.ai/reference/revoke_generator.md)
   : Revoke an approved frozen generator
+- [`destroy_generator()`](https://dataganger.biostats.ai/reference/destroy_generator.md)
+  : Permanently destroy fitted state for a frozen-generator contract
 - [`generate_synthetic()`](https://dataganger.biostats.ai/reference/generate_synthetic.md)
   : Generate one or more approved synthetic datasets
 - [`generation_limits()`](https://dataganger.biostats.ai/reference/generation_limits.md)
