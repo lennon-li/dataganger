@@ -358,7 +358,7 @@ test_that("generator generate writes one contract-conforming bundle and provenan
   expect_true(file.exists(out))
   listing <- utils::unzip(out, list = TRUE)$Name
   expect_true("synthetic_data.csv" %in% listing)
-  expect_true(any(startsWith(listing, "human/")))
+  expect_contains(listing, "human/human.md")
   expect_true("agent/manifest.json" %in% listing)
 
   extracted <- withr::local_tempdir()
@@ -390,7 +390,7 @@ test_that("multiple generator datasets are one archive of separate bundles", {
   expect_setequal(roots, sprintf("dataset_%02d", 1:3))
   for (root in roots) {
     expect_true(paste0(root, "/synthetic_data.csv") %in% listing)
-    expect_true(any(startsWith(listing, paste0(root, "/human/"))))
+    expect_contains(listing, paste0(root, "/human/human.md"))
     expect_true(paste0(root, "/agent/manifest.json") %in% listing)
   }
 })
