@@ -150,17 +150,27 @@ revoke_generator <- function(frozen, reason) {
 #' Permanently destroy fitted state for a frozen-generator contract
 #'
 #' The contract file is retained as a tombstone of the policy that existed.
-#' The approval record is retained and marked `destroyed`; its existing
-#' approver, `revoked_at`, and `reason` fields record who, when, and why.
+#' The approval record is retained and marked `destroyed`, keeping the original
+#' `approver` so it stays clear who approved the generator; `revoked_at` records
+#' when it was destroyed and `reason` records who destroyed it and why.
 #' Generation receipts are also retained as an audit trail. All fitted
 #' generator records matching the contract, including their exact-row index,
 #' are removed. Destruction is idempotent and a destroyed contract cannot be
 #' recovered or used for generation.
 #'
+#' Destruction unlinks the fitted state from the private store. It is not a
+#' secure wipe: on a journalling filesystem, an SSD with wear levelling, a
+#' snapshotted volume, or any backup of the store, residual copies may survive
+#' outside this package's control. Treat it as "removed from the store and
+#' permanently unusable", not as forensic erasure.
+#'
 #' @param store A private store path or `dataganger_generator_store` object.
 #' @param contract_id The opaque contract ID to destroy.
 #' @param reason One non-empty destruction reason recorded in the tombstone.
-#' @return A destruction tombstone, invisibly.
+#' @return A destruction tombstone, invisibly, including `generator_ids` for
+#'   every fitted generator removed. A contract is keyed by its policy rather
+#'   than by the source data, so one contract can hold several fitted
+#'   generators compiled from different datasets; all of them are destroyed.
 #' @export
 destroy_generator <- function(store, contract_id, reason) {
   private_store <- generator_api_store(store)
@@ -169,8 +179,8 @@ destroy_generator <- function(store, contract_id, reason) {
     contract_id = approval$contract_id,
     status = approval$status,
     destroyed_at = approval$revoked_at,
-    destroyed_by = approval$approver,
-    reason = approval$reason
+    reason = approval$reason,
+    generator_ids = attr(approval, "destroyed_generator_ids", exact = TRUE)
   ), class = "dataganger_destruction"))
 }
 

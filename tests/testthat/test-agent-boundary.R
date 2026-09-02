@@ -173,7 +173,7 @@ test_that("privileged operations are unreachable from the broker", {
   tmp <- withr::local_tempdir()
   fixture <- agent_test_approve(agent_test_fixture(tmp))
 
-  for (op in c("freeze", "approve", "revoke", "inspect", "status", "migrate")) {
+  for (op in c("freeze", "approve", "revoke", "destroy", "inspect", "status", "migrate")) {
     response <- agent_test_broker(
       fixture$store,
       agent_test_request(op, contract_id = fixture$contract_id)
@@ -445,7 +445,7 @@ test_that("a single-account host can never report the agent capability available
 # ---- Agent CLI surface ------------------------------------------------------
 
 test_that("privileged subcommands are unreachable from the agent route", {
-  for (subcmd in c("freeze", "approve", "revoke", "inspect", "status-all", "migrate")) {
+  for (subcmd in c("freeze", "approve", "revoke", "destroy", "inspect", "status-all", "migrate")) {
     expect_equal(dataganger_cli(c("agent", subcmd)), 2L)
   }
 })

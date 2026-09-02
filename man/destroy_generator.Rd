@@ -14,14 +14,25 @@ destroy_generator(store, contract_id, reason)
 \item{reason}{One non-empty destruction reason recorded in the tombstone.}
 }
 \value{
-A destruction tombstone, invisibly.
+A destruction tombstone, invisibly, including \code{generator_ids} for
+every fitted generator removed. A contract is keyed by its policy rather
+than by the source data, so one contract can hold several fitted
+generators compiled from different datasets; all of them are destroyed.
 }
 \description{
 The contract file is retained as a tombstone of the policy that existed.
-The approval record is retained and marked \code{destroyed}; its existing
-approver, \code{revoked_at}, and \code{reason} fields record who, when, and why.
+The approval record is retained and marked \code{destroyed}, keeping the original
+\code{approver} so it stays clear who approved the generator; \code{revoked_at} records
+when it was destroyed and \code{reason} records who destroyed it and why.
 Generation receipts are also retained as an audit trail. All fitted
 generator records matching the contract, including their exact-row index,
 are removed. Destruction is idempotent and a destroyed contract cannot be
 recovered or used for generation.
+}
+\details{
+Destruction unlinks the fitted state from the private store. It is not a
+secure wipe: on a journalling filesystem, an SSD with wear levelling, a
+snapshotted volume, or any backup of the store, residual copies may survive
+outside this package's control. Treat it as "removed from the store and
+permanently unusable", not as forensic erasure.
 }

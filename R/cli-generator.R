@@ -268,14 +268,21 @@ cli_cmd_generator_destroy <- function(args) {
   reason <- cli_require_option(opts, "reason")
   cli_generator_open_store(store_path)
 
-  tryCatch(
+  destroyed <- tryCatch(
     destroy_generator(store_path, contract_id, reason),
     dataganger_generator_error = function(e) {
       cli::cli_abort(conditionMessage(e))
     }
   )
 
-  cli::cli_alert_success("Contract {.val {contract_id}} fitted state has been destroyed.")
+  removed <- length(destroyed$generator_ids)
+  cli::cli_alert_success(
+    "Contract {.val {contract_id}} fitted state has been destroyed."
+  )
+  cli::cli_alert_info("Fitted generators removed: {removed}")
+  for (generator_id in destroyed$generator_ids) {
+    cli::cli_alert_info("Destroyed generator: {.val {generator_id}}")
+  }
   cli_status_ok()
 }
 

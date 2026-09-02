@@ -35,8 +35,17 @@ test_that("destroy_generator removes fitted state and preserves audit receipts",
   receipt_id <- generation_receipt(generated)$receipt_id
   expect_true(file.exists(generator_path), info = "fitted generator exists before destruction")
 
+  # Guard against a vacuous leak check: if the index were ever empty, the
+  # fingerprint sweep below would pass while proving nothing.
+  expect_gt(length(fingerprints), 0L)
+
   destroyed <- destroy_generator(fixture$store, fixture$contract_id, "retention policy")
   expect_identical(destroyed$status, "destroyed")
+
+  # Destruction must not erase who approved the generator.
+  destroyed_approval <- generator_store_read_approval(private_store, fixture$contract_id)
+  expect_identical(destroyed_approval$approver, approval$approver)
+  expect_match(destroyed_approval$reason, "retention policy", fixed = TRUE)
   expect_false(file.exists(generator_path), info = "fitted generator file was removed")
   expect_true(file.exists(
     generator_store_object_path(private_store, "receipts", receipt_id)
@@ -81,4 +90,87 @@ test_that("generator destroy CLI command round-trips", {
   expect_true(file.exists(
     generator_store_object_path(private_store, "contracts", fixture$contract_id)
   ), info = "contract tombstone survived CLI destruction")
+})
+
+test_that("destroying a never-approved contract does not fabricate an approval", {
+  skip_if_not_installed("withr")
+  tmp <- withr::local_tempdir()
+  data_file <- file.path(tmp, "data.csv")
+  readr::write_csv(data.frame(
+    a = 1:10, b = 11:20, c = letters[1:10], stringsAsFactors = FALSE
+  ), data_file)
+  spec_file <- file.path(tmp, "spec.yaml")
+  cat("purpose: development\nengine: internal\n", file = spec_file)
+  summary_file <- file.path(tmp, "summary.json")
+  expect_identical(dataganger_cli(c(
+    "generator", "freeze", data_file,
+    "--spec", spec_file, "--store", file.path(tmp, "store"),
+    "--out", summary_file
+  )), 0L)
+  summary_data <- jsonlite::fromJSON(summary_file)
+  store <- file.path(tmp, "store")
+
+  # Never approved: no approval record exists yet.
+  private_store <- generator_store_open(store)
+  expect_false(file.exists(
+    generator_store_approval_path(private_store, summary_data$contract_id)
+  ))
+
+  destroyed <- destroy_generator(store, summary_data$contract_id, "never used")
+  expect_identical(destroyed$status, "destroyed")
+
+  # The tombstone must not claim an approver or an approval time that never
+  # existed. revoke_generator() refuses to fabricate an approval record; a
+  # destruction tombstone must not smuggle one in either.
+  approval <- generator_store_read_approval(private_store, summary_data$contract_id)
+  expect_identical(approval$approver, "(never approved)")
+  expect_identical(approval$approved_at, "(never approved)")
+  expect_match(approval$reason, "without prior approval", fixed = TRUE)
+
+  expect_false(file.exists(
+    generator_store_object_path(private_store, "generators", summary_data$generator_id)
+  ))
+
+  # Still idempotent, and still fails closed.
+  again <- destroy_generator(store, summary_data$contract_id, "repeat")
+  expect_identical(again$status, "destroyed")
+  expect_error(
+    generator_api_recover_frozen_handle(store, summary_data$contract_id),
+    "destroyed"
+  )
+})
+
+test_that("destroying a contract reports every fitted generator it removes", {
+  skip_if_not_installed("withr")
+  tmp <- withr::local_tempdir()
+  store <- file.path(tmp, "store")
+  spec <- synth_spec("development", engine = "internal")
+
+  # A contract is keyed by policy, not by source data, so freezing two
+  # different datasets under one spec yields ONE contract with TWO fitted
+  # generators. Destruction removes both; the caller must be able to see that.
+  first <- summary(freeze_synthesis(
+    data.frame(a = 1:10, b = 11:20, c = letters[1:10], stringsAsFactors = FALSE),
+    spec, store = store
+  ))
+  second <- summary(freeze_synthesis(
+    data.frame(a = 101:110, b = 201:210, c = LETTERS[1:10], stringsAsFactors = FALSE),
+    spec, store = store
+  ))
+  expect_identical(first$contract_id, second$contract_id)
+  expect_false(identical(first$generator_id, second$generator_id))
+
+  destroyed <- destroy_generator(store, first$contract_id, "cleanup")
+
+  expect_setequal(
+    destroyed$generator_ids,
+    c(first$generator_id, second$generator_id)
+  )
+  private_store <- generator_store_open(store)
+  for (generator_id in c(first$generator_id, second$generator_id)) {
+    expect_false(
+      file.exists(generator_store_object_path(private_store, "generators", generator_id)),
+      info = sprintf("generator %s removed", generator_id)
+    )
+  }
 })

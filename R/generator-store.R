@@ -625,6 +625,15 @@ generator_store_validate_active_approval <- function(store, contract_id) {
   list(contract = contract, approval = approval, generator = generator$generator)
 }
 
+#' Sentinel recorded where an approval never existed
+#'
+#' Used in a destruction tombstone for a contract that was frozen but never
+#' approved, so the record does not imply an approval that never happened.
+#'
+#' @keywords internal
+#' @noRd
+generator_store_never_approved <- function() "(never approved)"
+
 generator_store_destroy <- function(store, contract_id, reason,
                                      destroyed_at = Sys.time(),
                                      destroyed_by = Sys.info()[["user"]]) {
@@ -700,22 +709,38 @@ generator_store_destroy <- function(store, contract_id, reason,
       allowed = unclass(contract$allowed),
       risk_report_hash = semantic_hash(generator_runtime_hashable(unclass(record$generator$risk_report))),
       compiler = generator_store_compiler(),
-      approver = trimws(destroyed_by),
-      approved_at = destroyed_at,
+      # This contract was never approved, so there is no approver and no
+      # approval time. Recording the destroyer here would fabricate an approval
+      # that never happened, which is the same thing revoke_generator()
+      # deliberately refuses to do. An explicit sentinel keeps the tombstone
+      # honest; the destroyer is named in `reason`.
+      approver = generator_store_never_approved(),
+      approved_at = generator_store_never_approved(),
       status = "destroyed",
       revoked_at = destroyed_at,
       superseded_by = NULL,
-      reason = trimws(reason),
+      reason = sprintf(
+        "Destroyed by %s without prior approval: %s",
+        trimws(destroyed_by), trimws(reason)
+      ),
       binding_hash = NULL
     )
   } else {
+    # The approver field records who approved the generator. Overwriting it
+    # with the destroyer would erase the human accountability the approval gate
+    # exists to capture, so the destroyer is recorded in the reason instead.
     approval$status <- "destroyed"
-    approval$approver <- trimws(destroyed_by)
     approval$revoked_at <- destroyed_at
-    approval$reason <- trimws(reason)
+    approval$reason <- sprintf(
+      "Destroyed by %s: %s", trimws(destroyed_by), trimws(reason)
+    )
   }
   approval$binding_hash <- generator_store_approval_binding(approval)
   generator_store_write_object(store, "approvals", contract_id, approval)
+  # A contract is keyed by policy, not by source data, so one contract can hold
+  # several fitted generators compiled from different datasets. Destruction
+  # removes all of them; report which, so that is visible rather than silent.
+  attr(approval, "destroyed_generator_ids") <- matching_ids
   approval
 }
 
