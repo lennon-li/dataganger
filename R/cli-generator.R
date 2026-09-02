@@ -65,7 +65,7 @@ cli_print_generator_help <- function() {
       "Commands:",
       "  freeze <data-file> --spec <spec.yaml> --store <dir> [--roles <roles.yaml>] [--max-n <int>] [--max-datasets <int>] [--out <file.json>]",
       "  inspect --store <dir> --contract-id <id> [--out <file.json>]",
-      "  generate --store <dir> --contract-id <id> --out <path> [--seed <int>] [--n <int>] [--datasets <int>] [--allow-exact-match true|false] [--acknowledge-kanon true|false] [--acknowledge-exact-match true|false]",
+      "  generate --store <dir> --contract-id <id> --out <path> [--seed <int>] [--n <int>] [--datasets <int>] [--acknowledge-kanon true|false] [--acknowledge-exact-match true|false]",
       "  revoke --store <dir> --contract-id <id> --reason <text>",
       "  status --store <dir> [--contract-id <id>] [--out <file.json>]",
       sep = "\n"
@@ -171,7 +171,7 @@ cli_cmd_generator_inspect <- function(args) {
 cli_cmd_generator_generate <- function(args) {
   opts <- cli_parse_options(args, allowed = c(
     "store", "contract-id", "out", "seed", "n", "datasets",
-    "allow-exact-match", "acknowledge-kanon", "acknowledge-exact-match"
+    "acknowledge-kanon", "acknowledge-exact-match"
   ))
   if (length(opts$positionals) > 0L) {
     cli_usage_error("generator generate takes no positional arguments")
@@ -184,11 +184,6 @@ cli_cmd_generator_generate <- function(args) {
   seed <- if (!is.null(opts$options$seed)) as.integer(opts$options$seed) else NULL
   n <- if (!is.null(opts$options$n)) as.integer(opts$options$n) else NULL
   datasets <- if (!is.null(opts$options$datasets)) as.integer(opts$options$datasets) else 1L
-  allow_exact_match <- if (!is.null(opts$options[["allow-exact-match"]])) {
-    cli_parse_bool(opts$options[["allow-exact-match"]], "allow-exact-match")
-  } else {
-    FALSE
-  }
   acknowledge_kanon <- if (!is.null(opts$options[["acknowledge-kanon"]])) {
     cli_parse_bool(opts$options[["acknowledge-kanon"]], "acknowledge-kanon")
   } else {
@@ -227,7 +222,11 @@ cli_cmd_generator_generate <- function(args) {
       purpose = export_spec$purpose %||% NULL,
       roles = export_roles,
       privacy = cli_generator_export_privacy(synthetic),
-      fail_on_exact_match = !isTRUE(allow_exact_match),
+      # fail_on_exact_match is deliberately not passed. export_synthetic() only
+      # honours it when `original` is supplied, and this path is source-free by
+      # design, so the argument would be inert. Exact-row matches are blocked
+      # upstream by the runtime privacy check in generate_synthetic(), which has
+      # the fitted state and the keyed index this layer does not.
       kanon_acknowledged = isTRUE(acknowledge_kanon),
       exact_match_acknowledged = isTRUE(acknowledge_exact_match),
       generator_provenance = list(

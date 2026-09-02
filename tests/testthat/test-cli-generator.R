@@ -395,7 +395,10 @@ test_that("multiple generator datasets are one archive of separate bundles", {
   }
 })
 
-test_that("generator generate keeps the exact-match export gate strict by default", {
+# The blocking here comes from the RUNTIME privacy check in generate_synthetic(),
+# not from export_synthetic()'s fail_on_exact_match, which is inert on this
+# source-free path because it is only honoured when `original` is supplied.
+test_that("generator generate is blocked by the runtime exact-row privacy check", {
   skip_if_not_installed("withr")
   tmp <- withr::local_tempdir()
   fixture <- cli_generator_approved_fixture(tmp, data.frame(
