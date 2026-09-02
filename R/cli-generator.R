@@ -13,6 +13,7 @@ cli_cmd_generator <- function(args) {
     inspect = cli_cmd_generator_inspect(rest),
     generate = cli_cmd_generator_generate(rest),
     revoke = cli_cmd_generator_revoke(rest),
+    destroy = cli_cmd_generator_destroy(rest),
     status = cli_cmd_generator_status(rest),
     {
       cli::cli_alert_danger("Unknown generator subcommand: {subcmd}")
@@ -67,6 +68,7 @@ cli_print_generator_help <- function() {
       "  inspect --store <dir> --contract-id <id> [--out <file.json>]",
       "  generate --store <dir> --contract-id <id> --out <path> [--seed <int>] [--n <int>] [--datasets <int>] [--acknowledge-kanon true|false] [--acknowledge-exact-match true|false]",
       "  revoke --store <dir> --contract-id <id> --reason <text>",
+      "  destroy --store <dir> --contract-id <id> --reason <text>",
       "  status --store <dir> [--contract-id <id>] [--out <file.json>]",
       sep = "\n"
     ),
@@ -252,6 +254,28 @@ cli_cmd_generator_revoke <- function(args) {
   )
 
   cli::cli_alert_success("Contract {.val {contract_id}} has been revoked.")
+  cli_status_ok()
+}
+
+cli_cmd_generator_destroy <- function(args) {
+  opts <- cli_parse_options(args, allowed = c("store", "contract-id", "reason"))
+  if (length(opts$positionals) > 0L) {
+    cli_usage_error("generator destroy takes no positional arguments")
+  }
+
+  store_path <- cli_require_option(opts, "store")
+  contract_id <- cli_require_option(opts, "contract-id")
+  reason <- cli_require_option(opts, "reason")
+  cli_generator_open_store(store_path)
+
+  tryCatch(
+    destroy_generator(store_path, contract_id, reason),
+    dataganger_generator_error = function(e) {
+      cli::cli_abort(conditionMessage(e))
+    }
+  )
+
+  cli::cli_alert_success("Contract {.val {contract_id}} fitted state has been destroyed.")
   cli_status_ok()
 }
 

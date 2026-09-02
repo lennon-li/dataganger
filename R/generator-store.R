@@ -579,7 +579,7 @@ generator_store_read_approval <- function(store, contract_id) {
     "reason", "binding_hash")
   validate_generator_fields(approval, expected, "Generator approval", generator_store_tamper_abort)
   if (!identical(approval$contract_id, contract_id) ||
-    !approval$status %in% c("approved", "revoked", "superseded")) {
+     !approval$status %in% c("approved", "revoked", "superseded", "destroyed")) {
     generator_store_tamper_abort("Generator approval identity or status is invalid.")
   }
   validate_generator_schema_version(approval$schema_version, "Generator approval")
@@ -598,6 +598,9 @@ generator_store_read_approval <- function(store, contract_id) {
 generator_store_validate_active_approval <- function(store, contract_id) {
   contract <- generator_store_read_contract(store, contract_id)
   approval <- generator_store_read_approval(store, contract_id)
+  if (identical(approval$status, "destroyed")) {
+    generator_store_abort(sprintf("Contract %s was destroyed; fitted generator state is unavailable.", contract_id))
+  }
   if (!identical(approval$status, "approved")) {
     generator_store_abort(sprintf("Contract %s is not active: approval is %s.", contract_id, approval$status))
   }
@@ -620,6 +623,100 @@ generator_store_validate_active_approval <- function(store, contract_id) {
     generator_store_abort("Approved generator was fitted by an incompatible compiler version.")
   }
   list(contract = contract, approval = approval, generator = generator$generator)
+}
+
+generator_store_destroy <- function(store, contract_id, reason,
+                                     destroyed_at = Sys.time(),
+                                     destroyed_by = Sys.info()[["user"]]) {
+  generator_store_validate(store)
+  generator_store_valid_id(contract_id, "Contract ID")
+  if (!is.character(reason) || length(reason) != 1L || is.na(reason) ||
+    !nzchar(trimws(reason))) {
+    generator_store_abort("Destruction reason must be one non-empty character value.")
+  }
+  if (!is.character(destroyed_by) || length(destroyed_by) != 1L ||
+    is.na(destroyed_by) || !nzchar(trimws(destroyed_by))) {
+    generator_store_abort("Destroyer identity must be one non-empty character value.")
+  }
+  contract <- generator_store_read_contract(store, contract_id)
+  approval_path <- generator_store_approval_path(store, contract_id)
+  approval <- if (file.exists(approval_path)) {
+    generator_store_read_approval(store, contract_id)
+  } else {
+    NULL
+  }
+  if (!is.null(approval) && identical(approval$status, "destroyed")) {
+    return(approval)
+  }
+
+  generator_files <- list.files(
+    file.path(store$root, "generators"),
+    pattern = "^[0-9a-f]{64}\\.json$"
+  )
+  matching_ids <- character()
+  matching_record <- NULL
+  for (generator_id in sub("\\.json$", "", generator_files)) {
+    record <- generator_store_read_generator_record(store, generator_id)
+    matches_contract <- tryCatch({
+      generator_store_validate_contract_generator(contract, record$generator)
+      TRUE
+    }, error = function(error) FALSE)
+    if (isTRUE(matches_contract)) {
+      matching_ids <- c(matching_ids, generator_id)
+      if (is.null(matching_record)) matching_record <- record
+    }
+  }
+  if (!is.null(approval) && file.exists(
+    generator_store_object_path(store, "generators", approval$generator_id)
+  )) {
+    matching_ids <- unique(c(matching_ids, approval$generator_id))
+  }
+  if (!length(matching_ids)) {
+    generator_store_abort(sprintf("Contract %s has no fitted generator to destroy.", contract_id))
+  }
+  for (generator_id in matching_ids) {
+    path <- generator_store_object_path(store, "generators", generator_id)
+    unlink(path, force = TRUE)
+    if (file.exists(path)) {
+      generator_store_abort(sprintf("Could not destroy fitted generator %s.", generator_id))
+    }
+  }
+
+  destroyed_at <- if (inherits(destroyed_at, "POSIXt")) {
+    format(destroyed_at, tz = "UTC", usetz = TRUE)
+  } else as.character(destroyed_at)
+  if (length(destroyed_at) != 1L || is.na(destroyed_at) || !nzchar(destroyed_at)) {
+    generator_store_abort("Destruction time must be one non-empty timestamp.")
+  }
+  if (is.null(approval)) {
+    record <- matching_record
+    approval <- list(
+      schema_version = generator_store_schema_version(),
+      approval_id = generator_store_id(),
+      contract_id = contract_id,
+      generator_id = matching_ids[[1L]],
+      generator_revision = record$generator_revision,
+      generator_fingerprint = record$generator_fingerprint,
+      allowed = unclass(contract$allowed),
+      risk_report_hash = semantic_hash(generator_runtime_hashable(unclass(record$generator$risk_report))),
+      compiler = generator_store_compiler(),
+      approver = trimws(destroyed_by),
+      approved_at = destroyed_at,
+      status = "destroyed",
+      revoked_at = destroyed_at,
+      superseded_by = NULL,
+      reason = trimws(reason),
+      binding_hash = NULL
+    )
+  } else {
+    approval$status <- "destroyed"
+    approval$approver <- trimws(destroyed_by)
+    approval$revoked_at <- destroyed_at
+    approval$reason <- trimws(reason)
+  }
+  approval$binding_hash <- generator_store_approval_binding(approval)
+  generator_store_write_object(store, "approvals", contract_id, approval)
+  approval
 }
 
 generator_store_revoke <- function(store, contract_id, reason,

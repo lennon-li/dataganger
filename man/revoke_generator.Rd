@@ -16,5 +16,8 @@ A sanitized revocation record, invisibly.
 }
 \description{
 Revocation is terminal for the current contract ID. A later approval must
-use a newly reviewed contract.
+use a newly reviewed contract. Revocation is not deletion: fitted state and
+exact-row material remain in the private store. Use \code{\link[=destroy_generator]{destroy_generator()}}
+to permanently remove fitted state while retaining the contract, lifecycle
+tombstone, and audit receipts.
 }

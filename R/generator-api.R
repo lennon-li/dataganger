@@ -125,7 +125,10 @@ approve_generator <- function(frozen, approved_contract_id = NULL,
 #' Revoke an approved frozen generator
 #'
 #' Revocation is terminal for the current contract ID. A later approval must
-#' use a newly reviewed contract.
+#' use a newly reviewed contract. Revocation is not deletion: fitted state and
+#' exact-row material remain in the private store. Use [destroy_generator()]
+#' to permanently remove fitted state while retaining the contract, lifecycle
+#' tombstone, and audit receipts.
 #'
 #' @param frozen A `dataganger_frozen_generator` handle.
 #' @param reason One non-empty revocation reason.
@@ -142,6 +145,33 @@ revoke_generator <- function(frozen, reason) {
     revoked_at = approval$revoked_at,
     reason = approval$reason
   ), class = "dataganger_revocation"))
+}
+
+#' Permanently destroy fitted state for a frozen-generator contract
+#'
+#' The contract file is retained as a tombstone of the policy that existed.
+#' The approval record is retained and marked `destroyed`; its existing
+#' approver, `revoked_at`, and `reason` fields record who, when, and why.
+#' Generation receipts are also retained as an audit trail. All fitted
+#' generator records matching the contract, including their exact-row index,
+#' are removed. Destruction is idempotent and a destroyed contract cannot be
+#' recovered or used for generation.
+#'
+#' @param store A private store path or `dataganger_generator_store` object.
+#' @param contract_id The opaque contract ID to destroy.
+#' @param reason One non-empty destruction reason recorded in the tombstone.
+#' @return A destruction tombstone, invisibly.
+#' @export
+destroy_generator <- function(store, contract_id, reason) {
+  private_store <- generator_api_store(store)
+  approval <- generator_store_destroy(private_store, contract_id, reason)
+  invisible(structure(list(
+    contract_id = approval$contract_id,
+    status = approval$status,
+    destroyed_at = approval$revoked_at,
+    destroyed_by = approval$approver,
+    reason = approval$reason
+  ), class = "dataganger_destruction"))
 }
 
 #' Generate one or more approved synthetic datasets
@@ -353,6 +383,14 @@ generator_api_validate_frozen <- function(frozen) {
   if (!identical(store$store_id, frozen$store$store_id)) {
     generator_tamper_abort("Frozen generator store reference does not match its private store.")
   }
+  approval_path <- generator_store_approval_path(store, frozen$contract_id)
+  if (file.exists(approval_path) &&
+      identical(generator_store_read_approval(store, frozen$contract_id)$status, "destroyed")) {
+    generator_api_abort(sprintf(
+      "Contract %s was destroyed; its fitted generator state is unavailable.",
+      frozen$contract_id
+    ))
+  }
   record <- generator_store_read_generator_record(store, frozen$generator_id)
   if (!identical(record$generator_revision, frozen$generator_revision) ||
     !identical(record$generator_fingerprint, frozen$generator_fingerprint)) {
@@ -442,6 +480,13 @@ generator_api_recover_frozen_handle <- function(store, contract_id) {
     generator_store_read_approval(private_store, contract_id)
   } else {
     NULL
+  }
+
+  if (!is.null(approval) && identical(approval$status, "destroyed")) {
+    generator_api_abort(sprintf(
+      "Contract %s was destroyed; its fitted generator state cannot be recovered.",
+      contract_id
+    ))
   }
 
   if (!is.null(approval) && identical(approval$status, "approved")) {
