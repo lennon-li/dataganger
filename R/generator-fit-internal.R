@@ -24,27 +24,92 @@ generator_fit_csprng_key <- function(n = 32L) {
   if (length(key) != n) NULL else key
 }
 
+generator_fit_canonical_uint32 <- function(value) {
+  value <- as.double(value)
+  as.raw(c(
+    floor(value / 16777216) %% 256,
+    floor(value / 65536) %% 256,
+    floor(value / 256) %% 256,
+    value %% 256
+  ))
+}
+
+generator_fit_canonical_length_prefix <- function(bytes) {
+  c(generator_fit_canonical_uint32(length(bytes)), bytes)
+}
+
+generator_fit_canonical_type <- function(column) {
+  if (inherits(column, "Date")) {
+    charToRaw("D")
+  } else if (inherits(column, "POSIXct")) {
+    charToRaw("T")
+  } else if (is.factor(column) || is.character(column)) {
+    charToRaw("C")
+  } else if (is.integer(column) || is.double(column)) {
+    charToRaw("N")
+  } else if (is.logical(column)) {
+    charToRaw("L")
+  } else {
+    stop("Unsupported column type in canonical exact-row encoding.")
+  }
+}
+
+generator_fit_canonical_value <- function(column, value) {
+  if (inherits(column, "Date")) {
+    list(
+      bytes = charToRaw(format(value, "%Y-%m-%d", tz = "UTC", usetz = FALSE))
+    )
+  } else if (inherits(column, "POSIXct")) {
+    utc_value <- as.POSIXct(
+      as.numeric(value), origin = "1970-01-01", tz = "UTC"
+    )
+    list(
+      bytes = charToRaw(format(
+        utc_value, "%Y-%m-%dT%H:%M:%OS6Z", tz = "UTC", usetz = FALSE
+      ))
+    )
+  } else if (is.factor(column)) {
+    list(bytes = charToRaw(enc2utf8(as.character(value))))
+  } else if (is.integer(column) || is.double(column)) {
+    list(
+      bytes = charToRaw(sprintf("%.17g", as.double(value)))
+    )
+  } else if (is.character(column)) {
+    list(bytes = charToRaw(enc2utf8(value)))
+  } else if (is.logical(column)) {
+    list(bytes = if (isTRUE(value)) as.raw(1L) else as.raw(0L))
+  } else {
+    stop("Unsupported column type in canonical exact-row encoding.")
+  }
+}
+
 generator_fit_row_payload <- function(data, row) {
-  values <- lapply(data, function(x) {
-    value <- x[[row]]
-    if (inherits(x, "Date") || inherits(x, "POSIXct")) {
-      list(type = class(x)[[1L]], missing = is.na(value), value = if (is.na(value)) {
-        NULL
-      } else {
-        as.numeric(value)
-      })
-    } else if (is.factor(x)) {
-      list(type = "character", missing = is.na(value), value = if (is.na(value)) NULL else as.character(value))
+  encoded <- c(charToRaw("DGF-ROW-CANONICAL-V1"),
+    generator_fit_canonical_uint32(ncol(data)))
+  for (column_index in seq_len(ncol(data))) {
+    column <- data[[column_index]]
+    value <- column[[row]]
+    name_bytes <- charToRaw(enc2utf8(names(data)[[column_index]]))
+    field <- c(
+      generator_fit_canonical_length_prefix(name_bytes),
+      generator_fit_canonical_type(column)
+    )
+    if (is.na(value)) {
+      field <- c(field, charToRaw("M"))
     } else {
-      list(type = typeof(x), missing = is.na(value), value = if (is.na(value)) NULL else value)
+      canonical <- generator_fit_canonical_value(column, value)
+      field <- c(
+        field, charToRaw("V"),
+        generator_fit_canonical_length_prefix(canonical$bytes)
+      )
     }
-  })
-  names(values) <- names(data)
-  values
+    encoded <- c(encoded, generator_fit_canonical_length_prefix(field))
+  }
+  encoded
 }
 
 generator_fit_row_fingerprint <- function(data, row, key) {
-  payload <- serialize(generator_fit_row_payload(data, row), NULL, version = 3)
+  payload <- generator_fit_row_payload(data, row)
   digest::hmac(key, payload, algo = "sha256", serialize = FALSE)
 }
 
@@ -57,7 +122,7 @@ generator_fit_exact_row_index <- function(data, key) {
       key = key,
       fingerprints = character(),
       source_n = 0L,
-      algorithm = "HMAC-SHA256"
+      algorithm = "HMAC-SHA256-canonical-v1"
     ))
   }
   fingerprints <- vapply(seq_len(nrow(data)), function(row) {
@@ -67,7 +132,7 @@ generator_fit_exact_row_index <- function(data, key) {
     key = key,
     fingerprints = unique(fingerprints),
     source_n = as.integer(nrow(data)),
-    algorithm = "HMAC-SHA256"
+    algorithm = "HMAC-SHA256-canonical-v1"
   )
 }
 
@@ -568,7 +633,8 @@ validate_internal_generator <- function(generator) {
       !is.character(index$fingerprints) || anyNA(index$fingerprints) ||
       any(!grepl("^[0-9a-f]{64}$", index$fingerprints)) ||
       !generator_is_integerish(index$source_n) || length(index$source_n) != 1L ||
-      !identical(index$algorithm, "HMAC-SHA256")) {
+      (!identical(index$algorithm, "HMAC-SHA256") &&
+        !identical(index$algorithm, "HMAC-SHA256-canonical-v1"))) {
       generator_schema_abort("Fitted generator exact-row index has an invalid schema.")
     }
   } else if (!is.null(generator$exact_row_index)) {

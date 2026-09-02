@@ -20,7 +20,8 @@ generator_runtime_privacy_check <- function(synthetic, generator, roles) {
     exact_row_unavailable <- TRUE
   } else if (!is.character(index$fingerprints)) {
     exact_row_unavailable <- TRUE
-  } else if (!"algorithm" %in% names(index) || !identical(index$algorithm, "HMAC-SHA256")) {
+  } else if (!"algorithm" %in% names(index) ||
+    !identical(index$algorithm, "HMAC-SHA256-canonical-v1")) {
     exact_row_unavailable <- TRUE
   } else {
     fingerprints <- generator_runtime_row_fingerprints(synthetic, index$key)
@@ -30,9 +31,18 @@ generator_runtime_privacy_check <- function(synthetic, generator, roles) {
   kanon <- attr(synthetic, "kanon", exact = TRUE)
   blockers <- list()
   if (exact_row_unavailable) {
+    algorithm_message <- if (is.list(index) &&
+      identical(index$algorithm, "HMAC-SHA256")) {
+      " The stored index uses the legacy exact-row algorithm; the generator must be re-frozen and re-approved because the exact-row algorithm changed."
+    } else {
+      " The generator must be re-frozen."
+    }
     blockers[[length(blockers) + 1L]] <- generator_fit_issue(
       "exact_row_check_unavailable",
-      "The exact-row privacy check could not be performed and the output is therefore not cleared. The generator must be re-frozen."
+      paste0(
+        "The exact-row privacy check could not be performed and the output is therefore not cleared.",
+        algorithm_message
+      )
     )
   }
   if (length(exact_matches)) {

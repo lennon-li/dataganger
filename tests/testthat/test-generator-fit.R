@@ -1,4 +1,97 @@
 local({
+  test_that("canonical exact-row fingerprints cover supported values and missingness", {
+    data <- data.frame(
+      integer_value = 7L,
+      double_value = 7.25,
+      character_value = intToUtf8(c(0x0063, 0x0061, 0x0066, 0x00e9)),
+      logical_value = TRUE,
+      factor_value = factor("label", levels = c("label", "other")),
+      date_value = as.Date("2020-01-02"),
+      datetime_value = as.POSIXct("2020-01-02 03:04:05", tz = "America/Toronto"),
+      integer_na = NA_integer_,
+      double_na = NA_real_,
+      character_na = NA_character_,
+      logical_na = NA,
+      factor_na = factor(NA_character_, levels = "missing"),
+      date_na = as.Date(NA),
+      datetime_na = as.POSIXct(NA, tz = "UTC"),
+      stringsAsFactors = FALSE
+    )
+    fingerprint <- generator_fit_row_fingerprint(data, 1L, as.raw(1:32))
+
+    expect_identical(
+      fingerprint,
+      "55b2e6b364a3e6c0423c43b02f06b670e87b91767bf5bf47e171faf96c18d2d8"
+    )
+    expect_identical(nchar(fingerprint), 64L)
+    expect_match(fingerprint, "^[0-9a-f]{64}$")
+  })
+
+  test_that("canonical exact-row fingerprints normalize values and boundaries", {
+    key <- as.raw(1:32)
+    integer_value <- generator_fit_row_fingerprint(
+      data.frame(a = 1L), 1L, key
+    )
+    double_value <- generator_fit_row_fingerprint(
+      data.frame(a = 1.0), 1L, key
+    )
+    expect_identical(integer_value, double_value)
+
+    first <- generator_fit_row_fingerprint(
+      data.frame(a = "a", b = "bc", stringsAsFactors = FALSE), 1L, key
+    )
+    second <- generator_fit_row_fingerprint(
+      data.frame(a = "ab", b = "c", stringsAsFactors = FALSE), 1L, key
+    )
+    expect_false(identical(first, second))
+
+    missing_character <- generator_fit_row_fingerprint(
+      data.frame(a = NA_character_), 1L, key
+    )
+    literal_na <- generator_fit_row_fingerprint(
+      data.frame(a = "NA", stringsAsFactors = FALSE), 1L, key
+    )
+    missing_numeric <- generator_fit_row_fingerprint(
+      data.frame(a = NA_real_), 1L, key
+    )
+    zero_numeric <- generator_fit_row_fingerprint(
+      data.frame(a = 0), 1L, key
+    )
+    expect_false(identical(missing_character, literal_na))
+    expect_false(identical(missing_numeric, zero_numeric))
+
+    original_name <- generator_fit_row_fingerprint(
+      data.frame(a = 1), 1L, key
+    )
+    renamed <- generator_fit_row_fingerprint(
+      data.frame(b = 1), 1L, key
+    )
+    expect_false(identical(original_name, renamed))
+  })
+
+  test_that("canonical exact-row fingerprints are invariant across LC_CTYPE locales", {
+    original <- Sys.getlocale("LC_CTYPE")
+    withr::defer(suppressWarnings(Sys.setlocale("LC_CTYPE", original)))
+    candidates <- unique(c("C", "C.UTF-8", "en_US.UTF-8"))
+    available <- vapply(candidates, function(locale) {
+      result <- suppressWarnings(Sys.setlocale("LC_CTYPE", locale))
+      is.character(result) && length(result) == 1L && !is.na(result)
+    }, logical(1L))
+    if (sum(available) < 2L) {
+      skip("Fewer than two LC_CTYPE locales are available.")
+    }
+    data <- data.frame(
+      value = intToUtf8(c(0x0063, 0x0061, 0x0066, 0x00e9)),
+      stringsAsFactors = FALSE
+    )
+    locales <- candidates[available]
+    Sys.setlocale("LC_CTYPE", locales[[1L]])
+    first <- generator_fit_row_fingerprint(data, 1L, as.raw(1:32))
+    Sys.setlocale("LC_CTYPE", locales[[2L]])
+    second <- generator_fit_row_fingerprint(data, 1L, as.raw(1:32))
+    expect_identical(first, second)
+  })
+
   fit_roles <- function(data, role = NULL, simulation = NULL,
                         postal_country = NULL, postal_format = NULL) {
     n <- ncol(data)

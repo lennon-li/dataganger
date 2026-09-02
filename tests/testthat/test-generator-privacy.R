@@ -17,6 +17,7 @@ local({
     generator <- fit_internal_generator(source, synth_spec("demo", engine = "internal"), roles)
     check <- generator_runtime_privacy_check(source, generator, roles)
 
+    expect_identical(generator$exact_row_index$algorithm, "HMAC-SHA256-canonical-v1")
     expect_true(check$ok == FALSE)
     expect_identical(check$exact_match_count, 5L)
     expect_identical(check$blockers$code, "exact_row_match")
@@ -100,12 +101,24 @@ local({
 
     # 6. index present but algorithm set to an unrecognized value
     gen <- generator_base
-    gen$exact_row_index$algorithm <- "HMAC-SHA256-canonical-v1"
+    gen$exact_row_index$algorithm <- "bogus-exact-row-algorithm"
     check <- generator_runtime_privacy_check(source, gen, roles)
     expect_false(check$ok)
     expect_contains(check$blockers$code, "exact_row_check_unavailable")
 
-    # 7. well-formed index with fingerprints = character() PASSES
+    # 7. legacy indexes are refused with an actionable migration blocker
+    gen <- generator_base
+    gen$exact_row_index$algorithm <- "HMAC-SHA256"
+    expect_silent(validate_internal_generator(gen))
+    check <- generator_runtime_privacy_check(source, gen, roles)
+    expect_false(check$ok)
+    expect_contains(check$blockers$code, "exact_row_check_unavailable")
+    expect_match(
+      check$blockers$message[[1L]],
+      "re-frozen and re-approved.*exact-row algorithm changed"
+    )
+
+    # 8. well-formed index with fingerprints = character() PASSES
     gen <- generator_base
     gen$exact_row_index$fingerprints <- character()
     check <- generator_runtime_privacy_check(source, gen, roles)
@@ -113,7 +126,7 @@ local({
     expect_false("exact_row_check_unavailable" %in% check$blockers$code)
     expect_false("exact_row_match" %in% check$blockers$code)
 
-    # 8. well-formed index with fingerprints that do not match the synthetic rows PASSES
+    # 9. well-formed index with fingerprints that do not match the synthetic rows PASSES
     gen <- generator_base
     gen$exact_row_index$fingerprints <- "non_matching_fingerprint"
     check <- generator_runtime_privacy_check(source, gen, roles)
@@ -121,7 +134,7 @@ local({
     expect_false("exact_row_check_unavailable" %in% check$blockers$code)
     expect_false("exact_row_match" %in% check$blockers$code)
 
-    # 9. well-formed index whose fingerprints DO match still yields the exact_row_match blocker
+    # 10. well-formed index whose fingerprints DO match still yields the exact_row_match blocker
     gen <- generator_base
     check <- generator_runtime_privacy_check(source, gen, roles)
     expect_false(check$ok)
