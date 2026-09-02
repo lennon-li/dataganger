@@ -99,4 +99,24 @@ test_that("package source contains no network primitives", {
 
   expect_true(length(matches) == 0, info = paste(matches, collapse = "\n"))
 })
+
+test_that("the agent route reaches its broker without any network call", {
+  # The agent client spawns a host-configured local command. That is a
+  # subprocess, not a network connection, and nothing on this route may open
+  # one.
+  skip_on_os("windows")
+  local_no_network_traps()
+
+  contract_id <- strrep("a", 64L)
+
+  unconfigured <- agent_handshake(contract_id, broker = "")
+  expect_false(unconfigured$available)
+
+  # /bin/true exits silently, so this exercises the spawn and the mute-broker
+  # refusal without needing a real store.
+  spawned <- agent_handshake(contract_id, broker = "/bin/true")
+  expect_false(spawned$available)
+  expect_match(spawned$reason, "did not return a readable response")
+})
+
 })

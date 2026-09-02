@@ -45,6 +45,7 @@ Suggests:
     knitr,
     nnet,
     pkgdown,
+    pkgload,
     plotly,
     rmarkdown,
     shiny,

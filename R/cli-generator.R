@@ -200,8 +200,6 @@ cli_cmd_generator_generate <- function(args) {
   frozen <- generator_api_recover_frozen_handle(store_path, contract_id)
   private_store <- generator_store_open(store_path)
   approval <- cli_generator_read_approval(private_store, contract_id)
-  export_spec <- generator_workspace_export_spec(frozen)
-  export_roles <- generator_workspace_export_roles(frozen)
 
   result <- tryCatch(
     generate_synthetic(frozen, seed = seed, n = n, datasets = datasets),
@@ -210,93 +208,25 @@ cli_cmd_generator_generate <- function(args) {
     }
   )
 
-  export_one <- function(synthetic, receipt, output_path) {
-    # The generated runtime is source-free, so restore only the reviewed
-    # policy metadata needed by the standard export bundle.
-    exportable <- synthetic
-    attr(exportable, "spec") <- export_spec
-    export_synthetic(
-      synthetic = exportable,
-      path = output_path,
-      format = "zip",
-      purpose = export_spec$purpose %||% NULL,
-      roles = export_roles,
-      privacy = cli_generator_export_privacy(synthetic),
-      # fail_on_exact_match is deliberately not passed. export_synthetic() only
-      # honours it when `original` is supplied, and this path is source-free by
-      # design, so the argument would be inert. Exact-row matches are blocked
-      # upstream by the runtime privacy check in generate_synthetic(), which has
-      # the fitted state and the keyed index this layer does not.
-      kanon_acknowledged = isTRUE(acknowledge_kanon),
-      exact_match_acknowledged = isTRUE(acknowledge_exact_match),
-      generator_provenance = list(
-        contract_id = receipt$contract_id %||% frozen$contract_id,
-        approval_id = receipt$approval_id %||% approval$approval_id %||% NULL,
-        generator_id = receipt$generator_id %||% frozen$generator_id %||% NULL,
-        generator_revision = receipt$generator_revision %||%
-          frozen$generator_revision %||% NULL,
-        request_receipt_id = receipt$request_receipt_id %||% NULL,
-        output_receipt_id = receipt$receipt_id %||% NULL
-      ),
-      overwrite = TRUE
-    )
-  }
+  written <- generator_cli_write_generation(
+    result = result,
+    frozen = frozen,
+    approval = approval,
+    out_path = out_path,
+    acknowledge_kanon = acknowledge_kanon,
+    acknowledge_exact_match = acknowledge_exact_match
+  )
+  receipts <- written$receipts
 
-  if (inherits(result, "dataganger_batch")) {
-    receipts <- generation_receipt(result)
-    parent <- dirname(out_path)
-    if (!dir.exists(parent)) {
-      cli::cli_abort("Parent directory does not exist: {.file {parent}}")
-    }
-    staging <- tempfile("dataganger-generator-batch-", tmpdir = parent)
-    dir.create(staging, recursive = TRUE, showWarnings = FALSE)
-    on.exit(unlink(staging, recursive = TRUE, force = TRUE), add = TRUE)
-
-    for (i in seq_along(unclass(result)$datasets)) {
-      dataset_dir <- file.path(staging, sprintf("dataset_%02d", i))
-      dir.create(dataset_dir, recursive = TRUE, showWarnings = FALSE)
-      dataset_zip <- tempfile(
-        sprintf("dataganger-generator-dataset-%02d-", i),
-        fileext = ".zip"
-      )
-      export_one(unclass(result)$datasets[[i]], receipts[[i]], dataset_zip)
-      utils::unzip(dataset_zip, exdir = dataset_dir)
-      unlink(dataset_zip, force = TRUE)
-    }
-
-    files <- list.files(staging, recursive = TRUE, all.files = FALSE,
-      no.. = TRUE, full.names = TRUE)
-    files <- files[!file.info(files)$isdir]
-    root <- normalizePath(staging, winslash = "/", mustWork = TRUE)
-    relative_files <- sub(
-      paste0("^", root, "/?"), "",
-      normalizePath(files, winslash = "/", mustWork = TRUE)
-    )
-    aggregate_zip <- tempfile("dataganger-generator-batch-", tmpdir = parent,
-      fileext = ".zip")
-    zip::zip(
-      zipfile = aggregate_zip,
-      files = relative_files,
-      root = root
-    )
-    if (file.exists(out_path)) {
-      unlink(out_path, force = TRUE)
-    }
-    if (!file.rename(aggregate_zip, out_path)) {
-      unlink(aggregate_zip, force = TRUE)
-      cli::cli_abort("Could not write generator batch bundle to {.path {out_path}}")
-    }
-
+  if (isTRUE(written$batch)) {
     cli::cli_alert_success("Wrote {length(receipts)} dataset bundles to {.path {out_path}}")
     cli::cli_alert_success("Generated {length(receipts)} datasets.")
     for (r in receipts) {
        cli::cli_alert_info("Receipt ID: {.val {r$receipt_id}}")
     }
   } else {
-    receipt <- generation_receipt(result)
-    export_one(result, receipt, out_path)
     cli::cli_alert_success("Wrote synthetic bundle to {.path {out_path}}")
-    cli::cli_alert_info("Receipt ID: {.val {receipt$receipt_id}}")
+    cli::cli_alert_info("Receipt ID: {.val {receipts[[1L]]$receipt_id}}")
   }
 
   cli_status_ok()
@@ -383,4 +313,108 @@ cli_cmd_generator_status <- function(args) {
   }
 
   cli_status_ok()
+}
+
+#' Write one generation result as the single contract-conforming download
+#'
+#' Shared by the human operator CLI and the agent broker so both routes emit
+#' exactly the same bundle shape. A single dataset yields a standard bundle; a
+#' batch yields one zip containing N conforming bundles.
+#'
+#' @return A list with `receipts` (list of receipts, in dataset order) and
+#'   `batch` (logical, whether the result was a multi-dataset batch).
+#' @keywords internal
+#' @noRd
+generator_cli_write_generation <- function(result,
+                                           frozen,
+                                           approval,
+                                           out_path,
+                                           acknowledge_kanon = FALSE,
+                                           acknowledge_exact_match = FALSE) {
+  export_spec <- generator_workspace_export_spec(frozen)
+  export_roles <- generator_workspace_export_roles(frozen)
+
+  export_one <- function(synthetic, receipt, output_path) {
+    # The generated runtime is source-free, so restore only the reviewed
+    # policy metadata needed by the standard export bundle.
+    exportable <- synthetic
+    attr(exportable, "spec") <- export_spec
+    export_synthetic(
+      synthetic = exportable,
+      path = output_path,
+      format = "zip",
+      purpose = export_spec$purpose %||% NULL,
+      roles = export_roles,
+      privacy = cli_generator_export_privacy(synthetic),
+      # fail_on_exact_match is deliberately not passed. export_synthetic() only
+      # honours it when `original` is supplied, and this path is source-free by
+      # design, so the argument would be inert. Exact-row matches are blocked
+      # upstream by the runtime privacy check in generate_synthetic(), which has
+      # the fitted state and the keyed index this layer does not.
+      kanon_acknowledged = isTRUE(acknowledge_kanon),
+      exact_match_acknowledged = isTRUE(acknowledge_exact_match),
+      generator_provenance = list(
+        contract_id = receipt$contract_id %||% frozen$contract_id,
+        approval_id = receipt$approval_id %||% approval$approval_id %||% NULL,
+        generator_id = receipt$generator_id %||% frozen$generator_id %||% NULL,
+        generator_revision = receipt$generator_revision %||%
+          frozen$generator_revision %||% NULL,
+        request_receipt_id = receipt$request_receipt_id %||% NULL,
+        output_receipt_id = receipt$receipt_id %||% NULL
+      ),
+      overwrite = TRUE
+    )
+  }
+
+  if (!inherits(result, "dataganger_batch")) {
+    receipt <- generation_receipt(result)
+    export_one(result, receipt, out_path)
+    return(list(receipts = list(receipt), batch = FALSE))
+  }
+
+  receipts <- generation_receipt(result)
+  parent <- dirname(out_path)
+  if (!dir.exists(parent)) {
+    cli::cli_abort("Parent directory does not exist: {.file {parent}}")
+  }
+  staging <- tempfile("dataganger-generator-batch-", tmpdir = parent)
+  dir.create(staging, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(staging, recursive = TRUE, force = TRUE), add = TRUE)
+
+  for (i in seq_along(unclass(result)$datasets)) {
+    dataset_dir <- file.path(staging, sprintf("dataset_%02d", i))
+    dir.create(dataset_dir, recursive = TRUE, showWarnings = FALSE)
+    dataset_zip <- tempfile(
+      sprintf("dataganger-generator-dataset-%02d-", i),
+      fileext = ".zip"
+    )
+    export_one(unclass(result)$datasets[[i]], receipts[[i]], dataset_zip)
+    utils::unzip(dataset_zip, exdir = dataset_dir)
+    unlink(dataset_zip, force = TRUE)
+  }
+
+  files <- list.files(staging, recursive = TRUE, all.files = FALSE,
+    no.. = TRUE, full.names = TRUE)
+  files <- files[!file.info(files)$isdir]
+  root <- normalizePath(staging, winslash = "/", mustWork = TRUE)
+  relative_files <- sub(
+    paste0("^", root, "/?"), "",
+    normalizePath(files, winslash = "/", mustWork = TRUE)
+  )
+  aggregate_zip <- tempfile("dataganger-generator-batch-", tmpdir = parent,
+    fileext = ".zip")
+  zip::zip(
+    zipfile = aggregate_zip,
+    files = relative_files,
+    root = root
+  )
+  if (file.exists(out_path)) {
+    unlink(out_path, force = TRUE)
+  }
+  if (!file.rename(aggregate_zip, out_path)) {
+    unlink(aggregate_zip, force = TRUE)
+    cli::cli_abort("Could not write generator batch bundle to {.path {out_path}}")
+  }
+
+  list(receipts = receipts, batch = TRUE)
 }

@@ -52,3 +52,30 @@ Column names may vary because the name strategy may rename them. Never assume or
 ## Framing
 
 This workflow reduces direct disclosure risk by keeping the agent on synthetic data and reproducible bundle artifacts, but it is not a guarantee of privacy or anonymity. Users still need to review fidelity, privacy warnings, and sharing context before external release.
+
+## Generate-only agent route (optional, host-configured)
+
+Some hosts configure a generate-only route that lets you request a new
+synthetic bundle from an already frozen and approved generator, without any
+access to the real data:
+
+```
+dataganger agent status   --contract-id <id>
+dataganger agent generate --contract-id <id> --out bundle.zip [--n <rows>] [--datasets <k>] [--seed <int>]
+```
+
+The route accepts a contract ID and bounded request fields only. It takes no
+store path, no data path, and no privacy acknowledgement or opt-out. Freezing,
+approval, revocation, inspection, and migration are not available to you; they
+remain human operator actions. If `status` reports `unavailable`, stop and ask
+the operator -- do not try to reach the private store another way.
+
+What the availability check actually proves, and what it does not:
+
+- It proves that the process answering your request runs as a different OS
+  principal, that this process is not a superuser, and that this process was
+  genuinely refused when it tried to read the private store.
+- It does not prove the host is correctly configured in any other respect, and
+  it is not a privacy guarantee. The bundle you receive is still synthetic data
+  carrying the same warnings and blockers as any other bundle: read
+  `manifest.json` first, and stop if `blockers` is non-empty.

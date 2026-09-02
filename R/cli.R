@@ -42,6 +42,8 @@ cli_dispatch <- function(args) {
         "make-agent-bundle" = cli_cmd_make_agent_bundle(rest),
         "export-diagnostic" = cli_cmd_export_diagnostic(rest),
         generator = cli_cmd_generator(rest),
+        "generator-broker" = cli_cmd_generator_broker(rest),
+        agent = cli_cmd_agent(rest),
         {
           cli::cli_alert_danger("Unknown command: {command}")
           cli_status_usage()
@@ -74,6 +76,8 @@ cli_print_help <- function() {
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
       "  export-diagnostic <data-file> --out <diagnostic_view.json>",
       "  generator <command> [options]",
+      "  generator-broker [--store <dir>]   (store-owning broker process; reads one JSON request on stdin)",
+      "  agent <command> [options]          (generate-only route; requires a configured broker)",
       sep = "\n"
     ),
     "\n",
