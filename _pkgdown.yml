@@ -59,6 +59,7 @@ reference:
       - freeze_synthesis
       - approve_generator
       - revoke_generator
+      - destroy_generator
       - generate_synthetic
       - generation_limits
       - generation_receipt

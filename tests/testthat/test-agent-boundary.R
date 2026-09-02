@@ -380,6 +380,13 @@ test_that("the handshake is unavailable when the client is a superuser", {
 
 test_that("the handshake is unavailable when the broker is unreachable or mute", {
   skip_on_os("windows")
+  # `unshare -rn` (the no-network CI job) maps the caller to uid 0. The
+  # handshake then refuses at the superuser step, before reaching the
+  # condition under test here, so the premise of this test does not hold.
+  skip_if(
+    agent_principal_is_superuser(agent_principal()),
+    "client is a superuser in this environment"
+  )
   result <- agent_handshake(strrep("a", 64L), broker = "/bin/true")
   expect_false(result$available)
   expect_match(result$reason, "did not return a readable response")
@@ -388,6 +395,13 @@ test_that("the handshake is unavailable when the broker is unreachable or mute",
 test_that("a same-principal broker is refused, because that is policy and not a boundary", {
   skip_on_os("windows")
   skip_if_not_installed("withr")
+  # `unshare -rn` (the no-network CI job) maps the caller to uid 0. The
+  # handshake then refuses at the superuser step, before reaching the
+  # condition under test here, so the premise of this test does not hold.
+  skip_if(
+    agent_principal_is_superuser(agent_principal()),
+    "client is a superuser in this environment"
+  )
   skip_if(is.null(agent_principal()), "cannot determine the test principal")
   tmp <- withr::local_tempdir()
   fixture <- agent_test_approve(agent_test_fixture(tmp))

@@ -105,6 +105,13 @@ test_that("the agent route reaches its broker without any network call", {
   # subprocess, not a network connection, and nothing on this route may open
   # one.
   skip_on_os("windows")
+  # `unshare -rn` (the no-network CI job) maps the caller to uid 0. The
+  # handshake then refuses at the superuser step, before reaching the
+  # condition under test here, so the premise of this test does not hold.
+  skip_if(
+    agent_principal_is_superuser(agent_principal()),
+    "client is a superuser in this environment"
+  )
   local_no_network_traps()
 
   contract_id <- strrep("a", 64L)
