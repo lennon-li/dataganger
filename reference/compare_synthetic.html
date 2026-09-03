@@ -74,7 +74,19 @@ correlations. Returns a structured <code>dataganger_comparison</code> object.</p
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An S3 object of class <code>dataganger_comparison</code>, a list with
 components <code>dataset</code>, <code>numeric</code>, <code>categorical</code>, <code>relationship</code>, <code>interaction</code>,
-<code>privacy_flags</code>, and <code>meta</code>.</p>
+<code>utility</code> (a global pMSE-based utility diagnostic; see Details), <code>privacy_flags</code>,
+and <code>meta</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p><code>utility</code> reports the propensity-score pMSE / S_pMSE utility diagnostic of
+Snoke, Raab, Nowok, Dibben &amp; Slavkovic (2018), the same formula
+<code><a href="https://rdrr.io/pkg/synthpop/man/utility.gen.html" class="external-link">synthpop::utility.gen()</a></code> uses for its logistic-regression method:
+<code>S_pMSE</code> near 1 means a model fit to distinguish original from synthetic
+rows does no better than chance on the shared predictor columns (high
+utility for that joint distribution); higher values mean the two datasets
+are more detectably different. This is a utility measure, not a privacy
+measure – it says nothing about disclosure risk.</p>
     </div>
 
     <div class="section level2">
@@ -107,6 +119,13 @@ components <code>dataset</code>, <code>numeric</code>, <code>categorical</code>,
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> • <span style="color: #00BB00;">y</span>: p = 0.395, TVD = 1</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Levels: 10 (orig) -&gt; 10 (syn)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Utility</span> ──</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • S_pMSE = 2.11 (1.0 = the model could not tell original and synthetic rows</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> apart on 19 predictors; higher = more detectably different)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> This is a utility measure, not a privacy measure -- a low score here is not</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> evidence the data are safe to release.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

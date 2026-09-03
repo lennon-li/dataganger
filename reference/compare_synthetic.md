@@ -31,7 +31,20 @@ compare_synthetic(original, synthetic, roles = NULL)
 
 An S3 object of class `dataganger_comparison`, a list with components
 `dataset`, `numeric`, `categorical`, `relationship`, `interaction`,
+`utility` (a global pMSE-based utility diagnostic; see Details),
 `privacy_flags`, and `meta`.
+
+## Details
+
+`utility` reports the propensity-score pMSE / S_pMSE utility diagnostic
+of Snoke, Raab, Nowok, Dibben & Slavkovic (2018), the same formula
+[`synthpop::utility.gen()`](https://rdrr.io/pkg/synthpop/man/utility.gen.html)
+uses for its logistic-regression method: `S_pMSE` near 1 means a model
+fit to distinguish original from synthetic rows does no better than
+chance on the shared predictor columns (high utility for that joint
+distribution); higher values mean the two datasets are more detectably
+different. This is a utility measure, not a privacy measure – it says
+nothing about disclosure risk.
 
 ## Examples
 
@@ -64,4 +77,11 @@ compare_synthetic(dat, syn)
 #> 
 #> • y: p = 0.395, TVD = 1
 #> Levels: 10 (orig) -> 10 (syn)
+#> 
+#> ── Utility ──
+#> 
+#> • S_pMSE = 2.11 (1.0 = the model could not tell original and synthetic rows
+#> apart on 19 predictors; higher = more detectably different)
+#> This is a utility measure, not a privacy measure -- a low score here is not
+#> evidence the data are safe to release.
 ```

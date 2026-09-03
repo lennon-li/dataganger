@@ -127,6 +127,20 @@ reusable fitted generator so the real data is opened once.
   [`destroy_generator()`](https://dataganger.biostats.ai/reference/destroy_generator.md)
   the old contract once the replacement is confirmed.
 
+### `compare_synthetic()` reports a global utility score
+
+- [`compare_synthetic()`](https://dataganger.biostats.ai/reference/compare_synthetic.md)
+  gained a `utility` component: the propensity-score pMSE / S_pMSE
+  diagnostic of Snoke, Raab, Nowok, Dibben & Slavkovic (2018), the same
+  formula
+  [`synthpop::utility.gen()`](https://rdrr.io/pkg/synthpop/man/utility.gen.html)
+  uses for its logistic- regression method. `S_pMSE` near 1 means a
+  model fit to distinguish original from synthetic rows does no better
+  than chance on the shared predictor columns; higher values mean the
+  two datasets are more detectably different. Printed as its own
+  “Utility” section, always labeled as a utility measure, not a privacy
+  measure – it is not evidence the data are safe to release.
+
 ### Documentation
 
 - A new article, “Frozen generators: freeze once, generate many”,
