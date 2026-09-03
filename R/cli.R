@@ -466,13 +466,6 @@ cli_print_bundle_summary <- function(summary) {
   }
 }
 
-# Reads the manifest's structured kanon block (rather than re-parsing
-# human.md text) so `dataganger inspect` surfaces the same suppression
-# volume as the bundle report and the Shiny app's post-generation stats --
-# whole-cell suppression can silently blank far more of a QI column than
-# the number of cells that were actually below k (see enforce_kanon()'s
-# docs), so this is worth a dedicated line rather than folding it into the
-# generic privacy-flag list above.
 # Renders manifest$postal_columns through the same formatter human.md uses.
 # jsonlite::read_json(simplifyVector = TRUE) collapses the array of objects
 # into a data frame, so accept both that and the raw list-of-lists shape.
@@ -492,6 +485,13 @@ cli_postal_summary_lines <- function(postal_columns) {
   }, character(1))
 }
 
+# Reads the manifest's structured kanon block (rather than re-parsing
+# human.md text) so `dataganger inspect` surfaces the same suppression
+# volume as the bundle report and the Shiny app's post-generation stats --
+# whole-cell suppression can silently blank far more of a QI column than
+# the number of cells that were actually below k (see enforce_kanon()'s
+# docs), so this is worth a dedicated line rather than folding it into the
+# generic privacy-flag list above.
 cli_kanon_summary_line <- function(kanon) {
   if (is.null(kanon)) {
     return("not applicable")
