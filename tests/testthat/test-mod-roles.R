@@ -747,6 +747,95 @@ test_that("agg_warning banner stays empty for individual-level microdata", {
 })
 
 
+# The attestation no longer removes the `direct` option from Q1 (see
+# q1_identifies_choices()), so a contradiction between "no direct identifiers"
+# and a column answered `direct` has to show up as a warning instead.
+test_that("attestation conflict banner names columns still answered direct", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  state <- roles_test_state_with_unset()
+  state$attested_no_direct <- TRUE
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(output$attestation_conflict), collapse = "\n")
+    expect_match(html, "no direct identifiers")
+    expect_match(html, "Column: id", fixed = TRUE)
+    # Only the offending column is listed.
+    expect_false(grepl("income", html, fixed = TRUE))
+  })
+})
+
+test_that("attestation conflict banner stays empty when no column is direct", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  state <- roles_test_state_with_unset()
+  shiny::isolate({
+    roles <- state$roles
+    roles$identifies[[1]] <- "combination"
+    roles$disclosure_role[[1]] <- "quasi"
+    roles$simulation[[1]] <- "synthesize"
+    state$roles <- roles
+  })
+  state$attested_no_direct <- TRUE
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(output$attestation_conflict), collapse = "\n")
+    expect_false(grepl("no direct identifiers", html, fixed = TRUE))
+  })
+})
+
+test_that("attestation conflict banner stays empty when nothing was attested", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  # A direct column is not a contradiction until the user attests otherwise.
+  state <- roles_test_state_with_unset()
+  state$attested_no_direct <- FALSE
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$flushReact()
+    html <- paste(as.character(output$attestation_conflict), collapse = "\n")
+    expect_false(grepl("no direct identifiers", html, fixed = TRUE))
+  })
+})
+
+test_that("answering direct after attesting raises the conflict banner", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  state <- roles_test_state_with_unset()
+  shiny::isolate({
+    roles <- state$roles
+    roles$user_identifies <- rep(NA_character_, 3L)
+    roles$user_sensitive <- rep(NA, 3L)
+    roles$identifies[[1]] <- "combination"
+    roles$disclosure_role[[1]] <- "quasi"
+    roles$simulation[[1]] <- "synthesize"
+    state$roles <- roles
+  })
+  state$attested_no_direct <- TRUE
+
+  shiny::testServer(mod_roles_server, args = list(state = state), {
+    session$flushReact()
+    expect_false(grepl(
+      "no direct identifiers",
+      paste(as.character(output$attestation_conflict), collapse = "\n"),
+      fixed = TRUE
+    ))
+
+    session$setInputs(identifies_change = list(row = 3L, value = "direct"))
+    session$flushReact()
+    html <- paste(as.character(output$attestation_conflict), collapse = "\n")
+    expect_match(html, "no direct identifiers")
+    expect_match(html, "income", fixed = TRUE)
+  })
+})
+
+
 test_that("roles confirm is blocked until every generated column has an answer", {
   testthat::skip_if_not_installed("shiny")
   testthat::skip_if_not_installed("DT")

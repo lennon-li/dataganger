@@ -130,7 +130,8 @@ objective_cards <- function(ns) {
         shiny::tags$strong("Protection"),
         shiny::tags$span(
           "how strongly the data is shielded \u2014 combining coarsening, ",
-          "disclosure protection, and k-anonymity. More bars = safer to ",
+          "disclosure protection, and making sure no combination of values ",
+          "is shared by only a handful of rows. More bars = safer to ",
           "share, at the cost of less original detail preserved. (See the ",
           "details under each objective for the specifics.)"
         )
@@ -357,8 +358,8 @@ mod_synthesis_controls_server <- function(id, state) {
       use_when = "Sharing externally, teaching, demos, or public examples, where safety matters more than fidelity.",
       exact_values = exact_values_line,
       distributions = "Approximated and simplified: rare categories are merged and dates coarsened, so each column's distribution is roughly right, not exact.",
-      relationships = "Not preserved. Columns are generated independently, so relationships among quasi-identifiers and other variables are broken.",
-      identifiers = "Direct identifiers are removed. Quasi-identifiers are coarsened and k-anonymity is enforced.",
+      relationships = "Not preserved. Columns are generated independently, so relationships between columns are broken.",
+      identifiers = "Columns that point directly to a person are removed. Columns that can identify someone in combination are coarsened, and every combination of them is shared by several rows.",
       sensitive = "Sensitive and rare values are merged or dropped.",
       privacy_caution = "Not a formal privacy guarantee. Review all privacy warnings before sharing externally."
     ),
@@ -366,8 +367,8 @@ mod_synthesis_controls_server <- function(id, state) {
       use_when = "Building code, apps, AI tooling, or model pipelines that need realistic structure without exposing real records.",
       exact_values = exact_values_line,
       distributions = "Preserved per column: each column's distribution of values matches the original.",
-      relationships = "Preserved between variables, including among quasi-identifiers, when synthpop is installed (otherwise columns are independent).",
-      identifiers = "Direct identifiers are removed. Quasi-identifiers keep their distributions with light coarsening, and k-anonymity is enforced.",
+      relationships = "Preserved between columns, including the ones that can identify someone in combination, when synthpop is installed (otherwise columns are independent).",
+      identifiers = "Columns that point directly to a person are removed. Columns that can identify someone in combination keep their distributions with light coarsening, and every combination of them is shared by several rows.",
       sensitive = "Sensitive value distributions are kept; very rare categories are merged.",
       privacy_caution = "Relationship-preserving synthesis may retain sensitive patterns. Not for external release."
     ),
@@ -375,8 +376,8 @@ mod_synthesis_controls_server <- function(id, state) {
       use_when = "Internal statistical work, validation studies, or auditing, where fidelity matters most and output stays internal.",
       exact_values = exact_values_line,
       distributions = "Preserved in full detail, including rare categories and precise dates.",
-      relationships = "Strongly preserved between variables and among quasi-identifiers (high correlation fidelity).",
-      identifiers = "Direct identifiers are removed, but quasi-identifiers receive minimal coarsening, so re-identification risk is higher.",
+      relationships = "Strongly preserved between columns, including the ones that can identify someone in combination (high correlation fidelity).",
+      identifiers = "Columns that point directly to a person are removed, but columns that can identify someone in combination receive minimal coarsening, so someone is more likely to be recognised.",
       sensitive = "Sensitive patterns may be retained. Internal use only.",
       privacy_caution = "May preserve sensitive patterns. Not for external sharing. Requires explicit risk acknowledgement."
     )

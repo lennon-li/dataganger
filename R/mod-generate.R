@@ -84,11 +84,11 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
       shiny::tagList(
         "If ",
         shiny::tags$code(driver_col),
-        " does not need to be a ",
-        dg_privacy_term("quasi-identifier (QI)", "qi"),
-        ", mark it as ",
+        " cannot really help single out a person, answer ",
         shiny::tags$strong("No"),
-        " for Q1 and regenerate. It has the most distinct values in this set."
+        " for it on the Configure step and generate again. ",
+        "It has the most distinct values of these columns, so it is what ",
+        "splits the data into combinations too small to protect."
       )
     )
   } else {
@@ -113,21 +113,17 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
     ),
     shiny::tags$div(
       class = "card-header",
-      shiny::tags$span(class = "title", "k-anonymity was not applied"),
+      shiny::tags$span(class = "title", "Rare combinations were not protected"),
       shiny::tags$span(class = "sub", "choose one of the computed ways forward")
     ),
     shiny::tags$p(
       style = "margin-top:8px;",
       shiny::tagList(
-        "DataGangeR could not enforce ",
-        dg_privacy_term("k-anonymity", "k_anonymity"),
-        " at ",
-        dg_privacy_term("k", "k"),
-        " = ",
-        current_k,
-        " across these ",
-        dg_privacy_term("quasi-identifier (QI)", "qi"),
-        " columns: ",
+        sprintf(
+          "DataGangeR could not make every combination of values appear in at least %s rows ",
+          current_k
+        ),
+        "across the columns that can identify someone in combination: ",
         shiny::tags$span(
           style = "font-family:var(--font-mono); color:var(--fg-default);",
           paste(qi_cols, collapse = ", ")
@@ -137,10 +133,9 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
     ),
     shiny::tags$p(
       style = "margin:0;",
-      shiny::tagList(
-        "Applying it would require too much ",
-        dg_privacy_term("suppression", "suppression"),
-        ", so no k-anonymity protection was applied to this output."
+      paste(
+        "Doing that would have meant blanking out too much of the output,",
+        "so rare combinations in this output were left unprotected."
       )
     ),
     if (length(action_buttons) > 0L) {
@@ -165,12 +160,15 @@ render_kanon_escape_panel <- function(session, kanon, escape_routes) {
 render_kanon_applied_panel <- function(kanon) {
   row_frac <- kanon$suppressed_row_frac %||% 0
   detail <- sprintf(
-    "Every quasi-identifier combination in this output appears in at least %s rows.",
+    paste(
+      "Every combination of values across the columns that can identify",
+      "someone in combination is shared by at least %s rows in this output."
+    ),
     kanon$k %||% "k"
   )
   if (row_frac > 0) {
     detail <- sprintf(
-      "%s %s%% of QI values suppressed to enforce it.",
+      "%s %s%% of those values were blanked out to make that true.",
       detail,
       round(100 * row_frac)
     )
@@ -181,7 +179,7 @@ render_kanon_applied_panel <- function(kanon) {
     style = "margin-top:12px; border-left:4px solid var(--synth-600);",
     shiny::tags$div(
       class = "card-header",
-      shiny::tags$span(class = "title", "k-anonymity was applied"),
+      shiny::tags$span(class = "title", "Rare combinations were protected"),
       shiny::tags$span(class = "sub", "generation privacy status")
     ),
     shiny::tags$p(style = "margin:8px 0 0;", detail)

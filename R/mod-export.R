@@ -256,31 +256,30 @@ mod_export_server <- function(id, state) {
         style = "margin-top:12px; border-left:4px solid var(--risk-500);",
         shiny::tags$div(
           class = "card-header",
-          shiny::tags$span(class = "title", "Acknowledge missing k-anonymity protection"),
+          shiny::tags$span(class = "title", "Acknowledge unprotected rare combinations"),
           shiny::tags$span(class = "sub", "required before browser export")
         ),
         shiny::tags$p(
           style = "margin-top:8px;",
           shiny::tagList(
-            sprintf("For this output, k = %s means every combination of values across ", current_k),
-            dg_privacy_term("quasi-identifier (QI)", "qi"),
-            " columns ",
+            "In this output, every combination of values across the columns that ",
+            "can identify someone in combination (",
             qi_nodes,
-            sprintf(" must appear in at least %s rows. ", current_k),
+            sprintf(") should appear in at least %s rows. ", current_k),
             shortfall
           )
         ),
         shiny::tags$p(
           style = "margin:0 0 8px;",
           paste(
-            "Enforcing that rule would suppress too much of this output, so",
-            "k-anonymity was not applied. The bundle remains blocked until",
-            "you acknowledge the missing protection."
+            "Making that true would have meant blanking out too much of this",
+            "output, so those rare combinations were left as they are. The",
+            "bundle stays blocked until you acknowledge that."
           )
         ),
         shiny::checkboxInput(
           session$ns("kanon_acknowledged"),
-          label = "I understand that no k-anonymity protection was applied to this output, and I still want to export this bundle.",
+          label = "I understand that rare combinations in this output were left unprotected, and I still want to export this bundle.",
           value = FALSE
         )
       )
@@ -309,7 +308,10 @@ mod_export_server <- function(id, state) {
       kanon_acknowledged <- isTRUE(shiny::isolate(input$kanon_acknowledged))
       if (isTRUE(kanon$infeasible) && !kanon_acknowledged) {
         stop(
-          "Export requires explicit acknowledgment because k-anonymity was not applied to this output.",
+          paste(
+            "Export requires explicit acknowledgment because rare combinations",
+            "in this output were left unprotected."
+          ),
           call. = FALSE
         )
       }

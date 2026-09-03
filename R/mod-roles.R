@@ -252,6 +252,7 @@ mod_roles_ui <- function(id, embedded = FALSE) {
       shiny::uiOutput(ns("roles_banner_text"))
     ),
     shiny::uiOutput(ns("agg_warning")),
+    shiny::uiOutput(ns("attestation_conflict")),
     shiny::tags$div(
       class = "card",
       shiny::tags$div(
@@ -529,9 +530,50 @@ mod_roles_server <- function(id, state) {
           ),
           shiny::tags$div(
             style = "font-size:12px; margin-top:4px;",
-            "Disclosure control assumes individual-level microdata. On a counts table, ",
-            "the k-anonymity guarantee below applies to the dimension columns, not to the ",
-            "counts; review small cells directly before sharing."
+            "Disclosure control assumes one row per person. On a counts table, ",
+            "the combination check below applies to the dimension columns, not to the ",
+            "counts; review small counts directly before sharing."
+          )
+        )
+      )
+    })
+
+    # The attestation ("no direct identifiers") and a column answered "points
+    # directly to a person" cannot both be true. q1_identifies_choices() no
+    # longer hides the `direct` option after the attestation -- see its note --
+    # so the contradiction has to be surfaced here instead. This is a live
+    # readout, unlike the upload-time fail-safe modal, which is keyed to the
+    # uploaded file and never fires again once resolved.
+    output$attestation_conflict <- shiny::renderUI({
+      if (!isTRUE(state$attested_no_direct)) {
+        return(NULL)
+      }
+      roles <- roles_local()
+      if (is.null(roles) || !nrow(roles) || !"identifies" %in% names(roles)) {
+        return(NULL)
+      }
+      flagged <- as.character(roles$variable[
+        as.character(roles$identifies) %in% "direct"
+      ])
+      if (!length(flagged)) {
+        return(NULL)
+      }
+      shiny::tags$div(
+        class = "banner risk",
+        shiny::tags$span(class = "icon", "!"),
+        shiny::tags$div(
+          shiny::tags$b(sprintf(
+            "You said this file has no direct identifiers, but %s still %s answered \u201cpoints directly to a person\u201d.",
+            if (length(flagged) == 1L) "1 column" else sprintf("%d columns", length(flagged)),
+            if (length(flagged) == 1L) "is" else "are"
+          )),
+          shiny::tags$div(
+            style = "font-size:12px; margin-top:4px;",
+            sprintf("%s: %s. ", if (length(flagged) == 1L) "Column" else "Columns",
+                    paste(flagged, collapse = ", ")),
+            "Columns answered that way are removed from the synthetic file. ",
+            "Change the \u201cPoints to a person?\u201d answer if that is wrong, ",
+            "or leave it and the column will be dropped."
           )
         )
       )
@@ -1127,8 +1169,9 @@ mod_roles_server <- function(id, state) {
         return(shiny::tags$div(
           class = "card",
           style = "margin-top:12px;",
-          shiny::tags$strong("No quasi-identifiers selected."),
-          " Mark the columns that could identify someone in combination."
+          shiny::tags$strong("You have not marked any columns as identifying in combination."),
+          " Mark any column that could help single out a person when read ",
+          "alongside the others."
         ))
       }
       res <- assess_kanonymity(data, qi, k = k)
@@ -1147,34 +1190,31 @@ mod_roles_server <- function(id, state) {
         shiny::tags$div(
           style = "font-family:var(--font-mono); font-size:12px; color:var(--fg-muted);",
           shiny::tagList(
-            dg_privacy_term("Quasi-identifier (QI)", "qi"),
-            " columns: ",
+            "Columns that can identify someone in combination: ",
             paste(qi, collapse = " \u00b7 "),
             "   ",
-            dg_privacy_term("k", "k"),
-            " = ",
-            k
+            sprintf("target: at least %s records per combination", k)
           )
         ),
         if (safe) {
           shiny::tags$div(
             style = "color:var(--real-700);",
-            "\u2713 No record sits in an unsafe combination at this k."
+            sprintf(
+              "\u2713 Every combination of these values is shared by at least %s records.",
+              k
+            )
           )
         } else {
           shiny::tagList(
             shiny::tags$div(
               style = "color:var(--synth-700); font-weight:600;",
-              shiny::tagList(
-                "\u26a0 Smallest ",
-                dg_privacy_term("cell", "cell"),
-                ": ",
-                sprintf(
-                  "%d record(s). %d of %d records (%.1f%%) fall below ",
-                  res$smallest_cell, res$n_below, nrow(data), res$pct_below
+              sprintf(
+                paste(
+                  "\u26a0 The rarest combination is shared by only %d record(s).",
+                  "%d of %d records (%.1f%%) are in a combination shared by",
+                  "fewer than %s records."
                 ),
-                dg_privacy_term("k", "k"),
-                "."
+                res$smallest_cell, res$n_below, nrow(data), res$pct_below, k
               )
             ),
             shiny::tags$ul(lapply(worst_lines, shiny::tags$li))
