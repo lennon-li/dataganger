@@ -119,6 +119,30 @@ test_that("synthpop_bridge_cols() identifies high-cardinality char columns", {
   expect_false("score"     %in% bridge)
 })
 
+test_that("synthpop_bridge_cols() also catches high-cardinality factor columns", {
+  # The CART-hang mechanism (2^(k-1) factor splits for a factor predictor) is
+  # not specific to character storage: an R factor column with the same
+  # cardinality poses the same hang risk, but `!is.character(x)` previously
+  # skipped it entirely. Column name is generic (not ID-pattern-like, not
+  # digit-suffixed) so role detection lands on "unknown" rather than
+  # "alphanumeric ID", isolating the cardinality guard itself.
+  words <- c(
+    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
+    "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa",
+    "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whiskey",
+    "xray", "yankee", "zulu"
+  )
+  df <- data.frame(
+    region = factor(rep(words, length.out = 200)),
+    score  = rnorm(200),
+    stringsAsFactors = FALSE
+  )
+  roles  <- detect_roles(df)
+  expect_equal(roles$recommended_role[roles$variable == "region"], "unknown")
+  bridge <- synthpop_bridge_cols(roles, df)
+  expect_true("region" %in% bridge)
+})
+
 test_that("synthesize_synthpop() stitches bridge columns back into original order", {
   skip_if_no_synthpop()
   df <- data.frame(

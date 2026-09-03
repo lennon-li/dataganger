@@ -172,9 +172,11 @@ synthpop_role_excluded_cols <- function(roles) {
 
 # Columns that must stay out of synthpop's CART to avoid hangs, but ARE still
 # synthesized (via the marginal engine) and stitched back into the output.
-# Criteria: character "date" role columns, and any character column with
-# more than 100 distinct values (e.g. date strings, free-form text that slipped
-# past the free-text detector, high-cardinality codes).
+# Criteria: "date"-role columns, and any character OR factor column with more
+# than 20 distinct values (e.g. date strings, free-form text that slipped past
+# the free-text detector, high-cardinality codes). The CART hang comes from
+# 2^(k-1) factor-split enumeration for any factor predictor, character-stored
+# or not, so both storage types need the same guard.
 synthpop_bridge_cols <- function(roles, data) {
   if (is.null(data)) return(character())
   true_excl <- synthpop_role_excluded_cols(roles)
@@ -188,7 +190,7 @@ synthpop_bridge_cols <- function(roles, data) {
   for (col in names(data)) {
     if (col %in% true_excl) next
     x <- data[[col]]
-    if (!is.character(x)) next
+    if (!is.character(x) && !is.factor(x)) next
     col_role   <- if (!is.null(role_lookup) && col %in% names(role_lookup))
                     role_lookup[[col]] else "unknown"
     n_dist     <- length(unique(x[!is.na(x)]))
