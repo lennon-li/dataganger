@@ -96,12 +96,21 @@ privacy_check_pre <- function(original, roles) {
         "Kept for analysis; attribute-disclosure protection is not yet applied")
     }
 
-    # Free-text detection -> MEDIUM
+    # Free-text detection -> MEDIUM. Single source of truth: when a role
+    # decision is available for this column, trust it (role == "free text")
+    # rather than re-deriving the answer with separately maintained
+    # thresholds, which could disagree with what detect_roles() decided and
+    # silently under- or over-flag. Only fall back to is_free_text_candidate()
+    # -- the same heuristic detect_roles() itself uses -- when no role
+    # decision covers this column at all (e.g. privacy_check() called without
+    # `roles`).
     if (is.character(x) && !all(is.na(x))) {
-      x_obs <- x[!is.na(x)]
-      mean_nchar <- mean(nchar(as.character(x_obs)))
-      n_dist <- length(unique(x_obs))
-      if (mean_nchar > 50 && n_dist > length(x) * 0.5) {
+      is_free_text <- if (!is.null(role_map) && nm %in% names(role_map)) {
+        identical(role, "free text")
+      } else {
+        is_free_text_candidate(x)
+      }
+      if (is_free_text) {
         flags[[length(flags) + 1]] <- make_flag(nm, "Free-text column detected", "MEDIUM",
           "Free-text columns can contain identifying information; consider exclusion")
       }

@@ -107,6 +107,36 @@ test_that("privacy_check() pre flags free-text columns", {
   expect_match(paste(pc$flag, collapse = "\n"), "Free.text")
 })
 
+test_that("privacy_check() pre without roles still flags what detect_roles() calls free text", {
+  # privacy_check_pre()'s fallback (no roles supplied) used to run its own
+  # hand-rolled heuristic (mean_nchar > 50 && n_dist > 0.5 * nrow), which
+  # drifts from is_free_text_candidate()'s (median_nchar > 20 || median
+  # word_count >= 5). Short multi-word sentences with plenty of repeats trip
+  # the role-detection heuristic but not the old privacy-check one, so a
+  # standalone privacy_check(df, stage = "pre") call silently missed a column
+  # detect_roles() would classify (and route to "direct" disclosure) as free
+  # text.
+  set.seed(1)
+  templates <- c(
+    "please call me back today",
+    "need help with my order",
+    "will follow up next week",
+    "thanks for the quick reply",
+    "see you at the meeting"
+  )
+  notes <- sample(templates, 60, replace = TRUE)
+  df <- data.frame(notes = notes, score = rnorm(60), stringsAsFactors = FALSE)
+
+  expect_equal(
+    detect_roles(df)$recommended_role[detect_roles(df)$variable == "notes"],
+    "free text"
+  )
+
+  pc <- privacy_check(df, stage = "pre")
+  expect_match(paste(pc$flag[pc$variable == "notes"], collapse = "\n"), "text|identifier",
+               ignore.case = TRUE)
+})
+
 test_that("privacy_check() pre returns empty for clean data", {
   df <- data.frame(x = rep(1:30, length.out = 50))
   roles <- detect_roles(df)
