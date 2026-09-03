@@ -157,6 +157,45 @@ When using the `synthpop` engine, please cite:
 > Data in R.” *Journal of Statistical Software*, 74(11), 1–26.
 > doi:10.18637/jss.v074.i11
 
+## Frozen generators: freeze once, generate many
+
+The pipeline above opens the real data every time it runs. When a team needs a
+fresh synthetic dataset repeatedly, DataGangeR can instead freeze a reviewed
+synthesis policy against the real data **once** and generate from the approved
+fitted state afterwards, without reopening the source.
+
+```r
+frozen <- freeze_synthesis(dat, spec, roles,
+                           allowed = generation_limits(n = c(50L, 5000L)),
+                           store   = "~/.dataganger-store")
+approve_generator(frozen, approver = "a.reviewer")
+
+syn <- generate_synthetic(frozen, seed = 7, n = 500)
+```
+
+Freezing fits the generator into a private store; approval is a separate human
+sign-off that binds one fitted generator for use; each generation is a bounded
+request inside the approved seed, row, and dataset ranges, and produces an audit
+receipt. `revoke_generator()` ends an approval and `destroy_generator()`
+permanently removes the fitted state while keeping the contract tombstone and
+receipts. The same lifecycle is available as `dataganger generator ...`
+subcommands.
+
+This is not the export recipe. `recipe.yaml` records the synthesis
+configuration, not a fitted generator, and cannot regenerate data by itself; a
+frozen generator retains the fitted state deliberately, in a private store,
+under an explicit approval.
+
+A host can also configure a generate-only route so a coding Agent can request a
+new bundle from an approved generator with no access to the real data. The
+package ships both halves of that route and the handshake that verifies
+isolation; it does not create the isolation, the host does.
+
+For the full walkthrough, the contract/generator/approval/request terminology,
+the reproducibility envelope, and the migration note for generators frozen
+before the exact-row portability fix, see the
+[frozen generator workflow article](https://dataganger.biostats.ai/articles/frozen-generator-workflow.html).
+
 ## CLI / Agent workflow
 
 The same pipeline is available from the command line:

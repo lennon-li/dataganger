@@ -76,7 +76,8 @@ cli_print_help <- function() {
       "  make-agent-bundle <data-file> --out <bundle.zip> [--purpose <purpose>] [--seed <n>]",
       "  export-diagnostic <data-file> --out <diagnostic_view.json>",
       "  generator <command> [options]",
-      "  generator-broker [--store <dir>]   (store-owning broker process; reads one JSON request on stdin)",
+      "  generator-broker [--store <dir>]   (store-owning broker process; reads one JSON request on stdin;",
+      "                                      falls back to DATAGANGER_BROKER_STORE when --store is omitted)",
       "  agent <command> [options]          (generate-only route; requires a configured broker)",
       sep = "\n"
     ),

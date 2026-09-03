@@ -1,3 +1,121 @@
+# dataganger (development version)
+
+A capability release in progress. The pipeline could only ever produce a
+synthetic dataset by opening the real data again, which made repeated
+generation a repeated privacy event. This adds a reviewed, approved, reusable
+fitted generator so the real data is opened once.
+
+## Frozen generators: a reviewed synthesis policy can now be reused
+
+*   **Gap.** Every synthetic dataset required the source data and a human to
+    run the pipeline. The export bundle's `recipe.yaml` records the synthesis
+    configuration, not a fitted generator, so it cannot regenerate data on its
+    own -- a rerun still meant reopening the real records. Teams that needed a
+    fresh variation weekly reopened the source weekly.
+
+*   **What landed.** A four-object lifecycle, each object distinct and
+    separately auditable. `generator_contract()` is the policy: the derived
+    output schema, roles and settings, the `generation_limits()` envelope of
+    permitted seeds, row counts and dataset counts, and a compatibility block,
+    hashed into an immutable `contract_id`. `freeze_synthesis()` fits that
+    policy against real data in a human-controlled session and writes the
+    fitted state to a private store, returning a source-free handle that does
+    not contain the fitted state. `approve_generator()` is a separate human
+    sign-off that binds one specific fitted generator revision under the
+    contract, with a named approver; generation is unavailable until it
+    succeeds. `generate_synthetic()` then draws a bounded request against the
+    approval, returning one dataset or a `dataganger_batch` of deterministic
+    variations, each with a sanitized `generation_receipt()`.
+
+*   **Ending the lifecycle.** `revoke_generator()` is terminal for a contract
+    ID and requires a newly reviewed contract for any later approval, but it is
+    not deletion. `destroy_generator()` removes every fitted generator held
+    under a contract, including its exact-row index, while retaining the
+    contract as a tombstone, the approval record marked `destroyed` with its
+    original approver, and the generation receipts as an audit trail. It is
+    idempotent and irreversible. It is an unlink, not a secure wipe: residual
+    copies on journalling filesystems, wear-levelled SSDs, snapshots, or
+    backups are outside the package's control, and the documentation says so.
+
+*   **Fail-closed generation.** Generation runs the runtime privacy check and
+    returns no usable output when it does not clear -- a verbatim source row
+    reproduced, an infeasible k-anonymity target, or an exact-row check that
+    could not be performed at all. The refusal names a durable receipt ID so
+    the refusal itself is auditable.
+
+*   **Reproducibility scope.** The fitted state records the engine, the
+    DataGangeR package version, the generator schema version, the seed
+    algorithm, and the canonical data-hash algorithm, and validates that block
+    against the running runtime on every generation, failing closed on a
+    mismatch. Effective seeds derive from the approved contract ID and the RNG
+    kinds are pinned rather than inherited from the caller's session.
+    Byte-for-byte reproduction is guaranteed only inside that recorded
+    envelope; it is not a general promise across arbitrary version changes, and
+    the R version is not part of the recorded block.
+
+*   **CLI.** `dataganger generator freeze|inspect|generate|revoke|destroy|status`
+    covers the operator lifecycle. Approval remains an R or app action rather
+    than a CLI subcommand.
+
+## A generate-only Agent route, gated by host-proven isolation
+
+*   **Gap.** An agent that needed a new synthetic variation had to ask a human
+    to reopen the real data, because there was no way for a process without
+    data access to reach an approved generator.
+
+*   **What landed.** A two-process route. `dataganger generator-broker --store
+    <dir>` runs as the store-owning account and is the only code on the route
+    that opens the private store; `dataganger agent status|generate` runs as a
+    different account, never opens the store, and reaches the broker through
+    exactly one host-whitelisted invocation named by `DATAGANGER_AGENT_BROKER`.
+    The agent client accepts a contract ID and bounded request fields only --
+    no store path, no data path, no privacy acknowledgement or opt-out.
+    Freezing, approval, revocation, inspection, and migration are not reachable
+    from it.
+
+*   **What the package claims, and what it does not.** The package ships both
+    halves of the route and the handshake that verifies isolation. It does not
+    create the isolation; the host does. In-process package code cannot create
+    a boundary against a caller running as the same OS user, so the route
+    becomes available only when the running process proves at runtime that it
+    cannot read the private store as the current user. A successful read means
+    no boundary exists: the route reports itself unavailable, says why, and
+    generates nothing. `status` requires a configured broker, a capabilities
+    probe answered with the broker's own principal, a broker principal
+    different from the client's, a non-superuser client, and genuinely refused
+    real reads of the store marker and of `generators/`. Anything unexpected
+    reports `unavailable`, never `available`. Reference host configuration is
+    documented in the packaged agent skill's `HOST-SETUP.md`.
+
+## Exact-row fingerprints are portable, and old generators must be re-frozen
+
+*   **Symptom.** The keyed exact-row fingerprint index, which lets generated
+    output be screened for verbatim source rows, was derived in a form that did
+    not reproduce portably across environments, so the screen could disagree
+    with itself.
+
+*   **Fix.** Fingerprints are computed over a canonical encoding and the
+    algorithm is recorded in the index as `HMAC-SHA256-canonical-v1`.
+
+*   **Migration.** Any generator frozen before this fix carries the legacy
+    `HMAC-SHA256` index and cannot be screened by the current runtime. Rather
+    than release output that was never actually checked, generation fails
+    closed with an `exact_row_check_unavailable` blocker stating that the
+    generator must be re-frozen and re-approved. There is no in-place upgrade:
+    the index derives from the real data, so re-freezing requires the source.
+    Re-run `freeze_synthesis()` with the same spec, roles, and limits, review
+    the new risk report, `approve_generator()` the new handle, and
+    `destroy_generator()` the old contract once the replacement is confirmed.
+
+## Documentation
+
+*   A new article, "Frozen generators: freeze once, generate many", defines the
+    contract / generator / approval / request vocabulary, walks the freeze ->
+    approve -> generate -> destroy lifecycle, states the reproducibility
+    envelope and the migration path, and summarizes the Agent route without
+    duplicating the host-setup mechanics. `README.md` gained a section
+    introducing the capability and pointing at it.
+
 # dataganger 0.8.2
 
 A portability release. Every item below is one defect: what went wrong, why,

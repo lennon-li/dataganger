@@ -89,6 +89,14 @@ human or operator. The current recipe records configuration only: it cannot
 generate data by itself, and an Agent must not supply a real-data path or edit
 the recipe to trigger synthesis.
 
+Some hosts additionally configure a generate-only route (`dataganger agent
+status` / `dataganger agent generate --contract-id <id>`) that serves a new
+bundle from a generator a human already froze and approved, with no access to
+the real data. It is available only where the host has configured it; if
+`status` reports `unavailable`, stop and ask the operator rather than looking
+for another way to reach the private store. Freezing and approval remain human
+operator actions in every case.
+
 ## What you may and may not do
 
 **May:** read every file in the bundle; run any computation on `synthetic_data.csv` after
