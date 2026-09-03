@@ -84,8 +84,59 @@ test_that("manifest.json factor_levels_included is false for schema synthesis", 
   expect_false(isTRUE(m$factor_levels_included))
 })
 
-test_that("manifest.json numeric_ranges_included is always false", {
-  m <- make_manifest_for_test()
+test_that("manifest.json numeric_ranges_included is true for marginal synthesis with a numeric column", {
+  # synth_numeric() truncates every synthesized value to [obs_min, obs_max]
+  # (R/synth-helpers.R), so the released numeric column's range genuinely
+  # matches the original's -- the manifest must say so rather than claim
+  # ranges are withheld. High cardinality so `score` is detected as a
+  # measurement, not a coded category (make_manifest_for_test()'s n = 10
+  # default is too small for that).
+  df <- data.frame(
+    id    = 1:60,
+    score = seq(1, 100, length.out = 60),
+    grp   = rep(c("a", "b"), 30),
+    stringsAsFactors = FALSE
+  )
+  tmp <- withr::local_tempdir()
+  out <- file.path(tmp, "bundle.zip")
+  spec <- synth_spec(purpose = "development", seed = 1L, engine = "internal")
+  synthetic <- synthesize_data(df, spec)
+  export_synthetic(synthetic, original = df, path = out, format = "zip")
+
+  extract_dir <- file.path(tmp, "ext-numeric-ranges")
+  dir.create(extract_dir)
+  utils::unzip(out, exdir = extract_dir)
+  m <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
+  expect_true(isTRUE(m$numeric_ranges_included))
+})
+
+test_that("manifest.json numeric_ranges_included is false for schema synthesis", {
+  df <- data.frame(x = 1:10, y = rep(c("a", "b"), 5), stringsAsFactors = FALSE)
+  tmp  <- withr::local_tempdir()
+  out  <- file.path(tmp, "bundle.zip")
+  spec <- synth_spec(purpose = "demo", level = "schema")
+  synthetic <- synthesize_data(df, spec)
+  export_synthetic(synthetic, original = df, path = out, format = "zip")
+
+  extract_dir <- file.path(tmp, "ext-schema-ranges")
+  dir.create(extract_dir)
+  utils::unzip(out, exdir = extract_dir)
+  m <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
+  expect_false(isTRUE(m$numeric_ranges_included))
+})
+
+test_that("manifest.json numeric_ranges_included is false with no numeric columns", {
+  df <- data.frame(grp = rep(c("a", "b"), 5), stringsAsFactors = FALSE)
+  tmp  <- withr::local_tempdir()
+  out  <- file.path(tmp, "bundle.zip")
+  spec <- synth_spec(purpose = "development")
+  synthetic <- synthesize_data(df, spec)
+  export_synthetic(synthetic, original = df, path = out, format = "zip")
+
+  extract_dir <- file.path(tmp, "ext-no-numeric")
+  dir.create(extract_dir)
+  utils::unzip(out, exdir = extract_dir)
+  m <- jsonlite::read_json(file.path(extract_dir, "agent", "manifest.json"))
   expect_false(isTRUE(m$numeric_ranges_included))
 })
 

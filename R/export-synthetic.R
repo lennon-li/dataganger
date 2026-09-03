@@ -1197,7 +1197,13 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     plots_included          = plots_included,
     original_names_included = isTRUE(include_original_names),
     factor_levels_included  = isTRUE(spec$level %in% c("marginal", "hifi")),
-    numeric_ranges_included = FALSE,
+    # synth_numeric() truncates every synthesized value to [obs_min, obs_max]
+    # (see R/synth-helpers.R), and synthpop's CART donor draws are themselves
+    # observed values, so any numeric column produced at marginal/hifi level
+    # genuinely carries the original's exact range -- only schema-level output
+    # (all NA) or a synthetic frame with no numeric columns withholds it.
+    numeric_ranges_included = isTRUE(spec$level %in% c("marginal", "hifi")) &&
+      any(vapply(synthetic, is.numeric, logical(1))),
     policy_file             = NULL
   )
   manifest$generator_provenance <- generator_provenance
