@@ -226,3 +226,69 @@ test_that("labelled columns with a rare level survive the synthpop path", {
     expect_setequal(observed, c("Alpha", "Bravo", "Charlie"))
   }
 })
+
+# ---- One synthesizable column after exclusions -------------------------
+
+# A frame whose only surviving column after ID/free-text/high-cardinality
+# exclusion is `score`; synthpop::syn() needs at least two columns.
+one_synthesizable_col_df <- function() {
+  data.frame(
+    record_id = paste0("X-", 1:25),
+    score     = rep(c(1.1, 2.2, 3.3, 4.4, 5.5), length.out = 25),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("auto-derived synthpop falls back to internal on one synthesizable column", {
+  skip_if_no_synthpop()
+  df    <- one_synthesizable_col_df()
+  roles <- detect_roles(df)
+  expect_equal(
+    setdiff(names(df), synthpop_excluded_cols(roles, df)),
+    "score"
+  )
+
+  spec <- suppressWarnings(synth_spec(purpose = "development", seed = 1L))
+  expect_warning(
+    syn <- synthesize_data(df, spec, roles = roles),
+    "Only one synthesizable column"
+  )
+  expect_equal(attr(syn, "engine"), "internal")
+  expect_s3_class(syn, "dataganger_synthetic")
+  expect_equal(nrow(syn), nrow(df))
+  expect_true("score" %in% names(syn))
+})
+
+test_that("explicit synthpop aborts clearly on one synthesizable column", {
+  skip_if_no_synthpop()
+  df    <- one_synthesizable_col_df()
+  roles <- detect_roles(df)
+  spec  <- synth_spec(purpose = "demo", engine = "synthpop", seed = 1L)
+
+  expect_error(
+    synthesize_data(df, spec, roles = roles),
+    "Only one synthesizable column"
+  )
+  # Not synthpop's own opaque message.
+  expect_error(
+    synthesize_data(df, spec, roles = roles),
+    "at least two"
+  )
+  err <- tryCatch(synthesize_data(df, spec, roles = roles), error = identity)
+  expect_false(grepl("Data should contain", conditionMessage(err), fixed = TRUE))
+})
+
+test_that("multi-column synthpop path is unchanged by the one-column guard", {
+  skip_if_no_synthpop()
+  df <- data.frame(
+    record_id = paste0("X-", 1:40),
+    score     = rep(c(1.1, 2.2, 3.3, 4.4, 5.5), length.out = 40),
+    grp       = rep(letters[1:4], length.out = 40),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec  <- synth_spec(purpose = "demo", engine = "synthpop", seed = 1L)
+  syn   <- synthesize_data(df, spec, roles = roles)
+  expect_equal(attr(syn, "engine"), "synthpop")
+  expect_equal(nrow(syn), nrow(df))
+})

@@ -73,6 +73,31 @@ synthesize_data <- function(data, spec, roles = NULL,
     engine <- "internal"
   }
 
+  # synthpop::syn() needs at least two columns; with exactly one left after
+  # ID/free-text/high-cardinality exclusion it fails with its own opaque
+  # message. Decide here, on the same rule as the not-installed case above:
+  # an auto-derived request degrades to the marginal engine with a warning,
+  # but an explicit engine = "synthpop" request is never silently downgraded.
+  if (engine == "synthpop") {
+    roles <- roles %||% detect_roles(data)
+    n_synthesizable <- length(
+      setdiff(names(data), synthpop_excluded_cols(roles, data))
+    )
+    if (n_synthesizable == 1L) {
+      if (is.null(explicit)) {
+        cli::cli_warn(
+          "Only one synthesizable column remains after excluding ID, free-text, and high-cardinality columns; using the marginal engine for now."
+        )
+        engine <- "internal"
+      } else {
+        cli::cli_abort(c(
+          "Only one synthesizable column remains after excluding ID, free-text, and high-cardinality columns; {.pkg synthpop} needs at least two.",
+          "i" = "Use {.code engine = \"internal\"}, or omit {.arg engine} to let objective-based routing choose."
+        ))
+      }
+    }
+  }
+
   # Record dimensions before synthesis
   original_dims <- list(nrow = nrow(data), ncol = ncol(data))
 
