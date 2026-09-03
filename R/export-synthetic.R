@@ -155,6 +155,14 @@ export_synthetic <- function(synthetic,
     purpose = purpose,
     spec = spec
   )
+  if (!isTRUE(include_original_names) &&
+      identical(spec$name_strategy %||% "preserve", "preserve")) {
+    cli::cli_abort(c(
+      "{.arg include_original_names} = FALSE is incoherent with {.code name_strategy = \"preserve\"}.",
+      "i" = "{.code name_strategy = \"preserve\"} keeps real column names on the synthetic data itself, so {.file synthetic_data.csv} would still carry them regardless of this flag.",
+      "i" = "Synthesize with {.code name_strategy = \"generic\"} or {.code \"dictionary_only\"} instead if names must be withheld from the export."
+    ))
+  }
   export_roles <- roles
   if (is.null(export_roles) && !is.null(original)) {
     export_roles <- detect_roles(original)

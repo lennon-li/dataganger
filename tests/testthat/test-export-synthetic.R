@@ -456,6 +456,38 @@ test_that("dictionary_only export withholds original names from bundled text", {
   expect_false(grepl("patient_zip|salary", bundled))
 })
 
+test_that("export_synthetic() aborts on preserve + include_original_names = FALSE", {
+  # name_strategy = "preserve" (the default) leaves the real column names on
+  # `synthetic` itself, so synthetic_data.csv always ships them regardless of
+  # include_original_names -- there is no name_map to strip them from. Asking
+  # for include_original_names = FALSE here is an incoherent request: honoring
+  # it would let the manifest/recipe claim names were withheld while the CSV
+  # header still carries them. Fail closed instead of shipping that mismatch.
+  tmp <- withr::local_tempdir()
+  original <- tibble::tibble(
+    patient_zip = rep(sprintf("%05d", 10001:10010), each = 3),
+    salary = rep(c(50000, 65000, 72000), 10)
+  )
+  roles <- detect_roles(original)
+  spec <- synth_spec(purpose = "demo", seed = 44, n = nrow(original))
+  syn <- synthesize_data(original, spec, roles = roles)
+
+  out_dir <- file.path(tmp, "preserve-conflict")
+  expect_error(
+    export_synthetic(
+      syn,
+      original = original,
+      roles = roles,
+      path = out_dir,
+      format = "dir",
+      include_report = FALSE,
+      include_original_names = FALSE
+    ),
+    "name_strategy"
+  )
+  expect_false(dir.exists(out_dir))
+})
+
 test_that("export_synthetic() skips report gracefully when report deps are unavailable", {
   tmp <- withr::local_tempdir()
   syn <- tibble::tibble(x = 1:3)
