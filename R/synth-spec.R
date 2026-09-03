@@ -117,6 +117,20 @@ synth_spec <- function(purpose,
 
   # --- Absorb ... into spec ---
   dots <- list(...)
+  # `level`, `n`, `name_strategy`, and `seed` are named formals and are never
+  # routed through `...`, so the only names `...` can legitimately carry are
+  # the remaining preset fields. A misspelled field name here previously
+  # merged straight into the spec with no validation and was silently
+  # ignored -- the user's requested setting simply never took effect. Fail
+  # closed instead.
+  known_dot_fields <- setdiff(names(preset), c("level", "n", "name_strategy", "seed"))
+  unknown_dot_fields <- setdiff(names(dots), known_dot_fields)
+  if (length(unknown_dot_fields) > 0L) {
+    cli::cli_abort(c(
+      "Unrecognized argument{?s} to {.fn synth_spec}: {.val {unknown_dot_fields}}",
+      "i" = "Recognized fields: {.val {known_dot_fields}}"
+    ))
+  }
   for (nm in names(dots)) {
     preset[[nm]] <- dots[[nm]]
   }

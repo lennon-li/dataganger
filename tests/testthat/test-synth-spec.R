@@ -141,6 +141,47 @@ test_that("synth_spec() user overrides take precedence", {
   expect_equal(s$level, "marginal")
 })
 
+test_that("synth_spec() rejects an unrecognized dot argument", {
+  # A misspelled preset field name (sedd instead of seed) previously went
+  # straight into `preset[[nm]]` with no validation and was silently
+  # ignored -- the user's requested seed simply never took effect.
+  expect_error(
+    synth_spec(purpose = "demo", sedd = 123),
+    "sedd"
+  )
+})
+
+test_that("synth_spec() rejects a dot argument that already has its own formal parameter", {
+  # `level` has a named formal; passing it as a dot (e.g. via do.call with a
+  # typo'd name landing outside the formal set) should be treated the same
+  # as any other unrecognized name, not silently merged in.
+  expect_error(
+    do.call(synth_spec, list(purpose = "demo", levl = "hifi")),
+    "levl"
+  )
+})
+
+test_that("synth_spec() still accepts every known preset field via dots", {
+  known <- c(
+    "preserve_correlations", "coarsen_dates", "merge_rare", "label_strategy",
+    "free_text_strategy", "rare_level_min_n", "k_anon", "preserve_missingness"
+  )
+  for (field in known) {
+    args <- list(purpose = "demo")
+    args[[field]] <- switch(field,
+      preserve_correlations = "high",
+      coarsen_dates = TRUE,
+      merge_rare = TRUE,
+      label_strategy = "preserve",
+      free_text_strategy = "categorical",
+      rare_level_min_n = 10,
+      k_anon = 5,
+      preserve_missingness = "exact"
+    )
+    expect_silent(do.call(synth_spec, args))
+  }
+})
+
 test_that("synth_spec() accepts engine = \"auto\" without recording an explicit engine", {
   s <- synth_spec(purpose = "development", engine = "auto")
   expect_null(s[["engine", exact = TRUE]])

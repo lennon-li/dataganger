@@ -380,7 +380,14 @@ local({
     expect_false(bad_engine$eligible)
     expect_true("engine_ineligible" %in% bad_engine$risk_report$blockers$code)
 
-    constrained <- fit_internal_generator(data, fit_spec(constraints = list(value = "x > 0")), roles)
+    # `constraints` is not a real synth_spec() field -- it is not something any
+    # production caller sets, only a hazard generator-fit.R defends against if
+    # a spec object somehow carries it. synth_spec() now validates its dots
+    # strictly, so simulate the hazard by attaching the field directly to an
+    # already-built spec rather than routing it through the constructor.
+    constrained_spec <- fit_spec()
+    constrained_spec$constraints <- list(value = "x > 0")
+    constrained <- fit_internal_generator(data, constrained_spec, roles)
     expect_true("unsafe_constraints" %in% constrained$risk_report$blockers$code)
     expect_true("postal_parameters_missing" %in% constrained$risk_report$blockers$code)
 

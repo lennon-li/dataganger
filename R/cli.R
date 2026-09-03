@@ -308,7 +308,7 @@ cli_read_spec_yaml <- function(path) {
 
   allowed <- c(
     "level", "n", "name_strategy", "seed", "engine", "preserve_correlations",
-    "coarsen_dates", "merge_rare", "free_text_strategy", "geography_strategy",
+    "coarsen_dates", "merge_rare", "free_text_strategy",
     "rare_level_min_n", "preserve_missingness", "label_strategy", "k_anon"
   )
   override <- raw[intersect(names(raw), allowed)]
@@ -374,7 +374,6 @@ cli_cmd_synthesize <- function(args) {
     merge_rare = spec$merge_rare,
     label_strategy = spec$label_strategy,
     free_text_strategy = spec$free_text_strategy,
-    geography_strategy = spec$geography_strategy,
     rare_level_min_n = spec$rare_level_min_n,
     preserve_missingness = spec$preserve_missingness,
     k_anon = spec$k_anon
