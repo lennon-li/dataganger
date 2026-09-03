@@ -189,6 +189,26 @@ export_synthetic <- function(synthetic,
 
   dictionary <- build_data_dictionary(original, synthetic, spec, roles = export_roles, include_original_names = include_original_names)
 
+  # Shared postal-code description for human.md and agent/manifest.json.
+  # Detection reads the original values when they are available and falls
+  # back to the (format-valid) synthetic column otherwise; both paths are
+  # offline and consult no geography reference data.
+  postal_source <- if (!is.null(original)) original else dg_original_names(synthetic)
+  # Resolve under original names first and write the result back into the
+  # roles table, so agent/recipe.yaml records the same country and format
+  # template the other surfaces show rather than only the strategy.
+  export_roles <- dg_resolve_postal_roles(export_roles, data = postal_source)
+  postal_columns <- dg_postal_column_summaries(
+    export_roles,
+    data = postal_source,
+    name_map = spec$name_map %||% NULL,
+    include_original_names = include_original_names
+  )
+  postal_columns <- Filter(
+    function(s) s$variable %in% names(synthetic),
+    postal_columns
+  )
+
   csv_data <- synthetic
   if (isTRUE(sanitize_for_spreadsheets)) {
     csv_data <- sanitize_for_spreadsheet_export(csv_data)
@@ -229,7 +249,8 @@ export_synthetic <- function(synthetic,
       kanon = attr(synthetic, "kanon", exact = TRUE),
       kanon_acknowledged = kanon_acknowledged,
       has_code_readiness = !is.null(code_readiness),
-      generator_provenance = generator_provenance
+      generator_provenance = generator_provenance,
+      postal_columns = postal_columns
     ),
     con = file.path(human_dir, "human.md"),
     useBytes = TRUE
@@ -260,7 +281,8 @@ export_synthetic <- function(synthetic,
     roles                  = export_roles,
     kanon_acknowledged     = kanon_acknowledged,
     exact_match_acknowledged = exact_match_acknowledged,
-    generator_provenance   = generator_provenance
+    generator_provenance   = generator_provenance,
+    postal_columns         = postal_columns
   )
 
   if (identical(format, "zip")) {
@@ -690,7 +712,8 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
                                   kanon = NULL,
                                   kanon_acknowledged = FALSE,
                                   has_code_readiness = FALSE,
-                                  generator_provenance = NULL) {
+                                  generator_provenance = NULL,
+                                  postal_columns = list()) {
   file_lines <- c(
     "- `synthetic_data.csv` - the synthetic dataset. This is the main file.",
     "- `human/human.md` - this guide, including privacy notes and agent-facing guidance.",
@@ -729,6 +752,7 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "",
     paste(sprintf("- `%s`: %s", ifelse(is.na(dictionary$synthetic_variable) | !nzchar(dictionary$synthetic_variable), if ("original_variable" %in% names(dictionary)) dictionary$original_variable else "dropped column", dictionary$synthetic_variable), dictionary$treatment), collapse = "\n"),
     "",
+    render_postal_section(postal_columns),
     "## Privacy",
     "",
     "|                      | sensitive = No | sensitive = Yes |",
@@ -783,6 +807,36 @@ render_human_markdown <- function(synthetic, dictionary, purpose, include_report
     "Columns dropped from the synthetic output:",
     "",
     build_dropped_variables_text(dictionary),
+    sep = "\n"
+  )
+}
+
+# Postal codes carry country/format state that no other column type has, so
+# the generic "how each column was treated" bullet cannot say what a reader
+# needs. This keeps the same bullet idiom, in its own section, and shares one
+# formatter with `dataganger inspect` so the two cannot drift.
+render_postal_section <- function(postal_columns) {
+  if (is.null(postal_columns) || length(postal_columns) == 0L) {
+    return(NULL)
+  }
+
+  bullets <- vapply(postal_columns, function(s) {
+    sprintf("- `%s`: %s", s$variable, dg_postal_summary_text(s))
+  }, character(1))
+
+  paste(
+    "## Postal code columns",
+    "",
+    paste0(
+      "Postal codes are synthesized offline from a country format ",
+      "specification. Generated values are format-valid only: they follow the ",
+      "country's pattern but need not correspond to a real delivery area, and ",
+      "no geographic reference data was consulted. Resampled columns reuse ",
+      "observed codes, so they carry the original geographic distribution."
+    ),
+    "",
+    paste(bullets, collapse = "\n"),
+    "",
     sep = "\n"
   )
 }
@@ -1022,7 +1076,8 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
                            include_original_names = TRUE, original = NULL, roles = NULL,
                            kanon_acknowledged = FALSE,
                            exact_match_acknowledged = FALSE,
-                           generator_provenance = NULL) {
+                           generator_provenance = NULL,
+                           postal_columns = list()) {
   files <- list.files(bundle_dir, full.names = TRUE, recursive = TRUE, all.files = FALSE, no.. = TRUE)
   rel_files <- sub(paste0("^", normalizePath(bundle_dir, winslash = "/", mustWork = TRUE), "/?"), "", normalizePath(files, winslash = "/", mustWork = TRUE))
   keep <- rel_files != "agent/manifest.json"
@@ -1125,6 +1180,12 @@ write_manifest <- function(bundle_dir, synthetic, spec, purpose, exact_row_match
     raw_rows_included       = raw_rows_included,
     free_text_included      = free_text_included,
     ids_included            = ids_included,
+    # Per-column postal descriptors in the same vocabulary human.md and
+    # `dataganger inspect` use: ISO country code, country name, display
+    # template, and generate-vs-resample strategy. Always an array (possibly
+    # empty) so consumers need not special-case its absence.
+    postal_columns          = I(postal_columns),
+    postal_codes_included   = length(postal_columns) > 0L,
     plots_included          = plots_included,
     original_names_included = isTRUE(include_original_names),
     factor_levels_included  = isTRUE(spec$level %in% c("marginal", "hifi")),

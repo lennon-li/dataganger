@@ -198,7 +198,7 @@ roles_to_yaml_list <- function(roles, name_map = NULL, include_original_names = 
     c(
       "variable", "identifies", "sensitive", "simulation",
       "disclosure_role", "user_role", "postal_strategy", "postal_country",
-      "label_strategy"
+      "postal_format", "label_strategy"
     ),
     names(roles)
   )
@@ -240,8 +240,13 @@ cli_read_roles_yaml <- function(path, data) {
     }
 
     for (field in c("identifies", "simulation", "disclosure_role", "user_role",
-                    "postal_strategy", "postal_country", "label_strategy")) {
+                    "postal_strategy", "postal_country", "postal_format",
+                    "label_strategy")) {
       if (!is.null(entry[[field]])) {
+        # detect_roles() does not create every optional column (postal_format
+        # only exists once a generator or the user has pinned one), so add it
+        # before assigning rather than silently dropping the recipe value.
+        if (!field %in% names(base)) base[[field]] <- NA_character_
         base[[field]][idx] <- entry[[field]]
       }
     }
@@ -437,6 +442,16 @@ cli_print_bundle_summary <- function(summary) {
   cat(sprintf("K-anonymity: %s
 ", cli_kanon_summary_line(manifest$kanon)))
 
+  postal_lines <- cli_postal_summary_lines(manifest$postal_columns)
+  if (length(postal_lines) > 0L) {
+    cat("Postal code columns:
+")
+    for (line in postal_lines) {
+      cat(sprintf("  - %s
+", line))
+    }
+  }
+
   privacy_lines <- grep("Exact row matches:|^\\[[^]]+\\]", human, value = TRUE)
   cat("Privacy exposure ratings:
 ")
@@ -458,6 +473,25 @@ cli_print_bundle_summary <- function(summary) {
 # the number of cells that were actually below k (see enforce_kanon()'s
 # docs), so this is worth a dedicated line rather than folding it into the
 # generic privacy-flag list above.
+# Renders manifest$postal_columns through the same formatter human.md uses.
+# jsonlite::read_json(simplifyVector = TRUE) collapses the array of objects
+# into a data frame, so accept both that and the raw list-of-lists shape.
+cli_postal_summary_lines <- function(postal_columns) {
+  if (is.null(postal_columns) || length(postal_columns) == 0L) {
+    return(character(0))
+  }
+
+  rows <- if (is.data.frame(postal_columns)) {
+    lapply(seq_len(nrow(postal_columns)), function(i) as.list(postal_columns[i, , drop = FALSE]))
+  } else {
+    postal_columns
+  }
+
+  vapply(rows, function(s) {
+    sprintf("%s: %s", s$variable %||% "unknown", dg_postal_summary_text(s))
+  }, character(1))
+}
+
 cli_kanon_summary_line <- function(kanon) {
   if (is.null(kanon)) {
     return("not applicable")
