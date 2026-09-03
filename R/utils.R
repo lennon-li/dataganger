@@ -30,22 +30,6 @@ dg_timeit <- function(label, expr) {
   res
 }
 
-# ---------------------------------------------------------------------------
-# Cooperative cancellation
-# ---------------------------------------------------------------------------
-
-# Abort the current synthesis with a classed condition when
-# getOption("dataganger.cancel") is TRUE. Checked at column boundaries inside
-# synthesize_marginal() so a long marginal run can be stopped cleanly. Used by
-# headless / CLI callers; the Shiny app instead cancels by killing the
-# background process that runs the synthesis (see run_synthesis_async()).
-check_cancel <- function() {
-  if (isTRUE(getOption("dataganger.cancel", FALSE))) {
-    cli::cli_abort("Synthesis cancelled.", class = "dataganger_cancelled")
-  }
-  invisible(NULL)
-}
-
 synthpop_citation <- function() {
   paste(
     "Nowok B, Raab GM, Dibben C (2016).",
