@@ -7,7 +7,7 @@ test_that("compare_synthetic() returns dataganger_comparison", {
   cmp <- compare_synthetic(df, syn)
   expect_s3_class(cmp, "dataganger_comparison")
   expect_named(cmp, c("dataset", "numeric", "categorical", "relationship", "interaction",
-                      "privacy_flags", "meta"))
+                      "utility", "privacy_flags", "meta"))
 })
 
 test_that("compare_synthetic() includes relationship interactions", {
@@ -188,6 +188,71 @@ test_that("compare_synthetic() categorical comparison for character columns", {
   syn <- synthesize_data(df, spec)
   cmp <- compare_synthetic(df, syn)
   expect_true(nrow(cmp$categorical) >= 1)
+})
+
+# ---- Global utility (pMSE / S_pMSE) [SYN-2] ------------------------------
+
+test_that("compare_utility() gives near-zero pMSE when a predictor carries no group signal", {
+  # x repeats identically across both halves of the stacked data (deterministic,
+  # no seed needed), so it carries zero information about which dataset a row
+  # came from -- the fitted logistic coefficient should be ~0 and every row's
+  # predicted probability should land at the base rate, driving pMSE to ~0.
+  orig <- data.frame(x = 1:100)
+  syn  <- data.frame(x = 1:100)
+  u <- compare_utility(orig, syn)
+  expect_true(is.finite(u$pmse))
+  expect_lt(u$pmse, 0.01)
+  expect_true(is.na(u$note))
+})
+
+test_that("compare_utility() gives a higher S_pMSE when datasets are fully separable", {
+  symmetric  <- compare_utility(data.frame(x = 1:100), data.frame(x = 1:100))
+  separable  <- compare_utility(data.frame(x = 1:50), data.frame(x = 1000:1049))
+  expect_true(is.finite(separable$s_pmse))
+  expect_true(is.finite(symmetric$s_pmse))
+  expect_gt(separable$s_pmse, symmetric$s_pmse)
+})
+
+test_that("compare_utility() returns NA gracefully with no usable shared columns", {
+  orig <- data.frame(a = 1:10)
+  syn  <- data.frame(b = 1:10)
+  u <- compare_utility(orig, syn)
+  expect_true(is.na(u$pmse))
+  expect_true(is.na(u$s_pmse))
+  expect_false(is.na(u$note))
+})
+
+test_that("compare_utility() returns NA gracefully with too few rows", {
+  u <- compare_utility(data.frame(x = 1), data.frame(x = 2))
+  expect_true(is.na(u$pmse))
+  expect_false(is.na(u$note))
+})
+
+test_that("compare_synthetic() wires utility into the full comparison, mixed types", {
+  df <- data.frame(
+    amount = rnorm(60, 10, 2),
+    grp    = rep(c("a", "b", "c"), 20),
+    stringsAsFactors = FALSE
+  )
+  spec <- synth_spec(purpose = "demo", n = 60, seed = 1)
+  syn  <- synthesize_data(df, spec)
+  cmp  <- compare_synthetic(df, syn)
+  expect_named(cmp$utility, c("pmse", "pmse_expected", "s_pmse", "n_predictors", "note"))
+  expect_true(is.finite(cmp$utility$pmse))
+  expect_true(is.finite(cmp$utility$s_pmse))
+})
+
+test_that("compare_synthetic() print method includes a Utility section that is not a privacy claim", {
+  df <- data.frame(x = rnorm(40), y = rep(c("a", "b"), 20), stringsAsFactors = FALSE)
+  spec <- synth_spec(purpose = "demo", n = 40, seed = 1)
+  syn <- synthesize_data(df, spec)
+  cmp <- compare_synthetic(df, syn)
+  # cli writes through message(), which capture.output() (stdout only) does
+  # not see -- capture messages explicitly, matching how cli output is
+  # actually emitted.
+  out <- paste(testthat::capture_messages(print(cmp)), collapse = "\n")
+  expect_match(out, "Utility")
+  expect_match(out, "[Nn]ot a privacy")
 })
 
 test_that("plot_comparison() errors if ggplot2 missing", {

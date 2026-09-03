@@ -16,12 +16,23 @@ compare_synthetic(original, synthetic, roles = NULL)
 \value{
 An S3 object of class \code{dataganger_comparison}, a list with
 components \code{dataset}, \code{numeric}, \code{categorical}, \code{relationship}, \code{interaction},
-\code{privacy_flags}, and \code{meta}.
+\code{utility} (a global pMSE-based utility diagnostic; see Details), \code{privacy_flags},
+and \code{meta}.
 }
 \description{
 Compares an original dataset with its synthetic double across dataset-level
 dimensions, numeric distributions, categorical distributions, and numeric
 correlations. Returns a structured \code{dataganger_comparison} object.
+}
+\details{
+\code{utility} reports the propensity-score pMSE / S_pMSE utility diagnostic of
+Snoke, Raab, Nowok, Dibben & Slavkovic (2018), the same formula
+\code{synthpop::utility.gen()} uses for its logistic-regression method:
+\code{S_pMSE} near 1 means a model fit to distinguish original from synthetic
+rows does no better than chance on the shared predictor columns (high
+utility for that joint distribution); higher values mean the two datasets
+are more detectably different. This is a utility measure, not a privacy
+measure -- it says nothing about disclosure risk.
 }
 \examples{
 dat <- data.frame(x = 1:10, y = letters[1:10])

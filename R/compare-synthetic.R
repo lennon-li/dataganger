@@ -23,7 +23,18 @@ fidelity_color <- function(p) {
 #'
 #' @return An S3 object of class `dataganger_comparison`, a list with
 #'   components `dataset`, `numeric`, `categorical`, `relationship`, `interaction`,
-#'   `privacy_flags`, and `meta`.
+#'   `utility` (a global pMSE-based utility diagnostic; see Details), `privacy_flags`,
+#'   and `meta`.
+#'
+#' @details
+#' `utility` reports the propensity-score pMSE / S_pMSE utility diagnostic of
+#' Snoke, Raab, Nowok, Dibben & Slavkovic (2018), the same formula
+#' `synthpop::utility.gen()` uses for its logistic-regression method:
+#' `S_pMSE` near 1 means a model fit to distinguish original from synthetic
+#' rows does no better than chance on the shared predictor columns (high
+#' utility for that joint distribution); higher values mean the two datasets
+#' are more detectably different. This is a utility measure, not a privacy
+#' measure -- it says nothing about disclosure risk.
 #' @export
 #'
 #' @examples
@@ -55,12 +66,16 @@ compare_synthetic <- function(original, synthetic, roles = NULL) {
   # -- relationship modification (interaction) --
   int_cmp <- compare_relationship_interaction(original, synthetic_for_match, roles)
 
+  # -- global utility (pMSE) --
+  util_cmp <- compare_utility(original, synthetic_for_match)
+
   out <- list(
     dataset       = ds,
     numeric       = num_cmp,
     categorical   = cat_cmp,
     relationship  = rel_cmp,
     interaction   = int_cmp,
+    utility       = util_cmp,
     privacy_flags = NULL,
     meta          = list(
       generated_at = Sys.time(),
@@ -659,6 +674,103 @@ compare_relationship <- function(orig, syn) {
 }
 
 # ===========================================================================
+# Global utility (pMSE) [SYN-2]
+# ===========================================================================
+
+# Propensity-score mean-squared error: stack the original and synthetic rows,
+# fit a logistic model predicting which dataset each row came from, and
+# measure how far its predicted probabilities land from the base rate.
+# S_pMSE near 1 means the model does no better than chance at telling the two
+# datasets apart on these columns' joint distribution -- high utility for
+# this relationship. This is the standard global utility diagnostic from
+# Snoke, Raab, Nowok, Dibben & Slavkovic (2018) <doi:10.1111/rssa.12358>,
+# using the same pMSE / null-expectation / S_pMSE formula synthpop::
+# utility.gen() computes for its logistic-regression method (df = number of
+# non-intercept model coefficients; pMSE_expected = df * (1-c)^2 * c / N).
+#
+# A utility score is not a privacy score. A synthetic dataset can be
+# statistically indistinguishable from the original on these columns while
+# still being disclosive in other ways (see the separate privacy-flag and
+# k-anonymity diagnostics). S_pMSE near 1 must never be read as evidence the
+# data are safe to release.
+compare_utility <- function(orig, syn) {
+  na_result <- function(note) {
+    list(pmse = NA_real_, pmse_expected = NA_real_, s_pmse = NA_real_,
+         n_predictors = NA_integer_, note = note)
+  }
+
+  common <- intersect(names(orig), names(syn))
+  usable <- Filter(function(nm) {
+    x <- orig[[nm]]; y <- syn[[nm]]
+    (is.numeric(x) && is.numeric(y) && !haven::is.labelled(x) && !haven::is.labelled(y)) ||
+      ((is.character(x) || is.factor(x) || is.logical(x)) &&
+         (is.character(y) || is.factor(y) || is.logical(y)))
+  }, common)
+
+  if (length(usable) == 0) {
+    return(na_result("No columns shared between original and synthetic were usable as model predictors."))
+  }
+
+  n1 <- nrow(orig)
+  n2 <- nrow(syn)
+  if (n1 < 2L || n2 < 2L) {
+    return(na_result("Too few rows to fit a propensity model."))
+  }
+
+  build_col <- function(x) if (is.numeric(x)) x else as.factor(as.character(x))
+  o <- as.data.frame(lapply(orig[usable], build_col))
+  s <- as.data.frame(lapply(syn[usable], build_col))
+
+  # Align factor levels across the two frames so glm() sees one consistent
+  # set of levels per predictor -- a level unseen on one side would otherwise
+  # silently vanish from that side's contrasts.
+  for (nm in usable) {
+    if (is.factor(o[[nm]]) || is.factor(s[[nm]])) {
+      lv <- union(levels(as.factor(o[[nm]])), levels(as.factor(s[[nm]])))
+      o[[nm]] <- factor(as.character(o[[nm]]), levels = lv)
+      s[[nm]] <- factor(as.character(s[[nm]]), levels = lv)
+    }
+  }
+
+  combined <- rbind(o, s)
+  combined$.dg_is_synthetic <- c(rep(0L, n1), rep(1L, n2))
+  combined <- combined[stats::complete.cases(combined), , drop = FALSE]
+  N <- nrow(combined)
+  n2_complete <- sum(combined$.dg_is_synthetic == 1L)
+  if (N < 4L || n2_complete < 2L || (N - n2_complete) < 2L) {
+    return(na_result("Too few complete rows (after removing missing values) to fit a propensity model."))
+  }
+
+  fit <- tryCatch(
+    suppressWarnings(
+      stats::glm(.dg_is_synthetic ~ ., data = combined, family = stats::binomial())
+    ),
+    error = function(e) NULL
+  )
+  if (is.null(fit)) {
+    return(na_result("The propensity model failed to fit."))
+  }
+
+  score <- stats::fitted(fit)
+  cc <- n2_complete / N
+  pmse <- sum((score - cc)^2) / N
+  km1 <- length(stats::coef(fit)[!is.na(stats::coef(fit))]) - 1L
+  if (km1 <= 0L || cc <= 0 || cc >= 1) {
+    return(na_result("Degenerate model (no usable predictor coefficients)."))
+  }
+  pmse_expected <- km1 * (1 - cc)^2 * cc / N
+  s_pmse <- if (pmse_expected > 0) pmse / pmse_expected else NA_real_
+
+  list(
+    pmse = pmse,
+    pmse_expected = pmse_expected,
+    s_pmse = s_pmse,
+    n_predictors = km1,
+    note = NA_character_
+  )
+}
+
+# ===========================================================================
 # Print method
 # ===========================================================================
 
@@ -722,6 +834,17 @@ print.dataganger_comparison <- function(x, ...) {
       r <- rel[i, ]
       cli::cli_li("{.field {r$var1}} x {.field {r$var2}}: diff = {round(r$cor_diff, 3)}")
     }
+  }
+
+  # Global utility (pMSE)
+  if (!is.null(x$utility) && !is.na(x$utility$s_pmse)) {
+    cli::cli_h2("Utility")
+    u <- x$utility
+    cli::cli_li("S_pMSE = {round(u$s_pmse, 2)} (1.0 = the model could not tell original and synthetic rows apart on {u$n_predictors} predictor{?s}; higher = more detectably different)")
+    cli::cli_text("  This is a utility measure, not a privacy measure -- a low score here is not evidence the data are safe to release.")
+  } else if (!is.null(x$utility) && !is.na(x$utility$note)) {
+    cli::cli_h2("Utility")
+    cli::cli_li("Not computed: {x$utility$note}")
   }
 
   # Privacy flags
