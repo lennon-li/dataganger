@@ -32,6 +32,7 @@ compare_synthetic(original, synthetic, roles = NULL)
 An S3 object of class `dataganger_comparison`, a list with components
 `dataset`, `numeric`, `categorical`, `relationship`, `interaction`,
 `utility` (a global pMSE-based utility diagnostic; see Details),
+`disclosure` (role-aware disclosure risk diagnostics; see Details),
 `privacy_flags`, and `meta`.
 
 ## Details
@@ -45,6 +46,15 @@ chance on the shared predictor columns (high utility for that joint
 distribution); higher values mean the two datasets are more detectably
 different. This is a utility measure, not a privacy measure – it says
 nothing about disclosure risk.
+
+`disclosure` evaluates role-aware disclosure risk diagnostics using
+`synthpop`. Identity disclosure is assessed via replicated uniques
+([`synthpop::replicated.uniques()`](https://rdrr.io/pkg/synthpop/man/replicated.uniques.html))
+across quasi-identifier keys identified in `roles`: original uniques
+replicated in synthetic data indicate potential re-identification risk.
+When sensitive target attributes are present, attribute disclosure risk
+is evaluated via the DiSCO measure
+([`synthpop::disclosure()`](https://rdrr.io/pkg/synthpop/man/disclosure.html)).
 
 ## Examples
 
@@ -84,4 +94,9 @@ compare_synthetic(dat, syn)
 #> apart on 19 predictors; higher = more detectably different)
 #> This is a utility measure, not a privacy measure -- a low score here is not
 #> evidence the data are safe to release.
+#> 
+#> ── Disclosure risk (synthpop) ──
+#> 
+#> • Not computed: Roles must be provided to determine quasi-identifier keys and
+#> sensitive targets.
 ```

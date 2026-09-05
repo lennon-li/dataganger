@@ -74,8 +74,9 @@ correlations. Returns a structured <code>dataganger_comparison</code> object.</p
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An S3 object of class <code>dataganger_comparison</code>, a list with
 components <code>dataset</code>, <code>numeric</code>, <code>categorical</code>, <code>relationship</code>, <code>interaction</code>,
-<code>utility</code> (a global pMSE-based utility diagnostic; see Details), <code>privacy_flags</code>,
-and <code>meta</code>.</p>
+<code>utility</code> (a global pMSE-based utility diagnostic; see Details),
+<code>disclosure</code> (role-aware disclosure risk diagnostics; see Details),
+<code>privacy_flags</code>, and <code>meta</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -87,6 +88,13 @@ rows does no better than chance on the shared predictor columns (high
 utility for that joint distribution); higher values mean the two datasets
 are more detectably different. This is a utility measure, not a privacy
 measure – it says nothing about disclosure risk.</p>
+<p><code>disclosure</code> evaluates role-aware disclosure risk diagnostics using
+<code>synthpop</code>. Identity disclosure is assessed via replicated uniques
+(<code><a href="https://rdrr.io/pkg/synthpop/man/replicated.uniques.html" class="external-link">synthpop::replicated.uniques()</a></code>) across quasi-identifier keys identified in
+<code>roles</code>: original uniques replicated in synthetic data indicate potential
+re-identification risk. When sensitive target attributes are present,
+attribute disclosure risk is evaluated via the DiSCO measure
+(<code><a href="https://rdrr.io/pkg/synthpop/man/disclosure.html" class="external-link">synthpop::disclosure()</a></code>).</p>
     </div>
 
     <div class="section level2">
@@ -126,6 +134,11 @@ measure – it says nothing about disclosure risk.</p>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> apart on 19 predictors; higher = more detectably different)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> This is a utility measure, not a privacy measure -- a low score here is not</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> evidence the data are safe to release.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> ── <span style="font-weight: bold;">Disclosure risk (synthpop)</span> ──</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> • Not computed: Roles must be provided to determine quasi-identifier keys and</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> sensitive targets.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
