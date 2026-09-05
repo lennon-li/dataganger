@@ -23,8 +23,9 @@ fidelity_color <- function(p) {
 #'
 #' @return An S3 object of class `dataganger_comparison`, a list with
 #'   components `dataset`, `numeric`, `categorical`, `relationship`, `interaction`,
-#'   `utility` (a global pMSE-based utility diagnostic; see Details), `privacy_flags`,
-#'   and `meta`.
+#'   `utility` (a global pMSE-based utility diagnostic; see Details),
+#'   `disclosure` (role-aware disclosure risk diagnostics; see Details),
+#'   `privacy_flags`, and `meta`.
 #'
 #' @details
 #' `utility` reports the propensity-score pMSE / S_pMSE utility diagnostic of
@@ -35,6 +36,14 @@ fidelity_color <- function(p) {
 #' utility for that joint distribution); higher values mean the two datasets
 #' are more detectably different. This is a utility measure, not a privacy
 #' measure -- it says nothing about disclosure risk.
+#'
+#' `disclosure` evaluates role-aware disclosure risk diagnostics using
+#' `synthpop`. Identity disclosure is assessed via replicated uniques
+#' (`synthpop::replicated.uniques()`) across quasi-identifier keys identified in
+#' `roles`: original uniques replicated in synthetic data indicate potential
+#' re-identification risk. When sensitive target attributes are present,
+#' attribute disclosure risk is evaluated via the DiSCO measure
+#' (`synthpop::disclosure()`).
 #' @export
 #'
 #' @examples
@@ -69,6 +78,9 @@ compare_synthetic <- function(original, synthetic, roles = NULL) {
   # -- global utility (pMSE) --
   util_cmp <- compare_utility(original, synthetic_for_match)
 
+  # -- disclosure risk (synthpop) [SYN-1] --
+  disc_cmp <- compare_disclosure(original, synthetic_for_match, roles)
+
   out <- list(
     dataset       = ds,
     numeric       = num_cmp,
@@ -76,6 +88,7 @@ compare_synthetic <- function(original, synthetic, roles = NULL) {
     relationship  = rel_cmp,
     interaction   = int_cmp,
     utility       = util_cmp,
+    disclosure    = disc_cmp,
     privacy_flags = NULL,
     meta          = list(
       generated_at = Sys.time(),
@@ -771,6 +784,181 @@ compare_utility <- function(orig, syn) {
 }
 
 # ===========================================================================
+# Disclosure risk (synthpop) [SYN-1]
+# ===========================================================================
+
+#' Evaluate disclosure risk diagnostics using synthpop
+#'
+#' Evaluates identity disclosure (replicated uniques) on quasi-identifier keys
+#' and attribute disclosure (DiSCO) on sensitive target variables using
+#' `synthpop`.
+#'
+#' @param orig Original data frame.
+#' @param syn Synthetic data frame.
+#' @param roles Optional `dataganger_roles` or data frame defining column roles.
+#' @return A list with disclosure risk diagnostics.
+#' @keywords internal
+#' @noRd
+compare_disclosure <- function(orig, syn, roles = NULL) {
+  empty_disclosure <- function(note, keys = character(), target = character()) {
+    list(
+      available        = FALSE,
+      note             = note,
+      keys             = keys,
+      target           = target,
+      repU             = NA_real_,
+      repU_count       = NA_integer_,
+      orig_uniques     = NA_integer_,
+      orig_uniques_pct = NA_real_,
+      repU_pct         = NA_real_,
+      disco_pct        = NA_real_
+    )
+  }
+
+  if (!requireNamespace("synthpop", quietly = TRUE)) {
+    return(empty_disclosure("Package synthpop is required for disclosure risk diagnostics."))
+  }
+
+  if (is.null(roles) || !is.data.frame(roles)) {
+    return(empty_disclosure("Roles must be provided to determine quasi-identifier keys and sensitive targets."))
+  }
+
+  if (nrow(orig) == 0L || nrow(syn) == 0L) {
+    return(empty_disclosure("Original or synthetic dataset has zero rows."))
+  }
+
+  orig <- as.data.frame(orig)
+  syn  <- as.data.frame(syn)
+
+  common <- intersect(names(orig), names(syn))
+  var_col <- if ("variable" %in% names(roles)) {
+    as.character(roles$variable)
+  } else if (!is.null(rownames(roles))) {
+    rownames(roles)
+  } else {
+    character()
+  }
+
+  is_quasi <- rep(FALSE, length(var_col))
+  if ("identifies" %in% names(roles)) {
+    is_quasi <- is_quasi | (!is.na(roles$identifies) & as.character(roles$identifies) == "quasi")
+  }
+  if ("disclosure_role" %in% names(roles)) {
+    is_quasi <- is_quasi | (!is.na(roles$disclosure_role) & as.character(roles$disclosure_role) == "quasi")
+  }
+  quasi_candidates <- var_col[is_quasi]
+  keys <- unique(intersect(common, quasi_candidates))
+
+  is_sens <- rep(FALSE, length(var_col))
+  if ("sensitive" %in% names(roles)) {
+    is_sens <- is_sens | (!is.na(roles$sensitive) & (roles$sensitive == TRUE | tolower(as.character(roles$sensitive)) %in% c("true", "t", "1")))
+  }
+  if ("disclosure_role" %in% names(roles)) {
+    is_sens <- is_sens | (!is.na(roles$disclosure_role) & as.character(roles$disclosure_role) == "sensitive")
+  }
+  sens_candidates <- var_col[is_sens]
+  targets <- unique(setdiff(intersect(common, sens_candidates), keys))
+
+  if (length(keys) == 0L) {
+    return(empty_disclosure("No quasi-identifier columns found in roles."))
+  }
+
+  o <- as.data.frame(orig[, keys, drop = FALSE])
+  s <- as.data.frame(syn[, keys, drop = FALSE])
+
+  for (nm in keys) {
+    if (is.numeric(o[[nm]]) && is.numeric(s[[nm]])) {
+      o[[nm]] <- as.numeric(o[[nm]])
+      s[[nm]] <- as.numeric(s[[nm]])
+    } else if (is.factor(o[[nm]]) || is.factor(s[[nm]]) ||
+               is.character(o[[nm]]) || is.character(s[[nm]])) {
+      lv <- union(levels(as.factor(o[[nm]])), levels(as.factor(s[[nm]])))
+      o[[nm]] <- factor(as.character(o[[nm]]), levels = lv)
+      s[[nm]] <- factor(as.character(s[[nm]]), levels = lv)
+    }
+  }
+
+  synds_obj <- list(syn = s, m = 1L, n = nrow(o), k = nrow(s))
+  class(synds_obj) <- "synds"
+
+  rep_res <- tryCatch({
+    synthpop::replicated.uniques(synds_obj, o, keys = keys)
+  }, error = function(e) NULL)
+
+  if (is.null(rep_res) || is.null(rep_res$res_tab)) {
+    return(empty_disclosure(
+      "Could not compute replicated uniques for the specified keys.",
+      keys = keys,
+      target = if (length(targets) > 0L) targets[1L] else character()
+    ))
+  }
+
+  orig_uniques     <- as.integer(rep_res$res_tab["Original", "Number"])
+  orig_uniques_pct <- as.numeric(rep_res$res_tab["Original", "%"])
+  repU_count       <- as.integer(rep_res$res_tab["Replicated uniques", "Number"])
+  repU_pct         <- as.numeric(rep_res$res_tab["Replicated uniques", "%"])
+
+  disco_pct <- NA_real_
+  target_used <- if (length(targets) > 0L) targets[1L] else character()
+
+  if (length(targets) > 0L) {
+    target_col <- targets[1L]
+    disc_target_name <- if (identical(target_col, "target")) ".dg_target" else target_col
+
+    o_disc <- as.data.frame(o)
+    s_disc <- as.data.frame(s)
+
+    o_tgt_raw <- orig[[target_col]]
+    s_tgt_raw <- syn[[target_col]]
+
+    if (is.numeric(o_tgt_raw) && is.numeric(s_tgt_raw)) {
+      o_disc[[disc_target_name]] <- as.numeric(o_tgt_raw)
+      s_disc[[disc_target_name]] <- as.numeric(s_tgt_raw)
+    } else {
+      lv_tgt <- union(levels(as.factor(o_tgt_raw)), levels(as.factor(s_tgt_raw)))
+      o_disc[[disc_target_name]] <- factor(as.character(o_tgt_raw), levels = lv_tgt)
+      s_disc[[disc_target_name]] <- factor(as.character(s_tgt_raw), levels = lv_tgt)
+    }
+
+    disc_res <- tryCatch({
+      utils::capture.output(
+        d <- suppressMessages(suppressWarnings(
+          synthpop::disclosure(
+            s_disc, o_disc,
+            keys = keys,
+            target = disc_target_name,
+            print.flag = FALSE,
+            compare.synorig = FALSE
+          )
+        ))
+      )
+      if (!is.null(d$attrib) && "DiSCO" %in% names(d$attrib)) {
+        as.numeric(d$attrib$DiSCO[1L])
+      } else {
+        NA_real_
+      }
+    }, error = function(e) NA_real_)
+
+    if (!is.null(disc_res) && length(disc_res) == 1L && !is.na(disc_res)) {
+      disco_pct <- disc_res
+    }
+  }
+
+  list(
+    available        = TRUE,
+    note             = NA_character_,
+    keys             = keys,
+    target           = target_used,
+    orig_uniques     = orig_uniques,
+    orig_uniques_pct = orig_uniques_pct,
+    repU             = repU_pct,
+    repU_count       = repU_count,
+    repU_pct         = repU_pct,
+    disco_pct        = disco_pct
+  )
+}
+
+# ===========================================================================
 # Print method
 # ===========================================================================
 
@@ -845,6 +1033,24 @@ print.dataganger_comparison <- function(x, ...) {
   } else if (!is.null(x$utility) && !is.na(x$utility$note)) {
     cli::cli_h2("Utility")
     cli::cli_li("Not computed: {x$utility$note}")
+  }
+
+  # Disclosure risk (synthpop)
+  if (!is.null(x$disclosure)) {
+    if (isTRUE(x$disclosure$available)) {
+      cli::cli_h2("Disclosure risk (synthpop)")
+      d <- x$disclosure
+      keys_str <- paste(d$keys, collapse = ", ")
+      cli::cli_li("Keys: {keys_str}")
+      cli::cli_li("Replicated uniques (repU): {d$repU_count} ({round(d$repU_pct, 1)}%)")
+      if (!is.null(d$disco_pct) && !is.na(d$disco_pct)) {
+        cli::cli_li("Attribute disclosure (DiSCO): {round(d$disco_pct, 1)}% (target: {paste(d$target, collapse = ', ')})")
+      }
+      cli::cli_text("  A low replicated uniqueness score indicates lower identity disclosure risk on the selected keys, but does not guarantee immunity from re-identification.")
+    } else if (!is.null(x$disclosure$note) && !is.na(x$disclosure$note)) {
+      cli::cli_h2("Disclosure risk (synthpop)")
+      cli::cli_li("Not computed: {x$disclosure$note}")
+    }
   }
 
   # Privacy flags

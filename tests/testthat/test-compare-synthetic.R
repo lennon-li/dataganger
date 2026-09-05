@@ -7,7 +7,7 @@ test_that("compare_synthetic() returns dataganger_comparison", {
   cmp <- compare_synthetic(df, syn)
   expect_s3_class(cmp, "dataganger_comparison")
   expect_named(cmp, c("dataset", "numeric", "categorical", "relationship", "interaction",
-                      "utility", "privacy_flags", "meta"))
+                      "utility", "disclosure", "privacy_flags", "meta"))
 })
 
 test_that("compare_synthetic() includes relationship interactions", {
@@ -319,4 +319,196 @@ test_that("post-synthesis comparison survives generic column renaming", {
     exact_row_match_count(original, dg_original_names(syn_generic)),
     exact_row_match_count(original, syn_preserve)
   )
+})
+
+# ---- Disclosure risk (synthpop) [SYN-1] ----------------------------------
+
+test_that("compare_disclosure() extracts keys and target from roles", {
+  orig <- data.frame(
+    age = c(25, 30, 35, 40),
+    sex = c("M", "F", "M", "F"),
+    income = c(50000, 60000, 70000, 80000),
+    notes = c("n1", "n2", "n3", "n4"),
+    stringsAsFactors = FALSE
+  )
+  syn <- orig
+
+  # Via identifies and sensitive
+  roles1 <- data.frame(
+    variable = c("age", "sex", "income", "notes"),
+    identifies = c("quasi", "quasi", "none", "none"),
+    sensitive = c(FALSE, FALSE, TRUE, FALSE),
+    stringsAsFactors = FALSE
+  )
+  d1 <- compare_disclosure(orig, syn, roles1)
+  expect_true(d1$available)
+  expect_equal(sort(d1$keys), c("age", "sex"))
+  expect_equal(d1$target, "income")
+
+  # Via disclosure_role
+  roles2 <- data.frame(
+    variable = c("age", "sex", "income", "notes"),
+    disclosure_role = c("quasi", "quasi", "sensitive", "none"),
+    stringsAsFactors = FALSE
+  )
+  d2 <- compare_disclosure(orig, syn, roles2)
+  expect_true(d2$available)
+  expect_equal(sort(d2$keys), c("age", "sex"))
+  expect_equal(d2$target, "income")
+})
+
+test_that("compare_disclosure() returns expected structure and values", {
+  skip_if_not_installed("synthpop")
+
+  orig <- data.frame(
+    k1 = c(1, 2, 3, 4, 5, 5),
+    k2 = c("a", "b", "c", "d", "e", "e"),
+    target = c("t1", "t2", "t1", "t2", "t1", "t2"),
+    stringsAsFactors = FALSE
+  )
+  syn <- orig
+
+  roles <- data.frame(
+    variable = c("k1", "k2", "target"),
+    identifies = c("quasi", "quasi", "none"),
+    sensitive = c(FALSE, FALSE, TRUE),
+    stringsAsFactors = FALSE
+  )
+
+  res <- compare_disclosure(orig, syn, roles)
+  expect_true(res$available)
+  expect_true(is.na(res$note))
+  expect_equal(sort(res$keys), c("k1", "k2"))
+  expect_equal(res$target, "target")
+  expect_true("repU_pct" %in% names(res))
+  expect_true("repU_count" %in% names(res))
+  expect_true("orig_uniques" %in% names(res))
+  expect_true("orig_uniques_pct" %in% names(res))
+  expect_true("disco_pct" %in% names(res))
+
+  # There are 4 unique records in orig out of 6 rows (rows 1 to 4)
+  expect_equal(res$orig_uniques, 4L)
+  expect_equal(res$repU_count, 4L)
+  expect_equal(res$repU, res$repU_pct)
+  expect_true(is.numeric(res$repU_pct))
+  expect_true(is.numeric(res$disco_pct))
+
+  # Synthetic where none of the uniques replicate
+  syn_diff <- orig
+  syn_diff$k1 <- syn_diff$k1 + 100
+  res_diff <- compare_disclosure(orig, syn_diff, roles)
+  expect_true(res_diff$available)
+  expect_equal(res_diff$orig_uniques, 4L)
+  expect_equal(res_diff$repU_count, 0L)
+  expect_equal(res_diff$repU_pct, 0)
+})
+
+test_that("compare_disclosure() handles roles = NULL gracefully", {
+  orig <- data.frame(x = 1:5, y = letters[1:5])
+  syn <- orig
+  res <- compare_disclosure(orig, syn, roles = NULL)
+  expect_false(res$available)
+  expect_match(res$note, "Roles must be provided")
+  expect_equal(res$keys, character(0))
+  expect_equal(res$target, character(0))
+  expect_true(is.na(res$repU))
+  expect_true(is.na(res$repU_count))
+  expect_true(is.na(res$orig_uniques))
+  expect_true(is.na(res$orig_uniques_pct))
+  expect_true(is.na(res$repU_pct))
+  expect_true(is.na(res$disco_pct))
+})
+
+test_that("compare_disclosure() handles missing quasi-identifiers gracefully", {
+  orig <- data.frame(x = 1:5, y = letters[1:5])
+  syn <- orig
+  roles <- data.frame(
+    variable = c("x", "y"),
+    identifies = c("none", "none"),
+    sensitive = c(FALSE, FALSE),
+    stringsAsFactors = FALSE
+  )
+  res <- compare_disclosure(orig, syn, roles = roles)
+  expect_false(res$available)
+  expect_match(res$note, "No quasi-identifier")
+  expect_equal(res$keys, character(0))
+  expect_true(is.na(res$repU))
+})
+
+test_that("compare_disclosure() handles missing synthpop gracefully", {
+  testthat::with_mocked_bindings(
+    requireNamespace = function(pkg, ...) if (pkg == "synthpop") FALSE else base::requireNamespace(pkg, ...),
+    .package = "base",
+    code = {
+      orig <- data.frame(k = 1:5)
+      roles <- data.frame(variable = "k", identifies = "quasi", stringsAsFactors = FALSE)
+      res <- compare_disclosure(orig, orig, roles = roles)
+      expect_false(res$available)
+      expect_match(res$note, "Package synthpop is required")
+      expect_equal(res$keys, character(0))
+      expect_equal(res$target, character(0))
+      expect_true(is.na(res$repU))
+      expect_true(is.na(res$repU_pct))
+    }
+  )
+})
+
+test_that("compare_synthetic() integrates disclosure and print method shows sections", {
+  orig <- data.frame(
+    age = c(20, 25, 30, 35, 40, 40),
+    sex = c("M", "F", "M", "F", "M", "M"),
+    income = c(30, 40, 50, 60, 70, 70),
+    stringsAsFactors = FALSE
+  )
+  syn <- orig
+  roles <- data.frame(
+    variable = c("age", "sex", "income"),
+    identifies = c("quasi", "quasi", "none"),
+    sensitive = c(FALSE, FALSE, TRUE),
+    stringsAsFactors = FALSE
+  )
+
+  cmp <- compare_synthetic(orig, syn, roles = roles)
+  expect_true("disclosure" %in% names(cmp))
+  expect_true(cmp$disclosure$available)
+
+  # Check print output when available
+  out <- paste(testthat::capture_messages(print(cmp)), collapse = "\n")
+  expect_match(out, "Disclosure risk")
+  expect_match(out, "Keys:")
+  expect_match(out, "Replicated uniques")
+  expect_match(out, "DiSCO")
+  expect_match(out, "does not guarantee immunity from re-identification")
+
+  # Check print output when unavailable (roles = NULL)
+  cmp_noroles <- compare_synthetic(orig, syn, roles = NULL)
+  expect_false(cmp_noroles$disclosure$available)
+  out_noroles <- paste(testthat::capture_messages(print(cmp_noroles)), collapse = "\n")
+  expect_match(out_noroles, "Disclosure risk")
+  expect_match(out_noroles, "Not computed:")
+})
+
+test_that("compare_disclosure() handles tibble inputs and calculates DiSCO without xtfrm errors", {
+  skip_if_not_installed("synthpop")
+  skip_if_not_installed("tibble")
+
+  orig_tbl <- tibble::tibble(
+    age = c(20, 25, 30, 35, 40),
+    sex = c("M", "F", "M", "F", "M"),
+    income = c(30000, 40000, 50000, 60000, 70000)
+  )
+  syn_tbl <- orig_tbl
+
+  roles <- tibble::tibble(
+    variable = c("age", "sex", "income"),
+    identifies = c("quasi", "quasi", "none"),
+    sensitive = c(FALSE, FALSE, TRUE)
+  )
+
+  res <- compare_disclosure(orig_tbl, syn_tbl, roles)
+  expect_true(res$available)
+  expect_equal(sort(res$keys), c("age", "sex"))
+  expect_equal(res$target, "income")
+  expect_false(is.na(res$disco_pct))
+  expect_equal(res$disco_pct, 100)
 })

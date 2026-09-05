@@ -119,6 +119,19 @@ fitted generator so the real data is opened once.
     labeled as a utility measure, not a privacy measure -- it is not evidence
     the data are safe to release.
 
+## `compare_synthetic()` reports role-aware disclosure risk (SYN-1)
+
+*   `compare_synthetic()` gained a `disclosure` component: role-aware
+    disclosure risk diagnostics powered by `synthpop`. When `roles` are
+    provided, identity disclosure is evaluated via replicated uniques
+    (`synthpop::replicated.uniques()`) across quasi-identifier keys,
+    measuring original uniques reproduced in synthetic data. When sensitive
+    target columns are identified in `roles`, attribute disclosure risk is
+    evaluated via the DiSCO measure (`synthpop::disclosure()`). Printed as
+    its own "Disclosure risk (synthpop)" section with an explicit reminder that
+    low replicated uniqueness does not guarantee immunity from
+    re-identification.
+
 ## Documentation
 
 *   A new article, "Frozen generators: freeze once, generate many", defines the

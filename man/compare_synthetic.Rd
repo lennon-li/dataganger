@@ -16,8 +16,9 @@ compare_synthetic(original, synthetic, roles = NULL)
 \value{
 An S3 object of class \code{dataganger_comparison}, a list with
 components \code{dataset}, \code{numeric}, \code{categorical}, \code{relationship}, \code{interaction},
-\code{utility} (a global pMSE-based utility diagnostic; see Details), \code{privacy_flags},
-and \code{meta}.
+\code{utility} (a global pMSE-based utility diagnostic; see Details),
+\code{disclosure} (role-aware disclosure risk diagnostics; see Details),
+\code{privacy_flags}, and \code{meta}.
 }
 \description{
 Compares an original dataset with its synthetic double across dataset-level
@@ -33,6 +34,14 @@ rows does no better than chance on the shared predictor columns (high
 utility for that joint distribution); higher values mean the two datasets
 are more detectably different. This is a utility measure, not a privacy
 measure -- it says nothing about disclosure risk.
+
+\code{disclosure} evaluates role-aware disclosure risk diagnostics using
+\code{synthpop}. Identity disclosure is assessed via replicated uniques
+(\code{synthpop::replicated.uniques()}) across quasi-identifier keys identified in
+\code{roles}: original uniques replicated in synthetic data indicate potential
+re-identification risk. When sensitive target attributes are present,
+attribute disclosure risk is evaluated via the DiSCO measure
+(\code{synthpop::disclosure()}).
 }
 \examples{
 dat <- data.frame(x = 1:10, y = letters[1:10])
