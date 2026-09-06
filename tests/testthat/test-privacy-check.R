@@ -189,6 +189,9 @@ test_that("privacy_check() post flags an ID that ends up unmasked (e.g. scramble
   # unprotected, which post-stage privacy_check() must still catch.
   spec <- synth_spec(purpose = "demo", n = 20, engine = "internal")
   syn <- suppressWarnings(synthesize_data(df, spec, roles = roles, engine = "internal"))
+  # A row-count change alone is not a disclosure. Inject one surviving ID so
+  # this regression still exercises the actual HIGH-severity condition.
+  syn$id[[1L]] <- df$id[[1L]]
   pc <- privacy_check(df, syn, roles = roles, stage = "post")
   expect_true("id" %in% names(syn))
   expect_match(paste(pc$flag[pc$severity == "HIGH"], collapse = "\n"), "ID")

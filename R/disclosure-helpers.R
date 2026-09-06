@@ -813,6 +813,7 @@ app_guardrail_server <- function(id, state, app_refuse = .app_refuse) {
 
     shiny::observeEvent(input$abort_flagged, ignoreNULL = TRUE, {
       shiny::removeModal()
+      generator_workspace_cleanup_upload_source(state$upload_source)
       state$upload_source <- NULL
       state$raw_data <- NULL
       state$profile <- NULL

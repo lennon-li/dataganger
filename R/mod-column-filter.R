@@ -140,6 +140,8 @@ mod_column_filter_server <- function(id, state) {
       full <- tryCatch(
         src$read(col_select = keep),
         error = function(e) {
+          generator_workspace_cleanup_upload_source(src)
+          state$upload_source <- NULL
           shiny::showNotification(conditionMessage(e), type = "error")
           NULL
         }

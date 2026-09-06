@@ -34,6 +34,21 @@ generator_workspace_state_set <- function(state, name, value) {
   generator_workspace_abort("Generator workspace state must be a reactiveValues object or named list.")
 }
 
+# Uploaded files are copied into a private staging path because Shiny's
+# datapath is temporary and may disappear before the column-filter step reads
+# it.  Only paths explicitly marked as owned by dataganger may be removed.
+generator_workspace_cleanup_upload_source <- function(source) {
+  if (is.null(source) || !isTRUE(source$owned_stage)) {
+    return(invisible(NULL))
+  }
+  staged_path <- source$staged_path %||% NULL
+  if (is.character(staged_path) && length(staged_path) == 1L &&
+      nzchar(staged_path) && file.exists(staged_path)) {
+    unlink(staged_path, force = TRUE)
+  }
+  invisible(NULL)
+}
+
 generator_workspace_state_confirmed <- function(value) {
   isTRUE(value) || (
     is.numeric(value) && length(value) == 1L && !is.na(value) && value >= 1
@@ -381,6 +396,20 @@ generator_workspace_handle_approved <- function(frozen) {
 }
 
 generator_workspace_release_source <- function(state) {
+  read_release_state <- function() {
+    list(
+      source = generator_workspace_state_get(state, "upload_source"),
+      cache = generator_workspace_state_get(state, "exact_match_cache")
+    )
+  }
+  release_state <- if (inherits(state, "reactivevalues")) {
+    shiny::isolate(read_release_state())
+  } else {
+    read_release_state()
+  }
+  generator_workspace_cleanup_upload_source(
+    release_state$source
+  )
   source_fields <- c(
     "upload_source", "raw_data", "filename", "profile", "roles",
     "roles_confirmed", "column_filter", "objective_confirmed", "spec",
@@ -416,6 +445,11 @@ generator_workspace_release_source <- function(state) {
     }
     state <- generator_workspace_state_set(state, name, value)
   }
+  # The exact-match cache has source-frame references so it can avoid repeated
+  # key construction across preview and export. Clear its contents before
+  # dropping the state reference in case another session closure still holds it.
+  exact_match_cache_clear(release_state$cache)
+  state <- generator_workspace_state_set(state, "exact_match_cache", NULL)
   state <- generator_workspace_state_set(state, "generator_busy", FALSE)
   generator_workspace_state_set(state, "generator_source_released", TRUE)
 }

@@ -76,7 +76,7 @@ compare_synthetic <- function(original, synthetic, roles = NULL) {
   int_cmp <- compare_relationship_interaction(original, synthetic_for_match, roles)
 
   # -- global utility (pMSE) --
-  util_cmp <- compare_utility(original, synthetic_for_match)
+  util_cmp <- compare_utility(original, synthetic_for_match, roles = roles)
 
   # -- disclosure risk (synthpop) [SYN-1] --
   disc_cmp <- compare_disclosure(original, synthetic_for_match, roles)
@@ -706,13 +706,23 @@ compare_relationship <- function(orig, syn) {
 # still being disclosive in other ways (see the separate privacy-flag and
 # k-anonymity diagnostics). S_pMSE near 1 must never be read as evidence the
 # data are safe to release.
-compare_utility <- function(orig, syn) {
+compare_utility <- function(orig, syn, roles = NULL) {
   na_result <- function(note) {
     list(pmse = NA_real_, pmse_expected = NA_real_, s_pmse = NA_real_,
          n_predictors = NA_integer_, note = note)
   }
 
   common <- intersect(names(orig), names(syn))
+  omitted <- character(0)
+  if (!is.null(roles) && "variable" %in% names(roles) &&
+      "recommended_role" %in% names(roles)) {
+    role_map <- stats::setNames(as.character(roles$recommended_role), roles$variable)
+    excluded <- common[role_map[common] %in% c("alphanumeric ID", "free text")]
+    if (length(excluded)) {
+      common <- setdiff(common, excluded)
+      omitted <- c(omitted, paste0("excluded role: ", paste(excluded, collapse = ", ")))
+    }
+  }
   usable <- Filter(function(nm) {
     x <- orig[[nm]]; y <- syn[[nm]]
     (is.numeric(x) && is.numeric(y) && !haven::is.labelled(x) && !haven::is.labelled(y)) ||
@@ -720,23 +730,53 @@ compare_utility <- function(orig, syn) {
          (is.character(y) || is.factor(y) || is.logical(y)))
   }, common)
 
+  # High-cardinality categorical predictors create one dense design column per
+  # level and are not useful as utility diagnostics. Exclude them before glm.
+  high_card <- usable[vapply(usable, function(nm) {
+    categorical <- is.character(orig[[nm]]) || is.factor(orig[[nm]]) || is.logical(orig[[nm]])
+    if (!categorical) return(FALSE)
+    x <- c(as.character(orig[[nm]]), as.character(syn[[nm]]))
+    categorical && length(unique(x[!is.na(x)])) > 50L
+  }, logical(1))]
+  if (length(high_card)) {
+    usable <- setdiff(usable, high_card)
+    omitted <- c(omitted, paste0("high-cardinality predictors: ", paste(high_card, collapse = ", ")))
+  }
+  omission_note <- if (length(omitted)) paste(omitted, collapse = "; ") else NA_character_
+
   if (length(usable) == 0) {
-    return(na_result("No columns shared between original and synthetic were usable as model predictors."))
+    note <- "No columns shared between original and synthetic were usable as model predictors."
+    if (!is.na(omission_note)) note <- paste(note, omission_note)
+    return(na_result(note))
   }
 
   n1 <- nrow(orig)
   n2 <- nrow(syn)
   if (n1 < 2L || n2 < 2L) {
-    return(na_result("Too few rows to fit a propensity model."))
+    note <- "Too few rows to fit a propensity model."
+    if (!is.na(omission_note)) note <- paste(note, omission_note)
+    return(na_result(note))
+  }
+
+  # Bound the full model matrix, including its intercept, before allocating
+  # model frames.  A very large input can exceed the cell budget even with one
+  # predictor; report that explicitly rather than forcing a minimum term.
+  n_total <- as.double(n1) + as.double(n2)
+  max_predictor_terms <- min(199L, floor(2000000 / n_total) - 1L)
+  if (max_predictor_terms < 1L) {
+    return(na_result(paste0(
+      "Propensity model not computed: the design-size budget (2,000,000 cells, including the intercept) is smaller than one predictor across ",
+      format(n_total, big.mark = ","), " rows."
+    )))
   }
 
   build_col <- function(x) if (is.numeric(x)) x else as.factor(as.character(x))
   o <- as.data.frame(lapply(orig[usable], build_col))
   s <- as.data.frame(lapply(syn[usable], build_col))
+  names(o) <- usable
+  names(s) <- usable
 
-  # Align factor levels across the two frames so glm() sees one consistent
-  # set of levels per predictor -- a level unseen on one side would otherwise
-  # silently vanish from that side's contrasts.
+  # Align factor levels across the two frames so glm() sees one consistent set.
   for (nm in usable) {
     if (is.factor(o[[nm]]) || is.factor(s[[nm]])) {
       lv <- union(levels(as.factor(o[[nm]])), levels(as.factor(s[[nm]])))
@@ -745,23 +785,55 @@ compare_utility <- function(orig, syn) {
     }
   }
 
+  # Bound the eventual glm design matrix. Keep source order so omission is
+  # deterministic and does not rely on hidden sampling.
+  max_terms <- max_predictor_terms
+  term_counts <- vapply(usable, function(nm) {
+    if (is.factor(o[[nm]])) max(1L, length(levels(o[[nm]])) - 1L) else 1L
+  }, integer(1))
+  keep <- logical(length(usable))
+  used_terms <- 0L
+  for (i in seq_along(usable)) {
+    if (used_terms + term_counts[[i]] <= max_terms) {
+      keep[[i]] <- TRUE
+      used_terms <- used_terms + term_counts[[i]]
+    }
+  }
+  if (any(!keep)) {
+    omitted <- c(omitted, paste0("design-size budget omitted: ",
+                                 paste(usable[!keep], collapse = ", ")))
+    usable <- usable[keep]
+    o <- o[usable]
+    s <- s[usable]
+    omission_note <- paste(omitted, collapse = "; ")
+  }
+
+  if (!length(usable)) {
+    note <- "Propensity model not computed: the design-size budget left no predictors after reserving the intercept."
+    if (!is.na(omission_note)) note <- paste(note, omission_note)
+    return(na_result(note))
+  }
+
   combined <- rbind(o, s)
   combined$.dg_is_synthetic <- c(rep(0L, n1), rep(1L, n2))
   combined <- combined[stats::complete.cases(combined), , drop = FALSE]
   N <- nrow(combined)
   n2_complete <- sum(combined$.dg_is_synthetic == 1L)
   if (N < 4L || n2_complete < 2L || (N - n2_complete) < 2L) {
-    return(na_result("Too few complete rows (after removing missing values) to fit a propensity model."))
+    note <- "Too few complete rows (after removing missing values) to fit a propensity model."
+    if (!is.na(omission_note)) note <- paste(note, omission_note)
+    return(na_result(note))
   }
 
   fit <- tryCatch(
-    suppressWarnings(
-      stats::glm(.dg_is_synthetic ~ ., data = combined, family = stats::binomial())
-    ),
+    suppressWarnings(stats::glm(.dg_is_synthetic ~ ., data = combined,
+                                family = stats::binomial())),
     error = function(e) NULL
   )
   if (is.null(fit)) {
-    return(na_result("The propensity model failed to fit."))
+    note <- "The propensity model failed to fit."
+    if (!is.na(omission_note)) note <- paste(note, omission_note)
+    return(na_result(note))
   }
 
   score <- stats::fitted(fit)
@@ -769,18 +841,15 @@ compare_utility <- function(orig, syn) {
   pmse <- sum((score - cc)^2) / N
   km1 <- length(stats::coef(fit)[!is.na(stats::coef(fit))]) - 1L
   if (km1 <= 0L || cc <= 0 || cc >= 1) {
-    return(na_result("Degenerate model (no usable predictor coefficients)."))
+    note <- "Degenerate model (no usable predictor coefficients)."
+    if (!is.na(omission_note)) note <- paste(note, omission_note)
+    return(na_result(note))
   }
   pmse_expected <- km1 * (1 - cc)^2 * cc / N
   s_pmse <- if (pmse_expected > 0) pmse / pmse_expected else NA_real_
 
-  list(
-    pmse = pmse,
-    pmse_expected = pmse_expected,
-    s_pmse = s_pmse,
-    n_predictors = km1,
-    note = NA_character_
-  )
+  list(pmse = pmse, pmse_expected = pmse_expected, s_pmse = s_pmse,
+       n_predictors = km1, note = omission_note)
 }
 
 # ===========================================================================
@@ -1030,6 +1099,9 @@ print.dataganger_comparison <- function(x, ...) {
     u <- x$utility
     cli::cli_li("S_pMSE = {round(u$s_pmse, 2)} (1.0 = the model could not tell original and synthetic rows apart on {u$n_predictors} predictor{?s}; higher = more detectably different)")
     cli::cli_text("  This is a utility measure, not a privacy measure -- a low score here is not evidence the data are safe to release.")
+    if (!is.null(u$note) && !is.na(u$note)) {
+      cli::cli_text("  Note: {u$note}")
+    }
   } else if (!is.null(x$utility) && !is.na(x$utility$note)) {
     cli::cli_h2("Utility")
     cli::cli_li("Not computed: {x$utility$note}")

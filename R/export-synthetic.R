@@ -180,8 +180,12 @@ export_synthetic <- function(synthetic,
   bundle_dir <- export_target$bundle_dir
   output_path <- export_target$output_path
 
-  if (!identical(bundle_dir, output_path)) {
-    on.exit(unlink(bundle_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  # Everything is written into a sibling staging path.  The caller's existing
+  # output is not touched until all validation, rendering, and hashing has
+  # succeeded and the final swap below is reached.
+  on.exit(unlink(bundle_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  if (!is.null(export_target$staged_output)) {
+    on.exit(unlink(export_target$staged_output, force = TRUE), add = TRUE)
   }
 
   exact_row_matches <- attr(privacy, "exact_row_matches", exact = TRUE) %||% 0L
@@ -294,8 +298,10 @@ export_synthetic <- function(synthetic,
   )
 
   if (identical(format, "zip")) {
-    zip_bundle(bundle_dir, output_path)
+    zip_bundle(bundle_dir, export_target$staged_output)
   }
+
+  commit_export_target(export_target)
 
   invisible(output_path)
 }
@@ -316,10 +322,14 @@ prepare_export_target <- function(path, format, overwrite) {
           "Output directory already exists at {.file {path}}; set {.arg overwrite = TRUE} to replace it"
         )
       }
-      unlink(path, recursive = TRUE, force = TRUE)
     }
-    dir.create(path, recursive = TRUE, showWarnings = FALSE)
-    return(list(bundle_dir = path, output_path = path))
+    bundle_dir <- tempfile(
+      pattern = paste0(".", basename(path), "-"),
+      tmpdir = parent
+    )
+    dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
+    return(list(bundle_dir = bundle_dir, output_path = path,
+                format = format, overwrite = overwrite))
   }
 
   if (file.exists(path) && !isTRUE(overwrite)) {
@@ -328,17 +338,78 @@ prepare_export_target <- function(path, format, overwrite) {
     )
   }
 
-  if (file.exists(path) && isTRUE(overwrite)) {
-    unlink(path, force = TRUE)
-  }
-
   bundle_dir <- tempfile(
     pattern = paste0(".", tools::file_path_sans_ext(basename(path)), "-"),
     tmpdir = parent
   )
   dir.create(bundle_dir, recursive = TRUE, showWarnings = FALSE)
 
-  list(bundle_dir = bundle_dir, output_path = path)
+  staged_output <- tempfile(
+    pattern = paste0(".", basename(path), "-"),
+    tmpdir = parent,
+    fileext = ".zip"
+  )
+  list(bundle_dir = bundle_dir, output_path = path,
+       staged_output = staged_output, format = format, overwrite = overwrite)
+}
+
+commit_export_target <- function(target) {
+  path <- target$output_path
+  if (file.exists(path) && !isTRUE(target$overwrite)) {
+    cli::cli_abort(
+      "Output path appeared while the export was being built; refusing to overwrite {.file {path}}."
+    )
+  }
+  if (identical(target$format, "zip")) {
+    if (file.exists(path)) {
+      backup <- tempfile(pattern = paste0(".", basename(path), "-backup-"),
+                         tmpdir = dirname(path))
+      if (!dg_file_rename(path, backup)) {
+        cli::cli_abort("Could not stage the existing export archive for replacement.")
+      }
+      ok <- dg_file_rename(target$staged_output, path)
+      if (!ok) {
+        restored <- dg_file_rename(backup, path)
+        if (!restored) {
+          cli::cli_abort(
+            "Could not replace the existing export archive; the backup remains at {.file {backup}}."
+          )
+        }
+        cli::cli_abort("Could not replace the existing export archive.")
+      }
+      unlink(backup, force = TRUE)
+    } else if (!dg_file_rename(target$staged_output, path)) {
+      cli::cli_abort("Could not move the completed export archive into place.")
+    }
+    return(invisible(path))
+  }
+
+  backup <- NULL
+  if (file.exists(path)) {
+    backup <- tempfile(pattern = paste0(".", basename(path), "-backup-"),
+                       tmpdir = dirname(path))
+    if (!dg_file_rename(path, backup)) {
+      cli::cli_abort("Could not stage the existing export directory for replacement.")
+    }
+  }
+  ok <- dg_file_rename(target$bundle_dir, path)
+  if (!ok) {
+    if (!is.null(backup)) {
+      restored <- dg_file_rename(backup, path)
+      if (!restored) {
+        cli::cli_abort(
+          "Could not move the completed export directory; the backup remains at {.file {backup}}."
+        )
+      }
+    }
+    cli::cli_abort("Could not move the completed export directory into place.")
+  }
+  if (!is.null(backup)) unlink(backup, recursive = TRUE, force = TRUE)
+  invisible(path)
+}
+
+dg_file_rename <- function(from, to) {
+  file.rename(from, to)
 }
 
 handle_exact_row_matches <- function(n_exact, fail_on_exact_match) {
@@ -357,10 +428,44 @@ handle_exact_row_matches <- function(n_exact, fail_on_exact_match) {
 }
 
 row_key <- function(data) {
-  apply(data, 1, function(row) {
-    row[is.na(row)] <- "<NA>"
-    paste(row, collapse = "\x01\x02\x03")
-  })
+  if (!is.data.frame(data) || nrow(data) == 0L) {
+    return(character(nrow(data)))
+  }
+
+  # Canonicalise columns before combining them.  apply() coerces a mixed data
+  # frame to one matrix type (and formats numbers according to that frame),
+  # while a literal "<NA>" and an actual NA become indistinguishable.  The
+  # length-prefixed encoding is unambiguous even when values contain the
+  # old delimiter or other control characters.
+  canonical <- function(x) {
+    if (is.factor(x)) return(as.character(x))
+    if (inherits(x, "Date")) return(ifelse(is.na(x), NA_character_, format(x, "%Y-%m-%d")))
+    if (inherits(x, "POSIXct")) {
+      return(ifelse(is.na(x), NA_character_,
+                    format(x, "%Y-%m-%dT%H:%M:%OS6Z", tz = "UTC", usetz = TRUE)))
+    }
+    if (is.numeric(x)) {
+      out <- rep(NA_character_, length(x))
+      ok <- !is.na(x)
+      vals <- as.numeric(x[ok])
+      vals[vals == 0] <- 0
+      # %.17g is stable across integer/double storage (unlike format(), which
+      # emits 1e+00 for integer and 1.0e+00 for double).
+      out[ok] <- sprintf("%.17g", vals)
+      return(out)
+    }
+    if (is.logical(x)) return(ifelse(is.na(x), NA_character_, ifelse(x, "TRUE", "FALSE")))
+    as.character(x)
+  }
+  encode <- function(values) {
+    values <- enc2utf8(values)
+    out <- rep("N", length(values))
+    ok <- !is.na(values)
+    out[ok] <- paste0("V", nchar(values[ok], type = "bytes"), ":", values[ok])
+    out
+  }
+  encoded <- lapply(data, function(x) encode(canonical(x)))
+  do.call(paste, c(encoded, sep = "|"))
 }
 
 sanitize_for_spreadsheet_export <- function(data) {

@@ -185,8 +185,10 @@ privacy_check_post <- function(original, synthetic, roles, spec) {
       id_vals <- synthetic_match[[nm]]
       all_masked <- all(is.na(id_vals))
       orig_vals <- as.character(original[[nm]])
-      no_verbatim_match <- length(orig_vals) == length(id_vals) &&
-        !any(!is.na(id_vals) & as.character(id_vals) %in% orig_vals)
+      # Row-count changes are expected when synthesis requests a different
+      # output size.  A surviving identifier is unsafe regardless of whether
+      # the two vectors have equal lengths.
+      no_verbatim_match <- !any(!is.na(id_vals) & as.character(id_vals) %in% orig_vals)
       if (!all_masked && !no_verbatim_match) {
         flags[[length(flags) + 1]] <- make_flag(nm,
           "ID column not fully masked in synthetic output", "HIGH",
@@ -338,31 +340,152 @@ dg_sensitive_columns <- function(roles) {
 # synthetic output) and `synthetic` (which synthetic rows are verbatim copies
 # of an original row). `sum(<result>$synthetic)` equals exact_row_match_count()
 # by construction, so highlight and stat box can never disagree.
-exact_row_match_flags <- function(original, synthetic, role_map = NULL) {
-  empty <- list(
-    original  = rep(FALSE, nrow(original)),
-    synthetic = rep(FALSE, nrow(synthetic))
-  )
-  if (nrow(original) < 20 || nrow(synthetic) == 0) {
-    return(empty)
-  }
-
+exact_match_base <- function(original, synthetic, role_map = NULL) {
   match_cols <- exact_match_columns(original, synthetic, role_map)
-
-  if (length(match_cols) == 0) {
+  empty <- list(
+    match_columns = match_cols,
+    original_key = character(0), synthetic_key = character(0),
+    original = rep(FALSE, nrow(original)), synthetic = rep(FALSE, nrow(synthetic)),
+    synthetic_rows = integer(0), original_rows = integer(0)
+  )
+  if (nrow(original) < 20 || nrow(synthetic) == 0 || !length(match_cols)) {
     return(empty)
   }
 
   orig_key <- row_key(original[, match_cols, drop = FALSE])
   syn_key <- row_key(synthetic[, match_cols, drop = FALSE])
+  syn_flags <- unname(syn_key %in% orig_key)
+  syn_rows <- which(syn_flags)
   list(
-    original  = unname(orig_key %in% syn_key),
-    synthetic = unname(syn_key %in% orig_key)
+    match_columns = match_cols,
+    original_key = orig_key,
+    synthetic_key = syn_key,
+    original = unname(orig_key %in% syn_key),
+    synthetic = syn_flags,
+    synthetic_rows = syn_rows,
+    # Keep the first matching source row exactly as the historic detail table
+    # did. The keys remain available to mark every duplicate source row.
+    original_rows = unname(match(syn_key[syn_rows], orig_key))
   )
+}
+
+exact_row_match_flags <- function(original, synthetic, role_map = NULL) {
+  base <- exact_match_base(original, synthetic, role_map)
+  list(original = base$original, synthetic = base$synthetic)
 }
 
 exact_row_match_count <- function(original, synthetic, role_map = NULL) {
   as.integer(sum(exact_row_match_flags(original, synthetic, role_map)$synthetic))
+}
+
+# Summary-only exact-match computation used by export gates and tab chrome.
+# It deliberately does not build the per-cell breakdown; that potentially
+# large table is produced only when the user opens the detail view.
+exact_match_summary_from_base <- function(base, original, synthetic,
+                                          roles = NULL) {
+  sens_cols <- intersect(dg_sensitive_columns(roles), base$match_columns)
+  syn_sev <- integer(nrow(synthetic))
+  syn_rows <- base$synthetic_rows
+  syn_sev[syn_rows] <- 1L
+  if (length(syn_rows) && length(sens_cols)) {
+    exposed <- Reduce("|", lapply(sens_cols, function(nm) {
+      !is.na(synthetic[[nm]])
+    }))
+    disclosing <- exposed[syn_rows]
+    syn_sev[syn_rows[disclosing]] <- 2L
+  }
+  orig_sev <- integer(nrow(original))
+  orig_sev[base$original] <- 1L
+  if (any(syn_sev == 2L)) {
+    orig_sev[base$original_key %in% unique(base$synthetic_key[syn_sev == 2L])] <- 2L
+  }
+  list(original_severity = orig_sev, synthetic_severity = syn_sev,
+       n_matches = sum(syn_sev > 0L),
+       n_sensitive = sum(syn_sev == 2L),
+       match_columns = base$match_columns,
+       synthetic_rows = base$synthetic_rows,
+       original_rows = base$original_rows,
+       # Keep this double: a wide, very large data set can have more pairs
+       # than R's 32-bit integer range even though each requested page is tiny.
+       n_pairs = as.double(length(base$synthetic_rows)) * length(base$match_columns),
+       .base = base)
+}
+
+exact_match_summary <- function(original, synthetic, roles = NULL,
+                                role_map = NULL) {
+  exact_match_summary_from_base(
+    exact_match_base(original, synthetic, role_map), original, synthetic, roles
+  )
+}
+
+# A session-only cache shared by preview and export. It deliberately retains
+# references to the two frames only while that source is live in the session;
+# generator_workspace_release_source() clears it before releasing the source.
+# Cached results retain row keys and row indices, never a cell-by-cell detail.
+exact_match_state_summary <- function(state, roles = NULL) {
+  original <- state$raw_data
+  synthetic <- state$synthetic
+  if (is.null(original) || is.null(synthetic)) return(NULL)
+
+  role_map <- NULL
+  if (!is.null(roles) && "variable" %in% names(roles) &&
+      "recommended_role" %in% names(roles)) {
+    role_map <- stats::setNames(roles$recommended_role, roles$variable)
+  }
+  role_key <- list(
+    role_map = role_map,
+    sensitive = sort(dg_sensitive_columns(roles))
+  )
+  cache <- state$exact_match_cache
+  if (!is.environment(cache)) {
+    cache <- new.env(parent = emptyenv())
+    cache$original <- NULL
+    cache$synthetic <- NULL
+    cache$bases <- list()
+    cache$summaries <- list()
+    state$exact_match_cache <- cache
+  }
+
+  # State assignments invalidate the calling reactives. This comparison merely
+  # decides whether their shared cache remains valid; it avoids hashing whole
+  # data frames and removes old source references as soon as either frame moves.
+  if (!identical(cache$original, original) || !identical(cache$synthetic, synthetic)) {
+    cache$original <- original
+    cache$synthetic <- synthetic
+    cache$bases <- list()
+    cache$summaries <- list()
+  }
+
+  base_i <- which(vapply(cache$bases, function(x) identical(x$role_map, role_map), logical(1)))
+  if (!length(base_i)) {
+    cache$bases[[length(cache$bases) + 1L]] <- list(
+      role_map = role_map,
+      base = exact_match_base(original, dg_original_names(synthetic), role_map)
+    )
+    base_i <- length(cache$bases)
+  }
+  summary_i <- which(vapply(cache$summaries, function(x) identical(x$role_key, role_key), logical(1)))
+  if (!length(summary_i)) {
+    cache$summaries[[length(cache$summaries) + 1L]] <- list(
+      role_key = role_key,
+      summary = exact_match_summary_from_base(
+        cache$bases[[base_i[[1L]]]]$base, original,
+        dg_original_names(synthetic), roles
+      )
+    )
+    summary_i <- length(cache$summaries)
+  }
+  cache$summaries[[summary_i[[1L]]]]$summary
+}
+
+exact_match_cache_clear <- function(cache) {
+  if (is.environment(cache)) {
+    cache$original <- NULL
+    cache$synthetic <- NULL
+    cache$bases <- list()
+    cache$summaries <- list()
+  }
+  invisible(NULL)
 }
 
 # Long-form breakdown of the exact-row matches, for the "Exact matches" tab in
@@ -381,7 +504,8 @@ exact_row_match_count <- function(original, synthetic, role_map = NULL) {
 # 0 = no match, 1 = match with no sensitive value exposed, 2 = match exposing
 # at least one sensitive value.
 exact_match_detail <- function(original, synthetic, roles = NULL,
-                               role_map = NULL) {
+                               role_map = NULL, summary = NULL,
+                               offset = 0L, limit = NULL) {
   breakdown <- data.frame(
     column         = character(0),
     synthetic_row  = integer(0),
@@ -396,23 +520,15 @@ exact_match_detail <- function(original, synthetic, roles = NULL,
     synthetic_severity = rep(0L, nrow(synthetic))
   )
 
-  # Reuse the shipped flags rather than recomputing the match, so this view can
-  # never report a different set of rows than the EXACT MATCHES stat box.
-  flags <- exact_row_match_flags(original, synthetic, role_map)
-  if (!any(flags$synthetic)) {
+  summary <- summary %||% exact_match_summary(original, synthetic, roles, role_map)
+  if (is.null(summary) || summary$n_matches == 0L) {
     return(empty)
   }
 
-  match_cols <- exact_match_columns(original, synthetic, role_map)
+  match_cols <- summary$match_columns
   sens_cols <- intersect(dg_sensitive_columns(roles), match_cols)
-
-  orig_key <- row_key(original[, match_cols, drop = FALSE])
-  syn_key <- row_key(synthetic[, match_cols, drop = FALSE])
-
-  syn_rows <- which(flags$synthetic)
-  # First original row carrying the same key; the row numbers shown to the user
-  # are 1-based positions in the previewed tables.
-  orig_rows <- match(syn_key[syn_rows], orig_key)
+  syn_rows <- summary$synthetic_rows
+  orig_rows <- summary$original_rows
 
   as_text <- function(x) {
     if (is.factor(x)) x <- as.character(x)
@@ -422,10 +538,23 @@ exact_match_detail <- function(original, synthetic, roles = NULL,
   }
 
   n_col <- length(match_cols)
+  offset <- max(0, as.double(offset[[1L]] %||% 0))
+  total_pairs <- summary$n_pairs
+  if (offset >= total_pairs) {
+    pair_indices <- integer(0)
+  } else {
+    end <- if (is.null(limit)) total_pairs else {
+      min(total_pairs, offset + max(0, as.double(limit[[1L]])))
+    }
+    # Do not allocate every pair merely to select one visible page.
+    pair_indices <- if (end <= offset) integer(0) else seq.int(offset + 1L, end)
+  }
+  match_i <- (pair_indices - 1L) %/% n_col + 1L
+  col_i <- (pair_indices - 1L) %% n_col + 1L
   breakdown <- data.frame(
-    column        = rep(match_cols, times = length(syn_rows)),
-    synthetic_row = rep(syn_rows, each = n_col),
-    original_row  = rep(orig_rows, each = n_col),
+    column        = match_cols[col_i],
+    synthetic_row = syn_rows[match_i],
+    original_row  = orig_rows[match_i],
     stringsAsFactors = FALSE
   )
   breakdown$sensitive <- breakdown$column %in% sens_cols
@@ -438,31 +567,12 @@ exact_match_detail <- function(original, synthetic, roles = NULL,
     character(1)
   )
 
-  # A row "discloses" only if at least one of its sensitive cells is populated.
-  disclosing_syn <- if (length(sens_cols) == 0) {
-    integer(0)
-  } else {
-    is_disclosing <- breakdown$sensitive & !is.na(breakdown$value)
-    unique(breakdown$synthetic_row[is_disclosing])
-  }
-
-  syn_sev <- integer(nrow(synthetic))
-  syn_sev[syn_rows] <- 1L
-  syn_sev[disclosing_syn] <- 2L
-
-  # Carry the same severity back to the original rows that were reproduced.
-  # Match on the row key, not on `orig_rows` -- several synthetic rows can share
-  # one key, and match() only reports the first original hit, which would leave
-  # the remaining identical original rows marked amber despite being disclosed.
-  orig_sev <- integer(nrow(original))
-  orig_sev[flags$original] <- 1L
-  disclosing_keys <- unique(syn_key[syn_sev == 2L])
-  orig_sev[orig_key %in% disclosing_keys] <- 2L
-
   list(
     breakdown          = breakdown,
-    original_severity  = orig_sev,
-    synthetic_severity = syn_sev
+    original_severity  = summary$original_severity,
+    synthetic_severity = summary$synthetic_severity,
+    n_pairs            = summary$n_pairs,
+    offset             = offset
   )
 }
 

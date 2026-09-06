@@ -62,27 +62,39 @@ mod_data_panel_server <- function(id, state) {
       active_tab("real")
     })
 
-    # Per-row exact-match detail: which rows are reproduced verbatim, at what
-    # severity (1 = match, 2 = match exposing a value the user marked sensitive
-    # in question 2), plus the per-column breakdown behind the Exact matches
-    # tab. Memoised: recomputed only when the data or roles change, not on every
-    # tab switch or table page. NULL until synthetic data exists. Uses the same
-    # role_map (recommended_role) and original-name alignment as the EXACT
-    # MATCHES stat so the highlight and the count always agree.
-    exact_match_detail_r <- shiny::reactive({
-      orig <- state$raw_data
-      syn <- state$synthetic
-      if (is.null(orig) || is.null(syn)) {
-        return(NULL)
-      }
-      roles <- state$generated_roles %||% state$roles
-      role_map <- NULL
-      if (!is.null(roles) && "variable" %in% names(roles) &&
-          "recommended_role" %in% names(roles)) {
-        role_map <- stats::setNames(roles$recommended_role, roles$variable)
-      }
-      exact_match_detail(orig, dg_original_names(syn), roles, role_map)
+    # Shared, summary-only state. Export calls the same helper through the
+    # session state cache; detailed cells are built only for the visible page.
+    preview_roles <- function() {
+      state$generated_roles %||% state$roles
+    }
+    exact_match_summary_r <- shiny::reactive({
+      if (is.null(state$raw_data) || is.null(state$synthetic)) return(NULL)
+      exact_match_state_summary(state, preview_roles())
     })
+    exact_match_detail_r <- function(offset = 0L, limit = NULL) {
+      summary <- exact_match_summary_r()
+      if (is.null(summary)) return(NULL)
+      syn <- state$synthetic
+      if (is.null(syn)) return(NULL)
+      exact_match_detail(
+        state$raw_data, dg_original_names(syn), preview_roles(),
+        summary = summary, offset = offset, limit = limit
+      )
+    }
+
+    matches_page <- shiny::reactiveVal(1L)
+    matches_page_size <- 24L
+    shiny::observeEvent(input$matches_prev, {
+      matches_page(max(1L, matches_page() - 1L))
+    })
+    shiny::observeEvent(input$matches_next, {
+      summary <- exact_match_summary_r()
+      max_page <- if (is.null(summary)) 1L else max(1L, ceiling(summary$n_pairs / matches_page_size))
+      matches_page(min(max_page, matches_page() + 1L))
+    })
+    shiny::observeEvent(list(state$raw_data, state$synthetic, preview_roles()), {
+      matches_page(1L)
+    }, ignoreInit = TRUE)
 
     output$dp_name <- shiny::renderUI({
       if (is.null(state$raw_data)) {
@@ -147,11 +159,11 @@ mod_data_panel_server <- function(id, state) {
       # Exact matches tab: only meaningful once synthetic data exists, and only
       # shown when there is something to look at, so a clean run does not carry
       # a permanently empty tab.
-      detail <- exact_match_detail_r()
-      n_match <- if (is.null(detail)) 0L else sum(detail$synthetic_severity > 0L)
+      summary <- exact_match_summary_r()
+      n_match <- if (is.null(summary)) 0L else summary$n_matches
       matches_btn <- NULL
       if (has_synth && n_match > 0L) {
-        n_red <- exact_match_sensitive_count(detail)
+        n_red <- if (is.null(summary)) 0L else summary$n_sensitive
         matches_btn <- shiny::tags$button(
           id      = session$ns("tab_matches"),
           class   = paste0(
@@ -207,9 +219,19 @@ mod_data_panel_server <- function(id, state) {
 
       # Exact matches tab: the per-column breakdown of every reproduced row.
       if (identical(active_tab(), "matches") && !is.null(state$synthetic)) {
-        detail <- exact_match_detail_r()
-        n_match <- if (is.null(detail)) 0L else sum(detail$synthetic_severity > 0L)
-        n_red <- exact_match_sensitive_count(detail)
+        summary <- exact_match_summary_r()
+        n_match <- if (is.null(summary)) 0L else summary$n_matches
+        n_red <- if (is.null(summary)) 0L else summary$n_sensitive
+        max_page <- if (is.null(summary)) 1L else {
+          max(1L, ceiling(summary$n_pairs / matches_page_size))
+        }
+        page <- min(matches_page(), max_page)
+        first_pair <- if (is.null(summary) || summary$n_pairs == 0L) 0L else {
+          (page - 1L) * matches_page_size + 1L
+        }
+        last_pair <- if (is.null(summary)) 0L else {
+          min(summary$n_pairs, page * matches_page_size)
+        }
         note <- if (n_red > 0L) {
           shiny::tags$div(
             class = "banner danger",
@@ -243,8 +265,20 @@ mod_data_panel_server <- function(id, state) {
           ),
           shiny::tags$div(
             class = "dp-footer",
-            shiny::tags$span(sprintf("%d row \u00d7 column pair(s)", nrow(detail$breakdown))),
-            shiny::tags$span("row numbers match the Original / Synthetic tabs")
+            shiny::tags$span(sprintf("%d row \u00d7 column pair(s)", summary$n_pairs)),
+            shiny::tags$span("row numbers match the Original / Synthetic tabs"),
+            shiny::tags$span(sprintf("Showing pairs %d-%d of %d", first_pair, last_pair, summary$n_pairs)),
+            shiny::tags$span("Filters apply to the displayed page."),
+            shiny::actionButton(
+              inputId = session$ns("matches_prev"), label = "Previous",
+              class = "btn btn-secondary",
+              disabled = page <= 1L
+            ),
+            shiny::actionButton(
+              inputId = session$ns("matches_next"), label = "Next",
+              class = "btn btn-secondary",
+              disabled = page >= max_page
+            )
           )
         ))
       }
@@ -330,12 +364,12 @@ mod_data_panel_server <- function(id, state) {
       # 2 = reproduced *and* exposing a value marked sensitive in question 2.
       # Hidden via columnDefs; drives the amber/red row style below.
       sev_vec <- rep(0L, nrow(df))
-      detail <- exact_match_detail_r()
-      if (!is.null(detail)) {
+      summary <- exact_match_summary_r()
+      if (!is.null(summary)) {
         sv <- if (active_tab() == "synth" && !is.null(state$synthetic)) {
-          detail$synthetic_severity
+          summary$synthetic_severity
         } else {
-          detail$original_severity
+          summary$original_severity
         }
         if (length(sv) == nrow(df)) {
           sev_vec <- sv
@@ -413,7 +447,11 @@ mod_data_panel_server <- function(id, state) {
     # is what lets the user jump to a cell instead of scanning a wide table.
     output$dp_matches_table <- DT::renderDT({
       shiny::req(state$raw_data, state$synthetic)
-      detail <- exact_match_detail_r()
+      summary <- exact_match_summary_r()
+      shiny::req(summary)
+      max_page <- max(1L, ceiling(summary$n_pairs / matches_page_size))
+      page <- min(matches_page(), max_page)
+      detail <- exact_match_detail_r((page - 1L) * matches_page_size, matches_page_size)
       shiny::req(detail)
       b <- detail$breakdown
       shiny::req(nrow(b) > 0)

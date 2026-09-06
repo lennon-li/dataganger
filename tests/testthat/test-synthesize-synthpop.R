@@ -119,6 +119,45 @@ test_that("synthpop_bridge_cols() identifies high-cardinality char columns", {
   expect_false("score"     %in% bridge)
 })
 
+test_that("synthpop native dates use the coarsened bridge", {
+  skip_if_no_synthpop()
+  df <- data.frame(
+    day = rep(as.Date("2020-01-15") + 0:9, 10),
+    x = rep(1:10, 10),
+    grp = rep(c("a", "b"), 50)
+  )
+  roles <- detect_roles(df)
+  roles$disclosure_role <- "none"
+  roles$identifies <- "neither"
+  roles$simulation <- "synthesize"
+  spec <- synth_spec("development", seed = 42L, engine = "synthpop",
+                     coarsen_dates = TRUE)
+  syn <- synthesize_data(df, spec, roles = roles)
+  expect_s3_class(syn$day, "Date")
+  expect_equal(unique(format(syn$day, "%d")), "01")
+  expect_true("day" %in% synthpop_bridge_cols(roles, df))
+})
+
+test_that("a POSIXct bridge with one CART column reports internal fallback", {
+  skip_if_no_synthpop()
+  df <- data.frame(
+    stamp = as.POSIXct("2020-01-01 12:00:00", tz = "UTC") + seq(0, 19) * 86400,
+    x = seq_len(20)
+  )
+  roles <- detect_roles(df)
+  roles$disclosure_role <- "none"
+  roles$identifies <- "neither"
+  roles$simulation <- "synthesize"
+  spec <- synth_spec("demo", seed = 7L, n = 20L, engine = "synthpop",
+                     coarsen_dates = TRUE)
+  expect_warning(
+    syn <- synthesize_data(df, spec, roles = roles),
+    "Fewer than two synthpop CART columns"
+  )
+  expect_identical(attr(syn, "engine"), "internal")
+  expect_s3_class(syn$stamp, "POSIXct")
+})
+
 test_that("synthpop_bridge_cols() also catches high-cardinality factor columns", {
   # The CART-hang mechanism (2^(k-1) factor splits for a factor predictor) is
   # not specific to character storage: an R factor column with the same

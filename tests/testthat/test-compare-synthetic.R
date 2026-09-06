@@ -228,6 +228,41 @@ test_that("compare_utility() returns NA gracefully with too few rows", {
   expect_false(is.na(u$note))
 })
 
+test_that("compare_utility() bounds high-cardinality identifiers", {
+  orig <- data.frame(id = sprintf("old%04d", 1:600), x = seq_len(600))
+  syn <- data.frame(id = sprintf("new%04d", 1:600), x = seq_len(600))
+  roles <- detect_roles(orig)
+  u <- compare_utility(orig, syn, roles = roles)
+  expect_true(is.finite(u$s_pmse))
+  expect_equal(u$n_predictors, 1L)
+  expect_match(u$note, "excluded role.*id")
+})
+
+test_that("compare_utility() reports a zero-predictor design budget", {
+  # 40 levels are below the high-cardinality exclusion but exceed the
+  # predictor budget for this deliberately large row count.
+  orig <- data.frame(group = factor(rep(sprintf("g%02d", 1:40), 1300)))
+  syn <- data.frame(group = factor(rep(sprintf("g%02d", 1:40), 1300)))
+  u <- compare_utility(orig, syn)
+  expect_true(is.na(u$s_pmse))
+  expect_match(u$note, "design-size budget|no predictors")
+})
+
+test_that("compare_utility() keeps nonsyntactic predictor names when bounded", {
+  n_col <- 110L
+  make <- function() {
+    as.data.frame(
+      setNames(replicate(n_col, factor(rep(letters[1:3], length.out = 20)),
+                         simplify = FALSE), paste0("field-", seq_len(n_col))),
+      check.names = FALSE
+    )
+  }
+  u <- compare_utility(make(), make())
+  expect_true(is.finite(u$pmse))
+  expect_lte(u$n_predictors, 199L)
+  expect_match(u$note, "design-size budget")
+})
+
 test_that("compare_synthetic() wires utility into the full comparison, mixed types", {
   df <- data.frame(
     amount = rnorm(60, 10, 2),

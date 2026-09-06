@@ -195,7 +195,49 @@ test_that("the Exact matches tab appears only when there are matches", {
     session$flushReact()
     body_html <- paste(as.character(output$dp_body), collapse = "\n")
     expect_match(body_html, "dp_matches_table")
+    expect_match(body_html, "action-button")
+    expect_match(body_html, "matches_prev")
+    expect_match(body_html, "Showing pairs 1-2 of 2")
     expect_false(is.null(output$dp_matches_table))
+  })
+})
+
+test_that("exact-match browser pages are bounded and navigable", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  columns <- sprintf("c%02d", 1:30)
+  original <- as.data.frame(setNames(lapply(seq_along(columns), function(i) {
+    sprintf("v%02d-%02d", i, seq_len(30))
+  }), columns), stringsAsFactors = FALSE)
+  synthetic <- original[c(1L, 2L), ]
+  state <- shiny::reactiveValues(
+    raw_data = original, synthetic = synthetic, roles = NULL,
+    compare_selected_var = NULL, active_step = "generate", seed_used = 1L
+  )
+
+  shiny::testServer(mod_data_panel_server, args = list(state = state), {
+    # Let the initial synthetic-data observer select its default tab before
+    # simulating the user's Exact matches click.
+    session$flushReact()
+    session$setInputs(active_tab = "matches")
+    session$flushReact()
+    first_html <- paste(as.character(output$dp_body), collapse = "\n")
+    expect_match(first_html, "Showing pairs 1-24 of 60")
+    first_page <- exact_match_detail_r(0L, 24L)$breakdown
+    expect_equal(nrow(first_page), 24L)
+    expect_equal(first_page$column[[24L]], "c24")
+
+    # actionButton markup drives this observer in the browser; the test sends
+    # the same bound input event and verifies the second page is reachable.
+    session$setInputs(matches_next = 1L)
+    session$flushReact()
+    next_html <- paste(as.character(output$dp_body), collapse = "\n")
+    expect_match(next_html, "Showing pairs 25-48 of 60")
+    second_page <- exact_match_detail_r(24L, 24L)$breakdown
+    expect_equal(nrow(second_page), 24L)
+    expect_equal(second_page$column[[1L]], "c25")
+    expect_equal(second_page$synthetic_row[[7L]], 2L)
   })
 })
 

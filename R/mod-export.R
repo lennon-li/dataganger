@@ -99,22 +99,11 @@ mod_export_server <- function(id, state) {
 
     shiny::outputOptions(output, "stale__export", suspendWhenHidden = FALSE)
 
-    # Exact-match detail for the export gate. Computed on the same inputs and
-    # via the same helper the data panel uses, so the gate and the "Exact
-    # matches" tab can never disagree about what is blocking.
+    # Summary-only exact-match state for the export gate.  The potentially
+    # large per-column detail table is a UI concern and is not materialized
+    # during export readiness checks.
     exact_match_detail_r <- shiny::reactive({
-      orig <- state$raw_data
-      syn <- state$synthetic
-      if (is.null(orig) || is.null(syn)) {
-        return(NULL)
-      }
-      roles <- export_roles()
-      role_map <- NULL
-      if (!is.null(roles) && "variable" %in% names(roles) &&
-        "recommended_role" %in% names(roles)) {
-        role_map <- stats::setNames(roles$recommended_role, roles$variable)
-      }
-      exact_match_detail(orig, dg_original_names(syn), roles, role_map)
+      exact_match_state_summary(state, export_roles())
     })
 
     # Number of reproduced rows exposing a sensitive value. Non-zero blocks the

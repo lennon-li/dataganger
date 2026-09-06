@@ -306,6 +306,117 @@ test_that("export_synthetic() errors on exact-row matches when fail_on_exact_mat
   )
 })
 
+test_that("failed overwrite preserves the existing archive", {
+  tmp <- withr::local_tempdir()
+  original <- data.frame(x = 1:20, g = rep("A", 20))
+  synthetic <- original
+  attr(synthetic, "spec") <- synth_spec(purpose = "demo", seed = 3, engine = "internal")
+  class(synthetic) <- c("dataganger_synthetic", class(synthetic))
+  out <- file.path(tmp, "existing.zip")
+  writeLines("keep this archive", out)
+
+  expect_error(
+    export_synthetic(
+      synthetic, original = original, path = out, format = "zip",
+      overwrite = TRUE, include_report = FALSE, fail_on_exact_match = TRUE
+    ),
+    "exact-row"
+  )
+  expect_identical(readLines(out, warn = FALSE), "keep this archive")
+  expect_identical(list.files(tmp), "existing.zip")
+})
+
+test_that("successful directory overwrite swaps the completed staging tree", {
+  tmp <- withr::local_tempdir()
+  out <- file.path(tmp, "bundle-dir")
+  dir.create(out)
+  writeLines("old", file.path(out, "old-marker.txt"))
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 4, engine = "internal")
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  export_synthetic(syn, path = out, format = "dir", overwrite = TRUE,
+                   include_report = FALSE)
+  expect_false(file.exists(file.path(out, "old-marker.txt")))
+  expect_true(file.exists(file.path(out, "synthetic_data.csv")))
+  expect_length(list.files(tmp, pattern = "backup", all.files = TRUE), 0L)
+
+  zip_path <- file.path(tmp, "bundle.zip")
+  writeLines("old archive", zip_path)
+  export_synthetic(syn, path = zip_path, format = "zip", overwrite = TRUE,
+                   include_report = FALSE)
+  expect_true("synthetic_data.csv" %in% utils::unzip(zip_path, list = TRUE)$Name)
+})
+
+test_that("write and render failures preserve existing output bytes", {
+  tmp <- withr::local_tempdir()
+  syn <- tibble::tibble(x = 1:3)
+  attr(syn, "spec") <- synth_spec(purpose = "demo", seed = 4, engine = "internal")
+  class(syn) <- c("dataganger_synthetic", class(syn))
+
+  zip_path <- file.path(tmp, "write-fail.zip")
+  writeLines("old zip", zip_path)
+  testthat::with_mocked_bindings(
+    write_manifest = function(...) stop("manifest failure", call. = FALSE),
+    .package = "dataganger",
+    code = {
+      expect_error(
+        export_synthetic(syn, path = zip_path, format = "zip", overwrite = TRUE,
+                         include_report = FALSE),
+        "manifest failure"
+      )
+    }
+  )
+  expect_identical(readLines(zip_path, warn = FALSE), "old zip")
+
+  dir_path <- file.path(tmp, "render-fail")
+  dir.create(dir_path)
+  writeLines("old dir", file.path(dir_path, "marker"))
+  withr::local_options(dataganger.can_render_comparison_report = TRUE)
+  testthat::with_mocked_bindings(
+    render_comparison_report = function(...) stop("render failure", call. = FALSE),
+    .package = "dataganger",
+    code = {
+      expect_error(
+        export_synthetic(syn, path = dir_path, format = "dir", overwrite = TRUE),
+        "render failure"
+      )
+    }
+  )
+  expect_identical(readLines(file.path(dir_path, "marker"), warn = FALSE), "old dir")
+  expect_setequal(list.files(tmp), c("write-fail.zip", "render-fail"))
+})
+
+test_that("final staging rename failure restores the original archive", {
+  tmp <- withr::local_tempdir()
+  path <- file.path(tmp, "rename-fail.zip")
+  writeLines("original", path)
+  staging <- tempfile(pattern = ".staging-", tmpdir = tmp)
+  writeLines("replacement", staging)
+  target <- list(bundle_dir = tempfile(tmpdir = tmp), output_path = path,
+                 staged_output = staging, format = "zip", overwrite = TRUE)
+  dir.create(target$bundle_dir)
+  calls <- 0L
+  testthat::local_mocked_bindings(
+    dg_file_rename = function(from, to) {
+      # Permit moving the old output to backup and restoring it, but force the
+      # final staged-output -> destination move to fail.
+      if (grepl("-backup-", basename(to)) || grepl("-backup-", basename(from))) {
+        return(base::file.rename(from, to))
+      }
+      calls <<- calls + 1L
+      if (calls == 1L) return(FALSE)
+      base::file.rename(from, to)
+    },
+    .package = "dataganger"
+  )
+  expect_error(dataganger:::commit_export_target(target), "replace")
+  expect_identical(readLines(path, warn = FALSE), "original")
+  expect_true(file.exists(staging))
+  unlink(staging, force = TRUE)
+  unlink(target$bundle_dir, recursive = TRUE, force = TRUE)
+})
+
 test_that("export_synthetic() refuses to overwrite existing output without flag", {
   tmp <- withr::local_tempdir()
 

@@ -13,6 +13,22 @@ synthesize_synthpop <- function(data, spec, roles = NULL) {
   }
 
   data <- synthpop_mask_rare_inputs(data, spec, roles)
+  bridge <- synthpop_bridge_cols(roles, data)
+  work_names <- setdiff(names(data), synthpop_excluded_cols(roles, data))
+  if (length(work_names) == 0L && length(bridge) == 0L) {
+    cli::cli_abort(
+      "No synthesizable columns remain after excluding ID, free-text, and high-cardinality columns; cannot use synthpop engine."
+    )
+  }
+  if (length(work_names) < 2L) {
+    # synthpop::syn() requires at least two CART columns. Bridge-only inputs,
+    # or one CART column alongside a date bridge, still have a valid marginal
+    # synthesis path with the requested date treatment.
+    if (is.null(spec$seed)) {
+      return(synthesize_marginal(data, spec, roles = roles))
+    }
+    return(withr::with_seed(spec$seed, synthesize_marginal(data, spec, roles = roles)))
+  }
   dg_log("synthesize_synthpop: building synthpop args")
   syn_args <- spec_to_synthpop_args(spec, roles, data)
   dg_log(
@@ -26,7 +42,6 @@ synthesize_synthpop <- function(data, spec, roles = NULL) {
   # Stitch back "bridge" columns that were excluded from synthpop to prevent
   # CART hangs (character-stored dates and other high-cardinality char columns).
   # They are synthesized independently via the marginal engine.
-  bridge <- synthpop_bridge_cols(roles, data)
   if (length(bridge) > 0L) {
     dg_log("synthesize_synthpop: marginal bridge for ", length(bridge), " column(s)")
     bridge_syn <- synthesize_marginal(
@@ -137,13 +152,12 @@ spec_to_synthpop_args <- function(spec, roles, data) {
   excl <- synthpop_excluded_cols(roles, data)
   work <- data[, !names(data) %in% excl, drop = FALSE]
 
+  args <- list(data = work, print.flag = FALSE)
   if (ncol(work) == 0L) {
     cli::cli_abort(
       "No synthesizable columns remain after excluding ID, free-text, and high-cardinality columns; cannot use synthpop engine."
     )
   }
-
-  args <- list(data = work, print.flag = FALSE)
   if (!is.null(spec$seed)) args$seed <- as.integer(spec$seed)
   if (!is.null(spec$n))    args$k    <- as.integer(spec$n)
 
@@ -190,9 +204,16 @@ synthpop_bridge_cols <- function(roles, data) {
   for (col in names(data)) {
     if (col %in% true_excl) next
     x <- data[[col]]
-    if (!is.character(x) && !is.factor(x)) next
     col_role   <- if (!is.null(role_lookup) && col %in% names(role_lookup))
                     role_lookup[[col]] else "unknown"
+    # Native dates and datetimes need the same range/coarsening treatment as
+    # character-stored dates.  Keeping them out of CART also avoids synthpop
+    # silently preserving day-level precision.
+    if (identical(col_role, "date") || inherits(x, "Date") || inherits(x, "POSIXct")) {
+      bridge <- c(bridge, col)
+      next
+    }
+    if (!is.character(x) && !is.factor(x)) next
     n_dist     <- length(unique(x[!is.na(x)]))
     # > 20 distinct values: CART enumerates 2^(k-1) factor splits for any
     # factor predictor used in subsequent column models; k>20 hangs reliably.

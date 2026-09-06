@@ -81,7 +81,10 @@ mod_state_server <- function(id) {
       generator_error = NULL,
       generator_busy = FALSE,
       generator_source_released = FALSE,
-      generator_store_root = generator_workspace_default_store()
+      generator_store_root = generator_workspace_default_store(),
+      # Session-only exact-match keys/indices, shared by preview and export.
+      # It is explicitly cleared when the source is released.
+      exact_match_cache = NULL
     )
 
     tokens <- shiny::reactiveValues(
@@ -89,6 +92,17 @@ mod_state_server <- function(id) {
       roles = NULL,
       spec = NULL
     )
+
+    # Match keys are allowed only while both private frames are live. This also
+    # covers a direct upload/reset before either preview or export next asks
+    # for a summary.
+    shiny::observe({
+      if ((is.null(state$raw_data) || is.null(state$synthetic)) &&
+          is.environment(state$exact_match_cache)) {
+        exact_match_cache_clear(state$exact_match_cache)
+        state$exact_match_cache <- NULL
+      }
+    })
 
     set_stale_flags <- function(value) {
       state$stale <- make_stale_flags(value)

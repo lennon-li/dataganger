@@ -83,7 +83,14 @@ synthesize_data <- function(data, spec, roles = NULL,
     n_synthesizable <- length(
       setdiff(names(data), synthpop_excluded_cols(roles, data))
     )
-    if (n_synthesizable == 1L) {
+    bridge_count <- length(synthpop_bridge_cols(roles, data))
+    if (n_synthesizable < 2L && bridge_count > 0L) {
+      cli::cli_warn(
+        "Fewer than two synthpop CART columns remain alongside date/high-cardinality bridge columns; using the internal engine so the requested bridge treatment stays explicit."
+      )
+      engine <- "internal"
+    }
+    if (engine == "synthpop" && n_synthesizable == 1L && bridge_count == 0L) {
       if (is.null(explicit)) {
         cli::cli_warn(
           "Only one synthesizable column remains after excluding ID, free-text, and high-cardinality columns; using the marginal engine for now."

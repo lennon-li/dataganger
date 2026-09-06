@@ -47,6 +47,8 @@ test_that("5-row CSV upload populates raw_data and profile", {
     # Phase 1: an upload announces its columns but does not read data yet.
     expect_false(is.null(state$upload_source))
     expect_null(state$raw_data)
+    staged_path <- state$upload_source$staged_path
+    expect_true(file.exists(staged_path))
 
     # Phase 2: Continue reads the data into the working set.
     cf_continue(session, state)
@@ -55,6 +57,11 @@ test_that("5-row CSV upload populates raw_data and profile", {
     expect_equal(nrow(state$raw_data), 5)
     expect_false(is.null(state$profile))
     expect_equal(state$profile$n_rows, 5)
+    # The staged source remains readable for the app session and is removed
+    # only when the workspace explicitly releases the source.
+    expect_true(file.exists(staged_path))
+    generator_workspace_release_source(state)
+    expect_false(file.exists(staged_path))
   })
 })
 
@@ -72,6 +79,8 @@ test_that("second upload replaces raw_data and clears downstream state", {
 
     session$setInputs(`upload-file` = upload_input_value(first_path))
     session$flushReact()
+    first_staged <- state$upload_source$staged_path
+    expect_true(file.exists(first_staged))
     cf_continue(session, state)
 
     state$roles <- tibble::tibble(variable = "x", user_role = "measure")
@@ -86,6 +95,9 @@ test_that("second upload replaces raw_data and clears downstream state", {
     # working data / filter choice is cleared until the user confirms again.
     session$setInputs(`upload-file` = upload_input_value(second_path))
     session$flushReact()
+    second_staged <- state$upload_source$staged_path
+    expect_false(file.exists(first_staged))
+    expect_true(file.exists(second_staged))
 
     expect_null(state$raw_data)
     expect_null(state$column_filter)
@@ -108,6 +120,43 @@ test_that("second upload replaces raw_data and clears downstream state", {
       list(synthesis = FALSE, comparison = FALSE, export = FALSE)
     )
   })
+})
+
+test_that("session close cleans an owned staged upload without release", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  csv_path <- upload_fixture_path(load_example_data("example_health_survey")[1:5, ],
+                                  "session-close.csv")
+  staged_path <- NULL
+  shiny::testServer(upload_host_server, {
+    state <- session$getReturned()$state
+    session$setInputs(`upload-file` = upload_input_value(csv_path))
+    session$flushReact()
+    staged_path <<- state$upload_source$staged_path
+    expect_true(file.exists(staged_path))
+  })
+  expect_false(file.exists(staged_path))
+})
+
+test_that("a failed upload header read does not retain the staged copy", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  csv_path <- upload_fixture_path(load_example_data("example_health_survey")[1:5, ],
+                                  "header-failure.csv")
+  testthat::with_mocked_bindings(
+    read_input = function(...) stop("header read failure", call. = FALSE),
+    .package = "dataganger",
+    code = {
+      shiny::testServer(upload_host_server, {
+        state <- session$getReturned()$state
+        session$setInputs(`upload-file` = upload_input_value(csv_path))
+        session$flushReact()
+        expect_null(state$upload_source)
+      })
+    }
+  )
 })
 
 test_that("individual sample loads 200x7 tibble with non-empty filename", {

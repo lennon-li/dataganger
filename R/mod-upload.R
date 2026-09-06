@@ -113,11 +113,21 @@ mod_upload_server <- function(id, state) {
 
       ok <- file.copy(datapath, staged_path, overwrite = TRUE)
       if (!isTRUE(ok)) {
+        unlink(staged_path, force = TRUE)
         cli::cli_abort("Failed to stage uploaded file for import.")
       }
 
       staged_path
     }
+
+    cleanup_staged_upload <- function() {
+      generator_workspace_cleanup_upload_source(shiny::isolate(state$upload_source))
+      invisible(NULL)
+    }
+
+    session$onSessionEnded(function() {
+      cleanup_staged_upload()
+    })
 
     shiny::observeEvent(input$file, ignoreNULL = TRUE, {
       file_info <- input$file
@@ -143,29 +153,39 @@ mod_upload_server <- function(id, state) {
       cols <- tryCatch(
         names(read_input(staged_path, n_max = 0L)),
         error = function(e) {
+          unlink(staged_path, force = TRUE)
           shiny::showNotification(conditionMessage(e), type = "error")
           NULL
         }
       )
 
-      if (is.null(cols)) {
+      if (is.null(cols) || !length(cols)) {
+        unlink(staged_path, force = TRUE)
+        if (!is.null(cols)) {
+          shiny::showNotification("Uploaded file contains no readable columns.", type = "error")
+        }
         return(invisible(NULL))
       }
 
+      cleanup_staged_upload()
       state$upload_source <- list(
         columns = cols,
+        staged_path = staged_path,
+        owned_stage = TRUE,
         read = function(col_select = NULL) read_input(staged_path, col_select = col_select)
       )
       state$filename <- file_info$name
     })
 
     shiny::observeEvent(input$load_sample, ignoreNULL = TRUE, {
+      cleanup_staged_upload()
       nm <- if (identical(input$sample_dataset, "regional")) "geo\u0067raphic_sample" else paste0(input$sample_dataset, "_sample")
       e <- new.env(parent = emptyenv())
       utils::data(list = nm, package = "dataganger", envir = e)
       loaded <- tibble::as_tibble(e[[nm]])
       state$upload_source <- list(
         columns = names(loaded),
+        owned_stage = FALSE,
         read = function(col_select = NULL) {
           if (is.null(col_select)) loaded else loaded[, intersect(col_select, names(loaded)), drop = FALSE]
         }

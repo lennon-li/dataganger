@@ -315,6 +315,43 @@ test_that("exact matches on non-sensitive columns do not block the export", {
   })
 })
 
+test_that("preview and export share keys but not incompatible role summaries", {
+  testthat::skip_if_not_installed("shiny")
+  testthat::skip_if_not_installed("DT")
+
+  state <- exact_match_gate_state(generation_count = 1L)
+  # Preview follows `roles` here and sees amber rows. Export has its frozen
+  # generator roles, so it must build a distinct severity summary while
+  # reusing the identical row keys and indices.
+  state$roles <- data.frame(
+    variable = c("a", "dx"), sensitive = c(FALSE, FALSE),
+    stringsAsFactors = FALSE
+  )
+  state$generator_export_roles <- data.frame(
+    variable = c("a", "dx"), sensitive = c(FALSE, TRUE),
+    stringsAsFactors = FALSE
+  )
+
+  shiny::testServer(mod_data_panel_server, args = list(state = state), {
+    session$flushReact()
+    expect_equal(exact_match_summary_r()$n_sensitive, 0L)
+  })
+  shiny::isolate({
+    expect_length(state$exact_match_cache$bases, 1L)
+    expect_length(state$exact_match_cache$summaries, 1L)
+  })
+
+  shiny::testServer(mod_export_server, args = list(state = state), {
+    session$flushReact()
+    expect_equal(exact_match_blockers(), 2L)
+  })
+  shiny::isolate({
+    expect_length(state$exact_match_cache$bases, 1L)
+    expect_length(state$exact_match_cache$summaries, 2L)
+    expect_false("breakdown" %in% names(state$exact_match_cache$summaries[[2L]]$summary))
+  })
+})
+
 # --- Disclosure-risk modal on entering Export --------------------------------
 
 # Attach a kanon attribute to a state's synthetic output, mirroring how the
