@@ -25,7 +25,7 @@ test_that("app shell keeps reusable generators outside the six-step workflow", {
     app_source,
     "STEP_IDS <- c\\(\"upload\", \"objective\", \"configure\", \"generate\", \"compare\", \"export\"\\)"
   )
-  expect_match(app_source, "class = \"generator-workspace\"")
+  expect_match(app_source, "class = \"generator-workspace[^\"]*\"")
   expect_match(app_source, "nav_go', 'generators'")
   expect_match(app_source, "nav_panel_hidden\\(\"generators\"")
   expect_match(app_source, "mod_generator_workspace_ui\\(\"generators\"\\)")

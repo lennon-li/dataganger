@@ -54,12 +54,37 @@ local({
       generator_error = NULL,
       generator_busy = FALSE,
       generator_source_released = FALSE,
+      generator_policy_loaded = FALSE,
+      generator_policy_allowed = NULL,
       generator_store_root = "/private/workspace",
+      filename = "workspace.csv",
+      roles_confirmed = 1L,
+      spec_confirmed = 1L,
       synthetic = NULL,
       comparison = NULL,
       privacy = NULL,
       stale = list(synthesis = FALSE, comparison = FALSE, export = FALSE)
     )
+  }
+
+  workspace_file_input <- function(path, type = "application/octet-stream") {
+    info <- file.info(path)
+    data.frame(
+      name = basename(path),
+      size = as.numeric(info$size),
+      type = type,
+      datapath = path,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  workspace_ready_roles <- function(data) {
+    roles <- detect_roles(data)
+    roles$identifies <- "none"
+    roles$sensitive <- FALSE
+    roles$user_identifies <- "no"
+    roles$user_sensitive <- FALSE
+    roles
   }
 
   test_that("generator workspace UI states the local security boundary", {
@@ -145,11 +170,154 @@ local({
     shiny::testServer(mod_generator_workspace_server, args = list(state = state), {
       session$setInputs(freeze = 1L)
       session$flushReact()
-      expect_identical(view(), "no_eligible_draft")
+      expect_identical(view(), "policy_landing")
     })
 
     expect_identical(freeze_calls, 0L)
     expect_match(shiny::isolate(state$generator_error$message), "Privacy review is stale")
+  })
+
+  test_that("landing view shows readiness blockers as unmet checklist items", {
+    state <- workspace_test_state()
+    testthat::local_mocked_bindings(
+      generator_workspace_readiness = function(state) {
+        list(
+          ready = FALSE,
+          blockers = c(
+            "column roles must be confirmed.",
+            "a comparison review is required."
+          ),
+          warnings = character()
+        )
+      }
+    )
+
+    shiny::testServer(mod_generator_workspace_server, args = list(state = state), {
+      session$flushReact()
+      html <- paste(as.character(output$workspace_view), collapse = "\n")
+      expect_identical(view(), "policy_landing")
+      expect_match(html, "Use this session's policy", fixed = TRUE)
+      expect_match(html, "Unmet: column roles must be confirmed.", fixed = TRUE)
+      expect_match(html, "Go to Configure", fixed = TRUE)
+      expect_match(html, "Unmet: a comparison review is required.", fixed = TRUE)
+    })
+  })
+
+  test_that("loading a matching policy populates spec and roles but re-requires review", {
+    state <- workspace_test_state()
+    state$comparison <- structure(list(ok = TRUE), class = "dataganger_comparison")
+    state$privacy <- structure(list(ok = TRUE), class = "dataganger_privacy_check")
+    state$stale <- list(synthesis = FALSE, comparison = FALSE, export = FALSE)
+
+    data <- data.frame(
+      id = 1:5,
+      grp = c("a", "b", "a", "b", "a"),
+      stringsAsFactors = FALSE
+    )
+    tmp <- withr::local_tempdir()
+    policy_path <- file.path(tmp, "policy.rds")
+    data_path <- file.path(tmp, "source.csv")
+    utils::write.csv(data, data_path, row.names = FALSE)
+    parsed_data <- read_input(data_path)
+    roles <- workspace_ready_roles(parsed_data)
+    spec <- synth_spec("demo", engine = "internal")
+    policy <- structure(
+      list(
+        format_version = 1L,
+        created_at = "2026-09-08 00:00:00 UTC",
+        source_hash = generator_data_hash(parsed_data),
+        roles = roles,
+        spec = spec,
+        allowed = generation_limits(
+          seed = c(0L, .Machine$integer.max),
+          n = c(1L, 25L),
+          datasets = c(1L, 3L)
+        )
+      ),
+      class = "dataganger_generator_policy"
+    )
+    saveRDS(policy, policy_path)
+
+    shiny::testServer(mod_generator_workspace_server, args = list(state = state), {
+      session$setInputs(policy_file = workspace_file_input(policy_path))
+      session$flushReact()
+      session$setInputs(policy_data_file = workspace_file_input(data_path, type = "text/csv"))
+      session$setInputs(apply_policy = 1L)
+      session$flushReact()
+    })
+
+    loaded_spec <- shiny::isolate(state$spec)
+    loaded_roles <- shiny::isolate(state$roles)
+    readiness <- shiny::isolate(generator_workspace_readiness(state))
+    expect_identical(loaded_spec$engine, "internal")
+    expect_identical(loaded_roles$variable, roles$variable)
+    expect_true(shiny::isolate(state$generator_policy_loaded))
+    expect_false(readiness$ready)
+    expect_true(
+      any(grepl("comparison review is required", readiness$blockers, fixed = TRUE)),
+      info = paste(readiness$blockers, collapse = " | ")
+    )
+    expect_true(
+      any(grepl("privacy review is required", readiness$blockers, fixed = TRUE)),
+      info = paste(readiness$blockers, collapse = " | ")
+    )
+  })
+
+  test_that("mismatched policy data fails closed and leaves state unchanged", {
+    state <- workspace_test_state()
+    original_roles <- shiny::isolate(state$roles)
+    original_spec <- shiny::isolate(state$spec)
+
+    policy_data <- data.frame(
+      id = 1:5,
+      grp = c("a", "b", "a", "b", "a"),
+      stringsAsFactors = FALSE
+    )
+    mismatched_data <- data.frame(
+      id = 1:5,
+      grp = c("x", "y", "x", "y", "x"),
+      stringsAsFactors = FALSE
+    )
+    tmp <- withr::local_tempdir()
+    policy_path <- file.path(tmp, "policy.rds")
+    policy_data_path <- file.path(tmp, "policy-data.csv")
+    mismatch_path <- file.path(tmp, "mismatch.csv")
+    utils::write.csv(policy_data, policy_data_path, row.names = FALSE)
+    utils::write.csv(mismatched_data, mismatch_path, row.names = FALSE)
+    parsed_policy_data <- read_input(policy_data_path)
+    policy <- structure(
+      list(
+        format_version = 1L,
+        created_at = "2026-09-08 00:00:00 UTC",
+        source_hash = generator_data_hash(parsed_policy_data),
+        roles = workspace_ready_roles(parsed_policy_data),
+        spec = synth_spec("demo", engine = "internal"),
+        allowed = generation_limits(
+          seed = c(0L, .Machine$integer.max),
+          n = c(1L, 25L),
+          datasets = c(1L, 3L)
+        )
+      ),
+      class = "dataganger_generator_policy"
+    )
+    saveRDS(policy, policy_path)
+
+    shiny::testServer(mod_generator_workspace_server, args = list(state = state), {
+      session$setInputs(policy_file = workspace_file_input(policy_path))
+      session$flushReact()
+      session$setInputs(policy_data_file = workspace_file_input(mismatch_path, type = "text/csv"))
+      session$setInputs(apply_policy = 1L)
+      session$flushReact()
+    })
+
+    expect_match(
+      shiny::isolate(state$generator_error$message),
+      "saved for different data",
+      fixed = TRUE
+    )
+    expect_identical(shiny::isolate(state$roles), original_roles)
+    expect_identical(shiny::isolate(state$spec), original_spec)
+    expect_false(isTRUE(shiny::isolate(state$generator_policy_loaded)))
   })
 
   test_that("approval requires an exact contract ID", {

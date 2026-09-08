@@ -35,6 +35,7 @@ mod_generate_ui <- dataganger:::mod_generate_ui
 mod_generator_workspace_server <- dataganger:::mod_generator_workspace_server
 mod_generator_workspace_ui <- dataganger:::mod_generator_workspace_ui
 generator_workspace_reset <- dataganger:::generator_workspace_reset
+generator_workspace_readiness <- dataganger:::generator_workspace_readiness
 mod_roles_server <- dataganger:::mod_roles_server
 mod_roles_ui <- dataganger:::mod_roles_ui
 mod_state_server <- dataganger:::mod_state_server
@@ -134,6 +135,10 @@ sidebar_content <- tags$nav(
         var el = document.getElementById('step-' + stepId);
         if (el) el.classList.remove('locked');
       });
+      Shiny.addCustomMessageHandler('lockStep', function(stepId) {
+        var el = document.getElementById('step-' + stepId);
+        if (el) el.classList.add('locked');
+      });
 
       function DGsetPurpose(el, group, key, isProto) {
         document.querySelectorAll('.purpose-card').forEach(function(c){ c.classList.remove('selected'); });
@@ -218,10 +223,15 @@ sidebar_content <- tags$nav(
   tags$button(
     id = "step-generators",
     type = "button",
-    class = "generator-workspace",
-    onclick = "Shiny.setInputValue('nav_go', 'generators', {priority: 'event'});",
+    class = "generator-workspace step locked",
+    onclick = paste(
+      "if (!this.classList.contains('locked')) {",
+      "Shiny.setInputValue('nav_go', 'generators', {priority: 'event'});",
+      "}"
+    ),
     tags$span(class = "generator-workspace-mark", "G"),
-    tags$span("Reusable generators")
+    tags$span("Reusable generators"),
+    tags$span(class = "lock-icon", "\U0001F512")
   ),
   tags$div(
     style = "margin-top:auto; padding-top:16px; border-top:1px solid var(--border);",
@@ -494,9 +504,19 @@ server <- function(input, output, session) {
   mod_export_server("export", state)
   mod_data_panel_server("data_panel", state)
 
+  STEP_IDS <- c("upload", "objective", "configure", "generate", "compare", "export")
+  current_step_num <- shiny::reactiveVal(0L) # 0-based
+
   # Record the visible step so modules can react to arrival. mod_export_server
   # shows the disclosure-risk brief when this becomes "export".
   shiny::observeEvent(input$app_tabs, ignoreNULL = TRUE, {
+    if (identical(input$app_tabs, "generators") &&
+      !isTRUE(shiny::isolate(generator_workspace_unlocked()))) {
+      bslib::nav_select("app_tabs", STEP_IDS[[current_step_num() + 1L]])
+      state$active_tab <- STEP_IDS[[current_step_num() + 1L]]
+      session$sendCustomMessage("lockStep", "generators")
+      return()
+    }
     state$active_tab <- input$app_tabs
     if (identical(input$app_tabs, "generators")) {
       state$active_step <- "generators"
@@ -508,8 +528,6 @@ server <- function(input, output, session) {
   session$onFlushed(function() {
     send_step_state(0L)
   }, once = TRUE)
-
-  STEP_IDS <- c("upload", "objective", "configure", "generate", "compare", "export")
 
   # Compute the furthest step reached (0-based index into STEP_IDS)
   max_step_reached <- shiny::reactive({
@@ -529,14 +547,40 @@ server <- function(input, output, session) {
     0L
   })
 
-  current_step_num <- shiny::reactiveVal(0L) # 0-based
+  generator_workspace_unlocked <- shiny::reactive({
+    readiness <- tryCatch(
+      generator_workspace_readiness(state),
+      error = function(error) list(ready = FALSE)
+    )
+    isTRUE(readiness$ready) || isTRUE(state$generator_policy_loaded)
+  })
+
+  shiny::observe({
+    if (isTRUE(generator_workspace_unlocked())) {
+      session$sendCustomMessage("unlockStep", "generators")
+    } else {
+      session$sendCustomMessage("lockStep", "generators")
+    }
+  })
 
   open_generator_workspace <- function() {
+    if (!isTRUE(shiny::isolate(generator_workspace_unlocked()))) {
+      shiny::showNotification(
+        paste(
+          "Reusable generators unlock after a ready session policy",
+          "or after loading and verifying a saved policy."
+        ),
+        type = "message"
+      )
+      session$sendCustomMessage("lockStep", "generators")
+      return(invisible(FALSE))
+    }
     state$generator_return_step <- STEP_IDS[[current_step_num() + 1L]]
     bslib::nav_select("app_tabs", "generators")
     state$active_tab <- "generators"
     state$active_step <- "generators"
     session$sendCustomMessage("setActiveStep", "generators")
+    invisible(TRUE)
   }
 
   send_step_state <- function(cur) {

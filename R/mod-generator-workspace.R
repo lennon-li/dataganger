@@ -59,6 +59,24 @@ generator_workspace_backend_load <- function(contract_id, root) {
 
 #' @keywords internal
 #' @noRd
+generator_workspace_backend_load_policy <- function(path) {
+  load_generator_policy(path)
+}
+
+#' @keywords internal
+#' @noRd
+generator_workspace_backend_read_input <- function(path) {
+  read_input(path)
+}
+
+#' @keywords internal
+#' @noRd
+generator_workspace_backend_policy_matches <- function(policy, data) {
+  generator_policy_matches_data(policy, data)
+}
+
+#' @keywords internal
+#' @noRd
 generator_workspace_backend_revalidate <- function(handle) {
   generator_api_validate_frozen(handle)$frozen
 }
@@ -206,6 +224,65 @@ mod_generator_workspace_server <- function(id, state) {
       generator_workspace_policy_token(state)
     }
     approved_policy_token <- shiny::reactiveVal(NULL)
+    loaded_policy <- shiny::reactiveVal(NULL)
+
+    blocker_checklist_item <- function(blocker) {
+      if (identical(blocker, "column roles must be confirmed.")) {
+        return(shiny::tags$li(
+          "Unmet: column roles must be confirmed. ",
+          shiny::tags$a(
+            href = "#",
+            onclick = paste(
+              "Shiny.setInputValue('nav_go', 'configure', {priority: 'event'});",
+              "return false;"
+            ),
+            "Go to Configure"
+          )
+        ))
+      }
+      shiny::tags$li(paste0("Unmet: ", blocker))
+    }
+
+    apply_loaded_policy <- function(policy, data, filename) {
+      state$raw_data <- data
+      state$filename <- filename
+      state$roles <- policy$roles
+      state$roles_confirmed <- 1L
+      state$spec <- policy$spec
+      state$spec_confirmed <- 1L
+      state$comparison <- NULL
+      state$privacy <- NULL
+      state$compare_selected_var <- NULL
+      state$synthetic <- NULL
+      state$seed_used <- NULL
+      if (is.list(state$stale)) {
+        state$stale$synthesis <- TRUE
+        state$stale$comparison <- TRUE
+        state$stale$export <- TRUE
+      }
+      state$generator_policy_allowed <- policy$allowed
+      state$generator_policy_loaded <- TRUE
+      shiny::updateNumericInput(
+        session,
+        "freeze_max_n",
+        value = as.integer(policy$allowed$n[[2L]])
+      )
+      shiny::updateNumericInput(
+        session,
+        "freeze_max_datasets",
+        value = as.integer(policy$allowed$datasets[[2L]])
+      )
+      state$generator_error <- NULL
+      shiny::showNotification(
+        paste0(
+          "Loaded policy ",
+          substr(policy$source_hash, 1L, 12L),
+          ". Run comparison and privacy review again before freezing."
+        ),
+        type = "message"
+      )
+      invisible(NULL)
+    }
 
     # The approved object is immutable. If a user changes the ordinary
     # six-step policy after approval, preserve the approved generator and make
@@ -249,11 +326,21 @@ mod_generator_workspace_server <- function(id, state) {
       if (is.null(state$raw_data) || is.null(state$roles) || is.null(state$spec)) {
         return(NULL)
       }
+      allowed <- state$generator_policy_allowed
+      if (is.null(allowed)) {
+        allowed <- generation_limits()
+      } else {
+        allowed <- generation_limits(
+          seed = as.integer(allowed$seed),
+          n = as.integer(allowed$n),
+          datasets = as.integer(allowed$datasets)
+        )
+      }
       list(
         data = state$raw_data,
         roles = state$roles,
         spec = state$spec,
-        allowed = generation_limits()
+        allowed = allowed
       )
     }
 
@@ -275,7 +362,7 @@ mod_generator_workspace_server <- function(id, state) {
         return("approved")
       }
       readiness <- generator_workspace_backend_readiness(state)
-      if (!isTRUE(readiness$ready)) return("no_eligible_draft")
+      if (!isTRUE(readiness$ready)) return("policy_landing")
       if (!is.null(draft_from_state())) return("freeze_review")
       "saved_handles"
     })
@@ -325,16 +412,17 @@ mod_generator_workspace_server <- function(id, state) {
       }
       error <- state$generator_error
       active_is_frozen <- !is.null(active) && inherits(active, "dataganger_frozen_generator")
-      readiness <- if (view() %in% c("freeze_review", "no_eligible_draft", "policy_revision")) {
+      readiness <- if (view() %in% c("freeze_review", "policy_landing", "policy_revision")) {
         generator_workspace_backend_readiness(state)
       } else {
         NULL
       }
+      policy <- loaded_policy()
       shiny::tagList(
         shiny::tags$h3(switch(
           view(),
           freeze_review = "Review policy before freezing",
-          no_eligible_draft = "Complete the source-data review before freezing",
+          policy_landing = "Set up a reusable generator",
           frozen_unapproved = "Approve frozen generator",
           policy_revision = "Review changed policy before replacing the approved generator",
           approved = "Generate bounded variations",
@@ -359,9 +447,62 @@ mod_generator_workspace_server <- function(id, state) {
           class = "help",
           "The approved generator remains available until you replace it. This changed policy is only a draft and needs a fresh comparison, privacy review, freeze, and approval."
         ),
-        if (!is.null(readiness) && !readiness$ready) shiny::tags$ul(
-          lapply(readiness$blockers, shiny::tags$li)
+        if (identical(view(), "policy_landing")) shiny::tagList(
+          shiny::tags$div(
+            class = "card",
+            shiny::tags$div(
+              class = "card-header",
+              shiny::tags$span(class = "title", "Use this session's policy")
+            ),
+            shiny::tags$p(
+              class = "help",
+              "Complete each unmet item before freezing."
+            ),
+            if (!is.null(readiness) && length(readiness$blockers)) shiny::tags$ul(
+              lapply(readiness$blockers, blocker_checklist_item)
+            )
+          ),
+          shiny::tags$div(
+            class = "card",
+            shiny::tags$div(
+              class = "card-header",
+              shiny::tags$span(class = "title", "Load a saved policy")
+            ),
+            shiny::fileInput(
+              session$ns("policy_file"),
+              "Policy file (.rds)",
+              accept = ".rds",
+              width = "100%"
+            ),
+            if (!is.null(policy)) shiny::tags$p(
+              class = "help",
+              paste0(
+                "Loaded policy file with source hash prefix ",
+                substr(policy$source_hash, 1L, 12L),
+                "."
+              )
+            ),
+            if (!is.null(policy)) shiny::fileInput(
+              session$ns("policy_data_file"),
+              "Upload source data file to verify this policy",
+              accept = c(".csv", ".xlsx", ".sas7bdat", ".xpt"),
+              width = "100%"
+            ),
+            if (!is.null(policy)) shiny::actionButton(
+              session$ns("apply_policy"),
+              "Verify data and apply policy",
+              class = "btn btn-primary"
+            ),
+            if (isTRUE(state$generator_policy_loaded)) shiny::tags$p(
+              class = "help",
+              "A saved policy is loaded for this session. Compare and privacy review are required again before freezing."
+            )
+          )
         ),
+        if (!is.null(readiness) && !readiness$ready &&
+          !identical(view(), "policy_landing")) shiny::tags$ul(
+            lapply(readiness$blockers, shiny::tags$li)
+          ),
         if (!is.null(error)) shiny::tags$div(class = "banner risk", error$message %||% as.character(error)),
         if (identical(view(), "approved")) shiny::tags$p(
           "Only the approved contract bounds are accepted for seed, rows, and dataset count."
@@ -371,9 +512,22 @@ mod_generator_workspace_server <- function(id, state) {
 
     output$workspace_actions <- shiny::renderUI({
       current_view <- view()
+      readiness <- generator_workspace_backend_readiness(state)
+      allowed_defaults <- state$generator_policy_allowed
+      default_limit <- function(field, fallback) {
+        if (is.null(allowed_defaults)) return(as.integer(fallback))
+        values <- allowed_defaults[[field]]
+        if (!is.numeric(values) || length(values) != 2L || anyNA(values)) {
+          return(as.integer(fallback))
+        }
+        as.integer(values[[2L]])
+      }
+      max_n_default <- default_limit("n", 1000L)
+      max_datasets_default <- default_limit("datasets", 10L)
       draft_is_frozen <- !is.null(state$generator_draft) &&
         inherits(state$generator_draft, "dataganger_frozen_generator")
       freeze_locked <- draft_is_frozen ||
+        !isTRUE(readiness$ready) ||
         (identical(current_view, "approved") && is.null(state$generator_draft))
       approved <- identical(current_view, "approved")
       frozen_unapproved <- identical(current_view, "frozen_unapproved")
@@ -390,11 +544,15 @@ mod_generator_workspace_server <- function(id, state) {
           freeze_locked,
           shiny::numericInput(
             session$ns("freeze_max_n"), "Maximum rows per dataset",
-            value = 1000L, min = 1L, step = 1L
+            value = as.integer(input$freeze_max_n %||% max_n_default),
+            min = 1L,
+            step = 1L
           ),
           shiny::numericInput(
             session$ns("freeze_max_datasets"), "Maximum datasets per request",
-            value = 10L, min = 1L, step = 1L
+            value = as.integer(input$freeze_max_datasets %||% max_datasets_default),
+            min = 1L,
+            step = 1L
           ),
           shiny::actionButton(
             session$ns("freeze"), "Freeze current policy", class = "btn btn-primary"
@@ -439,7 +597,8 @@ mod_generator_workspace_server <- function(id, state) {
           )
         ),
         fieldset(
-          FALSE,
+          !identical(current_view, "policy_landing"),
+          shiny::tags$legend("Open approved generator by contract ID"),
           shiny::textInput(session$ns("saved_contract"), "Saved contract ID"),
           shiny::actionButton(session$ns("load_saved"), "Load saved generator")
         )
@@ -662,6 +821,67 @@ mod_generator_workspace_server <- function(id, state) {
       state$privacy <- attr(output, "generation_privacy", exact = TRUE)
       state$generator_export_privacy <- attr(output, "generation_privacy", exact = TRUE)
       state$seed_used <- selected_seed()
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$policy_file, ignoreNULL = TRUE, {
+      file_info <- input$policy_file
+      loaded <- tryCatch(
+        generator_workspace_backend_load_policy(file_info$datapath),
+        error = function(error) error
+      )
+      if (inherits(loaded, "error")) {
+        loaded_policy(NULL)
+        state$generator_error <- list(message = conditionMessage(loaded))
+        return(invisible(NULL))
+      }
+      loaded_policy(loaded)
+      state$generator_error <- NULL
+      invisible(NULL)
+    })
+
+    shiny::observeEvent(input$apply_policy, ignoreNULL = TRUE, {
+      policy <- loaded_policy()
+      if (is.null(policy)) {
+        state$generator_error <- list(
+          message = "Load a saved policy file before verifying source data."
+        )
+        return(invisible(NULL))
+      }
+
+      data_file <- input$policy_data_file
+      if (is.null(data_file) || !nzchar(data_file$datapath %||% "")) {
+        state$generator_error <- list(
+          message = "Upload source data to verify this saved policy."
+        )
+        return(invisible(NULL))
+      }
+
+      data <- tryCatch(
+        generator_workspace_backend_read_input(data_file$datapath),
+        error = function(error) error
+      )
+      if (inherits(data, "error")) {
+        state$generator_error <- list(message = conditionMessage(data))
+        return(invisible(NULL))
+      }
+
+      matches <- tryCatch(
+        generator_workspace_backend_policy_matches(policy, data),
+        error = function(error) error
+      )
+      if (inherits(matches, "error")) {
+        state$generator_error <- list(message = conditionMessage(matches))
+        return(invisible(NULL))
+      }
+      if (!isTRUE(matches)) {
+        state$generator_error <- list(
+          message = "This policy was saved for different data."
+        )
+        return(invisible(NULL))
+      }
+
+      apply_loaded_policy(policy, data, data_file$name %||% "verified-policy-data")
       invisible(NULL)
     })
 

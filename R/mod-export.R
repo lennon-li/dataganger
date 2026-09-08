@@ -26,7 +26,9 @@ mod_export_ui <- function(id) {
           ns("download"),
           label = "Download bundle \u2192",
           class = "btn btn-primary"
-        )
+        ),
+        shiny::uiOutput(ns("save_policy_action")),
+        shiny::uiOutput(ns("save_policy_status"))
       )
     ),
     stale_banner_ui("export", ns = ns),
@@ -89,6 +91,10 @@ mod_export_server <- function(id, state) {
       )
     }
 
+    policy_readiness <- shiny::reactive({
+      generator_workspace_readiness(state)
+    })
+
     output$stale__export <- shiny::renderText({
       if (isTRUE(state$stale$export)) {
         "true"
@@ -98,6 +104,52 @@ mod_export_server <- function(id, state) {
     })
 
     shiny::outputOptions(output, "stale__export", suspendWhenHidden = FALSE)
+
+    output$save_policy_action <- shiny::renderUI({
+      readiness <- policy_readiness()
+      if (isTRUE(readiness$ready)) {
+        return(shiny::tags$div(
+          style = "margin-top:8px;",
+          shiny::downloadButton(
+            session$ns("save_policy"),
+            label = "Save policy (.rds)",
+            class = "btn btn-secondary"
+          )
+        ))
+      }
+      shiny::tags$div(
+        style = "margin-top:8px;",
+        shiny::tags$button(
+          type = "button",
+          class = "btn btn-secondary",
+          disabled = "disabled",
+          "Save policy (.rds)"
+        ),
+        shiny::tags$p(
+          class = "help",
+          style = "margin:6px 0 0;",
+          "Complete comparison and privacy review before saving a policy."
+        )
+      )
+    })
+
+    output$save_policy_status <- shiny::renderUI({
+      saved <- state$generator_policy_last_saved
+      if (is.null(saved)) {
+        return(NULL)
+      }
+      shiny::tags$p(
+        class = "help",
+        style = "margin:8px 0 0;",
+        paste0(
+          "Last saved policy token: ",
+          saved$token,
+          " (source hash ",
+          saved$source_hash,
+          ")."
+        )
+      )
+    })
 
     # Summary-only exact-match state for the export gate.  The potentially
     # large per-column detail table is a UI concern and is not materialized
@@ -389,6 +441,30 @@ mod_export_server <- function(id, state) {
         )
         file.copy(from = artefact, to = file, overwrite = TRUE)
         invisible(NULL)
+      }
+    )
+
+    output$save_policy <- shiny::downloadHandler(
+      filename = function() {
+        paste0("generator_policy_", format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC"), ".rds")
+      },
+      content = function(file) {
+        readiness <- generator_workspace_readiness(state)
+        if (!isTRUE(readiness$ready)) {
+          stop(
+            paste(
+              "Policy save requires a ready session policy.",
+              paste(readiness$blockers, collapse = " ")
+            ),
+            call. = FALSE
+          )
+        }
+        policy <- save_generator_policy(state, file)
+        state$generator_policy_last_saved <- list(
+          token = substr(policy$source_hash, 1L, 12L),
+          source_hash = policy$source_hash,
+          created_at = policy$created_at
+        )
       }
     )
   })
