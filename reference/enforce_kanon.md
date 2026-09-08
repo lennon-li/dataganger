@@ -31,12 +31,24 @@ enforce_kanon(synthetic, roles, k = 5, max_steps = 6L, max_suppress_frac = 0.2)
 
 - max_suppress_frac:
 
-  Feasibility backstop. If satisfying `k` over the quasi-identifier set
-  would require blanking more than this fraction of rows, k-anonymity is
-  treated as infeasible for the chosen quasi-identifier (QI) set: the
-  coarsening and suppression steps are *not* applied, the synthetic
-  output is returned populated, and a warning explains that no
-  k-anonymity protection was applied to that output. Default 0.2.
+  Feasibility backstop, default 0.2. Measured on the rows that are still
+  below `k` after coarsening, *before* any suppression runs. If that
+  fraction exceeds `max_suppress_frac`, k-anonymity is treated as
+  infeasible for the chosen quasi-identifier (QI) set: the coarsening
+  and suppression steps are *not* applied, the synthetic output is
+  returned populated, and a warning explains that no k-anonymity
+  protection was applied to that output.
+
+  This is a pre-check on how much is *already* at risk, not a cap on how
+  much gets blanked. The blanking that follows can exceed
+  `max_suppress_frac`, because suppression works at cell granularity and
+  because the NA bucket it creates may itself be smaller than `k` and
+  have to absorb whole neighbouring cells to reach it. A dataset with
+  only a couple of rows below `k` sitting next to one dominant cell can
+  therefore pass this backstop and still end up with most of its QI
+  columns blanked. Read `suppressed_row_frac` on the returned `kanon`
+  attribute for what was actually blanked; that is the number to check,
+  not this parameter.
 
 ## Value
 
