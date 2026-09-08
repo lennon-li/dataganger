@@ -367,23 +367,49 @@ is missing or malformed, with the shorter message “The generator must be
 re-frozen.”</p>
 </div>
 <div class="section level2">
-<h2 id="the-agent-generate-only-route">The Agent generate-only route<a class="anchor" aria-label="anchor" href="#the-agent-generate-only-route"></a>
+<h2 id="generation-by-an-agent">Generation by an agent<a class="anchor" aria-label="anchor" href="#generation-by-an-agent"></a>
 </h2>
 <p>A frozen generator makes it possible for a coding agent to obtain a
-fresh synthetic bundle without any access to the real data, using a
-two-process route:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="ex">dataganger</span> agent status   <span class="at">--contract-id</span> <span class="op">&lt;</span>id<span class="op">&gt;</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="ex">dataganger</span> agent generate <span class="at">--contract-id</span> <span class="op">&lt;</span>id<span class="op">&gt;</span> --out bundle.zip <span class="at">--n</span> 500</span></code></pre></div>
+fresh synthetic bundle without any access to the real data. Once a human
+has frozen and approved a generator, generation runs from the fitted
+state alone, so the ordinary store route works for an agent exactly as
+it does for a human:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="ex">dataganger</span> generator generate <span class="at">--store</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span> --contract-id <span class="op">&lt;</span>id<span class="op">&gt;</span> --out bundle.zip <span class="at">--n</span> 500</span></code></pre></div>
+<p>The privacy machinery is caller-independent and fails closed: the
+approved seed, row-count, and dataset-count bounds are enforced,
+k-anonymity enforcement and the keyed exact-row check run on every
+request, and a flagged generation is not written unless a human passes
+the corresponding acknowledgement flag. This is the expected route for
+an agent operating inside the operator’s trust boundary, and it is what
+the shipped agent skill documents.</p>
+<p>On that route the generate-only restriction is <strong>policy, not an
+enforced boundary</strong>: an agent holding a store path could also
+reach <code>revoke</code> and <code>destroy</code>, or read the store
+directly. That is a lifecycle and blast-radius concern rather than a
+disclosure one – generation never touches source data either way – and
+for an agent the operator already trusts, it is handled by
+instruction.</p>
+<div class="section level3">
+<h3 id="optional-hardened-route-two-process-isolation">Optional hardened route: two-process isolation<a class="anchor" aria-label="anchor" href="#optional-hardened-route-two-process-isolation"></a>
+</h3>
+<p>For hosts that want the generate-only restriction enforced by the OS
+rather than by instruction, the package also ships a two-process
+route:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="ex">dataganger</span> agent status   <span class="at">--contract-id</span> <span class="op">&lt;</span>id<span class="op">&gt;</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="ex">dataganger</span> agent generate <span class="at">--contract-id</span> <span class="op">&lt;</span>id<span class="op">&gt;</span> --out bundle.zip <span class="at">--n</span> 500</span></code></pre></div>
 <p>The agent client accepts a contract ID and bounded request fields
 only – no store path, no data path, no privacy acknowledgement or
 opt-out. Freezing, approval, revocation, inspection, and migration are
-not reachable from it; they remain human operator actions. The client
-never opens the private store. It reaches a <strong>broker</strong>
-process (<code>dataganger generator-broker --store &lt;dir&gt;</code>),
-which runs as the store-owning account and is the only code on this
-route that opens the store, through exactly one host-whitelisted
-invocation named by the <code>DATAGANGER_AGENT_BROKER</code> environment
-variable.</p>
+not reachable from it. The client never opens the private store. It
+reaches a <strong>broker</strong> process
+(<code>dataganger generator-broker --store &lt;dir&gt;</code>), which
+runs as the store-owning account and is the only code on this route that
+opens the store, through exactly one host-whitelisted invocation named
+by the <code>DATAGANGER_AGENT_BROKER</code> environment variable.</p>
+<p>This route is optional. It is worth configuring only when the calling
+process is genuinely outside the operator’s trust boundary; otherwise
+the store route above is the simpler and intended path.</p>
+</div>
 <div class="section level3">
 <h3 id="where-the-isolation-actually-comes-from">Where the isolation actually comes from<a class="anchor" aria-label="anchor" href="#where-the-isolation-actually-comes-from"></a>
 </h3>
