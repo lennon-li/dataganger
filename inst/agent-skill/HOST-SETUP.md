@@ -1,5 +1,16 @@
 # Reference host configuration for the generate-only agent route
 
+**This configuration is optional.** Once a human has frozen and approved a
+generator, an agent can generate further variations through the ordinary store
+route (`dataganger generator generate --store <dir> --contract-id <id> ...`)
+with no access to the real data and with the same fail-closed privacy checks a
+human gets. That is the intended path for an agent operating inside the
+operator's trust boundary.
+
+Configure the two-process route below only when the calling process is
+genuinely outside that trust boundary and the generate-only restriction must be
+enforced by the operating system rather than by instruction.
+
 The DataGangeR package ships both halves of the agent route and the handshake
 that verifies isolation. It does not create the isolation. The host does.
 

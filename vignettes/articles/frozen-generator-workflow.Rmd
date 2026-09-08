@@ -290,11 +290,35 @@ person who has the source.
 The same fail-closed behaviour applies whenever the exact-row index is missing
 or malformed, with the shorter message "The generator must be re-frozen."
 
-## The Agent generate-only route
+## Generation by an agent
 
 A frozen generator makes it possible for a coding agent to obtain a fresh
-synthetic bundle without any access to the real data, using a two-process
-route:
+synthetic bundle without any access to the real data. Once a human has frozen
+and approved a generator, generation runs from the fitted state alone, so the
+ordinary store route works for an agent exactly as it does for a human:
+
+```sh
+dataganger generator generate --store <dir> --contract-id <id> --out bundle.zip --n 500
+```
+
+The privacy machinery is caller-independent and fails closed: the approved
+seed, row-count, and dataset-count bounds are enforced, k-anonymity enforcement
+and the keyed exact-row check run on every request, and a flagged generation is
+not written unless a human passes the corresponding acknowledgement flag. This
+is the expected route for an agent operating inside the operator's trust
+boundary, and it is what the shipped agent skill documents.
+
+On that route the generate-only restriction is **policy, not an enforced
+boundary**: an agent holding a store path could also reach `revoke` and
+`destroy`, or read the store directly. That is a lifecycle and blast-radius
+concern rather than a disclosure one -- generation never touches source data
+either way -- and for an agent the operator already trusts, it is handled by
+instruction.
+
+### Optional hardened route: two-process isolation
+
+For hosts that want the generate-only restriction enforced by the OS rather
+than by instruction, the package also ships a two-process route:
 
 ```sh
 dataganger agent status   --contract-id <id>
@@ -303,12 +327,16 @@ dataganger agent generate --contract-id <id> --out bundle.zip --n 500
 
 The agent client accepts a contract ID and bounded request fields only -- no
 store path, no data path, no privacy acknowledgement or opt-out. Freezing,
-approval, revocation, inspection, and migration are not reachable from it; they
-remain human operator actions. The client never opens the private store. It
-reaches a **broker** process (`dataganger generator-broker --store <dir>`),
-which runs as the store-owning account and is the only code on this route that
-opens the store, through exactly one host-whitelisted invocation named by the
-`DATAGANGER_AGENT_BROKER` environment variable.
+approval, revocation, inspection, and migration are not reachable from it. The
+client never opens the private store. It reaches a **broker** process
+(`dataganger generator-broker --store <dir>`), which runs as the store-owning
+account and is the only code on this route that opens the store, through
+exactly one host-whitelisted invocation named by the `DATAGANGER_AGENT_BROKER`
+environment variable.
+
+This route is optional. It is worth configuring only when the calling process
+is genuinely outside the operator's trust boundary; otherwise the store route
+above is the simpler and intended path.
 
 ### Where the isolation actually comes from
 
