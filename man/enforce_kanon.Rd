@@ -15,12 +15,23 @@ enforce_kanon(synthetic, roles, k = 5, max_steps = 6L, max_suppress_frac = 0.2)
 
 \item{max_steps}{Maximum coarsening iterations (default 6).}
 
-\item{max_suppress_frac}{Feasibility backstop. If satisfying \code{k} over the
-quasi-identifier set would require blanking more than this fraction of
-rows, k-anonymity is treated as infeasible for the chosen quasi-identifier
-(QI) set: the coarsening and suppression steps are \emph{not} applied, the
-synthetic output is returned populated, and a warning explains that no
-k-anonymity protection was applied to that output. Default 0.2.}
+\item{max_suppress_frac}{Feasibility backstop, default 0.2. Measured on the
+rows that are still below \code{k} after coarsening, \emph{before} any suppression
+runs. If that fraction exceeds \code{max_suppress_frac}, k-anonymity is treated
+as infeasible for the chosen quasi-identifier (QI) set: the coarsening and
+suppression steps are \emph{not} applied, the synthetic output is returned
+populated, and a warning explains that no k-anonymity protection was
+applied to that output.
+
+This is a pre-check on how much is \emph{already} at risk, not a cap on how
+much gets blanked. The blanking that follows can exceed
+\code{max_suppress_frac}, because suppression works at cell granularity and
+because the NA bucket it creates may itself be smaller than \code{k} and have
+to absorb whole neighbouring cells to reach it. A dataset with only a
+couple of rows below \code{k} sitting next to one dominant cell can therefore
+pass this backstop and still end up with most of its QI columns blanked.
+Read \code{suppressed_row_frac} on the returned \code{kanon} attribute for what was
+actually blanked; that is the number to check, not this parameter.}
 }
 \value{
 The shaped \code{synthetic} data frame, with an attribute \code{kanon}

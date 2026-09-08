@@ -9,12 +9,23 @@
 #' @param roles A roles object/data frame with `variable` + `disclosure_role`.
 #' @param k Minimum cell size (default 5).
 #' @param max_steps Maximum coarsening iterations (default 6).
-#' @param max_suppress_frac Feasibility backstop. If satisfying `k` over the
-#'   quasi-identifier set would require blanking more than this fraction of
-#'   rows, k-anonymity is treated as infeasible for the chosen quasi-identifier
-#'   (QI) set: the coarsening and suppression steps are *not* applied, the
-#'   synthetic output is returned populated, and a warning explains that no
-#'   k-anonymity protection was applied to that output. Default 0.2.
+#' @param max_suppress_frac Feasibility backstop, default 0.2. Measured on the
+#'   rows that are still below `k` after coarsening, *before* any suppression
+#'   runs. If that fraction exceeds `max_suppress_frac`, k-anonymity is treated
+#'   as infeasible for the chosen quasi-identifier (QI) set: the coarsening and
+#'   suppression steps are *not* applied, the synthetic output is returned
+#'   populated, and a warning explains that no k-anonymity protection was
+#'   applied to that output.
+#'
+#'   This is a pre-check on how much is *already* at risk, not a cap on how
+#'   much gets blanked. The blanking that follows can exceed
+#'   `max_suppress_frac`, because suppression works at cell granularity and
+#'   because the NA bucket it creates may itself be smaller than `k` and have
+#'   to absorb whole neighbouring cells to reach it. A dataset with only a
+#'   couple of rows below `k` sitting next to one dominant cell can therefore
+#'   pass this backstop and still end up with most of its QI columns blanked.
+#'   Read `suppressed_row_frac` on the returned `kanon` attribute for what was
+#'   actually blanked; that is the number to check, not this parameter.
 #'
 #' @return The shaped `synthetic` data frame, with an attribute `kanon`
 #'   recording the achieved state (`smallest_cell`, `suppressed_cells`,
@@ -83,11 +94,15 @@ enforce_kanon <- function(synthetic, roles, k = 5, max_steps = 6L,
     }
   }
 
-  # Feasibility backstop. If reaching k would blank more than `max_suppress_frac`
-  # of rows, the QI set is too wide to anonymise without destroying the data
+  # Feasibility backstop. If the rows already below k exceed `max_suppress_frac`,
+  # the QI set is too wide to anonymise without destroying the data
   # (e.g. 9 quasi-identifiers over a few hundred rows). Rather than ship a
   # mostly-NA dataset, back off entirely: return the populated (uncoarsened)
   # synthetic and tell the user how to make enforcement feasible.
+  # Note this is measured BEFORE suppression, so it bounds what is already at
+  # risk, not what ends up blanked -- cell-granularity suppression and the
+  # NA-bucket absorption below can both blank considerably more. That is what
+  # `suppressed_row_frac` reports.
   res <- assess_kanonymity(synthetic, qi_cols, k)
   n_rows <- nrow(synthetic)
   would_suppress <- if (!is.na(res$smallest_cell) && res$smallest_cell < k) {
