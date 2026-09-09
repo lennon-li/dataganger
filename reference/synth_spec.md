@@ -115,6 +115,17 @@ synth_spec(
   - `preserve_missingness` — how closely to reproduce the original
     pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
 
+  - `synthpop_method` — (advanced; `engine = "synthpop"` only) which
+    per-variable synthesising method
+    [`synthpop::syn()`](https://rdrr.io/pkg/synthpop/man/syn.html) uses:
+    `"cart"` (default; unconditional CART for every variable, unchanged
+    from prior releases) or `"parametric"` (conservative automatic
+    per-variable selection: `normrank` for numeric, `logreg` for
+    two-level factors, `polyreg` for unordered factors with more levels,
+    `polr` for ordered factors – synthpop's own type-driven defaults,
+    which draw from a fitted distribution rather than CART's
+    nearest-neighbour donor imputation).
+
 ## Value
 
 An S3 object of class `dataganger_spec` (a named list).

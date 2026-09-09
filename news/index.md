@@ -174,6 +174,19 @@ reusable fitted generator so the real data is opened once.
   behavior without `roles`, or without a `disclosure_role`, is
   unchanged.
 
+### Advanced, opt-in per-variable synthpop method selection (SYN-4)
+
+- `synth_spec(..., synthpop_method = "parametric")` is a new, advanced
+  (`engine = "synthpop"` only) option. It hands per-variable method
+  selection to synthpop’s own type-driven defaults – `normrank` for
+  numeric variables, `logreg` for two-level factors, `polyreg` for
+  unordered factors with more levels, `polr` for ordered factors –
+  instead of running CART (nearest-neighbour donor imputation) on every
+  column regardless of type. Default is `synthpop_method = "cart"`,
+  which reproduces every prior release’s behavior exactly; nothing
+  changes unless this is set explicitly. CLI/spec only for now; a Shiny
+  “advanced options” control is planned separately.
+
 ### Documentation
 
 - A new article, “Frozen generators: freeze once, generate many”,

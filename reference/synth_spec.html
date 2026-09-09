@@ -149,6 +149,15 @@ to reinforce privacy hardening when a pre-stage check flags a
 free-text column as high risk.</p></li>
 <li><p><code>preserve_missingness</code> — how closely to reproduce the original
 pattern of missing (<code>NA</code>) values (<code>"approx"</code>, <code>"exact"</code>, <code>"none"</code>).</p></li>
+<li><p><code>synthpop_method</code> — (advanced; <code>engine = "synthpop"</code> only) which
+per-variable synthesising method <code><a href="https://rdrr.io/pkg/synthpop/man/syn.html" class="external-link">synthpop::syn()</a></code> uses: <code>"cart"</code>
+(default; unconditional CART for every variable, unchanged from prior
+releases) or <code>"parametric"</code> (conservative automatic per-variable
+selection: <code>normrank</code> for numeric, <code>logreg</code> for two-level factors,
+<code>polyreg</code> for unordered factors with more levels, <code>polr</code> for ordered
+factors – synthpop's own type-driven defaults, which draw from a
+fitted distribution rather than CART's nearest-neighbour donor
+imputation).</p></li>
 </ul></dd>
 
 </dl></div>
