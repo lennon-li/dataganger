@@ -58,6 +58,15 @@
 #'       free-text column as high risk.
 #'     \item `preserve_missingness` --- how closely to reproduce the original
 #'       pattern of missing (`NA`) values (`"approx"`, `"exact"`, `"none"`).
+#'     \item `synthpop_method` --- (advanced; `engine = "synthpop"` only) which
+#'       per-variable synthesising method `synthpop::syn()` uses: `"cart"`
+#'       (default; unconditional CART for every variable, unchanged from prior
+#'       releases) or `"parametric"` (conservative automatic per-variable
+#'       selection: `normrank` for numeric, `logreg` for two-level factors,
+#'       `polyreg` for unordered factors with more levels, `polr` for ordered
+#'       factors -- synthpop's own type-driven defaults, which draw from a
+#'       fitted distribution rather than CART's nearest-neighbour donor
+#'       imputation).
 #'   }
 #'
 #' @return An S3 object of class `dataganger_spec` (a named list).
@@ -170,6 +179,7 @@ preset_table <- function(purpose) {
       rare_level_min_n    = 5,
       k_anon              = 5,
       preserve_missingness = "approx",
+      synthpop_method     = "cart",
       seed                = NULL
     ),
     development = list(
@@ -184,6 +194,7 @@ preset_table <- function(purpose) {
       rare_level_min_n    = 5,
       k_anon              = 5,
       preserve_missingness = "approx",
+      synthpop_method     = "cart",
       seed                = NULL
     ),
     analytics = list(
@@ -198,6 +209,7 @@ preset_table <- function(purpose) {
       rare_level_min_n    = 5,
       k_anon              = 5,
       preserve_missingness = "approx",
+      synthpop_method     = "cart",
       seed                = NULL
     ),
     cli::cli_abort("Unknown purpose: {.val {purpose}}")
@@ -289,6 +301,16 @@ validate_spec <- function(spec, purpose, acknowledge_risk, roles) {
     cli::cli_abort(c(
       "Invalid label_strategy: {.val {spec$label_strategy}}",
       "i" = "Valid values: {.val {valid_label_strategies}}"
+    ))
+  }
+
+  # Validate synthpop_method
+  valid_synthpop_methods <- c("cart", "parametric")
+  if (!is.null(spec$synthpop_method) &&
+      !spec$synthpop_method %in% valid_synthpop_methods) {
+    cli::cli_abort(c(
+      "Invalid synthpop_method: {.val {spec$synthpop_method}}",
+      "i" = "Valid values: {.val {valid_synthpop_methods}}"
     ))
   }
 

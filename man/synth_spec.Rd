@@ -81,6 +81,15 @@ to reinforce privacy hardening when a pre-stage check flags a
 free-text column as high risk.
 \item \code{preserve_missingness} --- how closely to reproduce the original
 pattern of missing (\code{NA}) values (\code{"approx"}, \code{"exact"}, \code{"none"}).
+\item \code{synthpop_method} --- (advanced; \code{engine = "synthpop"} only) which
+per-variable synthesising method \code{synthpop::syn()} uses: \code{"cart"}
+(default; unconditional CART for every variable, unchanged from prior
+releases) or \code{"parametric"} (conservative automatic per-variable
+selection: \code{normrank} for numeric, \code{logreg} for two-level factors,
+\code{polyreg} for unordered factors with more levels, \code{polr} for ordered
+factors -- synthpop's own type-driven defaults, which draw from a
+fitted distribution rather than CART's nearest-neighbour donor
+imputation).
 }}
 }
 \value{

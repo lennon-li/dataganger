@@ -30,6 +30,52 @@ test_that("spec_to_synthpop_args() omits smoothing for pure-integer data", {
   expect_null(args$smoothing)
 })
 
+test_that("spec_to_synthpop_args() defaults method to cart (unchanged behaviour)", {
+  df <- data.frame(x = 1:25, y = rep(1:5, length.out = 25))
+  spec <- synth_spec(purpose = "demo")
+  args <- spec_to_synthpop_args(spec, roles = NULL, data = df)
+  expect_equal(args$method, "cart")
+})
+
+test_that("spec_to_synthpop_args() forwards an explicit parametric method (SYN-4)", {
+  df <- data.frame(x = 1:25, y = rep(1:5, length.out = 25))
+  spec <- synth_spec(purpose = "demo", synthpop_method = "parametric")
+  args <- spec_to_synthpop_args(spec, roles = NULL, data = df)
+  expect_equal(args$method, "parametric")
+})
+
+test_that("synth_spec() rejects an invalid synthpop_method", {
+  expect_error(
+    synth_spec(purpose = "demo", synthpop_method = "rf"),
+    "Invalid synthpop_method"
+  )
+})
+
+test_that("synthesize_synthpop() with synthpop_method = 'parametric' dispatches per-variable methods (SYN-4)", {
+  skip_if_no_synthpop()
+  df <- data.frame(
+    measurement = rnorm(200),
+    reply       = factor(sample(c("Y", "N"), 200, TRUE)),
+    favorite    = factor(sample(c("red", "blue", "green", "yellow"), 200, TRUE)),
+    stringsAsFactors = FALSE
+  )
+  roles <- detect_roles(df)
+  spec <- synth_spec(
+    purpose = "demo", n = 50L, seed = 42L, synthpop_method = "parametric"
+  )
+  syn_args <- spec_to_synthpop_args(spec, roles, df)
+  result <- do.call(synthpop::syn, syn_args)
+
+  # synthpop's own type-driven defaults: the first-visited variable has no
+  # predictors and is drawn by "sample"; later variables get logreg
+  # (two-level factor) or polyreg (unordered factor with more levels) --
+  # never blanket "cart".
+  expect_equal(
+    result$method,
+    c(measurement = "sample", reply = "logreg", favorite = "polyreg")
+  )
+})
+
 test_that("synthpop_visit_sequence() tiers quasi/none/NA ahead of sensitive", {
   roles <- data.frame(
     variable = c("a", "b", "c", "d", "e"),

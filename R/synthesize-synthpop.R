@@ -163,6 +163,17 @@ spec_to_synthpop_args <- function(spec, roles, data) {
 
   args$visit.sequence <- synthpop_visit_sequence(names(work), roles)
 
+  # SYN-4: advanced, opt-in per-variable method selection. "cart" (default)
+  # reproduces every prior release's behaviour unconditionally. "parametric"
+  # hands variable-type dispatch to synthpop's own `default.method`
+  # (normrank/logreg/polyreg/polr, verified empirically against the
+  # installed synthpop version) instead of running CART -- a nearest-
+  # neighbour donor method -- on every column regardless of type. This is a
+  # single scalar applied to the whole `method` argument, not a per-column
+  # vector we hand-roll, so variable-type dispatch stays inside synthpop's
+  # own tested code rather than being reimplemented here.
+  args$method <- spec$synthpop_method %||% "cart"
+
   num_cont <- names(work)[vapply(work, is_continuous_numeric, logical(1))]
   if (length(num_cont)) {
     # synthpop::syn() requires `smoothing` as a named list, not a named vector
