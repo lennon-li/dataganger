@@ -575,6 +575,25 @@ mod_synthesis_controls_server <- function(id, state) {
               " \u2014 models columns conditionally on one another, so correlations and joint structure are preserved. Higher fidelity; requires the synthpop package."
             )
           ),
+          # SYN-4: advanced, opt-in per-variable synthpop method selection.
+          # Only shown when the engine dropdown is explicitly set to
+          # "synthpop" -- the JS condition below can't see the "auto"-derived
+          # engine, so a spec that resolves to synthpop via "auto" still gets
+          # the "cart" default, matching CLI behaviour without this control.
+          shiny::conditionalPanel(
+            condition = "input.engine === 'synthpop'",
+            ns = session$ns,
+            shiny::selectInput(
+              inputId = session$ns("synthpop_method"),
+              label = "synthpop per-variable method (advanced)",
+              choices = c(
+                "cart (default; same model for every variable)" = "cart",
+                "parametric (conservative: normrank / logreg / polyreg / polr by variable type)" = "parametric"
+              ),
+              selected = preset$synthpop_method %||% "cart"
+            ),
+            setting_hint("Advanced. \"Parametric\" fits a distribution per variable type instead of CART's nearest-neighbour donor matching -- can be less prone to reproducing an exact real value in a small group. Leave as \"cart\" unless you have a specific reason to change it.")
+          ),
           shiny::numericInput(
             inputId = session$ns("seed"),
             label = "Seed",
@@ -852,6 +871,17 @@ mod_synthesis_controls_server <- function(id, state) {
         NULL
       }
 
+      # SYN-4: only forward an explicit non-default choice. The control is
+      # only visible when input$engine === "synthpop", so this stays "cart"
+      # (unchanged behaviour) for internal/auto engine choices even if a
+      # stale value lingers in the input after switching engines.
+      synthpop_method_arg <- if (identical(input$engine, "synthpop") &&
+                                  !is.null(input$synthpop_method)) {
+        input$synthpop_method
+      } else {
+        "cart"
+      }
+
       tryCatch(
         synth_spec(
           purpose = purpose,
@@ -866,6 +896,7 @@ mod_synthesis_controls_server <- function(id, state) {
           merge_rare = isTRUE(input$merge_rare %||% preset$merge_rare),
           free_text_strategy = preset$free_text_strategy,
           preserve_missingness = input$preserve_missingness %||% preset$preserve_missingness %||% "approx",
+          synthpop_method = synthpop_method_arg,
           engine = engine_arg
         ),
         error = function(e) {

@@ -80,6 +80,57 @@ test_that("demo spec uses preset name and geography strategies", {
   })
 })
 
+test_that("SYN-4: default spec keeps synthpop_method = 'cart' with no engine override", {
+  testthat::skip_if_not_installed("shiny")
+
+  shiny::testServer(synth_controls_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`controls-purpose_group` = "development")
+    session$flushReact()
+    session$setInputs(`controls-confirm` = 1L)
+    session$flushReact()
+
+    expect_identical(state$spec$synthpop_method, "cart")
+  })
+})
+
+test_that("SYN-4: explicit synthpop engine + parametric method reaches the spec", {
+  testthat::skip_if_not_installed("shiny")
+
+  shiny::testServer(synth_controls_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`controls-purpose_group` = "development")
+    session$setInputs(`controls-engine` = "synthpop")
+    session$setInputs(`controls-synthpop_method` = "parametric")
+    session$flushReact()
+    session$setInputs(`controls-confirm` = 1L)
+    session$flushReact()
+
+    expect_identical(state$spec$engine, "synthpop")
+    expect_identical(state$spec$synthpop_method, "parametric")
+  })
+})
+
+test_that("SYN-4: synthpop_method stays 'cart' when engine is not explicitly synthpop", {
+  testthat::skip_if_not_installed("shiny")
+
+  shiny::testServer(synth_controls_host_server, {
+    state <- session$getReturned()$state
+
+    session$setInputs(`controls-purpose_group` = "development")
+    session$setInputs(`controls-engine` = "internal")
+    # Simulate a stale value left over from a previous "synthpop" selection.
+    session$setInputs(`controls-synthpop_method` = "parametric")
+    session$flushReact()
+    session$setInputs(`controls-confirm` = 1L)
+    session$flushReact()
+
+    expect_identical(state$spec$synthpop_method, "cart")
+  })
+})
+
 test_that("confirming a changed spec sets all stale flags", {
   testthat::skip_if_not_installed("shiny")
 
@@ -257,6 +308,24 @@ test_that("k readout counts combinations and rows below the chosen k", {
       expect_match(html, "3 distinct combinations", fixed = TRUE)
       expect_match(html, "3 of them are held by fewer than 5 rows", fixed = TRUE)
       expect_match(html, "12 of 12 rows (100%)", fixed = TRUE)
+    }
+  )
+})
+
+test_that("SYN-4: the advanced method control is gated behind an explicit synthpop engine", {
+  testthat::skip_if_not_installed("shiny")
+
+  df <- hint_fixture()
+  shiny::testServer(
+    mod_synthesis_controls_server,
+    args = list(state = hint_state(df, hint_roles(df))),
+    {
+      session$setInputs(purpose_group = "development")
+      session$flushReact()
+
+      panel <- as.character(output$advanced_settings$html)
+      expect_match(panel, "data-display-if=\"input.engine === &#39;synthpop&#39;\"", fixed = TRUE)
+      expect_match(panel, "synthpop per-variable method", fixed = TRUE)
     }
   )
 })

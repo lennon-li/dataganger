@@ -44,13 +44,6 @@ test_that("spec_to_synthpop_args() forwards an explicit parametric method (SYN-4
   expect_equal(args$method, "parametric")
 })
 
-test_that("synth_spec() rejects an invalid synthpop_method", {
-  expect_error(
-    synth_spec(purpose = "demo", synthpop_method = "rf"),
-    "Invalid synthpop_method"
-  )
-})
-
 test_that("synthesize_synthpop() with synthpop_method = 'parametric' dispatches per-variable methods (SYN-4)", {
   skip_if_no_synthpop()
   df <- data.frame(

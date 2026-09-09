@@ -192,6 +192,52 @@ test_that("synth_spec() print method works", {
   expect_no_error(print(s))
 })
 
+test_that("synth_spec() defaults synthpop_method to 'cart'", {
+  s <- synth_spec(purpose = "demo")
+  expect_identical(s$synthpop_method, "cart")
+})
+
+test_that("synth_spec() accepts an explicit parametric synthpop_method", {
+  s <- synth_spec(purpose = "demo", synthpop_method = "parametric")
+  expect_identical(s$synthpop_method, "parametric")
+})
+
+test_that("synth_spec() rejects an invalid synthpop_method", {
+  expect_error(
+    synth_spec(purpose = "demo", synthpop_method = "rf"),
+    "Invalid synthpop_method"
+  )
+})
+
+test_that("print.dataganger_spec() surfaces a non-default synthpop_method", {
+  s <- synth_spec(purpose = "demo", synthpop_method = "parametric")
+  msgs <- character()
+  withCallingHandlers(
+    print(s),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  out <- paste(msgs, collapse = "")
+  expect_match(out, "synthpop method")
+  expect_match(out, "parametric")
+})
+
+test_that("print.dataganger_spec() stays silent on the default synthpop_method", {
+  s <- synth_spec(purpose = "demo")
+  msgs <- character()
+  withCallingHandlers(
+    print(s),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  out <- paste(msgs, collapse = "")
+  expect_no_match(out, "synthpop method")
+})
+
 test_that("synth_spec() records purpose", {
   s <- synth_spec(purpose = "development")
   expect_equal(s$purpose, "development")

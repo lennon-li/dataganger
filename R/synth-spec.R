@@ -399,6 +399,9 @@ print.dataganger_spec <- function(x, ...) {
   cli::cli_li("Preserve missingness: {.val {x$preserve_missingness}}")
   engine <- x[["engine", exact = TRUE]] %||% "auto (derived from objective)"
   cli::cli_li("Engine: {.val {engine}}")
+  if (identical(x$synthpop_method, "parametric")) {
+    cli::cli_li("synthpop method: {.val parametric} (advanced; per-variable-type dispatch instead of blanket CART)")
+  }
 
   if (!is.null(x$seed)) {
     cli::cli_h3("Seed")
