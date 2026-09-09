@@ -132,6 +132,23 @@ fitted generator so the real data is opened once.
     low replicated uniqueness does not guarantee immunity from
     re-identification.
 
+## synthpop synthesis uses a role-aware column visit order (SYN-3)
+
+*   The synthpop engine previously visited columns, and therefore built its
+    CART predictor eligibility, in raw upload column order -- an accident of
+    the source file, not a privacy-aware choice. A sensitive attribute that
+    happened to load early could become a predictor for quasi-identifier
+    columns synthesized afterward, letting sensitive values shape other
+    people's synthetic quasi-identifier values with no utility benefit (the
+    useful direction is quasi-identifiers predicting a sensitive attribute,
+    which is what the SYN-1 disclosure diagnostics evaluate, not the reverse).
+    When `roles` identify a `disclosure_role`, synthesized columns are now
+    visited quasi/unclassified columns first (original order preserved),
+    sensitive columns last, so a sensitive column can never be a CART
+    predictor for a quasi or unclassified column. Output column order and
+    values are otherwise unaffected; behavior without `roles`, or without a
+    `disclosure_role`, is unchanged.
+
 ## Documentation
 
 *   A new article, "Frozen generators: freeze once, generate many", defines the

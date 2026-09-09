@@ -30,6 +30,108 @@ test_that("spec_to_synthpop_args() omits smoothing for pure-integer data", {
   expect_null(args$smoothing)
 })
 
+test_that("synthpop_visit_sequence() tiers quasi/none/NA ahead of sensitive", {
+  roles <- data.frame(
+    variable = c("a", "b", "c", "d", "e"),
+    disclosure_role = c("sensitive", "quasi", "none", NA_character_, "sensitive"),
+    stringsAsFactors = FALSE
+  )
+  expect_equal(
+    synthpop_visit_sequence(c("a", "b", "c", "d", "e"), roles),
+    c("b", "c", "d", "a", "e")
+  )
+})
+
+test_that("synthpop_visit_sequence() preserves original order within each tier", {
+  roles <- data.frame(
+    variable = c("s1", "q1", "s2", "q2", "q3"),
+    disclosure_role = c("sensitive", "quasi", "sensitive", "quasi", "none"),
+    stringsAsFactors = FALSE
+  )
+  # Non-sensitive (q1, q2, q3) keep their relative order, then sensitive
+  # (s1, s2) keep theirs -- a stable sort, not a re-sort by role name.
+  expect_equal(
+    synthpop_visit_sequence(c("s1", "q1", "s2", "q2", "q3"), roles),
+    c("q1", "q2", "q3", "s1", "s2")
+  )
+})
+
+test_that("synthpop_visit_sequence() falls back to input order without roles", {
+  work_names <- c("z", "a", "m")
+  expect_equal(synthpop_visit_sequence(work_names, roles = NULL), work_names)
+
+  roles_no_disclosure <- data.frame(variable = work_names, recommended_role = "categorical")
+  expect_equal(synthpop_visit_sequence(work_names, roles_no_disclosure), work_names)
+
+  roles_no_variable <- data.frame(disclosure_role = c("sensitive", "quasi", "none"))
+  expect_equal(synthpop_visit_sequence(work_names, roles_no_variable), work_names)
+})
+
+test_that("synthpop_visit_sequence() is a no-op reorder when no column is sensitive", {
+  work_names <- c("a", "b", "c")
+  roles <- data.frame(
+    variable = work_names,
+    disclosure_role = c("quasi", "none", NA_character_),
+    stringsAsFactors = FALSE
+  )
+  expect_equal(synthpop_visit_sequence(work_names, roles), work_names)
+})
+
+test_that("spec_to_synthpop_args() sets a role-aware visit.sequence", {
+  df <- data.frame(a = 1:20, b = 1:20, c = 1:20)
+  roles <- data.frame(
+    variable = c("a", "b", "c"),
+    disclosure_role = c("sensitive", "quasi", "none"),
+    recommended_role = "categorical",
+    stringsAsFactors = FALSE
+  )
+  spec <- synth_spec(purpose = "demo")
+  args <- spec_to_synthpop_args(spec, roles, df)
+  expect_equal(args$visit.sequence, c("b", "c", "a"))
+})
+
+test_that("spec_to_synthpop_args() keeps raw column order without disclosure_role", {
+  df <- data.frame(a = 1:20, b = 1:20, c = 1:20)
+  spec <- synth_spec(purpose = "demo")
+  args <- spec_to_synthpop_args(spec, roles = NULL, data = df)
+  expect_equal(args$visit.sequence, names(df))
+})
+
+test_that("synthesize_synthpop() never lets a sensitive column predict a quasi/none column", {
+  skip_if_no_synthpop()
+  n <- 60
+  df <- data.frame(
+    age       = rep(1:6, length.out = n),
+    diagnosis = rep(letters[1:3], length.out = n),
+    province  = rep(c("ON", "BC", "QC"), length.out = n),
+    stringsAsFactors = FALSE
+  )
+  roles <- data.frame(
+    variable = c("age", "diagnosis", "province"),
+    disclosure_role = c("quasi", "sensitive", "quasi"),
+    recommended_role = "categorical",
+    stringsAsFactors = FALSE
+  )
+  spec <- synth_spec(purpose = "demo", seed = 1L)
+  syn_args <- spec_to_synthpop_args(spec, roles, df)
+  result <- do.call(synthpop::syn, syn_args)
+
+  quasi_cols <- c("age", "province")
+  sensitive_cols <- "diagnosis"
+  # predictor.matrix[target, predictor]: a sensitive column must never be a
+  # predictor of a quasi/none column, whatever dimname order synthpop reports
+  # the matrix in.
+  submatrix <- result$predictor.matrix[quasi_cols, sensitive_cols, drop = FALSE]
+  expect_true(
+    all(submatrix == 0),
+    info = paste(
+      "predictor.matrix[quasi/none, sensitive] must be all zero",
+      "(no sensitive column may predict a quasi/none column):",
+      paste(capture.output(print(submatrix)), collapse = "\n")
+    )
+  )
+})
+
 test_that("synthesize_synthpop() returns a tibble with same columns", {
   skip_if_no_synthpop()
   df   <- data.frame(x = 1:20, y = letters[rep(1:4, 5)], stringsAsFactors = FALSE)

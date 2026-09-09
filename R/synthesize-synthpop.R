@@ -161,6 +161,8 @@ spec_to_synthpop_args <- function(spec, roles, data) {
   if (!is.null(spec$seed)) args$seed <- as.integer(spec$seed)
   if (!is.null(spec$n))    args$k    <- as.integer(spec$n)
 
+  args$visit.sequence <- synthpop_visit_sequence(names(work), roles)
+
   num_cont <- names(work)[vapply(work, is_continuous_numeric, logical(1))]
   if (length(num_cont)) {
     # synthpop::syn() requires `smoothing` as a named list, not a named vector
@@ -168,6 +170,38 @@ spec_to_synthpop_args <- function(spec, roles, data) {
   }
 
   args
+}
+
+# SYN-3: role-aware visit order for synthpop::syn(). synthpop's own default
+# (predictor.matrix = NULL) derives predictor eligibility purely from
+# visit.sequence position: a column visited at step t may use any column
+# visited at steps 1..t-1 as a CART predictor, and nothing after. Output
+# column order in result$syn is unaffected by visit.sequence -- it always
+# mirrors the input data frame's column order -- so reordering here is safe.
+#
+# Left at synthpop's raw default (names(work) unmodified, equivalent to
+# 1:ncol(work)) whenever roles is absent or carries no disclosure_role, so
+# behaviour without roles is unchanged.
+#
+# With disclosure_role available, columns are tiered quasi/none/NA (visited
+# first, stable original order preserved) ahead of sensitive (visited last).
+# This keeps the useful quasi -> sensitive prediction direction (what
+# compare_disclosure()'s DiSCO/replicated-uniques diagnostics evaluate) while
+# preventing the reverse: a sensitive column can never be a CART predictor for
+# a quasi or unclassified column, only for another later-visited sensitive
+# column or itself downstream. Returns character names, not integer
+# positions, so the order stays correct regardless of ID/free-text/bridge
+# columns already excluded from `work` upstream.
+synthpop_visit_sequence <- function(work_names, roles) {
+  if (is.null(roles) || !all(c("variable", "disclosure_role") %in% names(roles))) {
+    return(work_names)
+  }
+
+  role_lookup <- stats::setNames(as.character(roles$disclosure_role), roles$variable)
+  col_role <- unname(role_lookup[work_names])
+  is_sensitive <- !is.na(col_role) & col_role == "sensitive"
+
+  c(work_names[!is_sensitive], work_names[is_sensitive])
 }
 
 # Columns excluded from the synthpop call itself by role alone (alphanumeric
