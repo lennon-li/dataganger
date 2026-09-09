@@ -184,8 +184,10 @@ reusable fitted generator so the real data is opened once.
   instead of running CART (nearest-neighbour donor imputation) on every
   column regardless of type. Default is `synthpop_method = "cart"`,
   which reproduces every prior release’s behavior exactly; nothing
-  changes unless this is set explicitly. CLI/spec only for now; a Shiny
-  “advanced options” control is planned separately.
+  changes unless this is set explicitly. Exposed in the app under
+  Advanced settings -\> Output settings, visible only when the Engine
+  dropdown is explicitly set to `synthpop` (the “auto” engine still
+  resolves to `"cart"` regardless).
 
 ### Documentation
 
