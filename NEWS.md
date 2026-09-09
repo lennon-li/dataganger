@@ -1,6 +1,6 @@
-# dataganger (development version)
+# dataganger 0.9.0
 
-A capability release in progress. The pipeline could only ever produce a
+A capability release. The pipeline could only ever produce a
 synthetic dataset by opening the real data again, which made repeated
 generation a repeated privacy event. This adds a reviewed, approved, reusable
 fitted generator so the real data is opened once.
@@ -162,6 +162,27 @@ fitted generator so the real data is opened once.
     this is set explicitly. Exposed in the app under Advanced settings ->
     Output settings, visible only when the Engine dropdown is explicitly set
     to `synthpop` (the "auto" engine still resolves to `"cart"` regardless).
+
+## A package-version mismatch on an approved contract now gets its own clear message
+
+*   **Symptom.** `generator_contract()`'s compatibility block records the
+    package version, schema version, seed algorithm and data-hash algorithm
+    it was created under. Approving or generating from a contract created
+    under a different DataGangeR version -- the normal result of upgrading
+    the package while an older contract is still on file -- failed closed
+    with the same generic message used for genuine tampering (an edited
+    fingerprint, revision, risk report, or bounds), giving no indication that
+    this was an expected version boundary rather than an integrity failure.
+
+*   **Fix.** A compatibility-envelope mismatch is never itself evidence of
+    tampering -- it is entirely a function of the installed package, not of
+    anything an attacker could forge to look legitimate -- so it now raises
+    its own `dataganger_generator_store_error` (not the tamper-specific
+    class), naming exactly which compatibility fields differ (most often just
+    `package_version`, recorded vs. running) and stating that the generator
+    must be re-frozen and re-approved under the current package version. Real
+    tampering checks (fingerprint, revision, risk report, bounds) are
+    unaffected and keep raising `dataganger_generator_store_tamper_error`.
 
 ## Documentation
 

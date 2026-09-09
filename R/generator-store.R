@@ -498,9 +498,53 @@ generator_store_validate_contract_generator <- function(contract, generator,
     abort("Contract policy is not derived from the fitted generator.")
   }
   if (!identical(contract$compatibility, expected_compatibility)) {
-    abort("Contract compatibility is not derived from this DataGangeR runtime.")
+    # A compatibility mismatch is never evidence of tampering: the
+    # compatibility block is entirely derived from the running package
+    # (package_version, schema_version, seed_algorithm, engine,
+    # data_hash_algorithm) and contains nothing an attacker could forge to
+    # look legitimate. It only ever differs because the installed DataGangeR
+    # version changed since this contract was created/approved -- the same
+    # class of event as PRIV-1's fingerprint-algorithm migration. Always use
+    # the plain (non-tamper) abort here, regardless of what the caller passed
+    # for `abort`, and name which fields actually differ so the message is
+    # actionable instead of alarming.
+    generator_store_abort(generator_store_compatibility_mismatch_message(
+      contract$compatibility, expected_compatibility
+    ))
   }
   invisible(contract)
+}
+
+# Builds an actionable "must be re-frozen and re-approved" message for a
+# contract compatibility mismatch, naming the differing fields (most often
+# just package_version after a routine upgrade) instead of a generic error.
+generator_store_compatibility_mismatch_message <- function(recorded, expected) {
+  fields <- union(names(recorded), names(expected))
+  differing <- Filter(function(field) {
+    !identical(recorded[[field]], expected[[field]])
+  }, fields)
+
+  detail <- vapply(differing, function(field) {
+    sprintf(
+      "%s: recorded %s, running %s",
+      field,
+      format_generator_compat_value(recorded[[field]]),
+      format_generator_compat_value(expected[[field]])
+    )
+  }, character(1L))
+
+  paste0(
+    "This contract's compatibility envelope no longer matches the running ",
+    "DataGangeR installation (", paste(detail, collapse = "; "), "). ",
+    "Byte-for-byte generation is only guaranteed within the exact recorded ",
+    "compatibility envelope, so this generator must be re-frozen and ",
+    "re-approved under the current package version before it can generate again."
+  )
+}
+
+format_generator_compat_value <- function(x) {
+  if (is.null(x)) return("(missing)")
+  paste(as.character(x), collapse = ", ")
 }
 
 generator_store_approve <- function(store, contract, generator_id, approver,

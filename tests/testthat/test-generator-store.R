@@ -128,10 +128,20 @@ local({
     generator_store_approve(
       fixture$store, fixture$contract, fixture$record$generator_id, "Liz"
     )
+    # Effective per-dataset seeds are derived from the contract ID, which is
+    # hashed from the contract's compatibility envelope (including
+    # package_version). That makes this literal seed/fixture combination
+    # version-sensitive: it is verified here to clear the exact-row privacy
+    # check for the current package version, but a future DataGangeR version
+    # bump changes the derived seed stream and can coincidentally reintroduce
+    # an exact-row match for this small, low-cardinality fixture. If this
+    # test starts failing with `usable: FALSE` / empty output_hashes after a
+    # version bump, that is this coincidence recurring, not a regression --
+    # pick a new seed that clears the check under the new version.
     result <- generator_store_generate(
       fixture$store,
       fixture$contract$contract_id,
-      seed = 17L,
+      seed = 23L,
       n = 40L,
       datasets = 2L
     )
@@ -294,5 +304,28 @@ local({
       ),
       "not derived"
     )
+  })
+
+  test_that("a compatibility-envelope mismatch gets a clear migration message, not a tamper alarm", {
+    fixture <- store_fixture()
+    stale_compatibility <- modifyList(
+      generator_derive_compatibility(), list(package_version = "0.0.1")
+    )
+    stale <- generator_contract(
+      policy = generator_derive_policy(fixture$generator),
+      allowed = fixture$contract$allowed,
+      compatibility = stale_compatibility
+    )
+
+    err <- expect_error(
+      generator_store_approve(
+        fixture$store, stale, fixture$record$generator_id, "Liz"
+      ),
+      class = "dataganger_generator_store_error"
+    )
+    expect_false(inherits(err, "dataganger_generator_store_tamper_error"))
+    expect_match(err$message, "package_version", fixed = TRUE)
+    expect_match(err$message, "re-frozen and re-approved", fixed = TRUE)
+    expect_match(err$message, "0.0.1", fixed = TRUE)
   })
 })
