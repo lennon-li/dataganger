@@ -61,6 +61,7 @@
 <li>Only after prospective validation: expose an optional local gate in DataGangeR. Default package behavior remains no-network and human-gated.</li>
 </ol></li>
 <li><p><strong>Supersede the Jev-specific gate design with the engine-neutral roadmap.</strong> The earlier <code>dev/specs/2026-09-18-jev-ai-safe-gate.md</code> remains useful as design history, but Jev must not be a DataGangeR dependency. Raw data must never be sent to a remote decision engine. Any semantic model path must use a bounded/versioned local summary, deterministic blockers remain authoritative, and low-confidence/conflicting decisions go to human review.</p></li>
+<li><p><strong>Presidio optional detector integration — quick win.</strong> Roadmap: <code>dev/specs/2026-09-22-presidio-integration-roadmap.md</code>. Treat Presidio as a local optional PII evidence source, especially for free text and ambiguous identifier-like fields. Start in shadow mode; preserve default no-network behavior; do not add Python/spaCy as hard dependencies; do not allow Presidio to downgrade existing DataGangeR warnings. Build a focused disagreement benchmark before enabling conservative escalation.</p></li>
 </ul></div>
 
   </main></div>
