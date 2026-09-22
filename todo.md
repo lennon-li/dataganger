@@ -48,3 +48,12 @@ Pending canonical TODO sync:
   never be sent to a remote decision engine. Any semantic model path must use a
   bounded/versioned local summary, deterministic blockers remain authoritative,
   and low-confidence/conflicting decisions go to human review.
+
+
+- **Presidio optional detector integration — quick win.**
+  Roadmap: `dev/specs/2026-09-22-presidio-integration-roadmap.md`.
+  Treat Presidio as a local optional PII evidence source, especially for free
+  text and ambiguous identifier-like fields. Start in shadow mode; preserve
+  default no-network behavior; do not add Python/spaCy as hard dependencies;
+  do not allow Presidio to downgrade existing DataGangeR warnings. Build a
+  focused disagreement benchmark before enabling conservative escalation.
