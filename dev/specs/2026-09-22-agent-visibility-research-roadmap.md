@@ -272,3 +272,118 @@ Research aims:
 
 This framing separates methodological research from software engineering and is
 suitable for statistical/data-science/privacy funding calls.
+
+
+## Funding targets (checked 2026-09-22)
+
+Treat funding as support for the research program, not as a reason to collapse the
+gates or overstate readiness.
+
+### High-priority active / upcoming fits
+
+1. **CANSSI Ontario — AI Applications in Statistical Sciences Research**
+   - Up to $12,500 for one year.
+   - Deadline: February 3, 2027.
+   - Strong fit for the methodological core: using Laya/transformers to enhance
+     statistical methodology, calibration, and privacy-risk decision modelling.
+   - Candidate proposal: compare semantic decision models with interpretable
+     statistical risk models and transparent ensembles for agent data access.
+
+2. **University of Toronto DSI — Research Software Development Support Program**
+   - Professional research-software developer support for 2-6 months.
+   - Deadline: October 16, 2026.
+   - Strong fit for hardening Which/DataGangeR integration, benchmark tooling,
+     reproducible model artifacts, local inference, and open-source packaging.
+   - This is in-kind software-development support rather than a cash research grant.
+
+3. **University of Toronto DSI — Emergent Data Sciences Program**
+   - $50,000-$100,000 over 1-2 years.
+   - LOI deadline: November 20, 2026; full proposal February 19, 2027.
+   - Best fit if framed as a broader U of T research/community program around
+     privacy-preserving AI access to sensitive research data, with seminars,
+     trainees, visitors, benchmarking, and cross-disciplinary collaboration.
+
+4. **CANSSI Ontario — Data Access Grants**
+   - Up to $5,000.
+   - Rolling applications.
+   - Fit only when a specific paid dataset is needed to develop/validate
+     statistical methodology. It is not general project funding.
+
+5. **NSERC Alliance Advantage / Alliance Society**
+   - Alliance Advantage accepts applications with no deadline and supports
+     partnered research; Alliance Society is aimed at science/engineering
+     challenges with societal impact.
+   - Potential fit for a larger phase if a credible public/not-for-profit/private
+     partner contributes to the research and deployment problem.
+   - Better as a scale-up target after seed evidence exists.
+
+### Conditional / eligibility-dependent
+
+6. **Banting-CANSSI Discovery Award in Biostatistics**
+   - Up to $30,000 for one year.
+   - 2026 cycle lists a November 2026 NOI and January 2027 application.
+   - Only relevant if the applicant meets the new-investigator eligibility window
+     and the project is anchored in biomedicine, occupational health, or
+     environmental health.
+
+### Watch for the next cycle
+
+7. **Office of the Privacy Commissioner of Canada — Contributions Program**
+   - Direct thematic fit with privacy and data-protection research.
+   - The 2026-27 call closed February 20, 2026; the program issues calls annually
+     and awards up to $100,000 per project.
+   - Eligibility is at the organization level (not-for-profit organizations,
+     including educational institutions), projects must be national in scope, and
+     the primary focus must address private-sector privacy under the program's
+     mandate.
+   - Watch the next call rather than forcing the current research into the closed
+     2026-27 theme.
+
+8. **CANSSI Collaborative Research Teams**
+   - Up to $210,000 over three years.
+   - The 2026 deadline (May 22) has passed.
+   - Strong future scale-up fit once there is a multi-institution statistical
+     research team and the project has moved beyond proof-of-concept.
+
+### Recently missed but strategically relevant
+
+9. **U of T DSI Catalyst Grant**
+   - Tier 1 up to $100,000; Tier 2 up to $50,000 for 1-2 years.
+   - 2026 LOI deadline has passed.
+   - Strong candidate for the next cycle after a seed benchmark exists.
+
+10. **U of T DSI Data Access Grant**
+    - Up to $10,000 for data-access costs.
+    - 2026 deadline (September 15) has passed.
+    - Relevant for a later validation dataset requiring paid access, not for
+      general model/software work.
+
+### Funding sequence
+
+Recommended order:
+
+```text
+2026 fall:
+  DSI Research Software Development Support
+  + consider DSI Emergent Data Sciences
+
+2026/27 winter:
+  CANSSI Ontario AI Applications in Statistical Sciences
+  + Banting-CANSSI only if eligibility fits
+
+rolling:
+  CANSSI Ontario Data Access when a concrete paid dataset is identified
+  NSERC Alliance once a partner and larger research plan are ready
+
+next calls:
+  OPC Contributions Program
+  DSI Catalyst
+  CANSSI CRT
+```
+
+The first grant application should fund a bounded scientific question, not the
+entire long-term architecture. A good seed question is:
+
+> Can semantic typed-decision models and interpretable statistical models provide
+> independently useful, calibrated evidence for deciding when research data
+> require transformation or human review before exposure to an AI agent?
