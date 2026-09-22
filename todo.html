@@ -42,8 +42,26 @@
 
 <p>The active TODO list and delivery plan live in the dataganger project memory: <code>/home/yeli/obsidian/AgentSystem/agent-memory/projects/dataganger/TODO.md</code>.</p>
 <p>Keep this file as a pointer only so repository and project-memory queues do not drift. Reconcile the canonical TODO and <code>HANDOFF_LOG.md</code> after each handoff.</p>
-<p>Pending canonical TODO sync: - <strong>Jev-backed AI visibility gate</strong> — add a local-first <code>ai_safe()</code> / <code>dataganger ai-safe</code> decision surface. Raw data must never be sent to Jev; DataGangeR performs local role/privacy checks, applies deterministic blockers, and sends only a versioned sanitized risk summary for ambiguous decisions. Preserve no-network core behavior, target-specific policy, fail-closed semantics, machine-readable agent outcomes, and mandatory privacy-boundary tests. Detailed design: <code>dev/specs/2026-09-18-jev-ai-safe-gate.md</code>.</p>
-</div>
+<p>Pending canonical TODO sync:</p>
+<ul><li>
+<p><strong>AI visibility / agent-exposure research program — gated, not implementation-ready.</strong> Detailed roadmap: <code>dev/specs/2026-09-22-agent-visibility-research-roadmap.md</code>. The immediate task is to finish the reusable decision infrastructure in <strong>Which</strong> and use the existing Obsidian/Hermes Jev harness to collect prospective delegation data. Do not start a Laya fine-tune, statistical safety model, or ensemble until the gates in the roadmap are met.</p>
+<p><strong>Repository boundary:</strong></p>
+<ul><li>
+<strong>Which owns</strong> generic typed-decision engines/adapters (Jev, Laya, future engines), common schemas, engine-neutral gold datasets, calibration, abstention/threshold tooling, benchmark/evaluation utilities, model artifact manifests, and engine-comparison reports.</li>
+<li>
+<strong>DataGangeR owns</strong> the privacy threat model, column/dataset summaries, deterministic identifier/sensitivity/disclosure checks, the definition and labels for agent-exposure risk, reconciliation rules, user-facing review gates, synthetic-data workflow, and the optional <code>ai_safe()</code> / <code>dataganger ai-safe</code> application surface.</li>
+<li>DataGangeR may consume Which, but Which must not contain DataGangeR privacy policy or claim that data are safe.</li>
+</ul><p><strong>Research gates:</strong></p>
+<ol style="list-style-type: decimal"><li>Which + Hermes/Jev prospective testing and reproducible calibration infrastructure.</li>
+<li>Which + Laya parity on the same held-out delegation cases.</li>
+<li>DataGangeR public/synthetic semantic benchmark: deterministic detector vs stock Laya vs calibrated Laya vs hybrid.</li>
+<li>Only if Laya adds value: consider DataGangeR-specific Laya fine-tuning.</li>
+<li>Separately define and validate an interpretable statistical <code>agent_exposure_risk</code> model from measurable privacy/disclosure features.</li>
+<li>Only if both Laya and the statistical model independently add predictive information on an untouched test set: evaluate an ensemble.</li>
+<li>Only after prospective validation: expose an optional local gate in DataGangeR. Default package behavior remains no-network and human-gated.</li>
+</ol></li>
+<li><p><strong>Supersede the Jev-specific gate design with the engine-neutral roadmap.</strong> The earlier <code>dev/specs/2026-09-18-jev-ai-safe-gate.md</code> remains useful as design history, but Jev must not be a DataGangeR dependency. Raw data must never be sent to a remote decision engine. Any semantic model path must use a bounded/versioned local summary, deterministic blockers remain authoritative, and low-confidence/conflicting decisions go to human review.</p></li>
+</ul></div>
 
   </main></div>
 
