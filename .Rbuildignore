@@ -40,3 +40,4 @@
 ^SECURITY\.md$
 ^.*\.tar\.gz$
 ^.*\.Rcheck$
+^\.oss-scanner$
