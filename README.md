@@ -16,7 +16,10 @@ The workflow is deliberately **human-gated**: you review privacy-sensitive roles
 before synthesis, inspect fidelity and disclosure warnings afterward, and decide
 what leaves your machine.
 
-**Current CRAN release: 0.8.2**
+**Current CRAN release: 0.8.2. Repository development version: 0.9.0 (not yet submitted to CRAN).**
+
+This README and the documentation site track the development version on `main`.
+Development-only features are identified below; they are not available in CRAN 0.8.2.
 
 - Documentation: <https://dataganger.biostats.ai/>
 - CRAN: <https://CRAN.R-project.org/package=dataganger>
@@ -55,9 +58,26 @@ or a reproducible recipe rather than reading the original records directly.
 
 ## Install
 
+### Stable version from CRAN
+
 ```r
 install.packages("dataganger")
 ```
+
+### Development version from GitHub
+
+To try the unreleased development version, including frozen generators:
+
+```r
+install.packages("remotes")  # if needed
+remotes::install_github("lennon-li/dataganger", ref = "main")
+```
+
+The development version can change and has not been submitted to CRAN. Use the
+CRAN version for the published release; do not assume development examples work
+with that version. Check your installed version with `packageVersion("dataganger")`.
+
+### Optional engine and app
 
 For relationship-aware synthesis, installing `synthpop` is strongly recommended:
 
@@ -159,6 +179,10 @@ When using the `synthpop` engine, please cite:
 
 ## Frozen generators: freeze once, generate many
 
+**Development-only: introduced in 0.9.0; not available in CRAN 0.8.2.**
+Use the [development installation](#development-version-from-github) above for
+this example and the `dataganger generator ...` lifecycle commands.
+
 The pipeline above opens the real data every time it runs. When a team needs a
 fresh synthetic dataset repeatedly, DataGangeR can instead freeze a reviewed
 synthesis policy against the real data **once** and generate from the approved
@@ -232,7 +256,8 @@ reporting guidance.
 
 ## Project status
 
-The current release is available from CRAN and is tested through GitHub Actions on
+The published CRAN release is 0.8.2. Repository version 0.9.0 is in development
+and has not yet been submitted to CRAN. The repository is tested through GitHub Actions on
 Windows, macOS, Linux release/devel/oldrel, a dedicated `synthpop` path, and a
 network-disabled test job.
 
